@@ -1,4 +1,4 @@
-🧑‍💻 E1 — Tech Lead / Senior Backend Engineer
+🧑‍💻 E1 — Tech Lead
 
 ## Sprint 0 — Foundation (Weeks 1–2)
 
