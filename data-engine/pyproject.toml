@@ -7,10 +7,12 @@ requires-python = ">=3.12"
 dependencies = [
     "confluent-kafka>=2.14.0",
     "dagster>=1.13.3",
+    "dagster-webserver>=1.13.3",
     "dedupe>=3.0.3",
     "duckdb>=1.5.2",
     "fastapi>=0.136.1",
     "polars>=1.40.1",
+    "pydantic-settings>=2.0.0",
     "recordlinkage>=0.16",
     "uvicorn>=0.46.0",
 ]
@@ -20,3 +22,7 @@ dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.12",
 ]
+
+[tool.dagster]
+module_name = "app.processing.pipelines.ingest_pipeline"
+

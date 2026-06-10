@@ -1,0 +1,20 @@
+# dagster_workspace.yaml
+# -----------------------
+# Dagster workspace configuration for the LuminAI Data Engine.
+#
+# Declares the code locations (Python modules) that Dagster should
+# discover and load into the web UI and daemon.
+#
+# Usage:
+#   uv run dagster dev -p 3001
+#   → Launches the Dagster web UI at http://localhost:3001
+#
+# References:
+#   https://docs.dagster.io/concepts/code-locations/workspace-yaml
+
+load_from:
+  - python_module:
+      module_name: app.processing.pipelines.ingest_pipeline
+      attribute: defs
+      location_name: data_engine_pipelines
+      working_directory: .
