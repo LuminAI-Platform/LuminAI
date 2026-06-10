@@ -22,3 +22,7 @@ dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.12",
 ]
+
+[tool.dagster]
+module_name = "app.processing.pipelines.ingest_pipeline"
+
