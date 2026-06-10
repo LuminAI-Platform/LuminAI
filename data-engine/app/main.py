@@ -1,0 +1,69 @@
+"""
+app/main.py
+-----------
+FastAPI application entry point for the LuminAI Data Engine.
+
+Responsibilities:
+  - Configure CORS to allow requests from the Core Java Backend and React SPA.
+  - Register all API routers (health, processing, analytics).
+  - Expose FastAPI metadata for Swagger /docs auto-generation.
+"""
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api import analytics, health, processing
+from app.config import get_settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application startup / shutdown hooks."""
+    settings = get_settings()
+    print(f"🚀  {settings.app_name} v{settings.app_version} starting up…")
+    # Future: initialise Kafka consumers, DB connection pools, etc.
+    yield
+    print("🛑  Data Engine shutting down…")
+    # Future: flush producers, close pools, etc.
+
+
+def create_app() -> FastAPI:
+    settings = get_settings()
+
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.app_version,
+        description=(
+            "LuminAI Data & AI Engine — pipeline orchestration, "
+            "entity resolution, analytics, and AI/ML endpoints."
+        ),
+        contact={
+            "name": "LuminAI Engineering",
+            "url": "https://luminai.io",
+        },
+        license_info={
+            "name": "Proprietary",
+        },
+        lifespan=lifespan,
+    )
+
+    # ── CORS ──────────────────────────────────────────────────────────────
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # ── Routers ───────────────────────────────────────────────────────────
+    app.include_router(health.router)
+    app.include_router(processing.router, prefix="/process", tags=["Processing"])
+    app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+
+    return app
+
+
+app = create_app()
