@@ -1,0 +1,156 @@
+version: "3.9"
+
+# ─── SERVICES ────────────────────────────────────────────────────────────────
+services:
+
+  # ── 1. PostgreSQL (main database) ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: luminai
+      POSTGRES_PASSWORD: luminai
+      POSTGRES_DB: luminai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U luminai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - luminai-net
+
+  # ── 2. PgBouncer (connection pooler in front of Postgres) ──────────────────
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    ports:
+      - "127.0.0.1:6432:6432"
+    environment:
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_DATABASE: luminai
+      POSTGRESQL_USERNAME: luminai
+      POSTGRESQL_PASSWORD: luminai
+      PGBOUNCER_POOL_MODE: transaction
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - luminai-net
+
+  # ── 3. Neo4j (graph database) ───────────────────────────────────────────────
+  neo4j:
+    image: neo4j:5
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/luminai_secret
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - luminai-net
+
+  # ── 4. OpenSearch (search engine) ──────────────────────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2
+    ports:
+      - "127.0.0.1:9200:9200"
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'green\\|yellow'"]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+    networks:
+      - luminai-net
+
+  # ── 5. MinIO (file/object storage) ─────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: luminai
+      MINIO_ROOT_PASSWORD: luminai_secret
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - luminai-net
+
+  # ── 6. Redis (cache & websockets) ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - luminai-net
+
+  # ── 7. Keycloak (login / identity provider) ────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    ports:
+      - "127.0.0.1:8180:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/luminai
+      KC_DB_USERNAME: luminai
+      KC_DB_PASSWORD: luminai
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && head -n 1 <&3 | grep -q '200 OK'"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 40s
+    networks:
+      - luminai-net
+
+# ─── NAMED VOLUMES (persistent storage) ──────────────────────────────────────
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  opensearch_data:
+  minio_data:
+  redis_data:
+
+# ─── NETWORK ──────────────────────────────────────────────────────────────────
+networks:
+  luminai-net:
+    driver: bridge
