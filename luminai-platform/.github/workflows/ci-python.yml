@@ -1,0 +1,45 @@
+name: CI - Data Engine (Python)
+
+on:
+  pull_request:
+    paths:
+      - 'data-engine/**'
+      - '.github/workflows/ci-python.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('data-engine/uv.lock') }}
+
+      - name: Sync dependencies
+        working-directory: data-engine
+        run: uv sync --frozen
+
+      - name: Run ruff (lint check)
+        working-directory: data-engine
+        run: uv run ruff check .
+
+      - name: Run pytest
+        working-directory: data-engine
+        run: uv run pytest --junitxml=test-results.xml
+
+      - name: Upload test report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-test-report
+          path: data-engine/test-results.xml

@@ -1,11 +1,14 @@
 {
   "realm": "luminai",
   "enabled": true,
+  "registrationAllowed": false,
   "clients": [
     {
       "clientId": "luminai-spa",
+      "name": "LuminAI SPA",
       "enabled": true,
       "publicClient": true,
+      "protocol": "openid-connect",
       "redirectUris": ["http://localhost:3000/*"],
       "webOrigins": ["http://localhost:3000"],
       "standardFlowEnabled": true,
@@ -23,6 +26,7 @@
       "username": "admin@luminai.dev",
       "enabled": true,
       "email": "admin@luminai.dev",
+      "emailVerified": true,
       "credentials": [
         {
           "type": "password",
@@ -30,7 +34,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin"]
+      "realmRoles": ["admin", "user"]
     }
   ]
 }

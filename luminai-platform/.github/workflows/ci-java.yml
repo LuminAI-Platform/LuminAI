@@ -1,0 +1,43 @@
+name: CI - Java Backend
+
+on:
+  pull_request:
+    paths:
+      - 'core-backend/**'
+      - '.github/workflows/ci-java.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('core-backend/**/*.gradle*', 'core-backend/**/*.java') }}
+
+      - name: Check code formatting
+        working-directory: core-backend
+        run: gradle spotlessCheck
+
+      - name: Run tests
+        working-directory: core-backend
+        run: gradle test
+
+      - name: Upload test report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-test-report
+          path: core-backend/build/reports/tests/
