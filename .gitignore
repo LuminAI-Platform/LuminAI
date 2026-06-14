@@ -3,6 +3,7 @@
 # ========================
 .gradle/
 build/
+out/
 !gradle/wrapper/gradle-wrapper.jar
 *.class
 *.jar
@@ -29,19 +30,34 @@ htmlcov/
 # ========================
 node_modules/
 dist/
+dist-ssr/
 .next/
 *.tsbuildinfo
+.eslintcache
+coverage/
 
 # ========================
-# IDE
+# IDE / Editors
 # ========================
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-.DS_Store
-Thumbs.db
+.history/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ========================
+# Databases / Local Storage
+# ========================
+*.db
+*.sqlite
+data/
+minio_data/
+postgres_data/
 
 # ========================
 # Environment / Secrets
@@ -49,6 +65,11 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
+.env.staging
+!.env.example
+!.env.template
 *.pem
 *.key
 
@@ -59,6 +80,7 @@ Thumbs.db
 *.tfstate
 *.tfstate.backup
 *.tfvars
+*.tfvars.json
 !*.tfvars.example
 
 # ========================

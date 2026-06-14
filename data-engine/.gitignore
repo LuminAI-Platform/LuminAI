@@ -1,7 +1,39 @@
-venv
-.env
-__pycache__
-*.pyc
+# ========================
+# Python / Virtualenv
+# ========================
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ========================
+# Databases / Local Storage
+# ========================
 *.db
-.vscode
-.env.example
+*.sqlite
+data/
+minio_data/
+
+# ========================
+# Secrets / Configuration
+# ========================
+.env
+.env.*
+!.env.example
+!.env.template
+
+# ========================
+# IDE / Editor Caches
+# ========================
+.vscode/
+.idea/
+.ipynb_checkpoints/
+
+# ========================
+# Caches / Testing
+# ========================
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
