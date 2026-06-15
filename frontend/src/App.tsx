@@ -7,13 +7,24 @@ import {
   Link,
 } from '@tanstack/react-router'
 import { AppShell } from './components/layout/AppShell'
+import { ProtectedRoute } from './components/layout/ProtectedRoute'
+import { LoginPage } from './features/auth/LoginPage'
+import { CallbackPage } from './features/auth/CallbackPage'
 
 // 1. Root Route
 const rootRoute = createRootRoute({
+  component: () => <Outlet />,
+})
+
+const shellRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: '_shell',
   component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <ProtectedRoute>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </ProtectedRoute>
   ),
 })
 
@@ -313,49 +324,65 @@ const SettingsView = () => {
 }
 
 // 3. Create Routes Tree
-const indexRoute = createRoute({
+const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
+  path: '/login',
+  component: LoginPage,
+})
+
+const callbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/callback',
+  component: CallbackPage,
+})
+
+const indexRoute = createRoute({
+  getParentRoute: () => shellRoute,
   path: '/',
   component: DashboardView,
 })
 
 const explorerRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: '/explorer',
   component: ExplorerView,
 })
 
 const connectionsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: '/connections',
   component: ConnectionsView,
 })
 
 const ontologyRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: '/ontology',
   component: OntologyView,
 })
 
 const graphRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: '/graph',
   component: GraphView,
 })
 
 const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: '/settings',
   component: SettingsView,
 })
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  explorerRoute,
-  connectionsRoute,
-  ontologyRoute,
-  graphRoute,
-  settingsRoute,
+  loginRoute,
+  callbackRoute,
+  shellRoute.addChildren([
+    indexRoute,
+    explorerRoute,
+    connectionsRoute,
+    ontologyRoute,
+    graphRoute,
+    settingsRoute,
+  ]),
 ])
 
 // 4. Create Router

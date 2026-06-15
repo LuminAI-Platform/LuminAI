@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from '@tanstack/react-router'
+import { useAuthStore } from '../../stores/authStore'
 
 interface SidebarProps {
   collapsed: boolean
@@ -73,6 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
+  const { user, logout } = useAuthStore()
+
   return (
     <>
       {/* Sidebar mobile backdrop */}
@@ -106,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-y-auto">
+        <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-hidden">
           {navItems.map((item) => (
             <Link
               key={item.to}
@@ -193,19 +196,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </a>
 
           {/* User profile card */}
-          <div className={`flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl overflow-hidden mt-2 transition-all ${collapsed ? 'justify-center p-1.5' : ''
+          <div className={`flex items-center justify-between p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl overflow-hidden mt-2 transition-all ${collapsed ? 'justify-center p-1.5' : ''
             }`}>
-            <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden">
-              <svg className="text-zinc-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs select-none">
+                {user?.profile?.name?.substring(0, 2).toUpperCase() || user?.profile?.email?.substring(0, 2).toUpperCase() || 'US'}
+              </div>
+              <div className={`flex flex-col overflow-hidden transition-opacity duration-200 ${collapsed ? 'opacity-0 w-0' : 'opacity-100'
+                }`}>
+                <span className="text-[12px] font-semibold text-zinc-200 truncate leading-tight">
+                  {user?.profile?.name || user?.profile?.preferred_username || 'Admin User'}
+                </span>
+                <span className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">
+                  {user?.profile?.email || 'admin@luminai.dev'}
+                </span>
+              </div>
             </div>
-            <div className={`flex flex-col overflow-hidden transition-opacity duration-200 ${collapsed ? 'opacity-0 w-0' : 'opacity-100'
-              }`}>
-              <span className="text-[12px] font-semibold text-zinc-200 truncate leading-tight">Admin User</span>
-              <span className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">Global Tenant</span>
-            </div>
+
+            {!collapsed && (
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-850 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Sign Out"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </aside>
