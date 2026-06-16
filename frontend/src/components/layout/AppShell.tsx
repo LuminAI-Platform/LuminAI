@@ -1,14 +1,14 @@
-import React, { useState } from 'react'
-import { Sidebar } from './Sidebar'
-import { TopBar } from './TopBar'
+import React, { useState } from "react";
+import { Sidebar } from "./Sidebar";
+import { TopBar } from "./TopBar";
 
 interface AppShellProps {
-  children?: React.ReactNode
+  children?: React.ReactNode;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans">
@@ -29,7 +29,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         <main className="flex-1 overflow-y-auto p-6 md:p-8 relative min-w-0">
           {/* Subtle dotted background grid */}
           <div className="absolute inset-0 bg-grid-dots pointer-events-none z-0" />
-          
+
           {/* Children views container */}
           <div className="relative z-10 max-w-6xl mx-auto w-full">
             {children}
@@ -41,7 +41,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           <div className="flex items-center gap-4">
             <span className="flex items-center">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 shadow-sm shadow-emerald-500/50" />
-              Cluster:{' '}
+              Cluster:{" "}
               <span className="text-zinc-300 ml-1">lumin-us-east-1</span>
             </span>
             <span>|</span>
@@ -59,5 +59,5 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </footer>
       </div>
     </div>
-  )
-}
+  );
+};
