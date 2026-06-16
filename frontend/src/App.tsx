@@ -7,6 +7,7 @@ import {
   Link,
 } from "@tanstack/react-router";
 import { AppShell } from "./components/layout/AppShell";
+import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -472,42 +473,44 @@ const loginRoute = createRoute({
 });
 
 const explorerRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: "/explorer",
   component: ExplorerView,
 });
 
 const connectionsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: "/connections",
   component: ConnectionsView,
 });
 
 const ontologyRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: "/ontology",
   component: OntologyView,
 });
 
 const graphRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: "/graph",
   component: GraphView,
 });
 
 const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: "/settings",
   component: SettingsView,
 });
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  explorerRoute,
-  connectionsRoute,
-  ontologyRoute,
-  graphRoute,
-  settingsRoute,
+  loginRoute,
+  shellRoute.addChildren([
+    explorerRoute,
+    connectionsRoute,
+    ontologyRoute,
+    graphRoute,
+    settingsRoute,
+  ]),
 ]);
 
 // 4. Create Router

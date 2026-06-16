@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
+import { useAuthStore } from "../../stores/authStore";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -123,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
-  const { user, logout } = useAuthStore();
+  const { logout } = useAuthStore();
 
   return (
     <>
