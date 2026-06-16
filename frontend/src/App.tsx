@@ -8,6 +8,8 @@ import {
 } from "@tanstack/react-router";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import { LoginPage } from "./features/auth/LoginPage";
+import { CallbackPage } from "./features/auth/CallbackPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -466,10 +468,22 @@ const SettingsView = () => {
 };
 
 // 3. Create Routes Tree
-const loginRoute = createRoute({
+const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: DashboardView,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  component: LoginPage,
+});
+
+const callbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/callback",
+  component: CallbackPage,
 });
 
 const explorerRoute = createRoute({
@@ -503,7 +517,9 @@ const settingsRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([
+  indexRoute,
   loginRoute,
+  callbackRoute,
   shellRoute.addChildren([
     explorerRoute,
     connectionsRoute,
