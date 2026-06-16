@@ -1,33 +1,33 @@
-import React, { useEffect, useRef } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { useAuthStore } from '../../stores/authStore'
+import React, { useEffect, useRef } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuthStore } from "../../stores/authStore";
 
 export const CallbackPage: React.FC = () => {
-  const { handleCallback, error, clearError } = useAuthStore()
-  const navigate = useNavigate()
-  const hasTriggered = useRef(false)
+  const { handleCallback, error, clearError } = useAuthStore();
+  const navigate = useNavigate();
+  const hasTriggered = useRef(false);
 
   useEffect(() => {
     // Prevent double execution in React StrictMode
-    if (hasTriggered.current) return
-    hasTriggered.current = true
+    if (hasTriggered.current) return;
+    hasTriggered.current = true;
 
     const processCallback = async () => {
       try {
-        await handleCallback()
-        navigate({ to: '/', replace: true })
+        await handleCallback();
+        navigate({ to: "/", replace: true });
       } catch (err) {
-        console.error('Authentication callback error:', err)
+        console.error("Authentication callback error:", err);
       }
-    }
+    };
 
-    processCallback()
-  }, [handleCallback, navigate])
+    processCallback();
+  }, [handleCallback, navigate]);
 
   const handleRetry = () => {
-    clearError()
-    navigate({ to: '/login', replace: true })
-  }
+    clearError();
+    navigate({ to: "/login", replace: true });
+  };
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
@@ -41,16 +41,26 @@ export const CallbackPage: React.FC = () => {
         {error ? (
           <div className="space-y-6">
             <div className="w-16 h-16 bg-red-950/40 border border-red-500/30 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-red-500/10">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </div>
-            
+
             <div className="space-y-2">
-              <h3 className="text-lg font-bold tracking-tight text-zinc-100">Authentication Failed</h3>
+              <h3 className="text-lg font-bold tracking-tight text-zinc-100">
+                Authentication Failed
+              </h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                {error || 'An error occurred while validating the security token. Please try again.'}
+                {error ||
+                  "An error occurred while validating the security token. Please try again."}
               </p>
             </div>
 
@@ -72,12 +82,16 @@ export const CallbackPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400 font-mono">Finalizing Session</h3>
-              <p className="text-[11px] text-zinc-500">Exchanging authorization codes for cryptographic tokens...</p>
+              <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400 font-mono">
+                Finalizing Session
+              </h3>
+              <p className="text-[11px] text-zinc-500">
+                Exchanging authorization codes for cryptographic tokens...
+              </p>
             </div>
           </>
         )}
       </div>
     </div>
-  )
-}
+  );
+};
