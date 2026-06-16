@@ -11,11 +11,11 @@ import { AppShell } from "./components/layout/AppShell";
 // 1. Root Route
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
-})
+});
 
 const shellRoute = createRoute({
   getParentRoute: () => rootRoute,
-  id: '_shell',
+  id: "_shell",
   component: () => (
     <ProtectedRoute>
       <AppShell>
