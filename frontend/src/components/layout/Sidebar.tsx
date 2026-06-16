@@ -123,6 +123,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
+  const { user, logout } = useAuthStore()
+
   return (
     <>
       {/* Sidebar mobile backdrop */}
@@ -179,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-y-auto">
+        <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-hidden">
           {navItems.map((item) => (
             <Link
               key={item.to}
@@ -335,6 +337,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 Global Tenant
               </span>
             </div>
+
+            {!collapsed && (
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-850 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Sign Out"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </aside>

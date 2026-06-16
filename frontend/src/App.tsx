@@ -10,10 +10,18 @@ import { AppShell } from "./components/layout/AppShell";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
+  component: () => <Outlet />,
+})
+
+const shellRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: '_shell',
   component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <ProtectedRoute>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </ProtectedRoute>
   ),
 });
 
@@ -457,7 +465,7 @@ const SettingsView = () => {
 };
 
 // 3. Create Routes Tree
-const indexRoute = createRoute({
+const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: DashboardView,
