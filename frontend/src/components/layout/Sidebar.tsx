@@ -140,6 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar container */}
       <aside
+        onMouseLeave={() => setCollapsed(true)}
         className={`fixed md:relative top-0 bottom-0 z-50 flex flex-col h-full bg-zinc-900 border-r border-zinc-800/80 transition-all duration-300 ease-in-out select-none ${
           collapsed ? "w-16" : "w-64"
         } ${mobileOpen ? "left-0" : "-left-full md:left-0"}`}
@@ -150,7 +151,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             collapsed ? "justify-center px-0" : "px-5"
           }`}
         >
-          <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center shrink-0 font-bold shadow-lg shadow-blue-500/20">
+          <div
+            onMouseEnter={() => setCollapsed(false)}
+            className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center shrink-0 font-bold shadow-lg shadow-blue-500/20 cursor-pointer"
+          >
             <svg
               width="18"
               height="18"
@@ -210,36 +214,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Footer section */}
         <div className="p-3 border-t border-zinc-800/80 flex flex-col gap-1 shrink-0">
-          {/* Collapse button */}
-          <button
-            type="button"
-            className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent w-full text-left"
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            <svg
-              className="shrink-0 transition-transform duration-200"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ transform: collapsed ? "rotate(180deg)" : "none" }}
-            >
-              <polyline points="11 17 6 12 11 7" />
-              <polyline points="18 17 13 12 18 7" />
-            </svg>
-            <span
-              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-              }`}
-            >
-              Collapse
-            </span>
-          </button>
-
           {/* Settings */}
           <Link
             to="/settings"
