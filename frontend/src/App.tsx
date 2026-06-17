@@ -469,7 +469,7 @@ const SettingsView = () => {
 
 // 3. Create Routes Tree
 const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => shellRoute,
   path: "/",
   component: DashboardView,
 });
@@ -517,10 +517,10 @@ const settingsRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
   loginRoute,
   callbackRoute,
   shellRoute.addChildren([
+    indexRoute,
     explorerRoute,
     connectionsRoute,
     ontologyRoute,
