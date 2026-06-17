@@ -197,6 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
               }}
               onClick={() => setMobileOpen(false)}
+              title={collapsed ? item.label : undefined}
             >
               {item.icon}
               <span
@@ -223,6 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
             }}
             onClick={() => setMobileOpen(false)}
+            title={collapsed ? "Setting" : undefined}
           >
             <svg
               className="shrink-0"
@@ -253,6 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+            title={collapsed ? "Support" : undefined}
           >
             <svg
               className="shrink-0"
@@ -280,13 +283,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* User profile card */}
           <div
-            className={`flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl overflow-hidden mt-2 transition-all ${
-              collapsed ? "justify-center p-1.5" : ""
+            className={`group flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl overflow-hidden mt-2 transition-all ${
+              collapsed ? "justify-center p-1.5 cursor-pointer hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 text-zinc-400" : ""
             }`}
+            onClick={collapsed ? () => logout() : undefined}
+            title={collapsed ? "Sign Out (Admin User)" : undefined}
           >
-            <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden">
+            <div className={`w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden transition-colors ${
+              collapsed ? "group-hover:border-red-500/30" : ""
+            }`}>
               <svg
-                className="text-zinc-400"
+                className={`transition-colors ${
+                  collapsed ? "text-zinc-400 group-hover:text-red-400" : "text-zinc-400"
+                }`}
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
