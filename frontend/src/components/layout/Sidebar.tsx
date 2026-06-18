@@ -197,6 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
               }}
               onClick={() => setMobileOpen(false)}
+              title={collapsed ? item.label : undefined}
             >
               {item.icon}
               <span
@@ -223,6 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
             }}
             onClick={() => setMobileOpen(false)}
+            title={collapsed ? "Setting" : undefined}
           >
             <svg
               className="shrink-0"
@@ -253,6 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+            title={collapsed ? "Support" : undefined}
           >
             <svg
               className="shrink-0"
@@ -279,16 +282,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </a>
 
           {/* User profile card */}
-          <div
-            className={`flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl overflow-hidden mt-2 transition-all ${
-              collapsed ? "justify-center p-1.5" : ""
-            }`}
-          >
-            <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden">
+          {collapsed ? (
+            /* Collapsed: render exactly like other footer items — bare SVG, p-2.5, no avatar wrapper */
+            <div
+              className="group flex items-center p-2.5 text-zinc-400 hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 cursor-pointer transition-all"
+              onClick={() => logout()}
+              title="Sign Out (Admin User)"
+            >
               <svg
-                className="text-zinc-400"
-                width="16"
-                height="16"
+                className="shrink-0 transition-colors group-hover:text-red-400"
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -300,20 +304,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-            <div
-              className={`flex flex-col overflow-hidden transition-opacity duration-200 ${
-                collapsed ? "opacity-0 w-0" : "opacity-100"
-              }`}
-            >
-              <span className="text-[12px] font-semibold text-zinc-200 truncate leading-tight">
-                Admin User
-              </span>
-              <span className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">
-                Global Tenant
-              </span>
-            </div>
-
-            {!collapsed && (
+          ) : (
+            /* Expanded: full card with avatar, user info, and logout button */
+            <div className="group flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 transition-all">
+              <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden">
+                <svg
+                  className="text-zinc-400"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <div className="flex flex-col overflow-hidden flex-1">
+                <span className="text-[12px] font-semibold text-zinc-200 truncate leading-tight">
+                  Admin User
+                </span>
+                <span className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">
+                  Global Tenant
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => logout()}
@@ -335,8 +352,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </aside>
     </>

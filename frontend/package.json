@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "format:check": "prettier --check .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:api": "openapi-generator-cli generate"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@openapitools/openapi-generator-cli": "^2.38.0",
     "@types/cytoscape": "^3.21.9",
     "@types/echarts": "^4.9.22",
     "@types/node": "^24.12.2",
