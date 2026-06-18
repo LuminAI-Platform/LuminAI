@@ -128,172 +128,152 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { logout } = useAuthStore();
 
   return (
-    // TooltipProvider here scopes all SidebarTooltip instances.
-    // skipDelayDuration=0 means if you move between items quickly the next
-    // tooltip opens instantly (no second 200 ms wait) — exactly like Gemini.
-    <TooltipProvider delayDuration={200} skipDelayDuration={0}>
-      <>
-        {/* Sidebar mobile backdrop */}
-        <div
-          className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity duration-300 ${
-            mobileOpen
-              ? "opacity-100 pointer-events-auto"
-              : "opacity-0 pointer-events-none"
+    <>
+      {/* Sidebar mobile backdrop */}
+      <div
+        className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity duration-300 ${mobileOpen
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
           }`}
-          onClick={() => setMobileOpen(false)}
-        />
+        onClick={() => setMobileOpen(false)}
+      />
 
-        {/* Sidebar container */}
-        <aside
-          onMouseLeave={() => setCollapsed(true)}
-          className={`fixed md:relative top-0 bottom-0 z-50 flex flex-col h-full bg-zinc-900 border-r border-zinc-800/80 transition-all duration-300 ease-in-out select-none ${
-            collapsed ? "w-16" : "w-64"
+      {/* Sidebar container */}
+      <aside
+        onMouseLeave={() => setCollapsed(true)}
+        className={`fixed md:relative top-0 bottom-0 z-50 flex flex-col h-full bg-zinc-900 border-r border-zinc-800/80 transition-all duration-300 ease-in-out select-none ${collapsed ? "w-16" : "w-64"
           } ${mobileOpen ? "left-0" : "-left-full md:left-0"}`}
-        >
-          {/* ── Header ── */}
-          <div
-            className={`h-16 flex items-center border-b border-zinc-800/80 gap-3 overflow-hidden shrink-0 ${
-              collapsed ? "justify-center px-0" : "px-5"
+      >
+        {/* Header Section */}
+        <div
+          className={`h-16 flex items-center border-b border-zinc-800/80 gap-3 overflow-hidden shrink-0 ${collapsed ? "justify-center px-0" : "px-5"
             }`}
+        >
+          <div
+            onMouseEnter={() => setCollapsed(false)}
+            className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center shrink-0 font-bold shadow-lg shadow-blue-500/20 cursor-pointer"
           >
-            <SidebarTooltip label="LuminAI — Enterprise OS" enabled={collapsed}>
-              <div
-                onMouseEnter={() => setCollapsed(false)}
-                className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center shrink-0 font-bold shadow-lg shadow-blue-500/20 cursor-pointer"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
-              </div>
-            </SidebarTooltip>
-
-            <div
-              className={`flex flex-col overflow-hidden transition-opacity duration-200 ${
-                collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-              }`}
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <span className="text-[15px] font-semibold text-zinc-100 tracking-tight leading-none">
-                LuminAI
-              </span>
-              <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase mt-0.5">
-                Enterprise OS
-              </span>
-            </div>
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
           </div>
+          <div
+            className={`flex flex-col overflow-hidden transition-opacity duration-200 ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+              }`}
+          >
+            <span className="text-[15px] font-semibold text-zinc-100 tracking-tight leading-none">
+              LuminAI
+            </span>
+            <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase mt-0.5">
+              Enterprise OS
+            </span>
+          </div>
+        </div>
 
-          {/* ── Navigation ── */}
-          <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-hidden">
-            {navItems.map((item) => (
-              <SidebarTooltip
-                key={item.to}
-                label={item.label}
-                enabled={collapsed}
-              >
-                <Link
-                  to={item.to}
-                  className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
-                  activeProps={{
-                    className:
-                      "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
-                  }}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {item.icon}
-                  <span
-                    className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                      collapsed
-                        ? "opacity-0 w-0 pointer-events-none"
-                        : "opacity-100"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </Link>
-              </SidebarTooltip>
-            ))}
-          </nav>
-
-          {/* ── Footer ── */}
-          <div className="p-3 border-t border-zinc-800/80 flex flex-col gap-1 shrink-0">
-            {/* Settings */}
-            <SidebarTooltip label="Settings" enabled={collapsed}>
-              <Link
-                to="/settings"
-                className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
-                activeProps={{
-                  className:
-                    "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
-                }}
-                onClick={() => setMobileOpen(false)}
-              >
-                <svg
-                  className="shrink-0"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-                <span
-                  className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                    collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+        {/* Navigation list */}
+        <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-hidden">
+          {navItems.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
+              activeProps={{
+                className:
+                  "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+              }}
+              onClick={() => setMobileOpen(false)}
+              title={collapsed ? item.label : undefined}
+            >
+              {item.icon}
+              <span
+                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed
+                    ? "opacity-0 w-0 pointer-events-none"
+                    : "opacity-100"
                   }`}
-                >
-                  Settings
-                </span>
-              </Link>
-            </SidebarTooltip>
-
-            {/* Support */}
-            <SidebarTooltip label="Support" enabled={collapsed}>
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
               >
-                <svg
-                  className="shrink-0"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                <span
-                  className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                    collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-                  }`}
-                >
-                  Support
-                </span>
-              </a>
-            </SidebarTooltip>
+                {item.label}
+              </span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* Footer section */}
+        <div className="p-3 border-t border-zinc-800/80 flex flex-col gap-1 shrink-0">
+          {/* Settings */}
+          <Link
+            to="/settings"
+            className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+            activeProps={{
+              className:
+                "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+            }}
+            onClick={() => setMobileOpen(false)}
+            title={collapsed ? "Setting" : undefined}
+          >
+            <svg
+              className="shrink-0"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span
+              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+                }`}
+            >
+              Setting
+            </span>
+          </Link>
+
+          {/* Support */}
+          <a
+            href="https://github.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+            title={collapsed ? "Support" : undefined}
+          >
+            <svg
+              className="shrink-0"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span
+              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+                }`}
+            >
+              Support
+            </span>
+          </a>
 
             {/* User profile card */}
             {collapsed ? (
