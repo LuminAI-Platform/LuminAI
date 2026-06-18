@@ -284,17 +284,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* User profile card */}
           <div
             className={`group flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl overflow-hidden mt-2 transition-all ${
-              collapsed ? "justify-center p-1.5 cursor-pointer hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 text-zinc-400" : ""
+              collapsed
+                ? "justify-center p-1.5 cursor-pointer hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 text-zinc-400"
+                : ""
             }`}
             onClick={collapsed ? () => logout() : undefined}
             title={collapsed ? "Sign Out (Admin User)" : undefined}
           >
-            <div className={`w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden transition-colors ${
-              collapsed ? "group-hover:border-red-500/30" : ""
-            }`}>
+            <div
+              className={`w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden transition-colors ${
+                collapsed ? "group-hover:border-red-500/30" : ""
+              }`}
+            >
               <svg
                 className={`transition-colors ${
-                  collapsed ? "text-zinc-400 group-hover:text-red-400" : "text-zinc-400"
+                  collapsed
+                    ? "text-zinc-400 group-hover:text-red-400"
+                    : "text-zinc-400"
                 }`}
                 width="16"
                 height="16"
