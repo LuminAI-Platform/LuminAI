@@ -35,6 +35,10 @@ dist-ssr/
 *.tsbuildinfo
 .eslintcache
 coverage/
+# Auto-generated OpenAPI TypeScript client (regenerate with: npm run generate:api)
+frontend/src/lib/api-client/
+# openapi-generator-cli downloads a versioned Java JAR here at runtime
+.openapi-generator-cache/
 
 # ========================
 # IDE / Editors
