@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/@openapitools/openapi-generator-cli/config.schema.json",
+  "spaces": 2,
+  "generator-cli": {
+    "version": "7.6.0"
+  },
+  "generator": "typescript-fetch",
+  "input-spec": "http://localhost:8080/v3/api-docs",
+  "output": "src/lib/api-client",
+  "additional-properties": {
+    "supportsES6": true,
+    "typescriptThreePlus": true,
+    "enumPropertyNaming": "UPPERCASE",
+    "modelPropertyNaming": "camelCase",
+    "withInterfaces": true,
+    "npmName": "@luminai/api-client",
+    "npmVersion": "0.1.0"
+  }
+}
