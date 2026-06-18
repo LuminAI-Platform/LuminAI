@@ -130,23 +130,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Sidebar mobile backdrop */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity duration-300 ${mobileOpen
+        className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity duration-300 ${
+          mobileOpen
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
-          }`}
+        }`}
         onClick={() => setMobileOpen(false)}
       />
 
       {/* Sidebar container */}
       <aside
         onMouseLeave={() => setCollapsed(true)}
-        className={`fixed md:relative top-0 bottom-0 z-50 flex flex-col h-full bg-zinc-900 border-r border-zinc-800/80 transition-all duration-300 ease-in-out select-none ${collapsed ? "w-16" : "w-64"
-          } ${mobileOpen ? "left-0" : "-left-full md:left-0"}`}
+        className={`fixed md:relative top-0 bottom-0 z-50 flex flex-col h-full bg-zinc-900 border-r border-zinc-800/80 transition-all duration-300 ease-in-out select-none ${
+          collapsed ? "w-16" : "w-64"
+        } ${mobileOpen ? "left-0" : "-left-full md:left-0"}`}
       >
         {/* Header Section */}
         <div
-          className={`h-16 flex items-center border-b border-zinc-800/80 gap-3 overflow-hidden shrink-0 ${collapsed ? "justify-center px-0" : "px-5"
-            }`}
+          className={`h-16 flex items-center border-b border-zinc-800/80 gap-3 overflow-hidden shrink-0 ${
+            collapsed ? "justify-center px-0" : "px-5"
+          }`}
         >
           <div
             onMouseEnter={() => setCollapsed(false)}
@@ -169,8 +172,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </svg>
           </div>
           <div
-            className={`flex flex-col overflow-hidden transition-opacity duration-200 ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-              }`}
+            className={`flex flex-col overflow-hidden transition-opacity duration-200 ${
+              collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+            }`}
           >
             <span className="text-[15px] font-semibold text-zinc-100 tracking-tight leading-none">
               LuminAI
@@ -197,10 +201,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               {item.icon}
               <span
-                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed
+                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
+                  collapsed
                     ? "opacity-0 w-0 pointer-events-none"
                     : "opacity-100"
-                  }`}
+                }`}
               >
                 {item.label}
               </span>
@@ -236,8 +241,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
             <span
-              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-                }`}
+              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
+                collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+              }`}
             >
               Setting
             </span>
@@ -267,8 +273,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             <span
-              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-                }`}
+              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
+                collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+              }`}
             >
               Support
             </span>
