@@ -2,12 +2,24 @@
 
 /* Tooltip animations — used by SidebarTooltip via Radix data-state selectors */
 @keyframes tooltip-in {
-  from { opacity: 0; transform: translateX(-4px) scale(0.97); }
-  to   { opacity: 1; transform: translateX(0)   scale(1); }
+  from {
+    opacity: 0;
+    transform: translateX(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 @keyframes tooltip-out {
-  from { opacity: 1; transform: translateX(0)   scale(1); }
-  to   { opacity: 0; transform: translateX(-4px) scale(0.97); }
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-4px) scale(0.97);
+  }
 }
 
 @utility animate-tooltip-in {
