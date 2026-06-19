@@ -70,4 +70,5 @@ export const SidebarTooltip: React.FC<TooltipProps> = ({
  * Wrap your app (or just the sidebar) with this provider once.
  * skipDelayDuration=0 keeps tooltips snappy when moving between items.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const TooltipProvider = RadixTooltip.Provider;
