@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
+import { SidebarTooltip, TooltipProvider } from "../ui/Tooltip";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -127,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { logout } = useAuthStore();
 
   return (
-    <>
+    <TooltipProvider>
       {/* Sidebar mobile backdrop */}
       <div
         className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity duration-300 ${
@@ -188,109 +189,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation list */}
         <nav className="flex-1 py-6 px-3 flex flex-col gap-1 overflow-hidden">
           {navItems.map((item) => (
-            <Link
+            <SidebarTooltip
               key={item.to}
-              to={item.to}
-              className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
-              activeProps={{
-                className:
-                  "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
-              }}
-              onClick={() => setMobileOpen(false)}
-              title={collapsed ? item.label : undefined}
+              label={item.label}
+              enabled={collapsed}
             >
-              {item.icon}
-              <span
-                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                  collapsed
-                    ? "opacity-0 w-0 pointer-events-none"
-                    : "opacity-100"
-                }`}
+              <Link
+                to={item.to}
+                className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
+                activeProps={{
+                  className:
+                    "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+                }}
+                onClick={() => setMobileOpen(false)}
               >
-                {item.label}
-              </span>
-            </Link>
+                {item.icon}
+                <span
+                  className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
+                    collapsed
+                      ? "opacity-0 w-0 pointer-events-none"
+                      : "opacity-100"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            </SidebarTooltip>
           ))}
         </nav>
 
         {/* Footer section */}
         <div className="p-3 border-t border-zinc-800/80 flex flex-col gap-1 shrink-0">
           {/* Settings */}
-          <Link
-            to="/settings"
-            className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
-            activeProps={{
-              className:
-                "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
-            }}
-            onClick={() => setMobileOpen(false)}
-            title={collapsed ? "Setting" : undefined}
-          >
-            <svg
-              className="shrink-0"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-            <span
-              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-              }`}
-            >
-              Setting
-            </span>
-          </Link>
-
-          {/* Support */}
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
-            title={collapsed ? "Support" : undefined}
-          >
-            <svg
-              className="shrink-0"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span
-              className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-              }`}
-            >
-              Support
-            </span>
-          </a>
-
-          {/* User profile card */}
-          {collapsed ? (
-            /* Collapsed: render exactly like other footer items — bare SVG, p-2.5, no avatar wrapper */
-            <div
-              className="group flex items-center p-2.5 text-zinc-400 hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 cursor-pointer transition-all"
-              onClick={() => logout()}
-              title="Sign Out (Admin User)"
+          <SidebarTooltip label="Settings" enabled={collapsed}>
+            <Link
+              to="/settings"
+              className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+              activeProps={{
+                className:
+                  "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+              }}
+              onClick={() => setMobileOpen(false)}
             >
               <svg
-                className="shrink-0 transition-colors group-hover:text-red-400"
+                className="shrink-0"
                 width="18"
                 height="18"
                 viewBox="0 0 24 24"
@@ -300,12 +242,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
-            </div>
+              <span
+                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
+                  collapsed
+                    ? "opacity-0 w-0 pointer-events-none"
+                    : "opacity-100"
+                }`}
+              >
+                Settings
+              </span>
+            </Link>
+          </SidebarTooltip>
+
+          {/* Support */}
+          <SidebarTooltip label="Support" enabled={collapsed}>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+            >
+              <svg
+                className="shrink-0"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span
+                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
+                  collapsed
+                    ? "opacity-0 w-0 pointer-events-none"
+                    : "opacity-100"
+                }`}
+              >
+                Support
+              </span>
+            </a>
+          </SidebarTooltip>
+
+          {/* User profile card */}
+          {collapsed ? (
+            <SidebarTooltip label="Sign out — Admin User" enabled>
+              <div
+                className="group flex items-center p-2.5 text-zinc-400 hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 cursor-pointer transition-all"
+                onClick={() => logout()}
+              >
+                <svg
+                  className="shrink-0 transition-colors group-hover:text-red-400"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+            </SidebarTooltip>
           ) : (
-            /* Expanded: full card with avatar, user info, and logout button */
             <div className="group flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 transition-all">
               <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden">
                 <svg
@@ -356,6 +366,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
       </aside>
-    </>
+    </TooltipProvider>
   );
 };
