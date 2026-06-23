@@ -31,6 +31,10 @@ spring:
         jwt:
           issuer-uri: http://localhost:8180/realms/luminai
 
+luminai:
+  vault:
+    encryption-key: dev-only-32-byte-aes-key-00000  # 32 chars for AES-256 (dev only)
+
 logging:
   level:
     com.luminai: DEBUG
