@@ -114,8 +114,23 @@ def cleaned_data_placeholder(
 
 
 # ── Dagster Definitions ────────────────────────────────────────────────────
-# Exposes both assets to the Dagster web UI (Launchpad + Asset Graph).
+# Exposes all assets to the Dagster web UI (Launchpad + Asset Graph).
+
+from app.processing.pipelines.cleaning_pipeline import (
+    cleaned_ingestion_data,
+    raw_ingestion_data as cleaning_raw,
+    validated_ingestion_data,
+)
 
 defs = Definitions(
-    assets=[raw_data_placeholder, cleaned_data_placeholder],
+    assets=[
+        # Sprint 0 placeholder assets (kept for reference/testing)
+        raw_data_placeholder,
+        cleaned_data_placeholder,
+        # Sprint 1 cleaning pipeline assets
+        cleaning_raw,
+        cleaned_ingestion_data,
+        validated_ingestion_data,
+    ],
 )
+
