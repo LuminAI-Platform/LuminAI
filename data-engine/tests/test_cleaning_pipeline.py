@@ -9,9 +9,12 @@ from dagster import build_asset_context
 
 from app.processing.pipelines.cleaning_pipeline import (
     _parse_date_string,
+    _parse_currency_string,
     cleaned_ingestion_data,
     raw_ingestion_data,
+    deduplicated_ingestion_data,
     validated_ingestion_data,
+    staged_ingestion_data,
 )
 
 
@@ -26,27 +29,28 @@ def test_raw_ingestion_data_returns_dataframe():
     assert "email" in result.columns
 
 
-def test_cleaned_ingestion_data_removes_duplicates():
-    """cleaned_ingestion_data deduplicates by email."""
+def test_deduplicated_ingestion_data_removes_duplicates():
+    """deduplicated_ingestion_data removes exact and fuzzy duplicate records."""
     ctx = build_asset_context()
     raw = raw_ingestion_data(ctx)
     cleaned = cleaned_ingestion_data(ctx, raw)
+    deduped = deduplicated_ingestion_data(ctx, cleaned)
 
-    # Should have fewer rows than raw (duplicates removed)
-    assert cleaned.height <= raw.height
+    # Should have fewer rows than cleaned
+    assert deduped.height <= cleaned.height
     # No duplicate emails
-    assert cleaned["email"].n_unique() == cleaned.height
+    assert deduped["email"].n_unique() == deduped.height
 
 
-def test_cleaned_ingestion_data_lowercases_names():
-    """cleaned_ingestion_data lowercases name and email columns."""
+def test_cleaned_ingestion_data_normalises_cases():
+    """cleaned_ingestion_data normalises casing standard: title case names, lowercase emails."""
     ctx = build_asset_context()
     raw = raw_ingestion_data(ctx)
     cleaned = cleaned_ingestion_data(ctx, raw)
 
     for name in cleaned["name"].to_list():
         if name:  # skip empty strings
-            assert name == name.lower(), f"Name '{name}' is not lowercase"
+            assert name == name.title(), f"Name '{name}' is not title case"
 
     for email in cleaned["email"].to_list():
         if email:
@@ -70,10 +74,11 @@ def test_validated_ingestion_data_filters_invalid():
     ctx = build_asset_context()
     raw = raw_ingestion_data(ctx)
     cleaned = cleaned_ingestion_data(ctx, raw)
-    validated = validated_ingestion_data(ctx, cleaned)
+    deduped = deduplicated_ingestion_data(ctx, cleaned)
+    validated = validated_ingestion_data(ctx, deduped)
 
     assert isinstance(validated, pl.DataFrame)
-    assert validated.height <= cleaned.height
+    assert validated.height <= deduped.height
 
     # All validated rows should have non-empty id and name
     for row_id in validated["id"].to_list():
@@ -107,3 +112,52 @@ def test_parse_date_none_returns_empty():
     """_parse_date_string returns empty string for None."""
     assert _parse_date_string(None) == ""
     assert _parse_date_string("") == ""
+
+
+def test_parse_currency_usd():
+    """_parse_currency_string parses USD formats."""
+    res = _parse_currency_string("$1,200.50")
+    assert res["amount"] == 1200.50
+    assert res["currency"] == "USD"
+
+
+def test_parse_currency_eur():
+    """_parse_currency_string parses EUR formats."""
+    res = _parse_currency_string("€500")
+    assert res["amount"] == 500.0
+    assert res["currency"] == "EUR"
+
+
+def test_parse_currency_gbp():
+    """_parse_currency_string parses GBP formats."""
+    res = _parse_currency_string("£80.00")
+    assert res["amount"] == 80.0
+    assert res["currency"] == "GBP"
+
+
+def test_parse_currency_no_symbol():
+    """_parse_currency_string handles plain numbers as USD."""
+    res = _parse_currency_string("150.00")
+    assert res["amount"] == 150.0
+    assert res["currency"] == "USD"
+
+
+def test_parse_currency_invalid():
+    """_parse_currency_string defaults gracefully on invalid entries."""
+    res = _parse_currency_string("invalid")
+    assert res["amount"] == 0.0
+    assert res["currency"] == "USD"
+
+
+def test_staged_ingestion_data_stages_parquet_and_db():
+    """staged_ingestion_data staging asset executes without errors."""
+    ctx = build_asset_context()
+    raw = raw_ingestion_data(ctx)
+    cleaned = cleaned_ingestion_data(ctx, raw)
+    deduped = deduplicated_ingestion_data(ctx, cleaned)
+    validated = validated_ingestion_data(ctx, deduped)
+    staged = staged_ingestion_data(ctx, validated)
+
+    assert isinstance(staged, pl.DataFrame)
+    assert staged.height == validated.height
+

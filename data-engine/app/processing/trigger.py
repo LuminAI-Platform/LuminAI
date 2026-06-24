@@ -57,12 +57,14 @@ class DagsterTrigger:
         )
 
         try:
-            # In-process materialization — simple for Sprint 1
+            # In-process materialization
             result = materialize(
                 assets=[
                     cleaning_pipeline.raw_ingestion_data,
                     cleaning_pipeline.cleaned_ingestion_data,
+                    cleaning_pipeline.deduplicated_ingestion_data,
                     cleaning_pipeline.validated_ingestion_data,
+                    cleaning_pipeline.staged_ingestion_data,
                 ],
                 run_config={
                     "resources": {},
