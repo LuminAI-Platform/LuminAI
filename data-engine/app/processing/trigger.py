@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from dagster import AssetKey, materialize
+from dagster import materialize
 
 from app.processing.pipelines import cleaning_pipeline
 
@@ -57,15 +57,6 @@ class DagsterTrigger:
         )
 
         try:
-            # Build run config from batch metadata
-            run_config = {
-                "tenant_id": tenant_id,
-                "source_id": source_id,
-                "source_path": batch_metadata.get("source_path", ""),
-                "total_rows": batch_metadata.get("total_rows", 0),
-                "schema_info": batch_metadata.get("schema_info", {}),
-            }
-
             # In-process materialization — simple for Sprint 1
             result = materialize(
                 assets=[
