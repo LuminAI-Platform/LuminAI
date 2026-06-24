@@ -18,6 +18,7 @@ Pulled forward from Sprint 2 to Sprint 1.
 """
 
 import logging
+import re
 from datetime import datetime, timezone
 
 import polars as pl
@@ -95,6 +96,10 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
                 "2024-08-15", "invalid-date",
             ],
             "score": [0.85, 0.85, 0.72, 0.68, None, 0.91, 0.77, 0.65, 0.88, 0.73],
+            "salary": [
+                "$1,200.50", "€1500", "£80.00", "150.00", "$9,000",
+                None, "€3,400.25", "$420", "invalid-currency", "£2,500",
+            ],
         }
     )
 
@@ -150,13 +155,12 @@ def cleaned_ingestion_data(
     df = raw_ingestion_data.with_columns(strip_exprs) if strip_exprs else raw_ingestion_data
     context.log.info("🧹 Step 1: Stripped whitespace from %d string columns", len(string_cols))
 
-    # ── Step 2: Lowercase name and email fields ───────────────────────────
-    lowercase_cols = [c for c in ["name", "email"] if c in df.columns]
-    if lowercase_cols:
-        df = df.with_columns(
-            [pl.col(c).str.to_lowercase().alias(c) for c in lowercase_cols]
-        )
-    context.log.info("🧹 Step 2: Lowercased columns: %s", lowercase_cols)
+    # ── Step 2: Casing normalization ───────────────────────────
+    if "email" in df.columns:
+        df = df.with_columns(pl.col("email").str.to_lowercase().alias("email"))
+    if "name" in df.columns:
+        df = df.with_columns(pl.col("name").str.to_titlecase().alias("name"))
+    context.log.info("🧹 Step 2: Normalized casing (email to lowercase, name to title case)")
 
     # ── Step 3: Substitute nulls ──────────────────────────────────────────
     null_fill_exprs = []
@@ -188,17 +192,23 @@ def cleaned_ingestion_data(
         )
     context.log.info("🧹 Step 5: Parsed timestamp strings")
 
-    # ── Step 6: Deduplicate by email ──────────────────────────────────────
-    if "email" in df.columns:
-        before_dedup = df.height
-        df = df.unique(subset=["email"], keep="first").sort("id")
-        after_dedup = df.height
-        context.log.info(
-            "🧹 Step 6: Deduplicated — %d → %d rows (removed %d duplicates)",
-            before_dedup,
-            after_dedup,
-            before_dedup - after_dedup,
-        )
+    # ── Step 6: Currency parsing ──────────────────────────────────────────
+    if "salary" in df.columns:
+        df = df.with_columns(
+            pl.col("salary")
+            .map_elements(
+                _parse_currency_string,
+                return_dtype=pl.Struct([
+                    pl.Field("amount", pl.Float64),
+                    pl.Field("currency", pl.String)
+                ])
+            )
+            .alias("salary_parsed")
+        ).with_columns(
+            pl.col("salary_parsed").struct.field("amount").alias("salary_amount"),
+            pl.col("salary_parsed").struct.field("currency").alias("salary_currency"),
+        ).drop(["salary_parsed", "salary"])
+    context.log.info("🧹 Step 6: Normalized currency (salary to salary_amount and salary_currency)")
 
     context.log.info(
         "✅ cleaned_ingestion_data: complete — %d → %d rows",
@@ -210,6 +220,91 @@ def cleaned_ingestion_data(
 
 
 @asset(
+    name="deduplicated_ingestion_data",
+    group_name="cleaning",
+    description="Fuzzy and exact deduplication on cleaned records within the source batch.",
+    deps=[cleaned_ingestion_data],
+)
+def deduplicated_ingestion_data(
+    context: AssetExecutionContext,
+    cleaned_ingestion_data: pl.DataFrame,
+) -> pl.DataFrame:
+    """
+    Deduplicate records using exact email matching and recordlinkage fuzzy name matching.
+    """
+    import recordlinkage
+    import pandas as pd
+
+    initial_rows = cleaned_ingestion_data.height
+    context.log.info("🔍 deduplicated_ingestion_data: starting with %d rows", initial_rows)
+
+    if initial_rows == 0:
+        return cleaned_ingestion_data
+
+    # ── Step 1: Exact deduplication by email ────────────────────────────────
+    df_exact = cleaned_ingestion_data
+    if "email" in df_exact.columns:
+        df_exact = df_exact.unique(subset=["email"], keep="first").sort("id")
+    after_exact = df_exact.height
+    context.log.info("🔍 Step 1 (Exact): Deduplicated by email — %d → %d rows", initial_rows, after_exact)
+
+    if after_exact == 0:
+        return df_exact
+
+    # ── Step 2: Fuzzy deduplication by name (blocking on country) ───────────
+    # Convert Polars to Pandas safely without pyarrow
+    df_pd = pd.DataFrame(df_exact.to_dict(as_series=False))
+
+    # Fill country field to ensure blocking works on non-null values
+    df_pd["country"] = df_pd["country"].fillna("")
+    df_pd["name"] = df_pd["name"].fillna("")
+
+    indexer = recordlinkage.Index()
+    indexer.block("country")
+    candidate_links = indexer.index(df_pd)
+
+    # Compare
+    compare = recordlinkage.Compare()
+    compare.string("name", "name", method="jarowinkler", threshold=0.85, label="name_score")
+
+    features = compare.compute(candidate_links, df_pd)
+
+    # Filter matches
+    matches = features[features["name_score"] >= 0.85]
+
+    # Identify indices to drop
+    to_drop = set()
+    for idx1, idx2 in matches.index:
+        keep_idx = min(idx1, idx2)
+        drop_idx = max(idx1, idx2)
+
+        name_1 = df_pd.loc[keep_idx, "name"]
+        name_2 = df_pd.loc[drop_idx, "name"]
+        context.log.info(
+            "⚠️ Fuzzy match found in same country: '%s' and '%s'. Merging...",
+            name_1,
+            name_2,
+        )
+        to_drop.add(drop_idx)
+
+    # Drop matches
+    df_dedup_pd = df_pd.drop(index=list(to_drop))
+
+    # Convert back to Polars
+    result = pl.from_pandas(df_dedup_pd)
+    final_rows = result.height
+    context.log.info(
+        "✅ deduplicated_ingestion_data: complete — %d → %d rows (removed %d exact, %d fuzzy)",
+        initial_rows,
+        final_rows,
+        initial_rows - after_exact,
+        after_exact - final_rows,
+    )
+
+    return result
+
+
+@asset(
     name="validated_ingestion_data",
     group_name="cleaning",
     description=(
@@ -217,11 +312,11 @@ def cleaned_ingestion_data(
         "missing required fields or out-of-range values. Good rows pass "
         "through; bad rows are logged for review."
     ),
-    deps=[cleaned_ingestion_data],
+    deps=[deduplicated_ingestion_data],
 )
 def validated_ingestion_data(
     context: AssetExecutionContext,
-    cleaned_ingestion_data: pl.DataFrame,
+    deduplicated_ingestion_data: pl.DataFrame,
 ) -> pl.DataFrame:
     """
     Validate cleaned data and separate good rows from bad rows.
@@ -233,11 +328,11 @@ def validated_ingestion_data(
     """
     context.log.info(
         "✔️  validated_ingestion_data: validating %d rows…",
-        cleaned_ingestion_data.height,
+        deduplicated_ingestion_data.height,
     )
 
     # Apply validation flags
-    df = cleaned_ingestion_data.with_columns(
+    df = deduplicated_ingestion_data.with_columns(
         [
             (pl.col("id").str.len_chars() > 0).alias("_valid_id"),
             (pl.col("name").str.len_chars() > 0).alias("_valid_name"),
@@ -277,6 +372,172 @@ def validated_ingestion_data(
     return result
 
 
+@asset(
+    name="staged_ingestion_data",
+    group_name="cleaning",
+    description="Stages validated data to MinIO/local storage (Parquet) and PostgreSQL/local SQLite database.",
+    deps=[validated_ingestion_data],
+)
+def staged_ingestion_data(
+    context: AssetExecutionContext,
+    validated_ingestion_data: pl.DataFrame,
+) -> pl.DataFrame:
+    """
+    Write validated data to Parquet storage and a database staging table.
+    Also notifies Kafka topic ingest.valid.
+    """
+    import json
+    import os
+    import uuid
+    from sqlalchemy import create_engine, text
+    from app.config import get_settings
+    from app.kafka.producers import IngestValidProducer
+
+    settings = get_settings()
+
+    # Fetch run tags or use defaults for local/manual testing
+    run_tags = {}
+    has_run = False
+    try:
+        # For direct invocation/tests, context.run raises DagsterInvalidPropertyError
+        if context.run:
+            run_tags = context.run.tags
+            has_run = True
+    except Exception:
+        pass
+
+    tenant_id = run_tags.get("tenant_id", "acme")
+    source_id = run_tags.get("source_id", "default-source")
+
+    batch_id = None
+    if has_run:
+        batch_id = run_tags.get("dagster/run_id", context.run_id)
+    else:
+        try:
+            batch_id = context.run_id
+        except Exception:
+            batch_id = str(uuid.uuid4())
+    if not batch_id:
+        batch_id = str(uuid.uuid4())
+
+    context.log.info("💾 staged_ingestion_data: starting staging for tenant=%s, source=%s, batch=%s", tenant_id, source_id, batch_id)
+
+    # ── Step 1: Write to Local Parquet + MinIO Staging ──────────────────────
+    # Always save locally first (serves as a local cache/fallback)
+    local_staging_dir = os.path.join("storage", "minio", "staging", tenant_id, source_id)
+    os.makedirs(local_staging_dir, exist_ok=True)
+    local_file_path = os.path.join(local_staging_dir, f"{batch_id}.parquet")
+    validated_ingestion_data.write_parquet(local_file_path)
+    context.log.info("💾 Saved Parquet locally to %s", local_file_path)
+
+    minio_url = f"s3://{tenant_id}-staging/{source_id}/{batch_id}.parquet"
+    s3_options = {
+        "key": settings.minio_access_key,
+        "secret": settings.minio_secret_key,
+        "client_kwargs": {
+            "endpoint_url": f"http://{settings.minio_endpoint}"
+        }
+    }
+
+    staging_path = local_file_path
+    try:
+        validated_ingestion_data.write_parquet(minio_url, storage_options=s3_options)
+        staging_path = minio_url
+        context.log.info("💾 Successfully uploaded Parquet to MinIO at %s", minio_url)
+    except Exception as e:
+        context.log.warning("⚠️ Could not write to MinIO (is it running?): %s. Using local fallback.", e)
+
+    # ── Step 2: Write to PostgreSQL / SQLite Database Staging ──────────────
+    db_url = f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
+    engine = create_engine(db_url)
+
+    create_table_sql = """
+    CREATE TABLE IF NOT EXISTS staging_records (
+        id VARCHAR(36) PRIMARY KEY,
+        tenant_id VARCHAR(255),
+        source_id VARCHAR(255),
+        raw_id VARCHAR(255),
+        data TEXT,
+        staged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+    insert_sql = """
+    INSERT INTO staging_records (id, tenant_id, source_id, raw_id, data, staged_at)
+    VALUES (:id, :tenant_id, :source_id, :raw_id, :data, :staged_at);
+    """
+
+    db_success = False
+    # Try PostgreSQL first
+    try:
+        # Check connection before running queries
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        
+        with engine.begin() as conn:
+            conn.execute(text(create_table_sql))
+            params = []
+            for row in validated_ingestion_data.iter_rows(named=True):
+                params.append({
+                    "id": str(uuid.uuid4()),
+                    "tenant_id": tenant_id,
+                    "source_id": source_id,
+                    "raw_id": str(row.get("id", "")),
+                    "data": json.dumps(row),
+                    "staged_at": datetime.now(timezone.utc)
+                })
+            if params:
+                conn.execute(text(insert_sql), params)
+        context.log.info("💾 Successfully wrote %d records to PostgreSQL staging_records table", len(params))
+        db_success = True
+    except Exception as e:
+        context.log.warning("⚠️ Could not write to PostgreSQL (is it running?): %s. Falling back to SQLite.", e)
+
+    # SQLite fallback
+    if not db_success:
+        try:
+            os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
+            sqlite_db_path = os.path.join("storage", "sqlite", "staging.db")
+            sqlite_engine = create_engine(f"sqlite:///{sqlite_db_path}")
+            with sqlite_engine.begin() as conn:
+                conn.execute(text(create_table_sql))
+                params = []
+                for row in validated_ingestion_data.iter_rows(named=True):
+                    params.append({
+                        "id": str(uuid.uuid4()),
+                        "tenant_id": tenant_id,
+                        "source_id": source_id,
+                        "raw_id": str(row.get("id", "")),
+                        "data": json.dumps(row),
+                        "staged_at": datetime.now(timezone.utc)
+                    })
+                if params:
+                    conn.execute(text(insert_sql), params)
+            context.log.info("💾 Successfully wrote %d records to SQLite staging_records table at %s", len(params), sqlite_db_path)
+        except Exception as sqle:
+            context.log.error("❌ Failed to write to SQLite fallback: %s", sqle)
+
+    # ── Step 3: Publish ingest.valid Kafka Event ────────────────────────────
+    try:
+        producer = IngestValidProducer()
+        producer.publish(
+            tenant_id=tenant_id,
+            entity_type="Person",
+            payload={
+                "tenant_id": tenant_id,
+                "source_id": source_id,
+                "batch_id": batch_id,
+                "status": "valid",
+                "staging_path": staging_path,
+                "record_count": validated_ingestion_data.height,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+    except Exception as ke:
+        context.log.error("❌ Failed to publish Kafka ingest.valid event: %s", ke)
+
+    return validated_ingestion_data
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _parse_date_string(value: str | None) -> str:
@@ -302,3 +563,44 @@ def _parse_date_string(value: str | None) -> str:
 
     logger.debug("Could not parse date string: '%s'", value)
     return value
+
+
+def _parse_currency_string(value: str | None) -> dict[str, object]:
+    """
+    Parses currency string to extract float amount and ISO currency code.
+    Defaults to 0.0 and 'USD'.
+    """
+    if not value or not isinstance(value, str) or value.strip() == "":
+        return {"amount": 0.0, "currency": "USD"}
+
+    value = value.strip().replace(",", "")
+
+    symbol_map = {
+        "$": "USD",
+        "€": "EUR",
+        "£": "GBP",
+        "¥": "JPY",
+    }
+
+    currency_code = "USD"
+    for sym, code in symbol_map.items():
+        if value.startswith(sym):
+            currency_code = code
+            value = value[len(sym):].strip()
+            break
+        elif value.endswith(sym):
+            currency_code = code
+            value = value[:-len(sym)].strip()
+            break
+
+    try:
+        match = re.search(r"[-+]?\d*\.\d+|[-+]?\d+", value)
+        if match:
+            amount = float(match.group())
+        else:
+            amount = 0.0
+    except ValueError:
+        amount = 0.0
+
+    return {"amount": amount, "currency": currency_code}
+

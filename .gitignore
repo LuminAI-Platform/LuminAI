@@ -62,6 +62,9 @@ frontend/src/lib/api-client/
 data/
 minio_data/
 postgres_data/
+storage/
+.tmp_dagster_home_*/
+test-results.xml
 
 # ========================
 # Environment / Secrets

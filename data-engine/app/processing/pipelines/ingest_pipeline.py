@@ -19,8 +19,10 @@ from dagster import AssetExecutionContext, Definitions, asset
 
 from app.processing.pipelines.cleaning_pipeline import (
     cleaned_ingestion_data,
+    deduplicated_ingestion_data,
     raw_ingestion_data as cleaning_raw,
     validated_ingestion_data,
+    staged_ingestion_data,
 )
 
 
@@ -119,9 +121,7 @@ def cleaned_data_placeholder(
     return cleaned
 
 
-# ── Dagster Definitions ────────────────────────────────────────────────────
-# Exposes all assets to the Dagster web UI (Launchpad + Asset Graph).
-
+def_or_node = None # just to verify
 defs = Definitions(
     assets=[
         # Sprint 0 placeholder assets (kept for reference/testing)
@@ -130,7 +130,9 @@ defs = Definitions(
         # Sprint 1 cleaning pipeline assets
         cleaning_raw,
         cleaned_ingestion_data,
+        deduplicated_ingestion_data,
         validated_ingestion_data,
+        staged_ingestion_data,
     ],
 )
 
