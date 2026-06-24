@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     # ── Kafka ──────────────────────────────────────────────────────────────
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_group_id: str = "data-engine"
+    kafka_enabled: bool = False  # Set True when Kafka broker is available
     kafka_topic_ingest_raw: str = "ingest.raw"
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
