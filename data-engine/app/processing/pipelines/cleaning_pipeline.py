@@ -17,8 +17,6 @@ Pipeline flow:
 Pulled forward from Sprint 2 to Sprint 1.
 """
 
-from __future__ import annotations
-
 import logging
 from datetime import datetime, timezone
 

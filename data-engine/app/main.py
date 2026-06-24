@@ -25,7 +25,7 @@ from app.processing.trigger import DagsterTrigger
 async def lifespan(app: FastAPI):
     """Application startup / shutdown hooks."""
     settings = get_settings()
-    print(f"🚀  {settings.app_name} v{settings.app_version} starting up…")
+    print(f"[*] {settings.app_name} v{settings.app_version} starting up...")
 
     # ── Kafka consumer ────────────────────────────────────────────────────
     consumer = None
@@ -37,17 +37,17 @@ async def lifespan(app: FastAPI):
         consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
 
         await consumer.start()
-        print(f"📡  Kafka consumer started on topic '{settings.kafka_topic_ingest_raw}'")
+        print(f"[Kafka] Kafka consumer started on topic '{settings.kafka_topic_ingest_raw}'")
     else:
-        print("⏭️   Kafka disabled (set KAFKA_ENABLED=true to enable)")
+        print("[Kafka] Kafka disabled (set KAFKA_ENABLED=true to enable)")
 
     yield
 
     # ── Shutdown ──────────────────────────────────────────────────────────
     if consumer is not None:
         await consumer.stop()
-        print("📡  Kafka consumer stopped")
-    print("🛑  Data Engine shutting down…")
+        print("[Kafka] Kafka consumer stopped")
+    print("[*] Data Engine shutting down...")
 
 
 def create_app() -> FastAPI:
