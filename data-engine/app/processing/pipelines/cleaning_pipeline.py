@@ -396,10 +396,29 @@ def staged_ingestion_data(
     settings = get_settings()
 
     # Fetch run tags or use defaults for local/manual testing
-    run_tags = context.run.tags if context.run else {}
+    run_tags = {}
+    has_run = False
+    try:
+        # For direct invocation/tests, context.run raises DagsterInvalidPropertyError
+        if context.run:
+            run_tags = context.run.tags
+            has_run = True
+    except Exception:
+        pass
+
     tenant_id = run_tags.get("tenant_id", "acme")
     source_id = run_tags.get("source_id", "default-source")
-    batch_id = run_tags.get("dagster/run_id", context.run_id if context.run else str(uuid.uuid4()))
+
+    batch_id = None
+    if has_run:
+        batch_id = run_tags.get("dagster/run_id", context.run_id)
+    else:
+        try:
+            batch_id = context.run_id
+        except Exception:
+            batch_id = str(uuid.uuid4())
+    if not batch_id:
+        batch_id = str(uuid.uuid4())
 
     context.log.info("💾 staged_ingestion_data: starting staging for tenant=%s, source=%s, batch=%s", tenant_id, source_id, batch_id)
 
