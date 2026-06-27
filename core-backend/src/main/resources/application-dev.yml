@@ -1,8 +1,6 @@
 spring:
   application:
     name: luminai-core
-  profiles:
-    active: dev
   # DataSource — single shared HikariCP pool (all tenants share connections)
   datasource:
     url:
@@ -48,6 +46,49 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: true
     schemas: public
+
+  # Kafka
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    # Producer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        linger.ms: 5
+        batch-size: 16384
+        compression.type: snappy
+        spring.json.add.type.headers: true
+  # Consumer
+  consumer:
+    group-id: luminai-core-consumer-group
+    auto-offset-reset: earliest
+    enable-auto-commit: false          # Manual ack via MANUAL_IMMEDIATE mode
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    max-poll-records: 50
+    properties:
+      spring.json.trusted.packages: "*"
+      spring.json.use.type.headers: true
+      # Restrict in production:
+      # spring.json.trusted.packages: com.luminai.model.events
+ # Listener
+  listener:
+    ack-mode: manual_immediate
+    concurrency: 3
+    observation-enabled: true
+
+    # ── Admin (topic auto-provisioning) ───────────────────────────────────────
+    admin:
+      # auto-create: true allows KafkaAdmin to create NewTopic beans on startup.
+      # Set to false in production where topics are managed by Terraform/Confluent.
+      auto-create: true
+      properties:
+        bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
 # Logging
 logging:
