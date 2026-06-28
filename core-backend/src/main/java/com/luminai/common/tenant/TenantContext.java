@@ -25,8 +25,7 @@ public final class TenantContext {
 
   private TenantContext() {}
 
-
-  //Sets the current tenant identifier for this thread.
+  // Sets the current tenant identifier for this thread.
   public static void setTenantId(String tenantId) {
     if (tenantId == null || tenantId.isBlank()) {
       throw new IllegalArgumentException("Tenant ID must not be null or blank");
@@ -34,6 +33,7 @@ public final class TenantContext {
     log.debug("Setting tenant context: {}", tenantId);
     CURRENT_TENANT.set(tenantId.trim());
   }
+
   // Get the current tenant identifier
   public static String getTenantId() {
     return CURRENT_TENANT.get();
@@ -45,7 +45,7 @@ public final class TenantContext {
     return (tenantId != null) ? SCHEMA_PREFIX + tenantId : DEFAULT_TENANT;
   }
 
-  //Returns {@code true} if a tenant has been set on this thread
+  // Returns {@code true} if a tenant has been set on this thread
   public static boolean hasTenant() {
     return CURRENT_TENANT.get() != null;
   }

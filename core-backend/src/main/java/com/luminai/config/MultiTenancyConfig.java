@@ -2,6 +2,9 @@ package com.luminai.config;
 
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.common.tenant.TenantIdentifierResolver;
+import java.sql.Connection;
+import java.sql.SQLException;
+import javax.sql.DataSource;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.slf4j.Logger;
@@ -10,13 +13,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomi
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Map;
-
-
-//Hibernate multi-tenancy configuration using {@code SCHEMA} isolation strategy
+// Hibernate multi-tenancy configuration using {@code SCHEMA} isolation strategy
 @Configuration
 public class MultiTenancyConfig {
 
@@ -26,7 +23,8 @@ public class MultiTenancyConfig {
    * Registers the {@link SchemaMultiTenantConnectionProvider} as a Spring bean
    */
   @Bean
-  public MultiTenantConnectionProvider<String> multiTenantConnectionProvider(DataSource dataSource) {
+  public MultiTenantConnectionProvider<String> multiTenantConnectionProvider(
+      DataSource dataSource) {
     return new SchemaMultiTenantConnectionProvider(dataSource);
   }
 
@@ -36,22 +34,20 @@ public class MultiTenancyConfig {
    */
   @Bean
   public HibernatePropertiesCustomizer multiTenancyPropertiesCustomizer(
-          MultiTenantConnectionProvider<String> provider,
-          TenantIdentifierResolver resolver) {
+      MultiTenantConnectionProvider<String> provider, TenantIdentifierResolver resolver) {
 
     return hibernateProperties -> {
-      hibernateProperties.put(
-              AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER, provider);
+      hibernateProperties.put(AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER, provider);
 
       // SCHEMA mode: one shared DB server, one schema per tenant.
       // Hibernate will call the ConnectionProvider with the tenant identifier
       // to obtain an appropriately-routed connection.
-      hibernateProperties.put(
-              AvailableSettings.JAKARTA_HBM2DDL_DB_NAME, "SCHEMA");
+      hibernateProperties.put(AvailableSettings.JAKARTA_HBM2DDL_DB_NAME, "SCHEMA");
 
-      log.info("Hibernate multi-tenancy configured: mode=SCHEMA, provider={}, resolver={}",
-              provider.getClass().getSimpleName(),
-              resolver.getClass().getSimpleName());
+      log.info(
+          "Hibernate multi-tenancy configured: mode=SCHEMA, provider={}, resolver={}",
+          provider.getClass().getSimpleName(),
+          resolver.getClass().getSimpleName());
     };
   }
 
@@ -60,9 +56,10 @@ public class MultiTenancyConfig {
   // -------------------------------------------------------------------------
 
   public static class SchemaMultiTenantConnectionProvider
-          implements MultiTenantConnectionProvider<String> {
+      implements MultiTenantConnectionProvider<String> {
 
-    private static final Logger log = LoggerFactory.getLogger(SchemaMultiTenantConnectionProvider.class);
+    private static final Logger log =
+        LoggerFactory.getLogger(SchemaMultiTenantConnectionProvider.class);
 
     private final DataSource dataSource;
 
@@ -108,7 +105,7 @@ public class MultiTenancyConfig {
      */
     @Override
     public void releaseConnection(String tenantIdentifier, Connection connection)
-            throws SQLException {
+        throws SQLException {
       log.debug("Releasing connection for schema: {}", tenantIdentifier);
       resetSearchPath(connection);
       connection.close();
@@ -160,7 +157,8 @@ public class MultiTenancyConfig {
       }
     }
 
-    // Resets the connection's {@code search_path} to {@code public} before returning it to the HikariCP pool.
+    // Resets the connection's {@code search_path} to {@code public} before returning it to the
+    // HikariCP pool.
     private void resetSearchPath(Connection connection) throws SQLException {
       try (var stmt = connection.createStatement()) {
         stmt.execute("SET search_path = public");
@@ -174,7 +172,7 @@ public class MultiTenancyConfig {
     private String sanitizeSchemaName(String schema) {
       if (schema == null || !schema.matches("[a-zA-Z0-9_\\-]+")) {
         throw new IllegalArgumentException(
-                "Invalid schema name — must match [a-zA-Z0-9_-]: " + schema);
+            "Invalid schema name — must match [a-zA-Z0-9_-]: " + schema);
       }
       return schema;
     }

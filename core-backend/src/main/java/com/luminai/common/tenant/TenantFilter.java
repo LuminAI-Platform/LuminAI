@@ -4,6 +4,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -13,11 +16,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-
-
 @Component
 @Order(1)
 public class TenantFilter extends OncePerRequestFilter {
@@ -25,18 +23,18 @@ public class TenantFilter extends OncePerRequestFilter {
   private static final Logger log = LoggerFactory.getLogger(TenantFilter.class);
 
   private static final String BEARER_PREFIX = "Bearer ";
-  private static final String TENANT_CLAIM  = "\"tenant_id\"";
+  private static final String TENANT_CLAIM = "\"tenant_id\"";
 
   /**
    * Paths that do not require tenant resolution (health checks, public auth endpoints, etc.).
    * Requests to these paths pass through without setting tenant context.
    */
   private static final String[] BYPASS_PATHS = {
-          "/actuator/health",
-          "/actuator/info",
-          "/api/v1/auth/login",
-          "/api/v1/auth/refresh",
-          "/api/v1/public/"
+    "/actuator/health",
+    "/actuator/info",
+    "/api/v1/auth/login",
+    "/api/v1/auth/refresh",
+    "/api/v1/public/"
   };
 
   @Override
@@ -52,25 +50,28 @@ public class TenantFilter extends OncePerRequestFilter {
   }
 
   @Override
-  protected void doFilterInternal(HttpServletRequest request,
-                                  HttpServletResponse response,
-                                  FilterChain filterChain)
-          throws ServletException, IOException {
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
 
     try {
       String tenantId = resolveTenantId(request);
 
       if (tenantId == null || tenantId.isBlank()) {
-        log.warn("Missing or unresolvable tenant_id for request: {} {}",
-                request.getMethod(), request.getRequestURI());
-        sendError(response, HttpStatus.UNAUTHORIZED,
-                "Missing tenant_id claim in token");
+        log.warn(
+            "Missing or unresolvable tenant_id for request: {} {}",
+            request.getMethod(),
+            request.getRequestURI());
+        sendError(response, HttpStatus.UNAUTHORIZED, "Missing tenant_id claim in token");
         return;
       }
 
       TenantContext.setTenantId(tenantId);
-      log.debug("Tenant context set to '{}' for {} {}",
-              tenantId, request.getMethod(), request.getRequestURI());
+      log.debug(
+          "Tenant context set to '{}' for {} {}",
+          tenantId,
+          request.getMethod(),
+          request.getRequestURI());
 
       filterChain.doFilter(request, response);
 
@@ -101,9 +102,8 @@ public class TenantFilter extends OncePerRequestFilter {
   }
 
   /**
-   * Lightweight JWT payload decoder — Base64-decodes the second segment of the token
-   * and extracts the given claim key without a full JWT library dependency.
-   *
+   * Lightweight JWT payload decoder — Base64-decodes the second segment of the token and extracts
+   * the given claim key without a full JWT library dependency.
    */
   private String extractClaimFromJwt(String jwt, String claimKey) {
     try {
@@ -130,8 +130,8 @@ public class TenantFilter extends OncePerRequestFilter {
   }
 
   /**
-   * Extracts a JSON string value for the given key from a raw JSON payload string.
-   * Handles standard {@code "key": "value"} patterns without a full JSON parser.
+   * Extracts a JSON string value for the given key from a raw JSON payload string. Handles standard
+   * {@code "key": "value"} patterns without a full JSON parser.
    */
   private String extractJsonStringValue(String json, String claimKey) {
     int keyIndex = json.indexOf(claimKey);
@@ -160,25 +160,20 @@ public class TenantFilter extends OncePerRequestFilter {
     return json.substring(valueStart + 1, valueEnd);
   }
 
-  /**
-   * Pads a Base64url string to a multiple of 4 characters, as required by the decoder.
-   */
+  /** Pads a Base64url string to a multiple of 4 characters, as required by the decoder. */
   private String padBase64(String base64) {
     int remainder = base64.length() % 4;
     if (remainder == 0) return base64;
     return base64 + "=".repeat(4 - remainder);
   }
 
-  /**
-   * Writes a JSON error response and sets the appropriate HTTP status.
-   */
+  /** Writes a JSON error response and sets the appropriate HTTP status. */
   private void sendError(HttpServletResponse response, HttpStatus status, String message)
-          throws IOException {
+      throws IOException {
     response.setStatus(status.value());
     response.setContentType("application/json;charset=UTF-8");
-    response.getWriter().write(
-            String.format("{\"error\":\"%s\",\"status\":%d}",
-                    message, status.value())
-    );
+    response
+        .getWriter()
+        .write(String.format("{\"error\":\"%s\",\"status\":%d}", message, status.value()));
   }
 }
