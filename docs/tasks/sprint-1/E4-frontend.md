@@ -3,14 +3,17 @@
 ## Sprint 1 — Data Connection (Weeks 3–4)
 
 - **Role:** Frontend Developer
-- **Primary Focus:** User client onboarding workflows (wizard layouts), external database registry forms, mapping design layouts, and ingestion synchronization status monitors.
+- **Primary Focus:** Sprint 0 carry-over (design tokens, OIDC login, OpenAPI codegen) on Day 1–2, then user client onboarding workflows, database registry forms, mapping design layouts, and sync status monitors.
 - **Working Directory:** `frontend/`
 - **Language:** TypeScript 5 + React 19 + Vite + Tailwind CSS v4
+- **Total Load:** 31 SP (7 SP carry-over + 24 SP new) — 🔴 OVERLOADED
 
 ---
 
-## ⚠️ Carry-Over Warning
-* **S0-09 (Keycloak OIDC Flow)** and **S0-10 (OpenAPI Codegen)** are absolute blockers for all Sprint 1 views. You must complete these tasks on **Day 1–2** before beginning the files or database sync wizard pages. See the Sprint 0 task sheet for details.
+## 🔴 Carry-Over Warning
+* **S0-08 (Design Tokens)** — `tokens.css` was never created. The `src/styles/` directory doesn't exist. Must be done first.
+* **S0-09 (Keycloak OIDC Flow)** — Files exist (`auth.ts`, `authStore.ts`, `LoginPage.tsx`, `ProtectedRoute.tsx`) but integration was not accepted. **BLOCKER for ALL Sprint 1 frontend screens.** Must be completed Day 1–2.
+* **S0-10 (OpenAPI Codegen)** — `api.ts` and `generate:api` script exist but were not accepted. Must be completed before building API-consuming views.
 
 ---
 
@@ -23,6 +26,66 @@
 ---
 
 ## 📋 Assigned Tasks
+
+---
+
+### 🔴 TASK S0-08: App Shell & Design Tokens (1 pt) — CARRY-OVER / DAY 1
+* **Goal:** Add the missing CSS custom properties design tokens file and verify font loading.
+* **Branch:** `feature/S0-08-frontend-tokens`
+* **Target Files:**
+  * `src/styles/tokens.css` *(create — directory doesn't exist yet)*
+  * `src/index.css` *(update)*
+
+#### Requirements
+1. **Design Tokens:**
+   * Create CSS custom properties for colors, spacing, typography, shadows, and border radii.
+   * Import tokens into the main stylesheet.
+
+#### Acceptance Criteria
+- [ ] Tailwind compiles successfully using custom tokens config.
+
+---
+
+### 🔴 TASK S0-09: Keycloak OIDC Integration & Login Flow (3 pts) — CARRY-OVER / DAY 1 BLOCKER
+* **Goal:** Complete OIDC authorization code flow with PKCE using `oidc-client-ts`. All Sprint 1 screens depend on this.
+* **Branch:** `feature/S0-09-oidc-login`
+* **Target Files:**
+  * `src/lib/auth.ts` *(review/fix)*
+  * `src/stores/authStore.ts` *(review/fix)*
+  * `src/features/auth/LoginPage.tsx` *(review/fix)*
+  * `src/components/layout/ProtectedRoute.tsx` *(review/fix)*
+
+#### Requirements
+1. **OIDC Flow:**
+   * Configure `oidc-client-ts` with Keycloak issuer, client ID `luminai-spa`, and PKCE.
+   * Implement Zustand auth store tracking token lifetimes and user details.
+   * Protected route wrapper must redirect unauthenticated users to login.
+2. **Callback Handling:**
+   * Handle OIDC callback, extract tokens, and populate user context in layout shell.
+
+#### Acceptance Criteria
+- [ ] Unauthenticated clients are routed to Keycloak login splash gates.
+- [ ] Success callbacks save active JWTs and details in user context layout shells.
+
+---
+
+### 🔴 TASK S0-10: OpenAPI Client Codegen Pipeline (3 pts) — CARRY-OVER
+* **Goal:** Complete OpenAPI generator CLI pipeline and JWT-authenticated API fetch wrapper.
+* **Branch:** `feature/S0-10-openapi-codegen`
+* **Target Files:**
+  * `package.json` *(review/fix)*
+  * `src/lib/api.ts` *(review/fix)*
+
+#### Requirements
+1. **Code Generation:**
+   * `npm run generate:api` must produce type-safe TypeScript client interfaces under `src/lib/api-client/`.
+   * Generated output directory must be git-ignored.
+2. **Auth Interceptor:**
+   * Global fetch wrapper must inject JWT from auth store into all API requests.
+
+#### Acceptance Criteria
+- [ ] `npm run generate:api` compiles API clients successfully under `src/lib/api-client/`.
+- [ ] API client intercepts requests adding authentication JWT token header.
 
 ---
 

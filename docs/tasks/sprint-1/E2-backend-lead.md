@@ -3,14 +3,15 @@
 ## Sprint 1 — Data Connection (Weeks 3–4)
 
 - **Role:** Backend Lead / Senior Developer
-- **Primary Focus:** File and database connector logic, raw storage uploads, schema inference engines, and event publication onto Kafka queues.
+- **Primary Focus:** Sprint 0 carry-over Kafka configuration (Day 1 blocker), then file and database connector logic, raw storage uploads, and event publication onto Kafka queues.
 - **Working Directory:** `core-backend/`
 - **Language:** Java 21 + Spring Boot 3.5
+- **Total Load:** 22 SP (3 SP carry-over + 19 SP new)
 
 ---
 
-## ⚠️ Carry-Over Warning
-* **S0-04 (Kafka Config)** must be completed on **Day 1** before starting Sprint 1. It is a hard blocker for all ingestion events and E6's tasks. See the Sprint 0 task sheet for details on S0-04.
+## 🔴 Carry-Over Warning
+* **S0-04 (Kafka Config)** was not merged in Sprint 0. It **MUST** be completed on **Day 1** before starting any Sprint 1 tasks. It is a hard blocker for S1-06 (ConnectionProducer) and E6's Kafka consumer.
 
 ---
 
@@ -22,6 +23,27 @@
 ---
 
 ## 📋 Assigned Tasks
+
+---
+
+### 🔴 TASK S0-04: Spring Kafka Configuration & Topics (3 pts) — CARRY-OVER / DAY 1 BLOCKER
+* **Goal:** Configure Spring Kafka connection factories, templates, retry listeners, error handling, and auto-provision 7 Kafka topics on startup.
+* **Branch:** `feature/S0-04-kafka-config`
+* **Target Files:**
+  * `src/main/java/com/luminai/config/KafkaConfig.java` *(review/fix — file exists but was not accepted)*
+  * `src/main/resources/application-dev.yml` *(update)*
+
+#### Requirements
+1. **Kafka Connection Setup:**
+   * Configure producer and consumer factory beans with appropriate serializers/deserializers.
+   * Set up retry listeners and error handling with dead-letter queue recovery.
+2. **Topic Provisioning:**
+   * Auto-create 7 topics on startup: `ingest.raw`, `ingest.valid`, `entity.resolved`, `entity.updated`, `audit.log`, `alerts.triggered`, `ingest.dead_letter`.
+
+#### Acceptance Criteria
+- [ ] Spring Boot boots up successfully and registers connection factories.
+- [ ] All 7 topics are auto-created in the local broker.
+- [ ] Failed messages trigger dead-letter queue routing to `ingest.dead_letter`.
 
 ---
 

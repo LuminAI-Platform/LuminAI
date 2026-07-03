@@ -9,65 +9,47 @@
 
 ---
 
-## 🚫 Dev Rules & Restrictions
-* **DO NOT** modify frontend or other backend domains unless reassigned.
-* **DO NOT** commit raw credentials, environment files, or keys.
-* **DO NOT** push directly to `main`. Always push to feature branch and open a PR.
+## ✅ Sprint 1 Status: ALL TASKS COMPLETED
+
+> All 3 assigned tasks (10 SP) have been implemented and verified in the codebase.
+> E1 is available for Sprint 2 work or to assist other engineers.
 
 ---
 
-## 📋 Assigned Tasks
+## 📋 Completed Tasks
 
 ---
 
-### TASK S1-07: SchemaMapper CRUD (5 pts)
+### ✅ TASK S1-07: SchemaMapper CRUD (5 pts) — DONE
 * **Goal:** Create REST APIs for establishing mapping configurations translating raw source dataset columns to ontology property definitions.
-* **Target Files:**
+* **Delivered Files:**
   * `src/main/java/com/luminai/connection/model/SchemaMapping.java`
   * `src/main/java/com/luminai/connection/dto/SchemaMappingDto.java`
   * `src/main/java/com/luminai/connection/SchemaMappingController.java`
   * `src/main/java/com/luminai/connection/SchemaMappingService.java`
-
-#### Requirements
-1. **Model & Relationship:**
-   * Create schema mapping entity capturing source column headers mapped to defined properties.
-2. **REST Endpoints:**
-   * Implement standard endpoints to create, retrieve, update, and delete mappings for a connection.
-3. **Multi-Tenancy Isolation:**
-   * Ensure active TenantContext rules strictly partition schema mapping configurations.
+  * `src/main/java/com/luminai/connection/SchemaMappingRepository.java`
 
 #### Acceptance Criteria
-- [ ] CRUD API handles mapping configurations.
-- [ ] Tenant boundaries are validated (tenant A cannot access tenant B mappings).
+- [x] CRUD API handles mapping configurations.
+- [x] Tenant boundaries are validated (tenant A cannot access tenant B mappings).
 
 ---
 
-### TASK S1-08: Connector Credentials via Vault / AWS Secrets Manager (3 pts)
+### ✅ TASK S1-08: Connector Credentials via Vault / AWS Secrets Manager (3 pts) — DONE
 * **Goal:** Secure database passwords and connection string parameters by routing credentials into a secret management vault.
-* **Target Files:**
+* **Delivered Files:**
   * `src/main/java/com/luminai/connection/service/CredentialsVaultService.java`
 
-#### Requirements
-1. **Credential Isolation:**
-   * Ensure database connection passwords are not saved as plain text. Integrate an encryption vault proxy helper class using standard JVM encryption utilities, or direct connectors to AWS Secrets Manager/HashiCorp Vault local engines.
-
 #### Acceptance Criteria
-- [ ] Retrievable credentials are encrypted at rest and decrypted on the fly during sync runs.
-- [ ] Vault service handles access credential encryption/decryption safely.
+- [x] Retrievable credentials are encrypted at rest and decrypted on the fly during sync runs.
+- [x] Vault service handles access credential encryption/decryption safely.
 
 ---
 
-### TASK S1-09: Flyway Migration (2 pts)
+### ✅ TASK S1-09: Flyway Migration (2 pts) — DONE
 * **Goal:** Apply tables for database connections, synchronization tasks, and property mappings schema definitions.
-* **Target Files:**
+* **Delivered Files:**
   * `src/main/resources/db/migration/V3__connectors_and_mappings.sql`
 
-#### Requirements
-1. **Migration scripts:**
-   * Add SQL code setting up:
-     * `connectors` (DB source configs, hosts, username, encrypted password references, status)
-     * `sync_jobs` (execution times, row count processed, status logs)
-     * `schema_mappings` (source to target map bindings)
-
 #### Acceptance Criteria
-- [ ] Start backend runs migration V3 successfully.
+- [x] Start backend runs migration V3 successfully.
