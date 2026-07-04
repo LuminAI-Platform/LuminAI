@@ -1,4 +1,68 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
+
+@theme {
+  /* Override font families to load Inter by default for sans, and JetBrains Mono for mono */
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
+
+  /* Add brand colors, dark-theme backgrounds, text, and borders */
+  --color-brand-primary: var(--color-brand-primary);
+  --color-brand-primary-hover: var(--color-brand-primary-hover);
+  --color-brand-primary-glow: var(--color-brand-primary-glow);
+
+  --color-brand-accent: var(--color-brand-accent);
+  --color-brand-accent-hover: var(--color-brand-accent-hover);
+  --color-brand-accent-glow: var(--color-brand-accent-glow);
+
+  --color-brand-danger: var(--color-brand-danger);
+  --color-brand-danger-hover: var(--color-brand-danger-hover);
+  --color-brand-danger-glow: var(--color-brand-danger-glow);
+
+  --color-brand-warning: var(--color-brand-warning);
+  --color-brand-warning-hover: var(--color-brand-warning-hover);
+
+  --color-brand-success: var(--color-brand-success);
+  --color-brand-info: var(--color-brand-info);
+
+  --color-bg-app: var(--color-bg-app);
+  --color-bg-panel: var(--color-bg-panel);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-surface-hover: var(--color-bg-surface-hover);
+
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-contrast: var(--color-text-contrast);
+
+  --color-border-primary: var(--color-border-primary);
+  --color-border-secondary: var(--color-border-secondary);
+  --color-border-focus: var(--color-border-focus);
+
+  /* Spacing */
+  --spacing-gutter: var(--spacing-gutter);
+
+  /* Typography sizes */
+  --font-size-xs: var(--font-size-xs);
+  --font-size-sm: var(--font-size-sm);
+  --font-size-base: var(--font-size-base);
+  --font-size-lg: var(--font-size-lg);
+  --font-size-xl: var(--font-size-xl);
+  --font-size-xxl: var(--font-size-xxl);
+
+  /* Shadows */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-glow: var(--shadow-glow);
+
+  /* Radii */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+}
 
 /* Tooltip animations — used by SidebarTooltip via Radix data-state selectors */
 @keyframes tooltip-in {
