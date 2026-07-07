@@ -566,6 +566,102 @@ Create base Helm charts for core-backend, data-engine, and frontend to templates
 
 ---
 
+### Task 28 · S1-D6: Upstash Kafka Cluster Setup & Render Config
+
+| Field | Value |
+|---|---|
+| **Type** | Story |
+| **Priority** | 🔴 Critical |
+| **SP** | 2 |
+| **Depends On** | S1-D4 (Render backend services) |
+| **Branch** | `infra/S1-D6-upstash-kafka` |
+
+**Description:**
+Provision a serverless Kafka cluster on Upstash for cloud dev environments. Create required topics (e.g. `ingest.raw`, `ingest.valid`) and configure the Render backend and data-engine environment variables.
+
+**Acceptance Criteria:**
+- [ ] Upstash Kafka instance is live and accessible.
+- [ ] Render Spring Boot and FastAPI environment variables set up for Kafka connection with SASL/SCRAM authentication.
+- [ ] Topic `ingest.raw` exists on the cluster.
+
+---
+
+### Task 29 · S1-D7: Expand Local Docker Compose for Kafka & Zookeeper
+
+| Field | Value |
+|---|---|
+| **Type** | Task |
+| **Priority** | 🟠 High |
+| **SP** | 2 |
+| **Depends On** | S0-02 (Docker Compose) |
+| **Branch** | `infra/S1-D7-docker-kafka` |
+
+**Description:**
+Extend the local `docker-compose.yml` to spin up a local Zookeeper and Kafka broker mapping to port `9092` so that local developers can run integration tests without hitting the cloud.
+
+**Acceptance Criteria:**
+- [ ] Zookeeper and Kafka services are defined in `docker-compose.yml`.
+- [ ] `docker compose up -d` boots Zookeeper and Kafka successfully.
+- [ ] Local Kafka broker is accessible on `localhost:9092`.
+
+---
+
+### Task 30 · S1-D8: Cloud Object Storage Configuration (S3/R2)
+
+| Field | Value |
+|---|---|
+| **Type** | Task |
+| **Priority** | 🟠 High |
+| **SP** | 2 |
+| **Depends On** | S1-D4 (Render backend services) |
+| **Branch** | `infra/S1-D8-cloud-storage` |
+
+**Description:**
+Provision an S3-compatible cloud storage bucket (AWS S3 or Cloudflare R2) and configure the Render backend and data-engine environment variables to point to it, ensuring that uploaded raw files persist when containers restart.
+
+**Acceptance Criteria:**
+- [ ] AWS S3 or Cloudflare R2 bucket created.
+- [ ] Render environment variables (`MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, etc.) configured to redirect MinIO SDK calls to the cloud bucket.
+
+---
+
+### Task 31 · S1-D9: Configure Keycloak Redirect URIs and Web Origins for Production
+
+| Field | Value |
+|---|---|
+| **Type** | Task |
+| **Priority** | 🟠 High |
+| **SP** | 1 |
+| **Depends On** | S1-D4, S1-D1 |
+| **Branch** | `infra/S1-D9-keycloak-prod-redirects` |
+
+**Description:**
+Log in to Keycloak admin console on Render and configure the `luminai-spa` client in the `luminai` realm. Add the live Vercel URL to the Valid Redirect URIs and Web Origins to enable client-side login without redirect URI mismatch errors.
+
+**Acceptance Criteria:**
+- [ ] Keycloak client `luminai-spa` accepts requests from the live Vercel domain.
+- [ ] Vercel UI logs in successfully without OAuth redirect errors.
+
+---
+
+### Task 32 · S1-D10: CI/CD Pipeline Automation (OpenAPI Client Codegen)
+
+| Field | Value |
+|---|---|
+| **Type** | Task |
+| **Priority** | 🟡 Medium |
+| **SP** | 1 |
+| **Depends On** | S0-13 (Actions workflows) |
+| **Branch** | `infra/S1-D10-ci-openapi-codegen` |
+
+**Description:**
+Update the GitHub Actions workflow `ci-frontend.yml` to automatically execute `npm run generate:api` during frontend validation checks to ensure typescript-fetch client types compile cleanly before bundle creation.
+
+**Acceptance Criteria:**
+- [ ] Frontend pull request pipeline builds API client dependencies automatically and passes compilation checks.
+
+---
+
 ## 👤 E6 — Data / AI Engineer
 
 > **Working Directory:** `data-engine/`
@@ -644,7 +740,7 @@ Write the cleaning rules (null substitution, type coercion, string trimming) in 
 | **E2** (Backend Lead) | 3 | 19 | **22** | 🟢 Balanced | Task 4: Kafka Config (Blocker!) |
 | **E3** (Backend Eng 2) | 2 | 8 | **10** | 🟢 Balanced | Task 9: Security Headers |
 | **E4** (Frontend Dev) | 7 | 24 | **31** | 🔴 Overloaded | Task 12 & 13: OIDC Login (Blocker!) |
-| **E5** (DevOps) | 0 | 14 | **14** | 🟢 Balanced | Task 19 & 20: Vercel & Neon Setup |
+| **E5** (DevOps) | 0 | 22 | **22** | 🟢 Balanced | Task 19 & 20: Vercel & Neon Setup |
 | **E6** (Data/AI Eng) | 0 | 13 | **13** | 🟢 Balanced | Task 25: Kafka Consumer |
 
 > [!IMPORTANT]
@@ -652,3 +748,5 @@ Write the cleaning rules (null substitution, type coercion, string trimming) in 
 > 1. **E2 must merge S0-04 (Kafka Config)** on Day 1. If Kafka is not configured in Java, S1-06 cannot publish and E6's Kafka consumer cannot start.
 > 2. **E4 must complete S0-09 (Keycloak OIDC login flow)** on Day 1–2. All Sprint 1 screens assume authenticated contexts.
 > 3. **E3 should merge S0-06 (Security Headers)** on Day 1.
+> 4. **E5 must set up Upstash Kafka (S1-D6)** on Day 1–2. Cloud backend testing is completely blocked without a live broker.
+> 5. **E5 must update local docker-compose.yml (S1-D7)** on Day 1 to allow local developers to test Kafka components.
