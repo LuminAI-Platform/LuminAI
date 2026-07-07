@@ -6,21 +6,32 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+/**
+ * ProtectedRoute — guards all shell routes.
+ *
+ * Flow:
+ *  1. On mount, calls checkUser() which reads sessionStorage via oidc-client-ts.
+ *  2. While the check is in-flight, isLoading === true → show the loading screen.
+ *  3. Once resolved:
+ *     - isAuthenticated === true  → render children (the AppShell)
+ *     - isAuthenticated === false → navigate to /login
+ *
+ * StrictMode note: useEffect runs twice in dev. checkUser() is idempotent —
+ * the store guard inside it (`isLoading` flag) prevents duplicate network calls.
+ */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading, checkUser } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Attempt to load current user session on mount
-    checkUser();
-  }, [checkUser]);
-
-  useEffect(() => {
-    // If checking user finishes and they are not authenticated, redirect to login
-    if (!isLoading && !isAuthenticated) {
-      navigate({ to: "/login", replace: true });
-    }
-  }, [isLoading, isAuthenticated, navigate]);
+    checkUser().then((user) => {
+      if (!user) {
+        navigate({ to: "/login", replace: true });
+      }
+    });
+    // checkUser is a stable zustand action reference — safe to omit from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isLoading) {
     return (
@@ -28,7 +39,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         {/* Subtle grid background */}
         <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
 
-        {/* Glowing backdrop elements */}
+        {/* Glowing backdrop element */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
 
         <div className="flex flex-col items-center gap-6 relative z-10">
@@ -54,6 +65,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // Render children only when authenticated
+  // Render children when authenticated; null while navigate() fires
   return isAuthenticated ? <>{children}</> : null;
 };

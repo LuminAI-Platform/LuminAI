@@ -125,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   return (
     <TooltipProvider>
@@ -294,7 +294,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* User profile card */}
           {collapsed ? (
-            <SidebarTooltip label="Sign out — Admin User" enabled>
+            <SidebarTooltip
+              label={`Sign out — ${user?.profile?.name || "Admin User"}`}
+              enabled
+            >
               <div
                 className="group flex items-center p-2.5 text-zinc-400 hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 cursor-pointer transition-all"
                 onClick={() => logout()}
@@ -335,10 +338,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="flex flex-col overflow-hidden flex-1">
                 <span className="text-[12px] font-semibold text-zinc-200 truncate leading-tight">
-                  Admin User
+                  {user?.profile?.name || "Admin User"}
                 </span>
                 <span className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">
-                  Global Tenant
+                  {user?.profile?.email || "Global Tenant"}
                 </span>
               </div>
               <button

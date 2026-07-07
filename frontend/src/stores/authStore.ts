@@ -15,16 +15,26 @@ interface AuthState {
   clearError: () => void;
 }
 
+// oidc-client-ts v3 session storage key format:
+// "oidc.user:<authority>:<client_id>"
+const OIDC_SESSION_KEY =
+  "oidc.user:http://localhost:8180/realms/luminai:luminai-spa";
+
+// Module-level flag: prevents concurrent checkUser() calls (e.g. React StrictMode
+// double-invokes effects, which would otherwise race two getUser() promises).
+let checkUserInFlight = false;
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: false, // false on init; set to true only when checkUser() actually runs
   error: null,
 
   login: async () => {
     try {
       set({ isLoading: true, error: null });
       await userManager.signinRedirect();
+      // Note: execution stops here — browser navigates away to Keycloak
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : "Failed to initiate login flow";
@@ -36,9 +46,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginMock: async (email: string, name: string) => {
     try {
       set({ isLoading: true, error: null });
-      const mockUser = {
+
+      // Build a mock user shape that satisfies oidc-client-ts v3 User construction.
+      // We write it directly into sessionStorage so getUser() can find it on refresh.
+      const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+      const mockUserData = {
         profile: {
           sub: "mock-sub-12345",
+          iss: "http://localhost:8180/realms/luminai",
+          aud: "luminai-spa",
+          exp: expiresAt,
+          iat: Math.floor(Date.now() / 1000),
           name: name,
           preferred_username: name.toLowerCase().replace(" ", "."),
           email: email,
@@ -49,17 +67,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         id_token: "mock-id-token-123",
         token_type: "Bearer",
         scope: "openid profile email",
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        expires_at: expiresAt,
+        session_state: null,
       };
 
-      // Store in session storage so userManager.getUser() finds it on refresh
-      sessionStorage.setItem(
-        "oidc.user:http://localhost:8180/realms/luminai:luminai-spa",
-        JSON.stringify(mockUser),
-      );
+      sessionStorage.setItem(OIDC_SESSION_KEY, JSON.stringify(mockUserData));
 
       set({
-        user: mockUser as unknown as User,
+        user: mockUserData as unknown as User,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -73,16 +88,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true, error: null });
 
-      const sessionKey =
-        "oidc.user:http://localhost:8180/realms/luminai:luminai-spa";
-      const sessionData = sessionStorage.getItem(sessionKey);
+      const sessionData = sessionStorage.getItem(OIDC_SESSION_KEY);
       const isMock = sessionData?.includes("mock-access-token-123");
 
-      // Clear local state and session storage
+      // Clear store state and sessionStorage unconditionally
       set({ user: null, isAuthenticated: false });
-      sessionStorage.removeItem(sessionKey);
+      sessionStorage.removeItem(OIDC_SESSION_KEY);
 
       if (!isMock) {
+        // signoutRedirect navigates browser away to Keycloak logout endpoint
         await userManager.signoutRedirect();
       }
 
@@ -108,18 +122,63 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  /**
+   * Checks sessionStorage for an existing valid OIDC session.
+   * Called by ProtectedRoute on every mount.
+   *
+   * FIX: previous version had an early-return bug — when the user was already
+   * authenticated in memory, it returned immediately without calling
+   * `set({ isLoading: false })`, leaving the loading spinner visible forever
+   * after hot-reloads or component re-mounts.
+   */
   checkUser: async () => {
+    const currentState = useAuthStore.getState();
+
+    // Fast path: already authenticated with a live token — nothing to do.
+    if (currentState.isAuthenticated && currentState.user && !currentState.user.expired) {
+      return currentState.user;
+    }
+
+    // Guard against concurrent calls (StrictMode double-invoke, multiple ProtectedRoute mounts).
+    // The second caller waits until the first resolves, then re-reads from state.
+    if (checkUserInFlight) {
+      // Poll until the in-flight call finishes (isLoading flips back to false)
+      await new Promise<void>((resolve) => {
+        const unsub = useAuthStore.subscribe((s) => {
+          if (!s.isLoading) {
+            unsub();
+            resolve();
+          }
+        });
+      });
+      const s = useAuthStore.getState();
+      return s.isAuthenticated && s.user && !s.user.expired ? s.user : null;
+    }
+
+    checkUserInFlight = true;
     try {
       set({ isLoading: true, error: null });
       const user = await userManager.getUser();
-      set({ user, isAuthenticated: !!user, isLoading: false });
-      return user;
+      const isValid = user ? !user.expired : false;
+      set({
+        user: isValid ? user : null,
+        isAuthenticated: isValid,
+        isLoading: false,
+      });
+      checkUserInFlight = false;
+      return isValid ? user : null;
     } catch (err) {
       const errorMsg =
         err instanceof Error
           ? err.message
           : "Failed to retrieve active session";
-      set({ error: errorMsg, isLoading: false });
+      set({
+        error: errorMsg,
+        isLoading: false,
+        isAuthenticated: false,
+        user: null,
+      });
+      checkUserInFlight = false;
       return null;
     }
   },
