@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Auto-generated OpenAPI client (regenerate with: npm run generate:api)
+src/lib/api-client/*
+!src/lib/api-client/README.md
+!src/lib/api-client/.openapi-generator-ignore

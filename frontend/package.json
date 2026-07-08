@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "generate:api": "openapi-generator-cli generate"
+    "generate:api": "openapi-generator-cli generate --generator-key luminai-spa",
+    "generate:api:dry": "openapi-generator-cli generate --generator-key luminai-spa --dry-run"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
