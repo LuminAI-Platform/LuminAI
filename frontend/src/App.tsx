@@ -11,6 +11,7 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
 import { ConnectionsPage } from "./pages/connections/ConnectionsPage";
+import { SchemaMapPage } from "./pages/connections/SchemaMapPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -422,6 +423,12 @@ const connectionsRoute = createRoute({
   component: ConnectionsPage,
 });
 
+const schemaMapRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/connections/schema-map",
+  component: SchemaMapPage,
+});
+
 const ontologyRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/ontology",
@@ -447,6 +454,7 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     explorerRoute,
     connectionsRoute,
+    schemaMapRoute,
     ontologyRoute,
     graphRoute,
     settingsRoute,
