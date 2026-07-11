@@ -7,7 +7,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkUser().then((user) => {
+    checkUser().then((user: any) => {
       if (user) {
         navigate({ to: "/", replace: true });
       }

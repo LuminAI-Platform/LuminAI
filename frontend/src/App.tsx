@@ -10,6 +10,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
+import { ConnectionsPage } from "./pages/connections/ConnectionsPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -214,84 +215,7 @@ const ExplorerView = () => {
   );
 };
 
-// Connections Component
-const ConnectionsView = () => {
-  return (
-    <div>
-      <div className="mb-6 select-none">
-        <h1 className="text-xl font-semibold text-zinc-100">Connections</h1>
-      </div>
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6">
-        <h2 className="text-zinc-100 font-semibold mb-2 text-base">
-          Data Connectors
-        </h2>
-        <p className="text-sm text-zinc-400 mb-6">
-          Integrate and synchronize external databases and stream providers.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            {
-              name: "Snowflake",
-              status: "Connected",
-              pipelines: 4,
-              type: "Warehouse",
-            },
-            {
-              name: "AWS S3",
-              status: "Connected",
-              pipelines: 12,
-              type: "Storage",
-            },
-            {
-              name: "Kafka Streams",
-              status: "Connected",
-              pipelines: 2,
-              type: "Stream",
-            },
-            {
-              name: "PostgreSQL",
-              status: "Disconnected",
-              pipelines: 0,
-              type: "Database",
-            },
-          ].map((conn) => (
-            <div
-              key={conn.name}
-              className="p-4 bg-zinc-950 border border-zinc-800/80 rounded-lg flex flex-col gap-3"
-            >
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-zinc-100 text-[15px]">
-                  {conn.name}
-                </span>
-                <span
-                  className={`text-[11px] font-semibold flex items-center gap-1.5 ${
-                    conn.status === "Connected"
-                      ? "text-emerald-500"
-                      : "text-zinc-500"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      conn.status === "Connected"
-                        ? "bg-emerald-500"
-                        : "bg-zinc-600"
-                    }`}
-                  />
-                  {conn.status}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs text-zinc-400 border-t border-zinc-900 pt-2 mt-1">
-                <span>Type: {conn.type}</span>
-                <span>{conn.pipelines} Pipelines</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+// Connections Page is now imported from src/pages/connections/ConnectionsPage
 
 // Ontology Component
 const OntologyView = () => {
@@ -495,7 +419,7 @@ const explorerRoute = createRoute({
 const connectionsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections",
-  component: ConnectionsView,
+  component: ConnectionsPage,
 });
 
 const ontologyRoute = createRoute({

@@ -24,7 +24,7 @@ const OIDC_SESSION_KEY =
 // double-invokes effects, which would otherwise race two getUser() promises).
 let checkUserInFlight = false;
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: false, // false on init; set to true only when checkUser() actually runs
@@ -131,8 +131,8 @@ export const useAuthStore = create<AuthState>((set) => ({
    * `set({ isLoading: false })`, leaving the loading spinner visible forever
    * after hot-reloads or component re-mounts.
    */
-  checkUser: async () => {
-    const currentState = useAuthStore.getState();
+  checkUser: async (): Promise<User | null> => {
+    const currentState = get();
 
     // Fast path: already authenticated with a live token — nothing to do.
     if (currentState.isAuthenticated && currentState.user && !currentState.user.expired) {
@@ -144,14 +144,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (checkUserInFlight) {
       // Poll until the in-flight call finishes (isLoading flips back to false)
       await new Promise<void>((resolve) => {
-        const unsub = useAuthStore.subscribe((s) => {
+        const unsub = useAuthStore.subscribe((s: AuthState) => {
           if (!s.isLoading) {
             unsub();
             resolve();
           }
         });
       });
-      const s = useAuthStore.getState();
+      const s = get();
       return s.isAuthenticated && s.user && !s.user.expired ? s.user : null;
     }
 
