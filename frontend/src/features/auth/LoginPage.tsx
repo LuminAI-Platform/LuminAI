@@ -82,7 +82,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-zinc-100 via-zinc-200 to-zinc-400 tracking-tight leading-[1.1]">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-zinc-100 via-zinc-200 to-zinc-400 tracking-tight leading-[1.1]">
               The Unified Semantic Data Environment
             </h1>
             <p className="text-zinc-400 text-sm md:text-base leading-relaxed max-w-xl">

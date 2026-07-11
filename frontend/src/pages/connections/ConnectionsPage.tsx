@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
+import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 
 interface IngestedFile {
   id: string;
@@ -12,8 +13,20 @@ interface IngestedFile {
 
 export const ConnectionsPage: React.FC = () => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
   const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>([]);
+  const [customConnectors, setCustomConnectors] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"connectors" | "files">("connectors");
+
+  // Load database connectors from localStorage
+  const loadConnectors = () => {
+    const stored = localStorage.getItem("local_database_connectors");
+    if (stored) {
+      setCustomConnectors(JSON.parse(stored));
+    } else {
+      setCustomConnectors([]);
+    }
+  };
 
   // Load files list from localStorage or initialize with mock data
   const loadFiles = () => {
@@ -46,6 +59,7 @@ export const ConnectionsPage: React.FC = () => {
 
   useEffect(() => {
     loadFiles();
+    loadConnectors();
   }, []);
 
   const handleWizardSuccess = () => {
@@ -115,8 +129,8 @@ export const ConnectionsPage: React.FC = () => {
           </button>
           
           <button
-            disabled
-            className="bg-zinc-900 text-zinc-500 border border-zinc-800 px-4 py-2 rounded-lg text-xs font-semibold opacity-60 cursor-not-allowed flex items-center gap-2"
+            onClick={() => setIsDbModalOpen(true)}
+            className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-850 px-4 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-black/10 hover:shadow-black/20"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <circle cx="12" cy="12" r="10" />
@@ -159,6 +173,7 @@ export const ConnectionsPage: React.FC = () => {
         {activeTab === "connectors" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
+              ...customConnectors,
               {
                 name: "Snowflake",
                 status: "Connected",
@@ -187,37 +202,60 @@ export const ConnectionsPage: React.FC = () => {
                 type: "Database",
                 desc: "Relational production database containing customer account profiles.",
               },
-            ].map((conn) => (
-              <div
-                key={conn.name}
-                className="p-5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex flex-col justify-between gap-4 transition-all hover:border-zinc-700/80 hover:shadow-lg hover:shadow-black/25"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-semibold text-zinc-100 text-[15px] block">{conn.name}</span>
-                    <span className="text-[11px] text-zinc-500 mt-1 block leading-normal">{conn.desc}</span>
+            ].map((conn) => {
+              const isCustom = "id" in conn;
+              return (
+                <div
+                  key={conn.id || conn.name}
+                  className="p-5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex flex-col justify-between gap-4 transition-all hover:border-zinc-700/80 hover:shadow-lg hover:shadow-black/25 relative group"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="pr-8">
+                      <span className="font-semibold text-zinc-100 text-[15px] block">{conn.name}</span>
+                      <span className="text-[11px] text-zinc-500 mt-1 block leading-normal">{conn.desc}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded border flex items-center gap-1.5 ${
+                          conn.status === "Connected"
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                            : "bg-zinc-900 border-zinc-800 text-zinc-500"
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            conn.status === "Connected" ? "bg-emerald-500" : "bg-zinc-600"
+                          }`}
+                        />
+                        {conn.status}
+                      </span>
+
+                      {isCustom && (
+                        <button
+                          onClick={() => {
+                            const updated = customConnectors.filter((c) => c.id !== conn.id);
+                            localStorage.setItem("local_database_connectors", JSON.stringify(updated));
+                            setCustomConnectors(updated);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-850 rounded transition-all cursor-pointer absolute top-4 right-4"
+                          title="Delete Custom Connection"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded border flex items-center gap-1.5 ${
-                      conn.status === "Connected"
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                        : "bg-zinc-900 border-zinc-800 text-zinc-500"
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        conn.status === "Connected" ? "bg-emerald-500" : "bg-zinc-600"
-                      }`}
-                    />
-                    {conn.status}
-                  </span>
+                  <div className="flex justify-between text-xs text-zinc-500 border-t border-zinc-850 pt-3 select-none">
+                    <span>Type: <strong className="text-zinc-400 font-normal">{conn.type}</strong></span>
+                    <span className="font-semibold text-blue-500">{conn.pipelines} Pipelines</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-xs text-zinc-500 border-t border-zinc-850 pt-3 select-none">
-                  <span>Type: <strong className="text-zinc-400 font-normal">{conn.type}</strong></span>
-                  <span className="font-semibold text-blue-500">{conn.pipelines} Pipelines</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -332,6 +370,17 @@ export const ConnectionsPage: React.FC = () => {
         <FileUploadWizard
           onClose={() => setIsWizardOpen(false)}
           onSuccess={handleWizardSuccess}
+        />
+      )}
+
+      {/* Database Connection Modal */}
+      {isDbModalOpen && (
+        <DatabaseConnectorForm
+          onClose={() => setIsDbModalOpen(false)}
+          onSuccess={() => {
+            setIsDbModalOpen(false);
+            loadConnectors();
+          }}
         />
       )}
     </div>
