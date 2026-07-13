@@ -78,7 +78,6 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
     { x1: number; y1: number; x2: number; y2: number; id: string }[]
   >([]);
 
-  // Recalculate SVG lines whenever mappings or layout changes
   const recalcLines = useCallback(() => {
     if (!containerRef.current) return;
     const containerRect = containerRef.current.getBoundingClientRect();
@@ -98,6 +97,35 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
     });
     setConnectorLines(lines.filter(Boolean) as typeof connectorLines);
   }, [mappings]);
+
+  const [dragPreviewLine, setDragPreviewLine] = useState<{
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!draggingColId || !hoverPropId || !containerRef.current) {
+      setDragPreviewLine(null);
+      return;
+    }
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const srcEl = sourceRefs.current[draggingColId];
+    const propEl = propRefs.current[hoverPropId];
+    if (!srcEl || !propEl) {
+      setDragPreviewLine(null);
+      return;
+    }
+    const sRect = srcEl.getBoundingClientRect();
+    const pRect = propEl.getBoundingClientRect();
+    setDragPreviewLine({
+      x1: sRect.right - containerRect.left,
+      y1: sRect.top - containerRect.top + sRect.height / 2,
+      x2: pRect.left - containerRect.left,
+      y2: pRect.top - containerRect.top + pRect.height / 2,
+    });
+  }, [draggingColId, hoverPropId]);
 
   useEffect(() => {
     recalcLines();
@@ -306,32 +334,22 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
             );
           })}
           {/* Drag preview line */}
-          {draggingColId &&
-            hoverPropId &&
-            (() => {
-              const srcEl = sourceRefs.current[draggingColId];
-              const propEl = propRefs.current[hoverPropId];
-              if (!srcEl || !propEl || !containerRef.current) return null;
-              const cRect = containerRef.current.getBoundingClientRect();
-              const sRect = srcEl.getBoundingClientRect();
-              const pRect = propEl.getBoundingClientRect();
-              const x1 = sRect.right - cRect.left;
-              const y1 = sRect.top - cRect.top + sRect.height / 2;
-              const x2 = pRect.left - cRect.left;
-              const y2 = pRect.top - cRect.top + pRect.height / 2;
-              const cx1 = x1 + (x2 - x1) * 0.4;
-              const cx2 = x1 + (x2 - x1) * 0.6;
-              return (
-                <path
-                  d={`M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`}
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="2"
-                  strokeOpacity="0.9"
-                  strokeDasharray="5 3"
-                />
-              );
-            })()}
+          {dragPreviewLine && (
+            <path
+              d={`M ${dragPreviewLine.x1} ${dragPreviewLine.y1} C ${
+                dragPreviewLine.x1 +
+                (dragPreviewLine.x2 - dragPreviewLine.x1) * 0.4
+              } ${dragPreviewLine.y1}, ${
+                dragPreviewLine.x1 +
+                (dragPreviewLine.x2 - dragPreviewLine.x1) * 0.6
+              } ${dragPreviewLine.y2}, ${dragPreviewLine.x2} ${dragPreviewLine.y2}`}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="2"
+              strokeOpacity="0.9"
+              strokeDasharray="5 3"
+            />
+          )}
         </svg>
 
         {/* ── Left Panel: Source Columns ── */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
@@ -13,11 +13,54 @@ interface IngestedFile {
   createdAt: string;
 }
 
+interface DatabaseConnector {
+  id?: string;
+  name: string;
+  status: string;
+  pipelines: number;
+  type: string;
+  desc: string;
+}
+
 export const ConnectionsPage: React.FC = () => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
-  const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>([]);
-  const [customConnectors, setCustomConnectors] = useState<any[]>([]);
+  const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>(() => {
+    const stored = localStorage.getItem("local_ingested_files");
+    if (stored) {
+      return JSON.parse(stored);
+    } else {
+      const initialFiles: IngestedFile[] = [
+        {
+          id: "1",
+          name: "users_gold_v2.csv",
+          size: "14.2 MB",
+          recordsCount: 48500,
+          status: "Synced",
+          createdAt: new Date(Date.now() - 4800000).toLocaleString(),
+        },
+        {
+          id: "2",
+          name: "sales_raw_parquet.json",
+          size: "1.4 GB",
+          recordsCount: 2900000,
+          status: "Synced",
+          createdAt: new Date(Date.now() - 36000000).toLocaleString(),
+        },
+      ];
+      localStorage.setItem(
+        "local_ingested_files",
+        JSON.stringify(initialFiles),
+      );
+      return initialFiles;
+    }
+  });
+  const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
+    () => {
+      const stored = localStorage.getItem("local_database_connectors");
+      return stored ? JSON.parse(stored) : [];
+    },
+  );
   const [activeTab, setActiveTab] = useState<"connectors" | "files">(
     "connectors",
   );
@@ -63,11 +106,6 @@ export const ConnectionsPage: React.FC = () => {
       setIngestedFiles(initialFiles);
     }
   };
-
-  useEffect(() => {
-    loadFiles();
-    loadConnectors();
-  }, []);
 
   const handleWizardSuccess = () => {
     // Read the file object or state from some place? In the wizard, we know what we uploaded.

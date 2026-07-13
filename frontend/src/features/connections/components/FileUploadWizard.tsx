@@ -23,7 +23,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<{
     columns: string[];
-    rows: Record<string, any>[];
+    rows: Record<string, unknown>[];
   }>({ columns: [], rows: [] });
 
   // Step 2 configurations
@@ -74,7 +74,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   };
 
   // Inferred types logic
-  const inferType = (values: any[]): ColumnConfig["type"] => {
+  const inferType = (values: unknown[]): ColumnConfig["type"] => {
     const nonNullValues = values.filter((v) => v !== null && v !== "");
     if (nonNullValues.length === 0) return "String";
 
@@ -136,7 +136,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
     const rows = lines.slice(1).map((line) => {
       const values = parseLine(line);
-      const row: Record<string, any> = {};
+      const row: Record<string, unknown> = {};
       headers.forEach((header, index) => {
         let val = values[index] !== undefined ? values[index] : null;
         if (val !== null) {
@@ -168,7 +168,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
       return { columns, rows };
     } catch (e) {
-      throw new Error("Invalid JSON structure. Must be an array of objects.");
+      throw new Error("Invalid JSON structure. Must be an array of objects.", {
+        cause: e,
+      });
     }
   };
 
@@ -187,7 +189,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       try {
         let result = {
           columns: [] as string[],
-          rows: [] as Record<string, any>[],
+          rows: [] as Record<string, unknown>[],
         };
         if (selectedFile.name.endsWith(".json")) {
           result = parseJSON(text);
@@ -209,7 +211,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         });
 
         // Initialize ontology mappings
-        const initialMappings: Record<string, any> = {};
+        const initialMappings: typeof mappings = {};
         configs.forEach((cfg) => {
           // Default mapping rule to User entity types if found
           let matchedEntity = "User";
@@ -333,7 +335,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           }),
         });
         addLog(`[API] Saved mapping for column '${col.name}'`, "SUCCESS");
-      } catch (err) {
+      } catch {
         addLog(
           `[API] Failed to persist mapping for '${col.name}' (backend offline or unauthenticated). Storing configuration in local storage context.`,
           "WARN",
@@ -959,7 +961,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             {step > 1 && (
               <button
                 disabled={ingesting}
-                onClick={() => setStep((s) => (s - 1) as any)}
+                onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
                 className="px-4 py-2 border border-zinc-850 hover:border-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 Previous Step
@@ -978,7 +980,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
             {step < 4 && step > 1 && (
               <button
-                onClick={() => setStep((s) => (s + 1) as any)}
+                onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/10 transition-colors cursor-pointer"
               >
                 Next Step
