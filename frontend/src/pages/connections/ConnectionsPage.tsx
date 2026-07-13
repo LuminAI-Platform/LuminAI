@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
+import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
+import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
 
 interface IngestedFile {
   id: string;
@@ -403,51 +405,10 @@ export const ConnectionsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Sync pipeline monitoring panel */}
-      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-6 select-none">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h3 className="text-zinc-100 font-semibold text-sm">
-              Active Ingestion Pipelines & Logs
-            </h3>
-            <p className="text-[11px] text-zinc-500 mt-0.5">
-              Monitoring live Kafka batch publishers and Polars cleaning
-              executors
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2.5 py-0.5 rounded font-mono">
-              Speed: 14.2K rec/s
-            </span>
-            <span className="text-[10px] bg-zinc-900 border border-zinc-800 text-zinc-400 px-2.5 py-0.5 rounded font-mono">
-              Load: 8.5%
-            </span>
-          </div>
-        </div>
-
-        {/* Console log widget */}
-        <div className="bg-black/90 p-4 border border-zinc-850 rounded-lg font-mono text-[10px] text-zinc-300 flex flex-col gap-2 h-36 overflow-y-auto">
-          <div>
-            <span className="text-zinc-600">[00:41:03]</span>{" "}
-            <span className="text-emerald-500 font-bold">INFO</span> [Kafka]
-            Connected to brokers at upstash-kafka-prod:9092
-          </div>
-          <div>
-            <span className="text-zinc-600">[00:41:05]</span>{" "}
-            <span className="text-emerald-500 font-bold">INFO</span> [Data
-            Engine] Polars processor threadpool instantiated. (8 workers)
-          </div>
-          <div>
-            <span className="text-zinc-600">[00:45:12]</span>{" "}
-            <span className="text-emerald-500 font-bold">INFO</span> [MinIO]
-            Health status OK. Bucket 'lumin-raw-bucket' ready.
-          </div>
-          <div>
-            <span className="text-zinc-600">[01:12:44]</span>{" "}
-            <span className="text-blue-500 font-bold">SUCCESS</span> [Sync]
-            Database schemas verified. Ontology structure mapped.
-          </div>
-        </div>
+      {/* Sync pipeline monitoring panels */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <SyncJobDetails demo={true} />
+        <ExecutionLogs demo={true} title="Pipeline Execution Logs" />
       </div>
 
       {/* File Ingestion Modal */}
