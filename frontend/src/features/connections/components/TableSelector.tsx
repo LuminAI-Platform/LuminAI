@@ -17,7 +17,9 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
   onChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedSchemas, setExpandedSchemas] = useState<Record<string, boolean>>(() => {
+  const [expandedSchemas, setExpandedSchemas] = useState<
+    Record<string, boolean>
+  >(() => {
     // Expand first schema by default
     if (discovered.length > 0) {
       return { [discovered[0].schema]: true };
@@ -51,14 +53,18 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
   // Toggle selection for an entire schema
   const handleToggleSchema = (schema: string, tables: string[]) => {
     const schemaTableKeys = tables.map((t) => `${schema}.${t}`);
-    const allSelected = schemaTableKeys.every((key) => selectedTables.includes(key));
+    const allSelected = schemaTableKeys.every((key) =>
+      selectedTables.includes(key),
+    );
 
     if (allSelected) {
       // Remove all tables of this schema
       onChange(selectedTables.filter((key) => !schemaTableKeys.includes(key)));
     } else {
       // Add missing tables of this schema
-      const otherSelected = selectedTables.filter((key) => !schemaTableKeys.includes(key));
+      const otherSelected = selectedTables.filter(
+        (key) => !schemaTableKeys.includes(key),
+      );
       onChange([...otherSelected, ...schemaTableKeys]);
     }
   };
@@ -72,7 +78,8 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
       .map((item) => {
         const matchingTables = item.tables.filter(
           (t) =>
-            t.toLowerCase().includes(lower) || item.schema.toLowerCase().includes(lower)
+            t.toLowerCase().includes(lower) ||
+            item.schema.toLowerCase().includes(lower),
         );
         return {
           schema: item.schema,
@@ -86,7 +93,7 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
   const getSchemaSelectionStatus = (schema: string, tables: string[]) => {
     const keys = tables.map((t) => `${schema}.${t}`);
     const selectedCount = keys.filter((k) => selectedTables.includes(k)).length;
-    
+
     return {
       all: selectedCount === tables.length && tables.length > 0,
       some: selectedCount > 0 && selectedCount < tables.length,
@@ -96,7 +103,6 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800/80 rounded-xl overflow-hidden shadow-xl shadow-black/40">
-      
       {/* Search Header */}
       <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between gap-4 select-none">
         <div className="flex flex-col">
@@ -105,7 +111,8 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
           </span>
           <span className="text-[10px] text-zinc-500 mt-0.5">
             {selectedTables.length} of{" "}
-            {discovered.reduce((acc, curr) => acc + curr.tables.length, 0)} tables selected
+            {discovered.reduce((acc, curr) => acc + curr.tables.length, 0)}{" "}
+            tables selected
           </span>
         </div>
 
@@ -150,12 +157,19 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span className="text-xs font-semibold text-zinc-500">No schemas or tables found</span>
-            <span className="text-[10px] text-zinc-600 mt-1">Try resetting the search filter</span>
+            <span className="text-xs font-semibold text-zinc-500">
+              No schemas or tables found
+            </span>
+            <span className="text-[10px] text-zinc-600 mt-1">
+              Try resetting the search filter
+            </span>
           </div>
         ) : (
           filteredDiscovered.map((item) => {
-            const { all, some, count } = getSchemaSelectionStatus(item.schema, item.tables);
+            const { all, some, count } = getSchemaSelectionStatus(
+              item.schema,
+              item.tables,
+            );
             const isExpanded = expandedSchemas[item.schema] ?? false;
 
             return (
@@ -173,12 +187,17 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
                         if (el) el.indeterminate = some;
                       }}
                       checked={all}
-                      onChange={() => handleToggleSchema(item.schema, item.tables)}
+                      onChange={() =>
+                        handleToggleSchema(item.schema, item.tables)
+                      }
                       className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950 cursor-pointer"
                     />
-                    
+
                     {/* Schema name & count */}
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => toggleExpand(item.schema)}>
+                    <div
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => toggleExpand(item.schema)}
+                    >
                       <span className="text-xs font-mono font-bold text-zinc-200">
                         {item.schema}
                       </span>

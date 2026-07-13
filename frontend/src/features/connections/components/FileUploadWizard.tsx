@@ -20,7 +20,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [dragActive, setDragActive] = useState(false);
-  const [file, setFile] = useState<File | null>( null);
+  const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<{
     columns: string[];
     rows: Record<string, any>[];
@@ -34,7 +34,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       {
         targetEntityType: string;
         targetProperty: string;
-        transformation: "NONE" | "UPPERCASE" | "LOWERCASE" | "TRIM" | "DATE_PARSE";
+        transformation:
+          | "NONE"
+          | "UPPERCASE"
+          | "LOWERCASE"
+          | "TRIM"
+          | "DATE_PARSE";
       }
     >
   >({});
@@ -49,7 +54,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Predefined ontology values
-  const ontologyEntityTypes = ["User", "Product", "Transaction", "Organization"];
+  const ontologyEntityTypes = [
+    "User",
+    "Product",
+    "Transaction",
+    "Organization",
+  ];
   const ontologyProperties: Record<string, string[]> = {
     User: ["id", "name", "email", "created_at", "role", "status"],
     Product: ["id", "sku", "name", "price", "stock_quantity", "category"],
@@ -70,7 +80,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
     // Test Boolean
     const isBoolean = nonNullValues.every((v) =>
-      /^(true|false|1|0)$/i.test(String(v))
+      /^(true|false|1|0)$/i.test(String(v)),
     );
     if (isBoolean) return "Boolean";
 
@@ -80,7 +90,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
     // Test Double
     const isDouble = nonNullValues.every(
-      (v) => !isNaN(Number(v)) && String(v).includes(".")
+      (v) => !isNaN(Number(v)) && String(v).includes("."),
     );
     if (isDouble) return "Double";
 
@@ -175,7 +185,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     reader.onload = (e) => {
       const text = e.target?.result as string;
       try {
-        let result = { columns: [] as string[], rows: [] as Record<string, any>[] };
+        let result = {
+          columns: [] as string[],
+          rows: [] as Record<string, any>[],
+        };
         if (selectedFile.name.endsWith(".json")) {
           result = parseJSON(text);
         } else {
@@ -260,20 +273,20 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   // Column config handlers
   const toggleColumn = (colName: string) => {
     setColumnsConfig((prev) =>
-      prev.map((c) => (c.name === colName ? { ...c, active: !c.active } : c))
+      prev.map((c) => (c.name === colName ? { ...c, active: !c.active } : c)),
     );
   };
 
   const updateColumnType = (colName: string, type: ColumnConfig["type"]) => {
     setColumnsConfig((prev) =>
-      prev.map((c) => (c.name === colName ? { ...c, type } : c))
+      prev.map((c) => (c.name === colName ? { ...c, type } : c)),
     );
   };
 
   const updateMapping = (
     colName: string,
     key: "targetEntityType" | "targetProperty" | "transformation",
-    value: string
+    value: string,
   ) => {
     setMappings((prev) => {
       const current = prev[colName] || {
@@ -300,7 +313,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     const connectorId = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"; // Mock/real connector ID
     const activeCols = columnsConfig.filter((c) => c.active);
 
-    addLog(`[API] Registering ${activeCols.length} schema mappings with backend...`, "INFO");
+    addLog(
+      `[API] Registering ${activeCols.length} schema mappings with backend...`,
+      "INFO",
+    );
 
     for (const col of activeCols) {
       const mapCfg = mappings[col.name];
@@ -320,10 +336,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       } catch (err) {
         addLog(
           `[API] Failed to persist mapping for '${col.name}' (backend offline or unauthenticated). Storing configuration in local storage context.`,
-          "WARN"
+          "WARN",
         );
         // Fallback: save to localStorage so we can retrieve it
-        const saved = JSON.parse(localStorage.getItem("local_schema_mappings") || "[]");
+        const saved = JSON.parse(
+          localStorage.getItem("local_schema_mappings") || "[]",
+        );
         saved.push({
           id: Math.random().toString(36).substring(7),
           connectorId,
@@ -354,37 +372,61 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     // Phase 1: Uploading binary raw bytes
     setTimeout(() => {
       setIngestionProgress(15);
-      addLog(`[MinIO] Uploading raw data partition onto 'lumin-raw-bucket/${file?.name}'...`, "INFO");
+      addLog(
+        `[MinIO] Uploading raw data partition onto 'lumin-raw-bucket/${file?.name}'...`,
+        "INFO",
+      );
     }, 800);
 
     setTimeout(() => {
       setIngestionProgress(30);
-      addLog(`[MinIO] Upload complete. Raw file successfully isolated under secure tenant-isolated partition path.`, "SUCCESS");
+      addLog(
+        `[MinIO] Upload complete. Raw file successfully isolated under secure tenant-isolated partition path.`,
+        "SUCCESS",
+      );
     }, 1800);
 
     // Phase 2: Kafka publishing
     setTimeout(() => {
       setIngestionProgress(45);
-      addLog(`[Kafka] Initializing ConnectionProducer and batching payloads...`, "INFO");
-      addLog(`[Kafka] Publishing parsed rows onto topic 'ingest.raw' in event wrappers...`, "INFO");
+      addLog(
+        `[Kafka] Initializing ConnectionProducer and batching payloads...`,
+        "INFO",
+      );
+      addLog(
+        `[Kafka] Publishing parsed rows onto topic 'ingest.raw' in event wrappers...`,
+        "INFO",
+      );
     }, 2800);
 
     setTimeout(() => {
       setIngestionProgress(65);
-      addLog(`[Kafka] Successfully published ${parsedData.rows.length} events to 'ingest.raw' broker partition.`, "SUCCESS");
+      addLog(
+        `[Kafka] Successfully published ${parsedData.rows.length} events to 'ingest.raw' broker partition.`,
+        "SUCCESS",
+      );
     }, 4000);
 
     // Phase 3: Data Engine Consumer and Polars cleaning
     setTimeout(() => {
       setIngestionProgress(75);
-      addLog(`[Data Engine] FastAPI consumer listening to 'ingest.raw' active. Batch processing started.`, "INFO");
-      addLog(`[Data Engine] Running Polars LazyFrame cleaning: Null check, Trim, and Type Coercion...`, "INFO");
+      addLog(
+        `[Data Engine] FastAPI consumer listening to 'ingest.raw' active. Batch processing started.`,
+        "INFO",
+      );
+      addLog(
+        `[Data Engine] Running Polars LazyFrame cleaning: Null check, Trim, and Type Coercion...`,
+        "INFO",
+      );
     }, 4800);
 
     // Phase 4: Save API Mappings & Sync
     setTimeout(async () => {
       setIngestionProgress(85);
-      addLog(`[Data Engine] Polars cleaned batch. Publishing validated events to 'ingest.valid' topic.`, "SUCCESS");
+      addLog(
+        `[Data Engine] Polars cleaned batch. Publishing validated events to 'ingest.valid' topic.`,
+        "SUCCESS",
+      );
       await saveMappingsToBackend();
     }, 6000);
 
@@ -395,18 +437,22 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           "most_recent_ingested_file",
           JSON.stringify({
             name: file.name,
-            size: file.size > 1024 * 1024
-              ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-              : `${Math.round(file.size / 1024)} KB`,
+            size:
+              file.size > 1024 * 1024
+                ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+                : `${Math.round(file.size / 1024)} KB`,
             recordsCount: parsedData.rows.length,
-          })
+          }),
         );
       }
 
       setIngestedCount(parsedData.rows.length);
       setIngestionProgress(100);
       setIngestionFinished(true);
-      addLog(`[Sync] Ingestion job finished. Target ontology classes populated.`, "SUCCESS");
+      addLog(
+        `[Sync] Ingestion job finished. Target ontology classes populated.`,
+        "SUCCESS",
+      );
       if (onSuccess) onSuccess();
     }, 7200);
   };
@@ -414,27 +460,44 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/75 backdrop-blur-md transition-opacity">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
-        
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-600/10 border border-blue-500/30 flex items-center justify-center text-blue-500">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
             </div>
             <div>
-              <h2 className="text-base font-bold text-zinc-100">File Ingestion Wizard</h2>
-              <p className="text-[11px] text-zinc-400">Ingest flat files (CSV, JSON) into semantic data graphs</p>
+              <h2 className="text-base font-bold text-zinc-100">
+                File Ingestion Wizard
+              </h2>
+              <p className="text-[11px] text-zinc-400">
+                Ingest flat files (CSV, JSON) into semantic data graphs
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -455,21 +518,26 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   step === item.s
                     ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
                     : step > item.s
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-zinc-950 border-zinc-800 text-zinc-500"
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                      : "bg-zinc-950 border-zinc-800 text-zinc-500"
                 }`}
               >
                 {item.s}
               </span>
-              <span className={step === item.s ? "text-zinc-100" : "text-zinc-500"}>{item.name}</span>
-              {item.s < 4 && <span className="text-zinc-700 mx-4 font-normal">➔</span>}
+              <span
+                className={step === item.s ? "text-zinc-100" : "text-zinc-500"}
+              >
+                {item.name}
+              </span>
+              {item.s < 4 && (
+                <span className="text-zinc-700 mx-4 font-normal">➔</span>
+              )}
             </div>
           ))}
         </div>
 
         {/* Core content area */}
         <div className="flex-1 p-6 overflow-y-auto min-h-0 bg-zinc-900/10">
-          
           {/* STEP 1: DROPZONE */}
           {step === 1 && (
             <div className="h-full flex flex-col items-center justify-center">
@@ -493,15 +561,27 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   onChange={handleChange}
                 />
                 <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-zinc-200 transition-colors mb-6 shadow-inner">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <svg
+                    width="28"
+                    height="28"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
                     <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
                     <path d="M12 12v9" />
                     <path d="m9 15 3-3 3 3" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-zinc-100 tracking-tight">Drag and drop file</h3>
+                <h3 className="text-lg font-bold text-zinc-100 tracking-tight">
+                  Drag and drop file
+                </h3>
                 <p className="text-sm text-zinc-400 mt-2 max-w-md">
-                  Ingest structured records instantly. Supported formats are <strong className="text-zinc-300">CSV</strong> or <strong className="text-zinc-300">JSON</strong> (up to 500 MB).
+                  Ingest structured records instantly. Supported formats are{" "}
+                  <strong className="text-zinc-300">CSV</strong> or{" "}
+                  <strong className="text-zinc-300">JSON</strong> (up to 500
+                  MB).
                 </p>
                 <button
                   type="button"
@@ -518,9 +598,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             <div className="h-full flex flex-col gap-4">
               <div className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-xl flex items-center justify-between select-none">
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-200">Map columns to Ontology Properties</h3>
+                  <h3 className="text-sm font-semibold text-zinc-200">
+                    Map columns to Ontology Properties
+                  </h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    LuminAI automatically inferred schema datatypes. Refine column inclusion, target entities, and transformations.
+                    LuminAI automatically inferred schema datatypes. Refine
+                    column inclusion, target entities, and transformations.
                   </p>
                 </div>
                 <div className="text-xs px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded font-mono text-zinc-400">
@@ -549,7 +632,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       <div
                         key={col.name}
                         className={`grid grid-cols-12 p-3 items-center text-xs transition-colors ${
-                          col.active ? "hover:bg-zinc-900/20" : "bg-zinc-900/10 opacity-60"
+                          col.active
+                            ? "hover:bg-zinc-900/20"
+                            : "bg-zinc-900/10 opacity-60"
                         }`}
                       >
                         {/* Toggle active checkbox */}
@@ -573,11 +658,20 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                             disabled={!col.active}
                             value={col.type}
                             onChange={(e) =>
-                              updateColumnType(col.name, e.target.value as ColumnConfig["type"])
+                              updateColumnType(
+                                col.name,
+                                e.target.value as ColumnConfig["type"],
+                              )
                             }
                             className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {["String", "Integer", "Double", "Boolean", "Timestamp"].map((t) => (
+                            {[
+                              "String",
+                              "Integer",
+                              "Double",
+                              "Boolean",
+                              "Timestamp",
+                            ].map((t) => (
                               <option key={t} value={t}>
                                 {t}
                               </option>
@@ -590,7 +684,13 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                           <select
                             disabled={!col.active}
                             value={colMap.targetEntityType}
-                            onChange={(e) => updateMapping(col.name, "targetEntityType", e.target.value)}
+                            onChange={(e) =>
+                              updateMapping(
+                                col.name,
+                                "targetEntityType",
+                                e.target.value,
+                              )
+                            }
                             className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
                           >
                             {ontologyEntityTypes.map((entity) => (
@@ -602,10 +702,18 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                           <select
                             disabled={!col.active}
                             value={colMap.targetProperty}
-                            onChange={(e) => updateMapping(col.name, "targetProperty", e.target.value)}
+                            onChange={(e) =>
+                              updateMapping(
+                                col.name,
+                                "targetProperty",
+                                e.target.value,
+                              )
+                            }
                             className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
                           >
-                            {(ontologyProperties[colMap.targetEntityType] || []).map((prop) => (
+                            {(
+                              ontologyProperties[colMap.targetEntityType] || []
+                            ).map((prop) => (
                               <option key={prop} value={prop}>
                                 {prop}
                               </option>
@@ -618,10 +726,22 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                           <select
                             disabled={!col.active}
                             value={colMap.transformation}
-                            onChange={(e) => updateMapping(col.name, "transformation", e.target.value)}
+                            onChange={(e) =>
+                              updateMapping(
+                                col.name,
+                                "transformation",
+                                e.target.value,
+                              )
+                            }
                             className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50"
                           >
-                            {["NONE", "UPPERCASE", "LOWERCASE", "TRIM", "DATE_PARSE"].map((tx) => (
+                            {[
+                              "NONE",
+                              "UPPERCASE",
+                              "LOWERCASE",
+                              "TRIM",
+                              "DATE_PARSE",
+                            ].map((tx) => (
                               <option key={tx} value={tx}>
                                 {tx === "NONE" ? "None (Pass through)" : tx}
                               </option>
@@ -641,10 +761,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             <div className="h-full flex flex-col gap-4">
               <div className="flex items-center justify-between select-none">
                 <span className="text-xs text-zinc-400">
-                  Reviewing interactive records layout mapping to destination nodes.
+                  Reviewing interactive records layout mapping to destination
+                  nodes.
                 </span>
                 <span className="text-xs text-zinc-500 font-mono">
-                  {columnsConfig.filter((c) => c.active).length} of {columnsConfig.length} columns active
+                  {columnsConfig.filter((c) => c.active).length} of{" "}
+                  {columnsConfig.length} columns active
                 </span>
               </div>
               <div className="flex-1 min-h-[350px]">
@@ -660,18 +782,20 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           {/* STEP 4: SUMMARY & INGESTION SIMULATOR */}
           {step === 4 && (
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full min-h-[350px]">
-              
               {/* Left pane: file summary */}
               <div className="md:col-span-2 flex flex-col gap-4">
                 <div className="bg-zinc-950/40 border border-zinc-800 p-5 rounded-xl flex flex-col gap-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 select-none">
                     Ingestion Summary
                   </h3>
-                  
+
                   <div className="flex flex-col gap-2.5 text-xs">
                     <div className="flex justify-between py-1 border-b border-zinc-900">
                       <span className="text-zinc-500">File Name:</span>
-                      <span className="font-semibold text-zinc-200 truncate max-w-[160px]" title={file?.name}>
+                      <span
+                        className="font-semibold text-zinc-200 truncate max-w-[160px]"
+                        title={file?.name}
+                      >
                         {file?.name}
                       </span>
                     </div>
@@ -683,7 +807,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     </div>
                     <div className="flex justify-between py-1 border-b border-zinc-900">
                       <span className="text-zinc-500">Records Count:</span>
-                      <span className="font-mono text-zinc-300">{parsedData.rows.length} rows</span>
+                      <span className="font-mono text-zinc-300">
+                        {parsedData.rows.length} rows
+                      </span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-zinc-900">
                       <span className="text-zinc-500">Active Mappings:</span>
@@ -698,7 +824,14 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       onClick={startIngestion}
                       className="w-full mt-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <polyline points="22 2 11 13 2 9 22 2 22 2" />
                         <polygon points="22 2 15 22 11 13 22 2" />
                       </svg>
@@ -708,9 +841,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
                   {ingestionFinished && (
                     <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center select-none">
-                      <span className="text-xs font-semibold text-emerald-400 block mb-1">Ingestion Complete</span>
+                      <span className="text-xs font-semibold text-emerald-400 block mb-1">
+                        Ingestion Complete
+                      </span>
                       <span className="text-[10px] text-zinc-400">
-                        {ingestedCount} records successfully loaded into staging and semantic graph ontology!
+                        {ingestedCount} records successfully loaded into staging
+                        and semantic graph ontology!
                       </span>
                     </div>
                   )}
@@ -728,8 +864,13 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       .map((c) => {
                         const m = mappings[c.name];
                         return (
-                          <div key={c.name} className="flex justify-between items-center text-[10px]">
-                            <span className="font-mono text-zinc-400 truncate max-w-[90px]">{c.name}</span>
+                          <div
+                            key={c.name}
+                            className="flex justify-between items-center text-[10px]"
+                          >
+                            <span className="font-mono text-zinc-400 truncate max-w-[90px]">
+                              {c.name}
+                            </span>
                             <span className="text-zinc-600">➔</span>
                             <span className="font-semibold text-zinc-300">
                               {m.targetEntityType}.{m.targetProperty}
@@ -739,7 +880,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       })}
                     {columnsConfig.filter((c) => c.active).length > 5 && (
                       <div className="text-[10px] text-center text-zinc-500 italic mt-1">
-                        + {columnsConfig.filter((c) => c.active).length - 5} more columns
+                        + {columnsConfig.filter((c) => c.active).length - 5}{" "}
+                        more columns
                       </div>
                     )}
                   </div>
@@ -748,7 +890,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
               {/* Right pane: console logs and progress */}
               <div className="md:col-span-3 flex flex-col border border-zinc-850 rounded-xl overflow-hidden bg-zinc-950 h-full">
-                
                 {/* Console Bar */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-850 bg-zinc-900/60 select-none">
                   <div className="flex items-center gap-2">
@@ -758,7 +899,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     </span>
                   </div>
                   {ingesting && (
-                    <span className="text-[10px] font-mono text-blue-400">{ingestionProgress}%</span>
+                    <span className="text-[10px] font-mono text-blue-400">
+                      {ingestionProgress}%
+                    </span>
                   )}
                 </div>
 
@@ -776,26 +919,31 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 <div className="flex-1 bg-black p-4 font-mono text-[10px] overflow-y-auto flex flex-col gap-2 min-h-[220px]">
                   {ingestionLogs.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-zinc-600 italic select-none">
-                      Console waiting to initialize... click "Initialize Ingestion Sync"
+                      Console waiting to initialize... click "Initialize
+                      Ingestion Sync"
                     </div>
                   ) : (
                     ingestionLogs.map((log, i) => (
                       <div key={i} className="flex gap-2">
-                        <span className="text-zinc-600 select-none">[{log.timestamp}]</span>
+                        <span className="text-zinc-600 select-none">
+                          [{log.timestamp}]
+                        </span>
                         <span
                           className={`font-bold select-none ${
                             log.level === "SUCCESS"
                               ? "text-emerald-500"
                               : log.level === "WARN"
-                              ? "text-amber-500"
-                              : log.level === "ERROR"
-                              ? "text-rose-500"
-                              : "text-blue-500"
+                                ? "text-amber-500"
+                                : log.level === "ERROR"
+                                  ? "text-rose-500"
+                                  : "text-blue-500"
                           }`}
                         >
                           {log.level}
                         </span>
-                        <span className="text-zinc-300 whitespace-pre-wrap">{log.message}</span>
+                        <span className="text-zinc-300 whitespace-pre-wrap">
+                          {log.message}
+                        </span>
                       </div>
                     ))
                   )}
@@ -803,7 +951,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </div>
             </div>
           )}
-
         </div>
 
         {/* Bottom Actions footer */}
@@ -851,7 +998,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

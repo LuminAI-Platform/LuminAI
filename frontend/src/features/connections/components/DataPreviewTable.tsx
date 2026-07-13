@@ -30,7 +30,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
         if (!col.active) return false;
         const val = row[col.name];
         return val != null && String(val).toLowerCase().includes(lowerSearch);
-      })
+      }),
     );
   }, [rows, columns, searchTerm]);
 
@@ -123,39 +123,67 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
               <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
               <circle cx="9" cy="9" r="2" />
             </svg>
-            <span className="text-sm font-semibold text-zinc-400">No matching records found</span>
-            <span className="text-xs text-zinc-500 mt-1">Try refining your search query or enabling columns</span>
+            <span className="text-sm font-semibold text-zinc-400">
+              No matching records found
+            </span>
+            <span className="text-xs text-zinc-500 mt-1">
+              Try refining your search query or enabling columns
+            </span>
           </div>
         ) : (
           <table className="w-full text-left border-collapse table-auto text-xs">
             <thead>
               <tr className="border-b border-zinc-800/80 bg-zinc-900/30 text-zinc-400 select-none">
-                <th className="py-3 px-4 font-semibold text-zinc-500 w-12 text-center">#</th>
+                <th className="py-3 px-4 font-semibold text-zinc-500 w-12 text-center">
+                  #
+                </th>
                 {columns.map((col) => (
                   <th
                     key={col.name}
                     className={`py-3 px-4 font-semibold transition-all ${
-                      col.active ? "text-zinc-200" : "text-zinc-600 bg-zinc-950/40 opacity-50"
+                      col.active
+                        ? "text-zinc-200"
+                        : "text-zinc-600 bg-zinc-950/40 opacity-50"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={!col.active ? "line-through" : ""}>{col.name}</span>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${getTypeBadgeStyles(col.type)}`}>
+                      <span className={!col.active ? "line-through" : ""}>
+                        {col.name}
+                      </span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${getTypeBadgeStyles(col.type)}`}
+                      >
                         {col.type}
                       </span>
                       {onToggleColumn && (
                         <button
                           onClick={() => onToggleColumn(col.name)}
-                          title={col.active ? "Disable column" : "Enable column"}
+                          title={
+                            col.active ? "Disable column" : "Enable column"
+                          }
                           className="ml-auto p-1 text-zinc-500 hover:text-zinc-200 transition-colors cursor-pointer"
                         >
                           {col.active ? (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                            >
                               <circle cx="12" cy="12" r="10" />
                               <line x1="8" y1="12" x2="16" y2="12" />
                             </svg>
                           ) : (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                            >
                               <circle cx="12" cy="12" r="10" />
                               <line x1="12" y1="8" x2="12" y2="16" />
                               <line x1="8" y1="12" x2="16" y2="12" />
@@ -170,9 +198,13 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
             </thead>
             <tbody className="divide-y divide-zinc-900">
               {paginatedRows.map((row, index) => {
-                const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                const globalIndex =
+                  (currentPage - 1) * itemsPerPage + index + 1;
                 return (
-                  <tr key={index} className="hover:bg-zinc-900/30 transition-colors group">
+                  <tr
+                    key={index}
+                    className="hover:bg-zinc-900/30 transition-colors group"
+                  >
                     <td className="py-2.5 px-4 text-center font-mono text-zinc-600 bg-zinc-900/10 select-none">
                       {globalIndex}
                     </td>
@@ -182,16 +214,18 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
                         value === null
                           ? "NULL"
                           : typeof value === "boolean"
-                          ? String(value)
-                          : typeof value === "object"
-                          ? JSON.stringify(value)
-                          : String(value);
+                            ? String(value)
+                            : typeof value === "object"
+                              ? JSON.stringify(value)
+                              : String(value);
 
                       return (
                         <td
                           key={col.name}
                           className={`py-2.5 px-4 font-mono text-zinc-300 max-w-[240px] truncate ${
-                            col.active ? "" : "text-zinc-600 bg-zinc-950/20 opacity-40 line-through"
+                            col.active
+                              ? ""
+                              : "text-zinc-600 bg-zinc-950/20 opacity-40 line-through"
                           }`}
                         >
                           {value === null ? (
@@ -215,11 +249,22 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
       {/* Pagination Footer */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800/80 bg-zinc-900/40 select-none">
         <div className="text-zinc-500 text-xs">
-          Showing <span className="font-semibold text-zinc-400">{Math.min(filteredRows.length, (currentPage - 1) * itemsPerPage + 1)}</span> to{" "}
+          Showing{" "}
+          <span className="font-semibold text-zinc-400">
+            {Math.min(
+              filteredRows.length,
+              (currentPage - 1) * itemsPerPage + 1,
+            )}
+          </span>{" "}
+          to{" "}
           <span className="font-semibold text-zinc-400">
             {Math.min(filteredRows.length, currentPage * itemsPerPage)}
           </span>{" "}
-          of <span className="font-semibold text-zinc-400">{filteredRows.length}</span> entries
+          of{" "}
+          <span className="font-semibold text-zinc-400">
+            {filteredRows.length}
+          </span>{" "}
+          entries
         </div>
 
         <div className="flex items-center gap-1">
@@ -228,7 +273,14 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
             disabled={currentPage === 1}
             className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
@@ -240,7 +292,14 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
             disabled={currentPage === totalPages}
             className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>

@@ -135,7 +135,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const currentState = get();
 
     // Fast path: already authenticated with a live token — nothing to do.
-    if (currentState.isAuthenticated && currentState.user && !currentState.user.expired) {
+    if (
+      currentState.isAuthenticated &&
+      currentState.user &&
+      !currentState.user.expired
+    ) {
       return currentState.user;
     }
 
