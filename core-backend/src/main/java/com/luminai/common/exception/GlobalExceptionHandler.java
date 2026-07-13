@@ -1,8 +1,9 @@
 package com.luminai.common.exception;
 
-import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
+import jakarta.validation.ConstraintViolationException;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -10,78 +11,51 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * Centralised exception handler — ensures all API errors return a consistent {@link ApiError} JSON
- * structure. Raw stack traces never leak to clients.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-  // 400 — Validation errors (bean validation via @Valid)
-  @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<ApiError> handleValidation(
-      MethodArgumentNotValidException ex, HttpServletRequest request) {
+  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity<ApiError> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
     List<ApiError.FieldError> fieldErrors =
         ex.getBindingResult().getFieldErrors().stream()
             .map(fe -> new ApiError.FieldError(fe.getField(), fe.getDefaultMessage()))
             .toList();
 
-    ApiError error =
-        new ApiError(
-            Instant.now(),
-            HttpStatus.BAD_REQUEST.value(),
-            "Validation Failed",
-            "One or more fields have invalid values",
-            request.getRequestURI(),
-            fieldErrors);
-    return ResponseEntity.badRequest().body(error);
+    return ResponseEntity.badRequest().body(ApiError.ofValidation(fieldErrors));
   }
 
-  // 404 — Resource not found
-  @ExceptionHandler(ResourceNotFoundException.class)
-  public ResponseEntity<ApiError> handleNotFound(
-      ResourceNotFoundException ex, HttpServletRequest request) {
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex) {
+    List<ApiError.FieldError> fieldErrors =
+        ex.getConstraintViolations().stream()
+            .map(
+                cv -> {
+                  String field = cv.getPropertyPath().toString();
+                  return new ApiError.FieldError(field, cv.getMessage());
+                })
+            .toList();
 
-    ApiError error =
-        new ApiError(
-            Instant.now(),
-            HttpStatus.NOT_FOUND.value(),
-            "Not Found",
-            ex.getMessage(),
-            request.getRequestURI(),
-            List.of());
-    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    return ResponseEntity.badRequest().body(ApiError.ofValidation(fieldErrors));
   }
 
-  // 403 — Access denied (Spring Security)
   @ExceptionHandler(AccessDeniedException.class)
-  public ResponseEntity<ApiError> handleAccessDenied(
-      AccessDeniedException ex, HttpServletRequest request) {
-
-    ApiError error =
-        new ApiError(
-            Instant.now(),
-            HttpStatus.FORBIDDEN.value(),
-            "Forbidden",
-            "You do not have permission to access this resource",
-            request.getRequestURI(),
-            List.of());
-    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+  public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(ApiError.of(403, "Forbidden", "You do not have permission to access this resource"));
   }
 
-  // 500 — Catch-all for unhandled exceptions
-  @ExceptionHandler(Exception.class)
-  public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest request) {
+  @ExceptionHandler(ResourceNotFoundException.class)
+  public ResponseEntity<ApiError> handleResourceNotFound(ResourceNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(ApiError.of(404, "Not Found", ex.getMessage()));
+  }
 
-    ApiError error =
-        new ApiError(
-            Instant.now(),
-            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            "Internal Server Error",
-            "An unexpected error occurred. Please try again later.",
-            request.getRequestURI(),
-            List.of());
-    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ApiError> handleGeneral(Exception ex) {
+    log.error("Unhandled exception: {}", ex.getMessage(), ex);
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .body(ApiError.of(500, "Internal Server Error", "An unexpected error occurred"));
   }
 }
