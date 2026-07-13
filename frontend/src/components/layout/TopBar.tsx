@@ -1,10 +1,30 @@
 import React from "react";
+import { useAuthStore } from "../../stores/authStore";
 
 interface TopBarProps {
   onMenuClick: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
+  const { user, logout } = useAuthStore();
+
+  // Derive display values from the OIDC id_token profile claims
+  const displayName =
+    user?.profile?.name ||
+    user?.profile?.preferred_username ||
+    user?.profile?.email ||
+    "User";
+
+  const displayEmail = user?.profile?.email ?? "";
+
+  // Generate initials for the avatar (up to 2 characters)
+  const initials = displayName
+    .split(" ")
+    .map((part: string) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <header className="h-16 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between px-8 z-30">
       {/* Mobile Menu Toggle Button */}
@@ -124,6 +144,59 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
           </svg>
           Deploy
         </button>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-zinc-800 mx-1 hidden sm:block" />
+
+        {/* User Identity Context — populated from JWT claims after authentication */}
+        {user && (
+          <div className="flex items-center gap-2.5 group relative">
+            {/* Avatar with initials */}
+            <div
+              className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-[11px] font-bold shrink-0 select-none"
+              aria-label={`Logged in as ${displayName}`}
+            >
+              {initials}
+            </div>
+
+            {/* Name + email — hidden on small screens */}
+            <div className="hidden lg:flex flex-col leading-tight">
+              <span className="text-xs font-semibold text-zinc-200 truncate max-w-[120px]">
+                {displayName}
+              </span>
+              {displayEmail && (
+                <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">
+                  {displayEmail}
+                </span>
+              )}
+            </div>
+
+            {/* Logout button */}
+            <button
+              id="topbar-logout-btn"
+              type="button"
+              onClick={logout}
+              className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all cursor-pointer"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

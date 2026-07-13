@@ -12,7 +12,7 @@
  * Usage (generated client):
  *   import { createApiConfig } from '@/lib/api';
  *   import { ProjectsApi } from '@/lib/api-client';
- *   const api = new ProjectsApi(createApiConfig());
+ *   const api = new ProjectsApi(new Configuration(createApiConfig()));
  *   const projects = await api.listProjects();
  */
 
@@ -41,13 +41,19 @@ function getAccessToken(): string | null {
  * Drop-in replacement for `fetch` that:
  *  1. Prepends `API_BASE_URL` when a relative path is supplied.
  *  2. Injects `Authorization: Bearer <token>` from the auth store.
- *  3. Sets `Content-Type: application/json` unless the caller overrides it.
+ *  3. Sets `Content-Type: application/json` unless the caller overrides it or
+ *     the body is FormData.
  *  4. Throws an `ApiError` for non-2xx responses.
+ *
+ * Signature matches the `fetchApi` slot of the generated
+ * `ConfigurationParameters` interface so it can be passed directly.
  */
 export async function apiFetch(
-  input: string | URL | Request,
-  init: RequestInit = {},
+  input: RequestInfo | URL,
+  init?: RequestInit,
 ): Promise<Response> {
+  const resolvedInit: RequestInit = init ?? {};
+
   // Resolve full URL
   const url =
     typeof input === "string" && input.startsWith("/")
@@ -55,9 +61,12 @@ export async function apiFetch(
       : input;
 
   // Build headers
-  const headers = new Headers(init.headers);
+  const headers = new Headers(resolvedInit.headers);
 
-  if (!headers.has("Content-Type") && !(init.body instanceof FormData)) {
+  if (
+    !headers.has("Content-Type") &&
+    !(resolvedInit.body instanceof FormData)
+  ) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -66,7 +75,7 @@ export async function apiFetch(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(url, { ...init, headers });
+  const response = await fetch(url, { ...resolvedInit, headers });
 
   if (!response.ok) {
     throw new ApiError(response);
@@ -105,21 +114,26 @@ export class ApiError extends Error {
 // ─── createApiConfig ──────────────────────────────────────────────────────────
 
 /**
- * Returns a `Configuration` object compatible with the generated OpenAPI
- * typescript-fetch client.  Pass this to every generated `*Api` constructor.
+ * Returns a `ConfigurationParameters`-compatible object for the generated
+ * OpenAPI typescript-fetch client. Pass this to `new Configuration(...)`.
+ *
+ * The generated `Configuration` class accepts:
+ *   basePath   — overrides the server URL from the spec
+ *   fetchApi   — replaces the global `fetch` used by every API call
+ *   headers    — merged into every request as default headers
+ *   middleware — array of pre/post middleware hooks (optional)
  *
  * Example:
  *   import { createApiConfig } from '@/lib/api';
- *   import { WorkflowsApi } from '@/lib/api-client';
+ *   import { Configuration, WorkflowsApi } from '@/lib/api-client';
  *
- *   const workflowsApi = new WorkflowsApi(createApiConfig());
+ *   const workflowsApi = new WorkflowsApi(new Configuration(createApiConfig()));
  */
 export function createApiConfig() {
   return {
     basePath: API_BASE_URL,
-    fetchApi: apiFetch as typeof fetch,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  };
+    // apiFetch signature aligns with the generated fetchApi slot:
+    //   (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    fetchApi: apiFetch,
+  } as const;
 }
