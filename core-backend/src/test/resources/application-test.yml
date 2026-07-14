@@ -1,0 +1,57 @@
+# ──────────────────────────────────────────────────────────────────────
+# Test profile — used by CI (GitHub Actions) and local `gradle test`.
+# Testcontainers provides PostgreSQL and Kafka; everything else is
+# either disabled or stubbed.
+# ──────────────────────────────────────────────────────────────────────
+
+spring:
+  # ── Disable services not available in CI ──────────────────────────
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  # ── DataSource — overridden at runtime by Testcontainers ─────────
+  datasource:
+    url: jdbc:tc:postgresql:16:///testdb
+    username: test
+    password: test
+    driver-class-name: org.postgresql.Driver
+
+  # ── JPA — let Hibernate create schemas (no Flyway in CI) ─────────
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+
+  # ── Flyway — disable in tests (Hibernate manages schema) ─────────
+  flyway:
+    enabled: false
+
+  # ── Kafka — overridden at runtime by Testcontainers ──────────────
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: luminai-core-test-group
+
+  # ── Security — permit all in tests (no Keycloak) ─────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:0/not-used
+
+# ── Application custom properties ────────────────────────────────────
+luminai:
+  multitenancy:
+    schema-prefix: tenant_
+    default-schema: public
+    require-tenant: false
+  vault:
+    encryption-key: test-only-encryption-key-32chars!

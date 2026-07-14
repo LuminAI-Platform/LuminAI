@@ -3,9 +3,9 @@ spring:
     name: luminai-core
   # DataSource — single shared HikariCP pool (all tenants share connections)
   datasource:
-    url:
-    username:
-    password:
+    url: ${POSTGRESQL_URL:jdbc:postgresql://localhost:5432/luminai}
+    username: ${POSTGRESQL_USERNAME:postgres}
+    password: ${POSTGRESQL_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: LuminaiHikariPool
@@ -99,6 +99,13 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
     com.zaxxer.hikari: INFO
 
+  # ── Security — Keycloak OIDC (local dev) ─────────────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/luminai}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/luminai/protocol/openid-connect/certs}
 
 server:
   port: 8080
@@ -119,4 +126,6 @@ luminai:
     schema-prefix: tenant_
     default-schema: public
     require-tenant: true
+  vault:
+    encryption-key: ${VAULT_ENCRYPTION_KEY:dev-only-local-key-32characters!}
 
