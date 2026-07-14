@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.profiles.active=test")
 @ActiveProfiles("test")
 @Import(TestcontainersConfig.class)
 @Testcontainers(disabledWithoutDocker = true)

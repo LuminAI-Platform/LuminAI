@@ -33,7 +33,7 @@ jobs:
 
       - name: Run tests
         working-directory: core-backend
-        run: gradle test
+        run: gradle test --stacktrace
 
       - name: Upload test report (on failure)
         if: failure()
