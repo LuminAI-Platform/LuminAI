@@ -37,6 +37,8 @@ spring:
   # ── Kafka — overridden at runtime by Testcontainers ──────────────
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+      group-id: luminai-core-test-group
 
   # ── Security — permit all in tests (no Keycloak) ─────────────────
   security:
