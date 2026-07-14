@@ -44,8 +44,7 @@ public class TestcontainersConfig {
   // ── Security — permit all (replaces production Keycloak/OAuth2) ────
   @Bean
   SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
-    http.csrf(csrf -> csrf.disable())
-        .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+    http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
     return http.build();
   }
 }
