@@ -32,6 +32,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     // checkUser is a stable zustand action reference — safe to omit from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [isLoading, isAuthenticated, navigate]);
 
   if (isLoading) {
     return (
