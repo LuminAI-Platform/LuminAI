@@ -1,14 +1,10 @@
 """Dagster asset definitions for the LuminAI ingest pipeline.
 
-Sprint 0: No-op / mock assets that demonstrate the pipeline layout and
-          prove that Polars DataFrames can be created and manipulated
-          within Dagster's execution context.
+These assets demonstrate the pipeline layout and verify that Polars 
+DataFrames can be created and manipulated within Dagster's execution context.
 
 Pipeline flow:
   raw_data_placeholder  →  cleaned_data_placeholder
-
-Full pipeline (Sprint 1+):
-  raw_data_placeholder  →  normalise  →  dedup  →  entity_resolution  →  publish
 """
 
 import polars as pl
@@ -27,17 +23,17 @@ from app.processing.pipelines.cleaning_pipeline import (
     name="raw_data_placeholder",
     group_name="ingest",
     description=(
-        "Sprint 0 stub: Simulates loading raw records from MinIO after "
+        "Simulates loading raw records from MinIO after "
         "the Core Backend publishes to the `ingest.raw` Kafka topic. "
-        "In Sprint 1 this asset will be triggered by a Kafka sensor."
+        "This asset is triggered by a Kafka event consumer."
     ),
 )
 def raw_data_placeholder(context: AssetExecutionContext) -> pl.DataFrame:
     """
     Load raw ingestion data.
 
-    Sprint 0: Creates a synthetic Polars DataFrame to prove the Polars
-    library is correctly installed and can build DataFrames inside the
+    Creates a synthetic Polars DataFrame to verify the Polars library 
+    is installed and constructs DataFrames correctly inside the
     Dagster execution context.
     """
     context.log.info("🔵 raw_data_placeholder: generating synthetic raw dataset…")
@@ -72,7 +68,7 @@ def raw_data_placeholder(context: AssetExecutionContext) -> pl.DataFrame:
     name="cleaned_data_placeholder",
     group_name="ingest",
     description=(
-        "Sprint 0 stub: Applies basic cleaning transforms to the raw DataFrame. "
+        "Applies basic cleaning transforms to the raw DataFrame. "
         "Demonstrates Polars chained expressions and asset dependency on "
         "`raw_data_placeholder`."
     ),
@@ -85,12 +81,10 @@ def cleaned_data_placeholder(
     """
     Clean and normalise the raw ingestion DataFrame.
 
-    Sprint 0 operations:
+    Operations applied:
       - Lowercase the `name` field.
       - Strip leading/trailing whitespace from strings.
       - Drop exact duplicate rows.
-
-    Sprint 1+: Full cleaning, normalisation, and deduplication pipeline.
     """
     context.log.info(
         "🟢 cleaned_data_placeholder: received upstream DataFrame — rows=%d",
@@ -121,10 +115,10 @@ def cleaned_data_placeholder(
 def_or_node = None # just to verify
 defs = Definitions(
     assets=[
-        # Sprint 0 placeholder assets (kept for reference/testing)
+        # Mock/placeholder assets kept for testing
         raw_data_placeholder,
         cleaned_data_placeholder,
-        # Sprint 1 cleaning pipeline assets
+        # Core cleaning pipeline assets
         cleaning_raw,
         cleaned_ingestion_data,
         deduplicated_ingestion_data,

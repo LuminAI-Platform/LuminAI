@@ -10,8 +10,6 @@ Cleaning rules applied:
 
 Pipeline flow:
   raw_ingestion_data → cleaned_ingestion_data → validated_ingestion_data
-
-Pulled forward from Sprint 2 to Sprint 1.
 """
 
 import logging
@@ -53,14 +51,14 @@ DATE_FORMATS = [
     description=(
         "Reads raw ingestion data from the staging area. "
         "In production, this reads from MinIO/S3 raw zone. "
-        "For Sprint 1, generates synthetic data for pipeline testing."
+        "Generates synthetic data for pipeline testing."
     ),
 )
 def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
     """
     Load raw records from the ingestion staging area.
 
-    Sprint 1: Generates a realistic synthetic dataset that exercises
+    Generates a realistic synthetic dataset that exercises
     all cleaning rules (nulls, mixed case, duplicates, bad dates, etc.).
     """
     context.log.info("📥 raw_ingestion_data: loading raw records from staging…")
