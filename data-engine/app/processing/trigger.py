@@ -1,14 +1,11 @@
-"""
-app/processing/trigger.py
---------------------------
-Programmatic trigger for Dagster pipeline runs.
+"""Programmatic trigger for Dagster pipeline runs.
 
 When the Kafka consumer receives a batch-complete signal on ``ingest.raw``,
 this module launches a Dagster asset materialization for the cleaning pipeline.
 
-Sprint 1 approach: In-process trigger using ``dagster.materialize`` for
-simplicity. Production will switch to the Dagster GraphQL API for
-decoupled orchestration.
+Orchestration strategy: Uses in-process trigger with ``dagster.materialize``.
+Production deployment can switch to the Dagster GraphQL API for
+decoupled daemon execution.
 """
 
 from __future__ import annotations

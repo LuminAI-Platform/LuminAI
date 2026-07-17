@@ -1,14 +1,8 @@
-"""
-app/kafka/consumers.py
-----------------------
-Kafka consumer for the LuminAI Data Engine.
+"""Kafka consumer for the LuminAI Data Engine.
 
 Listens to the ``ingest.raw`` Kafka topic for raw data events published
 by the Core Java Backend ConnectionProducer after a user uploads or syncs
 a data source.
-
-Sprint 1: Real confluent-kafka Consumer with JSON deserialization,
-          graceful shutdown, error handling, and batch-complete callbacks.
 """
 
 from __future__ import annotations

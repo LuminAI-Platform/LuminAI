@@ -1,7 +1,4 @@
-"""
-app/kafka/producers.py
-----------------------
-Kafka producer for the LuminAI Data Engine.
+"""Kafka producer for the LuminAI Data Engine.
 
 Produces validated ingestion events to the ``ingest.valid`` Kafka topic
 after a batch of raw records has been cleaned, normalised, and staged.

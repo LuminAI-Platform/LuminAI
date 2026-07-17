@@ -1,7 +1,4 @@
-"""
-app/processing/pipelines/cleaning_pipeline.py
-----------------------------------------------
-Dagster asset pipeline for ingestion data cleaning using Polars lazy frames.
+"""Dagster asset pipeline for ingestion data cleaning using Polars lazy frames.
 
 Cleaning rules applied:
   1. Null substitution — replace nulls with type-appropriate defaults
@@ -13,8 +10,6 @@ Cleaning rules applied:
 
 Pipeline flow:
   raw_ingestion_data → cleaned_ingestion_data → validated_ingestion_data
-
-Pulled forward from Sprint 2 to Sprint 1.
 """
 
 import logging
@@ -26,7 +21,7 @@ from dagster import AssetExecutionContext, asset
 
 logger = logging.getLogger(__name__)
 
-# ── Column type defaults for null substitution ─────────────────────────────
+# Column type defaults for null substitution
 NULL_DEFAULTS: dict[type, object] = {
     pl.Utf8: "",
     pl.String: "",
@@ -37,7 +32,7 @@ NULL_DEFAULTS: dict[type, object] = {
     pl.Boolean: False,
 }
 
-# ── Common date formats for timestamp parsing ──────────────────────────────
+# Common date formats for timestamp parsing
 DATE_FORMATS = [
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%dT%H:%M:%S",
@@ -56,14 +51,14 @@ DATE_FORMATS = [
     description=(
         "Reads raw ingestion data from the staging area. "
         "In production, this reads from MinIO/S3 raw zone. "
-        "For Sprint 1, generates synthetic data for pipeline testing."
+        "Generates synthetic data for pipeline testing."
     ),
 )
 def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
     """
     Load raw records from the ingestion staging area.
 
-    Sprint 1: Generates a realistic synthetic dataset that exercises
+    Generates a realistic synthetic dataset that exercises
     all cleaning rules (nulls, mixed case, duplicates, bad dates, etc.).
     """
     context.log.info("📥 raw_ingestion_data: loading raw records from staging…")
@@ -141,7 +136,7 @@ def cleaned_ingestion_data(
     initial_rows = raw_ingestion_data.height
     context.log.info("🧹 cleaned_ingestion_data: starting — %d input rows", initial_rows)
 
-    # ── Step 1: Strip whitespace from all string columns ──────────────────
+    # Step 1: Strip whitespace from all string columns
     string_cols = [
         col for col, dtype in zip(
             raw_ingestion_data.columns, raw_ingestion_data.dtypes
@@ -155,14 +150,14 @@ def cleaned_ingestion_data(
     df = raw_ingestion_data.with_columns(strip_exprs) if strip_exprs else raw_ingestion_data
     context.log.info("🧹 Step 1: Stripped whitespace from %d string columns", len(string_cols))
 
-    # ── Step 2: Casing normalization ───────────────────────────
+    # Step 2: Casing normalization
     if "email" in df.columns:
         df = df.with_columns(pl.col("email").str.to_lowercase().alias("email"))
     if "name" in df.columns:
         df = df.with_columns(pl.col("name").str.to_titlecase().alias("name"))
     context.log.info("🧹 Step 2: Normalized casing (email to lowercase, name to title case)")
 
-    # ── Step 3: Substitute nulls ──────────────────────────────────────────
+    # Step 3: Substitute nulls
     null_fill_exprs = []
     for col_name, dtype in zip(df.columns, df.dtypes):
         if dtype in (pl.Utf8, pl.String):
@@ -178,12 +173,12 @@ def cleaned_ingestion_data(
     null_count = raw_ingestion_data.null_count().sum_horizontal()[0]
     context.log.info("🧹 Step 3: Filled %d null values", null_count)
 
-    # ── Step 4: Normalize country codes to uppercase ──────────────────────
+    # Step 4: Normalize country codes to uppercase
     if "country" in df.columns:
         df = df.with_columns(pl.col("country").str.to_uppercase().alias("country"))
     context.log.info("🧹 Step 4: Normalized country codes to uppercase")
 
-    # ── Step 5: Parse timestamps ──────────────────────────────────────────
+    # Step 5: Parse timestamps
     if "joined_at" in df.columns:
         df = df.with_columns(
             pl.col("joined_at").map_elements(
@@ -192,7 +187,7 @@ def cleaned_ingestion_data(
         )
     context.log.info("🧹 Step 5: Parsed timestamp strings")
 
-    # ── Step 6: Currency parsing ──────────────────────────────────────────
+    # Step 6: Currency parsing
     if "salary" in df.columns:
         df = df.with_columns(
             pl.col("salary")
@@ -241,7 +236,7 @@ def deduplicated_ingestion_data(
     if initial_rows == 0:
         return cleaned_ingestion_data
 
-    # ── Step 1: Exact deduplication by email ────────────────────────────────
+    # Step 1: Exact deduplication by email
     df_exact = cleaned_ingestion_data
     if "email" in df_exact.columns:
         df_exact = df_exact.unique(subset=["email"], keep="first").sort("id")
@@ -251,7 +246,7 @@ def deduplicated_ingestion_data(
     if after_exact == 0:
         return df_exact
 
-    # ── Step 2: Fuzzy deduplication by name (blocking on country) ───────────
+    # Step 2: Fuzzy deduplication by name (blocking on country)
     # Convert Polars to Pandas safely without pyarrow
     df_pd = pd.DataFrame(df_exact.to_dict(as_series=False))
 
@@ -422,7 +417,7 @@ def staged_ingestion_data(
 
     context.log.info("💾 staged_ingestion_data: starting staging for tenant=%s, source=%s, batch=%s", tenant_id, source_id, batch_id)
 
-    # ── Step 1: Write to Local Parquet + MinIO Staging ──────────────────────
+    # Step 1: Write to Local Parquet + MinIO Staging
     # Always save locally first (serves as a local cache/fallback)
     local_staging_dir = os.path.join("storage", "minio", "staging", tenant_id, source_id)
     os.makedirs(local_staging_dir, exist_ok=True)
@@ -447,7 +442,7 @@ def staged_ingestion_data(
     except Exception as e:
         context.log.warning("⚠️ Could not write to MinIO (is it running?): %s. Using local fallback.", e)
 
-    # ── Step 2: Write to PostgreSQL / SQLite Database Staging ──────────────
+    # Step 2: Write to PostgreSQL / SQLite Database Staging
     db_url = f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
     engine = create_engine(db_url)
 
@@ -516,7 +511,7 @@ def staged_ingestion_data(
         except Exception as sqle:
             context.log.error("❌ Failed to write to SQLite fallback: %s", sqle)
 
-    # ── Step 3: Publish ingest.valid Kafka Event ────────────────────────────
+    # Step 3: Publish ingest.valid Kafka Event
     try:
         producer = IngestValidProducer()
         producer.publish(
@@ -538,7 +533,7 @@ def staged_ingestion_data(
     return validated_ingestion_data
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# Helpers
 
 def _parse_date_string(value: str | None) -> str:
     """

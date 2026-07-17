@@ -1,6 +1,4 @@
 """
-app/main.py
------------
 FastAPI application entry point for the LuminAI Data Engine.
 
 Responsibilities:
@@ -27,12 +25,12 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"[*] {settings.app_name} v{settings.app_version} starting up...")
 
-    # ── Kafka consumer ────────────────────────────────────────────────────
+    # Start Kafka consumer if enabled
     consumer = None
     if settings.kafka_enabled:
         consumer = IngestRawConsumer()
 
-        # S2-01: Wire pipeline trigger to batch-complete signals
+        # Wire pipeline trigger to batch-complete signals
         trigger = DagsterTrigger()
         consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
 
@@ -43,7 +41,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # ── Shutdown ──────────────────────────────────────────────────────────
+    # Clean up and shutdown resources
     if consumer is not None:
         await consumer.stop()
         print("[Kafka] Kafka consumer stopped")
@@ -70,7 +68,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # ── CORS ──────────────────────────────────────────────────────────────
+    # Configure CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -79,7 +77,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # ── Routers ───────────────────────────────────────────────────────────
+    # Register API routers
     app.include_router(health.router)
     app.include_router(processing.router, prefix="/process", tags=["Processing"])
     app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
@@ -88,3 +86,4 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+

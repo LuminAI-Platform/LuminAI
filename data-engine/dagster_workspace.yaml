@@ -1,5 +1,4 @@
 # dagster_workspace.yaml
-# -----------------------
 # Dagster workspace configuration for the LuminAI Data Engine.
 #
 # Declares the code locations (Python modules) that Dagster should
