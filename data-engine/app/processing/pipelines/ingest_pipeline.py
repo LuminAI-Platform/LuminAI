@@ -1,7 +1,4 @@
-"""
-app/processing/pipelines/ingest_pipeline.py
---------------------------------------------
-Dagster asset definitions for the LuminAI ingest pipeline.
+"""Dagster asset definitions for the LuminAI ingest pipeline.
 
 Sprint 0: No-op / mock assets that demonstrate the pipeline layout and
           prove that Polars DataFrames can be created and manipulated

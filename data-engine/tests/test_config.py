@@ -1,8 +1,4 @@
-"""
-tests/test_config.py
---------------------
-Tests for application configuration loading.
-"""
+"""Tests for application configuration loading."""
 
 from app.config import Settings, get_settings
 

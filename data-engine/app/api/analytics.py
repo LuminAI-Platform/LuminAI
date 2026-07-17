@@ -1,7 +1,4 @@
-"""
-app/api/analytics.py
---------------------
-Analytics endpoints for ad-hoc aggregation and time-series rollups.
+"""Analytics endpoints for ad-hoc aggregation and time-series rollups.
 
 POST /analytics/query       →  Execute an ad-hoc analytical query.
 POST /analytics/timeseries  →  Compute time-series rollups.
@@ -15,7 +12,7 @@ from pydantic import BaseModel, Field
 router = APIRouter()
 
 
-# ── Request / Response Models ────────────────────────────────────────────────
+# Request / Response Models
 
 class QueryRequest(BaseModel):
     """Request body for an ad-hoc analytical query."""
@@ -63,7 +60,7 @@ class TimeseriesResponse(BaseModel):
     series: list[dict]
 
 
-# ── Endpoints ────────────────────────────────────────────────────────────────
+# Endpoints
 
 @router.post(
     "/query",
@@ -111,3 +108,4 @@ async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse
             {"timestamp": "2024-01-03T00:00:00Z", "value": 63},
         ],
     )
+

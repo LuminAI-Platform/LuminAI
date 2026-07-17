@@ -1,8 +1,4 @@
-"""
-tests/test_cleaning_pipeline.py
--------------------------------
-Tests for the Polars cleaning pipeline assets.
-"""
+"""Tests for the Polars cleaning pipeline assets."""
 
 import polars as pl
 from dagster import build_asset_context

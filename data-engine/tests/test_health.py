@@ -1,8 +1,4 @@
-"""
-tests/test_health.py
---------------------
-Tests for the FastAPI health endpoint and application startup.
-"""
+"""Tests for the FastAPI health endpoint and application startup."""
 
 from fastapi.testclient import TestClient
 

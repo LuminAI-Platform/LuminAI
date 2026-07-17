@@ -1,7 +1,4 @@
-"""
-app/processing/trigger.py
---------------------------
-Programmatic trigger for Dagster pipeline runs.
+"""Programmatic trigger for Dagster pipeline runs.
 
 When the Kafka consumer receives a batch-complete signal on ``ingest.raw``,
 this module launches a Dagster asset materialization for the cleaning pipeline.

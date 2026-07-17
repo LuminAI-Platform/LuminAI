@@ -1,7 +1,4 @@
-"""
-app/api/processing.py
----------------------
-Processing pipeline trigger and status endpoints.
+"""Processing pipeline trigger and status endpoints.
 
 POST /process/trigger          →  Queue a Dagster pipeline run.
 GET  /process/status/{run_id}  →  Poll the status of a queued run.
@@ -19,7 +16,7 @@ from pydantic import BaseModel, Field
 router = APIRouter()
 
 
-# ── Request / Response Models ────────────────────────────────────────────────
+# Request / Response Models
 
 class TriggerRequest(BaseModel):
     """Request body for triggering a data pipeline run."""
@@ -57,7 +54,7 @@ class StatusResponse(BaseModel):
     message: str
 
 
-# ── Endpoints ────────────────────────────────────────────────────────────────
+# Endpoints
 
 @router.post(
     "/trigger",

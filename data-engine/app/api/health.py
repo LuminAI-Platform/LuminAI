@@ -1,7 +1,4 @@
-"""
-app/api/health.py
------------------
-Health check endpoint for the LuminAI Data Engine.
+"""Health check endpoint for the LuminAI Data Engine.
 
 GET /health  →  200 OK with service status payload.
 Used by Kubernetes liveness probes and the Core Backend circuit breaker.

@@ -1,7 +1,5 @@
-"""
-app/config.py
--------------
-Centralised application configuration using Pydantic BaseSettings.
+"""Centralised application configuration using Pydantic BaseSettings.
+
 All values can be overridden via environment variables or a local .env file.
 """
 
@@ -20,21 +18,21 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── Service ────────────────────────────────────────────────────────────
+    # Service Configuration
     app_name: str = "LuminAI Data Engine"
     app_version: str = "0.1.0"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     debug: bool = False
 
-    # ── CORS ───────────────────────────────────────────────────────────────
+    # CORS Configuration
     # Origins allowed to call this API (comma-separated list for env override)
     cors_origins: list[str] = [
         "http://localhost:8080",  # Core Java Backend
         "http://localhost:5173",  # React Frontend (dev)
     ]
 
-    # ── Kafka ──────────────────────────────────────────────────────────────
+    # Kafka Configuration
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_group_id: str = "data-engine"
     kafka_enabled: bool = False  # Set True when Kafka broker is available
@@ -42,7 +40,7 @@ class Settings(BaseSettings):
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
 
-    # ── PostgreSQL ─────────────────────────────────────────────────────────
+    # PostgreSQL Configuration
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_user: str = "luminai"
@@ -56,7 +54,7 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
-    # ── MinIO / S3 ─────────────────────────────────────────────────────────
+    # MinIO / S3 Configuration
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
@@ -67,3 +65,4 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return a cached singleton Settings instance."""
     return Settings()
+
