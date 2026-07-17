@@ -53,7 +53,7 @@ spring:
     validate-on-migrate: true
     schemas: public
 
-  # ── Kafka — Upstash (SASL/SCRAM over TLS) ─────────────────────────
+  # ── Kafka — Aiven (SASL/SCRAM over TLS) ──────────────────────────
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     properties:

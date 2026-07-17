@@ -566,7 +566,9 @@ Create base Helm charts for core-backend, data-engine, and frontend to templates
 
 ---
 
-### Task 28 · S1-D6: Upstash Kafka Cluster Setup & Render Config
+### Task 28 · S1-D6: Aiven Kafka Cluster Setup & Render Config
+
+> **⚠️** Upstash Kafka was decommissioned on March 11, 2025. Using **Aiven for Apache Kafka** (free tier) as a drop-in replacement.
 
 | Field | Value |
 |---|---|
@@ -574,15 +576,15 @@ Create base Helm charts for core-backend, data-engine, and frontend to templates
 | **Priority** | 🔴 Critical |
 | **SP** | 2 |
 | **Depends On** | S1-D4 (Render backend services) |
-| **Branch** | `infra/S1-D6-upstash-kafka` |
+| **Branch** | `infra/S1-D6-aiven-kafka` |
 
 **Description:**
-Provision a serverless Kafka cluster on Upstash for cloud dev environments. Create required topics (e.g. `ingest.raw`, `ingest.valid`) and configure the Render backend and data-engine environment variables.
+Provision a managed Kafka cluster on Aiven (free tier) for cloud dev environments. Create required topics (`ingest.raw`, `ingest.dead_letter`) and configure the Render backend and data-engine environment variables with SASL/SCRAM-SHA-256 credentials.
 
 **Acceptance Criteria:**
-- [ ] Upstash Kafka instance is live and accessible.
+- [ ] Aiven Kafka instance is live and accessible.
 - [ ] Render Spring Boot and FastAPI environment variables set up for Kafka connection with SASL/SCRAM authentication.
-- [ ] Topic `ingest.raw` exists on the cluster.
+- [ ] Topics `ingest.raw` and `ingest.dead_letter` exist on the cluster.
 
 ---
 
@@ -748,5 +750,5 @@ Write the cleaning rules (null substitution, type coercion, string trimming) in 
 > 1. **E2 must merge S0-04 (Kafka Config)** on Day 1. If Kafka is not configured in Java, S1-06 cannot publish and E6's Kafka consumer cannot start.
 > 2. **E4 must complete S0-09 (Keycloak OIDC login flow)** on Day 1–2. All Sprint 1 screens assume authenticated contexts.
 > 3. **E3 should merge S0-06 (Security Headers)** on Day 1.
-> 4. **E5 must set up Upstash Kafka (S1-D6)** on Day 1–2. Cloud backend testing is completely blocked without a live broker.
+> 4. **E5 must set up Aiven Kafka (S1-D6)** on Day 1–2. Cloud backend testing is completely blocked without a live broker.
 > 5. **E5 must update local docker-compose.yml (S1-D7)** on Day 1 to allow local developers to test Kafka components.
