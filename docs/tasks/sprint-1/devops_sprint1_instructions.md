@@ -7,7 +7,7 @@ Please complete the following integration tasks as soon as possible to unblock t
 ---
 
 ## 📋 Summary of New Tasks
-* **Task 28 (S1-D6):** Upstash Kafka Cluster Setup & Render Environment Config (🔴 *Critical Blocker*)
+* **Task 28 (S1-D6):** Aiven Kafka Cluster Setup & Render Environment Config (🔴 *Critical Blocker*)
 * **Task 29 (S1-D7):** Expand Local `docker-compose.yml` for Zookeeper & Kafka (🟠 *High Priority*)
 * **Task 30 (S1-D8):** Provision S3-Compatible Cloud Storage (AWS S3/Cloudflare R2) (🟠 *High Priority*)
 * **Task 31 (S1-D9):** Keycloak Client Redirect & Web Origin Updates for Vercel (🟠 *High Priority*)
@@ -17,18 +17,28 @@ Please complete the following integration tasks as soon as possible to unblock t
 
 ## 🛠️ Detailed Task Outlines
 
-### 🔴 TASK 28 · S1-D6: Upstash Kafka Cluster Setup & Render Config
-* **Goal:** Set up a live, serverless Kafka broker for the deployed dev environments.
+### 🔴 TASK 28 · S1-D6: Aiven Kafka Cluster Setup & Render Config
+
+> **⚠️ NOTE:** Upstash Kafka was decommissioned on March 11, 2025. We are using **Aiven for Apache Kafka** (free tier) as a drop-in replacement. The same SASL/SCRAM-SHA-256 authentication protocol is supported — no backend code changes needed.
+
+* **Goal:** Set up a managed Kafka broker for the deployed dev environments.
 * **Why it's needed:** The backend and data-engine on Render cannot connect to `localhost:9092`. They need a cloud-accessible broker to publish and consume raw rows.
 * **Instructions:**
-  1. Create a serverless Kafka cluster on **Upstash** (free tier).
-  2. Create a topic named `ingest.raw` (Partitions: 6, Clean up policy: Delete).
-  3. Create a topic named `ingest.dead_letter` (Partitions: 1, Clean up policy: Delete).
+  1. Sign up at [aiven.io](https://aiven.io) and create a **free-tier Apache Kafka** service (select the region closest to your Render services).
+  2. In the Aiven Console, go to your Kafka service → **Topics** and create:
+     * `ingest.raw` (Partitions: 6, Cleanup policy: Delete)
+     * `ingest.dead_letter` (Partitions: 1, Cleanup policy: Delete)
+  3. Go to your Kafka service → **Overview** → **Connection information** and note the:
+     * **Service URI** (this is the bootstrap server, e.g., `kafka-xxxxxxxx-your-org.aiven.com:12345`)
+     * **SASL credentials** (username & password for SCRAM-SHA-256)
   4. In the **Render Dashboard**, update the environment variables for `luminai-core` (Spring Boot Web Service) and `data-engine` (FastAPI Web Service) with:
-     * `KAFKA_BOOTSTRAP_SERVERS` (e.g., `your-cluster-endpoint.upstash.io:9092`)
-     * SASL configuration keys (SCRAM-SHA-256 username and password).
+     * `KAFKA_BOOTSTRAP_SERVERS` → Aiven Service URI
+     * `KAFKA_USERNAME` → Aiven SASL username
+     * `KAFKA_PASSWORD` → Aiven SASL password
+  5. Verify that Aiven's Kafka requires `SASL_SSL` with `SCRAM-SHA-256` — this matches our existing `application-prod.yml` config. If Aiven's free tier uses client certificate auth instead, update `application-prod.yml` security protocol accordingly.
 * **Acceptance Criteria:**
-  - [ ] Upstash Kafka instance is live.
+  - [ ] Aiven Kafka instance is live and accessible.
+  - [ ] Topics `ingest.raw` and `ingest.dead_letter` exist on the cluster.
   - [ ] Both Render apps are configured and do not crash on startup when initializing Kafka connection factories.
 
 ---
