@@ -26,7 +26,7 @@ spring:
     properties:
       hibernate:
         multiTenancy: SCHEMA
-        dialect: org.hibernate.dialect.PostgresSQLDialect
+           dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
         cache:
           use_second_level_cache: false
