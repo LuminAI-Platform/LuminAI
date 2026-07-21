@@ -27,7 +27,12 @@ import org.springframework.stereotype.Service;
  *   <li>Chunked cursor-based row extraction to avoid memory overload
  * </ul>
  *
- * <p>Database credentials are retrieved via {@link CredentialsVaultService}.
+ * <p>Database credentials are retrieved via {@link CredentialsVaultService}. Credentials must be
+ * stored as a JSON string with the following structure:
+ *
+ * <pre>
+ * {"host":"...","port":5432,"database":"...","username":"...","password":"..."}
+ * </pre>
  */
 @Service
 public class PostgresConnectorService {
@@ -44,32 +49,40 @@ public class PostgresConnectorService {
   }
 
   // ---------------------------------------------------------------------------
+  // Internal credentials record
+  // ---------------------------------------------------------------------------
+
+  private record DbCredentials(
+      String host, int port, String database, String username, String password) {}
+
+  // ---------------------------------------------------------------------------
   // Discovery
   // ---------------------------------------------------------------------------
 
   /**
    * Discovers all user-defined schemas and their tables from an external PostgreSQL database.
    *
+   * @param tenantId the tenant UUID for vault key lookup
    * @param connectionId the UUID of the connection whose credentials are stored in the vault
    * @return map of schema name → list of table names
    */
-  public Map<String, List<String>> discoverSchemas(UUID connectionId) {
-    String jdbcUrl = buildJdbcUrl(connectionId);
-    String username = credentialsVaultService.getUsername(connectionId);
-    String password = credentialsVaultService.getPassword(connectionId);
+  public Map<String, List<String>> discoverSchemas(UUID tenantId, UUID connectionId) {
+    DbCredentials creds = getCredentials(tenantId, connectionId);
+    String jdbcUrl = buildJdbcUrl(creds);
 
     Map<String, List<String>> schemaTableMap = new LinkedHashMap<>();
 
     String sql =
         """
-                SELECT table_schema, table_name
-                FROM information_schema.tables
-                WHERE table_type = 'BASE TABLE'
-                  AND table_schema NOT IN ('pg_catalog', 'information_schema')
-                ORDER BY table_schema, table_name
-                """;
+            SELECT table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_type = 'BASE TABLE'
+              AND table_schema NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY table_schema, table_name
+            """;
 
-    try (Connection conn = DriverManager.getConnection(jdbcUrl, username, password);
+    try (Connection conn =
+            DriverManager.getConnection(jdbcUrl, creds.username(), creds.password());
         PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
 
@@ -90,29 +103,31 @@ public class PostgresConnectorService {
   }
 
   /**
-   * Returns column metadata for a specific table.
+   * Returns column names for a specific table.
    *
+   * @param tenantId the tenant UUID for vault key lookup
    * @param connectionId the UUID of the connection
    * @param schema the schema name
    * @param table the table name
    * @return list of column names
    */
-  public List<String> discoverColumns(UUID connectionId, String schema, String table) {
-    String jdbcUrl = buildJdbcUrl(connectionId);
-    String username = credentialsVaultService.getUsername(connectionId);
-    String password = credentialsVaultService.getPassword(connectionId);
+  public List<String> discoverColumns(
+      UUID tenantId, UUID connectionId, String schema, String table) {
+    DbCredentials creds = getCredentials(tenantId, connectionId);
+    String jdbcUrl = buildJdbcUrl(creds);
 
     List<String> columns = new ArrayList<>();
 
     String sql =
         """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_schema = ? AND table_name = ?
-                ORDER BY ordinal_position
-                """;
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = ? AND table_name = ?
+            ORDER BY ordinal_position
+            """;
 
-    try (Connection conn = DriverManager.getConnection(jdbcUrl, username, password);
+    try (Connection conn =
+            DriverManager.getConnection(jdbcUrl, creds.username(), creds.password());
         PreparedStatement stmt = conn.prepareStatement(sql)) {
 
       stmt.setString(1, schema);
@@ -158,6 +173,7 @@ public class PostgresConnectorService {
    * <p>Uses JDBC {@code setFetchSize} to enable server-side cursors in PostgreSQL (requires
    * autoCommit to be disabled).
    *
+   * @param tenantId the tenant UUID for vault key lookup
    * @param connectionId the UUID of the connection
    * @param schema the schema name
    * @param table the table name
@@ -165,18 +181,19 @@ public class PostgresConnectorService {
    *     → value
    */
   public void extractRows(
+      UUID tenantId,
       UUID connectionId,
       String schema,
       String table,
       Consumer<List<Map<String, Object>>> chunkConsumer) {
 
-    String jdbcUrl = buildJdbcUrl(connectionId);
-    String username = credentialsVaultService.getUsername(connectionId);
-    String password = credentialsVaultService.getPassword(connectionId);
+    DbCredentials creds = getCredentials(tenantId, connectionId);
+    String jdbcUrl = buildJdbcUrl(creds);
 
     String sql = "SELECT * FROM " + schema + "." + table;
 
-    try (Connection conn = DriverManager.getConnection(jdbcUrl, username, password)) {
+    try (Connection conn =
+        DriverManager.getConnection(jdbcUrl, creds.username(), creds.password())) {
 
       // Disable autoCommit to enable server-side cursor streaming in PostgreSQL
       conn.setAutoCommit(false);
@@ -241,10 +258,48 @@ public class PostgresConnectorService {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  private String buildJdbcUrl(UUID connectionId) {
-    String host = credentialsVaultService.getHost(connectionId);
-    int port = credentialsVaultService.getPort(connectionId);
-    String database = credentialsVaultService.getDatabase(connectionId);
-    return String.format("jdbc:postgresql://%s:%d/%s", host, port, database);
+  private DbCredentials getCredentials(UUID tenantId, UUID connectionId) {
+    String json =
+        credentialsVaultService
+            .retrieveCredentials(tenantId, connectionId)
+            .orElseThrow(
+                () -> new RuntimeException("No credentials found for connection: " + connectionId));
+
+    String host = extractJsonField(json, "host");
+    int port = Integer.parseInt(extractJsonField(json, "port"));
+    String database = extractJsonField(json, "database");
+    String username = extractJsonField(json, "username");
+    String password = extractJsonField(json, "password");
+
+    return new DbCredentials(host, port, database, username, password);
+  }
+
+  private String buildJdbcUrl(DbCredentials creds) {
+    return String.format(
+        "jdbc:postgresql://%s:%d/%s", creds.host(), creds.port(), creds.database());
+  }
+
+  /**
+   * Minimal JSON field extractor — avoids pulling in an extra JSON library. Supports string and
+   * numeric values only.
+   */
+  private String extractJsonField(String json, String field) {
+    String key = "\"" + field + "\"";
+    int keyIndex = json.indexOf(key);
+    if (keyIndex == -1) {
+      throw new RuntimeException("Field '" + field + "' not found in credentials JSON");
+    }
+    int colonIndex = json.indexOf(":", keyIndex);
+    int valueStart = json.indexOf("\"", colonIndex);
+    if (valueStart == -1 || valueStart > json.indexOf(",", colonIndex)) {
+      // Numeric value
+      int numStart = colonIndex + 1;
+      while (numStart < json.length() && json.charAt(numStart) == ' ') numStart++;
+      int numEnd = numStart;
+      while (numEnd < json.length() && Character.isDigit(json.charAt(numEnd))) numEnd++;
+      return json.substring(numStart, numEnd);
+    }
+    int valueEnd = json.indexOf("\"", valueStart + 1);
+    return json.substring(valueStart + 1, valueEnd);
   }
 }
