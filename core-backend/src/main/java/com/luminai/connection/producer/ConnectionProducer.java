@@ -40,11 +40,11 @@ public class ConnectionProducer {
 
   static final String TOPIC = "ingest.raw";
 
-  private final KafkaTemplate<String, String> kafkaTemplate;
+  private final KafkaTemplate<String, Object> kafkaTemplate;
   private final ObjectMapper objectMapper;
 
   public ConnectionProducer(
-      KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
+      KafkaTemplate<String, Object> kafkaTemplate, ObjectMapper objectMapper) {
     this.kafkaTemplate = kafkaTemplate;
     this.objectMapper = objectMapper;
   }
@@ -94,7 +94,7 @@ public class ConnectionProducer {
                     ex.getMessage(),
                     ex);
               } else {
-                SendResult<String, String> sendResult = result;
+                SendResult<String, Object> sendResult = result;
                 log.info(
                     "Published {} rows from '{}' to topic '{}' partition {} offset {}",
                     rows.size(),
