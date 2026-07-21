@@ -24,10 +24,7 @@ public final class ConnectionDto {
 
   /** Request body for updating an existing connection. */
   public record UpdateRequest(
-      String name,
-      String config,
-      String credentialsRef,
-      Connection.Status status) {}
+      String name, String config, String credentialsRef, Connection.Status status) {}
 
   // ----------------------------------------------------------------
   // Response DTOs

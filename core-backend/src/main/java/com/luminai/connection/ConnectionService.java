@@ -46,10 +46,7 @@ public class ConnectionService {
 
     Connection saved = repository.save(connection);
     log.info(
-        "Created connection '{}' (id={}) for tenant {}",
-        saved.getName(),
-        saved.getId(),
-        tenantId);
+        "Created connection '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
 
     return ConnectionDto.Response.from(saved);
   }

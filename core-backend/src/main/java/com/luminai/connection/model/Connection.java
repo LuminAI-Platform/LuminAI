@@ -11,7 +11,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 /**
  * JPA entity representing a data source connection metadata entry (maps to table `connectors`).
  *
- * <p>All queries MUST be scoped by {@code tenantId} to enforce multi-tenant isolation at the data layer.
+ * <p>All queries MUST be scoped by {@code tenantId} to enforce multi-tenant isolation at the data
+ * layer.
  */
 @Entity
 @Table(name = "connectors")
@@ -86,12 +87,7 @@ public class Connection {
   }
 
   public Connection(
-      UUID tenantId,
-      String name,
-      Type type,
-      String config,
-      String credentialsRef,
-      UUID createdBy) {
+      UUID tenantId, String name, Type type, String config, String credentialsRef, UUID createdBy) {
     this.tenantId = tenantId;
     this.name = name;
     this.type = type;

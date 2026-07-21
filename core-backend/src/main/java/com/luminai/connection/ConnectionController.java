@@ -33,8 +33,7 @@ public class ConnectionController {
   private final ConnectionPreviewService connectionPreviewService;
 
   public ConnectionController(
-      ConnectionService connectionService,
-      ConnectionPreviewService connectionPreviewService) {
+      ConnectionService connectionService, ConnectionPreviewService connectionPreviewService) {
     this.connectionService = connectionService;
     this.connectionPreviewService = connectionPreviewService;
   }
