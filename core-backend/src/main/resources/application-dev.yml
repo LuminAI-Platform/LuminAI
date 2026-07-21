@@ -26,7 +26,7 @@ spring:
     properties:
       hibernate:
         multiTenancy: SCHEMA
-           dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
         cache:
           use_second_level_cache: false
@@ -63,24 +63,24 @@ spring:
         batch-size: 16384
         compression.type: snappy
         spring.json.add.type.headers: true
-  # Consumer
-  consumer:
-    group-id: luminai-core-consumer-group
-    auto-offset-reset: earliest
-    enable-auto-commit: false          # Manual ack via MANUAL_IMMEDIATE mode
-    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-    max-poll-records: 50
-    properties:
-      spring.json.trusted.packages: "*"
-      spring.json.use.type.headers: true
-      # Restrict in production:
-      # spring.json.trusted.packages: com.luminai.model.events
- # Listener
-  listener:
-    ack-mode: manual_immediate
-    concurrency: 3
-    observation-enabled: true
+    # Consumer
+    consumer:
+      group-id: luminai-core-consumer-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false          # Manual ack via MANUAL_IMMEDIATE mode
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      max-poll-records: 50
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: true
+        # Restrict in production:
+        # spring.json.trusted.packages: com.luminai.model.events
+    # Listener
+    listener:
+      ack-mode: manual_immediate
+      concurrency: 3
+      observation-enabled: true
 
     # ── Admin (topic auto-provisioning) ───────────────────────────────────────
     admin:
@@ -89,6 +89,14 @@ spring:
       auto-create: true
       properties:
         bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # ── Security — Keycloak OIDC (local dev) ─────────────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/luminai}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/luminai/protocol/openid-connect/certs}
 
 # Logging
 logging:
@@ -99,17 +107,10 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
     com.zaxxer.hikari: INFO
 
-  # ── Security — Keycloak OIDC (local dev) ─────────────────────────────
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/luminai}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/luminai/protocol/openid-connect/certs}
-
 server:
   port: 8080
   shutdown: graceful
+
 # Management / Actuator
 management:
   endpoints:
@@ -128,4 +129,3 @@ luminai:
     require-tenant: true
   vault:
     encryption-key: ${VAULT_ENCRYPTION_KEY:dev-only-local-key-32characters!}
-
