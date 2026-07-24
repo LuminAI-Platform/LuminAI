@@ -247,13 +247,15 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
 
     const payload = {
       name,
-      type: dbType,
-      host,
-      port,
-      database: databaseName,
-      username,
-      selectedTables,
-      status: "Connected",
+      type: dbType === "sqlserver" ? "MSSQL" : dbType.toUpperCase(),
+      config: JSON.stringify({
+        host,
+        port,
+        database: databaseName,
+        username,
+        selectedTables,
+      }),
+      credentialsRef: `vault-secret-${Date.now()}`,
     };
 
     try {
