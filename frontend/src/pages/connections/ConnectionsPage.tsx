@@ -57,7 +57,9 @@ export const ConnectionsPage: React.FC = () => {
     }
   });
 
-  const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>([]);
+  const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,10 +95,16 @@ export const ConnectionsPage: React.FC = () => {
           return {
             id: item.id,
             name: item.name,
-            status: item.status === "ACTIVE" ? "Connected" : item.status || "Connected",
+            status:
+              item.status === "ACTIVE"
+                ? "Connected"
+                : item.status || "Connected",
             pipelines: pipelinesCount || 1,
             type: item.type || "Database",
-            desc: configDesc || item.credentialsRef || "Registered database pipeline connector.",
+            desc:
+              configDesc ||
+              item.credentialsRef ||
+              "Registered database pipeline connector.",
           };
         });
         setCustomConnectors(mapped);
