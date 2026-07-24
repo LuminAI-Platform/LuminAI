@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
+import { apiFetch } from "../../lib/api";
 
 interface IngestedFile {
   id: string;
@@ -55,25 +56,64 @@ export const ConnectionsPage: React.FC = () => {
       return initialFiles;
     }
   });
-  const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
-    () => {
-      const stored = localStorage.getItem("local_database_connectors");
-      return stored ? JSON.parse(stored) : [];
-    },
-  );
+
+  const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState<"connectors" | "files">(
     "connectors",
   );
 
-  // Load database connectors from localStorage
-  const loadConnectors = () => {
-    const stored = localStorage.getItem("local_database_connectors");
-    if (stored) {
-      setCustomConnectors(JSON.parse(stored));
-    } else {
+  // Fetch connectors from GET /api/v1/connections
+  const loadConnectors = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch("/api/v1/connections");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const mapped: DatabaseConnector[] = data.map((item: any) => {
+          let pipelinesCount = 0;
+          let configDesc = "";
+          if (item.config) {
+            try {
+              const parsed = JSON.parse(item.config);
+              if (Array.isArray(parsed.selectedTables)) {
+                pipelinesCount = parsed.selectedTables.length;
+              }
+              if (parsed.database) {
+                configDesc = `Connected to ${parsed.database} database.`;
+              }
+            } catch {
+              // Ignore json parse error
+            }
+          }
+
+          return {
+            id: item.id,
+            name: item.name,
+            status: item.status === "ACTIVE" ? "Connected" : item.status || "Connected",
+            pipelines: pipelinesCount || 1,
+            type: item.type || "Database",
+            desc: configDesc || item.credentialsRef || "Registered database pipeline connector.",
+          };
+        });
+        setCustomConnectors(mapped);
+      } else {
+        setCustomConnectors([]);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load registered connections");
       setCustomConnectors([]);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadConnectors();
+  }, []);
 
   // Load files list from localStorage or initialize with mock data
   const loadFiles = () => {
@@ -104,6 +144,17 @@ export const ConnectionsPage: React.FC = () => {
         JSON.stringify(initialFiles),
       );
       setIngestedFiles(initialFiles);
+    }
+  };
+
+  const deleteConnector = async (id: string) => {
+    try {
+      await apiFetch(`/api/v1/connections/${id}`, {
+        method: "DELETE",
+      });
+      setCustomConnectors((prev) => prev.filter((c) => c.id !== id));
+    } catch (err: any) {
+      console.error("Failed to delete connection", err);
     }
   };
 
@@ -230,116 +281,149 @@ export const ConnectionsPage: React.FC = () => {
       <div className="flex-1 min-h-0">
         {/* Tab 1: Connectors */}
         {activeTab === "connectors" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              ...customConnectors,
-              {
-                name: "Snowflake",
-                status: "Connected",
-                pipelines: 4,
-                type: "Warehouse",
-                desc: "Enterprise data cloud containing central business ledger analytics.",
-              },
-              {
-                name: "AWS S3",
-                status: "Connected",
-                pipelines: 12,
-                type: "Storage",
-                desc: "Raw binary storage buckets syncing CSV/JSON/Parquet event dumps.",
-              },
-              {
-                name: "Kafka Streams",
-                status: "Connected",
-                pipelines: 2,
-                type: "Stream",
-                desc: "Real-time user clickstream queues and transactions event topics.",
-              },
-              {
-                name: "PostgreSQL",
-                status: "Disconnected",
-                pipelines: 0,
-                type: "Database",
-                desc: "Relational production database containing customer account profiles.",
-              },
-            ].map((conn) => {
-              const isCustom = "id" in conn;
-              return (
-                <div
-                  key={conn.id || conn.name}
-                  className="p-5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex flex-col justify-between gap-4 transition-all hover:border-zinc-700/80 hover:shadow-lg hover:shadow-black/25 relative group"
+          <div className="flex flex-col gap-4">
+            {isLoading && (
+              <div className="flex items-center justify-center p-12 text-zinc-400 text-xs gap-2 select-none">
+                <svg
+                  className="animate-spin"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="pr-8">
-                      <span className="font-semibold text-zinc-100 text-[15px] block">
-                        {conn.name}
-                      </span>
-                      <span className="text-[11px] text-zinc-500 mt-1 block leading-normal">
-                        {conn.desc}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded border flex items-center gap-1.5 ${
-                          conn.status === "Connected"
-                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                            : "bg-zinc-900 border-zinc-800 text-zinc-500"
-                        }`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            conn.status === "Connected"
-                              ? "bg-emerald-500"
-                              : "bg-zinc-600"
-                          }`}
-                        />
-                        {conn.status}
-                      </span>
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    className="opacity-25"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4"
+                    className="opacity-75"
+                  />
+                </svg>
+                <span>Loading registered connections...</span>
+              </div>
+            )}
 
-                      {isCustom && (
-                        <button
-                          onClick={() => {
-                            const updated = customConnectors.filter(
-                              (c) => c.id !== conn.id,
-                            );
-                            localStorage.setItem(
-                              "local_database_connectors",
-                              JSON.stringify(updated),
-                            );
-                            setCustomConnectors(updated);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-850 rounded transition-all cursor-pointer absolute top-4 right-4"
-                          title="Delete Custom Connection"
+            {error && (
+              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center justify-between font-medium">
+                <span>{error}</span>
+                <button
+                  onClick={loadConnectors}
+                  className="underline hover:text-red-300 cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                ...customConnectors,
+                {
+                  name: "Snowflake",
+                  status: "Connected",
+                  pipelines: 4,
+                  type: "Warehouse",
+                  desc: "Enterprise data cloud containing central business ledger analytics.",
+                },
+                {
+                  name: "AWS S3",
+                  status: "Connected",
+                  pipelines: 12,
+                  type: "Storage",
+                  desc: "Raw binary storage buckets syncing CSV/JSON/Parquet event dumps.",
+                },
+                {
+                  name: "Kafka Streams",
+                  status: "Connected",
+                  pipelines: 2,
+                  type: "Stream",
+                  desc: "Real-time user clickstream queues and transactions event topics.",
+                },
+                {
+                  name: "PostgreSQL",
+                  status: "Disconnected",
+                  pipelines: 0,
+                  type: "Database",
+                  desc: "Relational production database containing customer account profiles.",
+                },
+              ].map((conn) => {
+                const isCustom = "id" in conn && !!conn.id;
+                return (
+                  <div
+                    key={conn.id || conn.name}
+                    className="p-5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex flex-col justify-between gap-4 transition-all hover:border-zinc-700/80 hover:shadow-lg hover:shadow-black/25 relative group"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="pr-8">
+                        <span className="font-semibold text-zinc-100 text-[15px] block">
+                          {conn.name}
+                        </span>
+                        <span className="text-[11px] text-zinc-500 mt-1 block leading-normal">
+                          {conn.desc}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded border flex items-center gap-1.5 ${
+                            conn.status === "Connected"
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                              : "bg-zinc-900 border-zinc-800 text-zinc-500"
+                          }`}
                         >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              conn.status === "Connected"
+                                ? "bg-emerald-500"
+                                : "bg-zinc-600"
+                            }`}
+                          />
+                          {conn.status}
+                        </span>
+
+                        {isCustom && conn.id && (
+                          <button
+                            onClick={() => deleteConnector(conn.id!)}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-850 rounded transition-all cursor-pointer absolute top-4 right-4"
+                            title="Delete Custom Connection"
                           >
-                            <path d="M3 6h18" />
-                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                          </svg>
-                        </button>
-                      )}
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M3 6h18" />
+                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs text-zinc-500 border-t border-zinc-850 pt-3 select-none">
+                      <span>
+                        Type:{" "}
+                        <strong className="text-zinc-400 font-normal">
+                          {conn.type}
+                        </strong>
+                      </span>
+                      <span className="font-semibold text-blue-500">
+                        {conn.pipelines} Pipelines
+                      </span>
                     </div>
                   </div>
-                  <div className="flex justify-between text-xs text-zinc-500 border-t border-zinc-850 pt-3 select-none">
-                    <span>
-                      Type:{" "}
-                      <strong className="text-zinc-400 font-normal">
-                        {conn.type}
-                      </strong>
-                    </span>
-                    <span className="font-semibold text-blue-500">
-                      {conn.pipelines} Pipelines
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
