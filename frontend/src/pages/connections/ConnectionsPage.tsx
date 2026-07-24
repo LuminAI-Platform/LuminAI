@@ -127,7 +127,10 @@ export const ConnectionsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadConnectors();
+    const init = async () => {
+      await loadConnectors();
+    };
+    init();
   }, []);
 
   // Load files list from localStorage or initialize with mock data
