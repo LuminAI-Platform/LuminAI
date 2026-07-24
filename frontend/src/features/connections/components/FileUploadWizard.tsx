@@ -433,8 +433,34 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     }, 6000);
 
     // Phase 5: Complete
-    setTimeout(() => {
+    setTimeout(async () => {
       if (file) {
+        // Register connection via API
+        try {
+          const payload = {
+            name: file.name,
+            type: "FILE",
+            config: JSON.stringify({
+              fileName: file.name,
+              fileSize: file.size,
+              rowsCount: parsedData.rows.length,
+            }),
+            credentialsRef: "minio-bucket-raw",
+          };
+          addLog(`[API] Registering Connection entity (type: FILE)...`, "INFO");
+          const response = await apiFetch("/api/v1/connections", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          if (response.ok) {
+            addLog(`[API] Connection registered successfully.`, "SUCCESS");
+          } else {
+            addLog(`[API] Connection registration returned status ${response.status}`, "WARN");
+          }
+        } catch {
+          addLog(`[API] Backend unavailable for connection entity registration, caching locally.`, "WARN");
+        }
+
         localStorage.setItem(
           "most_recent_ingested_file",
           JSON.stringify({
