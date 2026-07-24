@@ -75,44 +75,51 @@ export const ConnectionsPage: React.FC = () => {
       const res = await apiFetch("/api/v1/connections");
       const data = await res.json();
       if (Array.isArray(data)) {
-        const mapped: DatabaseConnector[] = data.map((item: any) => {
-          let pipelinesCount = 0;
-          let configDesc = "";
-          if (item.config) {
-            try {
-              const parsed = JSON.parse(item.config);
-              if (Array.isArray(parsed.selectedTables)) {
-                pipelinesCount = parsed.selectedTables.length;
+        const mapped: DatabaseConnector[] = data.map(
+          (item: Record<string, unknown>) => {
+            let pipelinesCount = 0;
+            let configDesc = "";
+            if (typeof item.config === "string") {
+              try {
+                const parsed = JSON.parse(item.config);
+                if (Array.isArray(parsed.selectedTables)) {
+                  pipelinesCount = parsed.selectedTables.length;
+                }
+                if (parsed.database) {
+                  configDesc = `Connected to ${parsed.database} database.`;
+                }
+              } catch {
+                // Ignore json parse error
               }
-              if (parsed.database) {
-                configDesc = `Connected to ${parsed.database} database.`;
-              }
-            } catch {
-              // Ignore json parse error
             }
-          }
 
-          return {
-            id: item.id,
-            name: item.name,
-            status:
-              item.status === "ACTIVE"
-                ? "Connected"
-                : item.status || "Connected",
-            pipelines: pipelinesCount || 1,
-            type: item.type || "Database",
-            desc:
-              configDesc ||
-              item.credentialsRef ||
-              "Registered database pipeline connector.",
-          };
-        });
+            return {
+              id: typeof item.id === "string" ? item.id : undefined,
+              name: String(item.name || ""),
+              status:
+                item.status === "ACTIVE"
+                  ? "Connected"
+                  : String(item.status || "Connected"),
+              pipelines: pipelinesCount || 1,
+              type: String(item.type || "Database"),
+              desc:
+                configDesc ||
+                (typeof item.credentialsRef === "string"
+                  ? item.credentialsRef
+                  : "Registered database pipeline connector."),
+            };
+          },
+        );
         setCustomConnectors(mapped);
       } else {
         setCustomConnectors([]);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to load registered connections");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to load registered connections";
+      setError(msg);
       setCustomConnectors([]);
     } finally {
       setIsLoading(false);
@@ -161,7 +168,7 @@ export const ConnectionsPage: React.FC = () => {
         method: "DELETE",
       });
       setCustomConnectors((prev) => prev.filter((c) => c.id !== id));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to delete connection", err);
     }
   };
