@@ -455,10 +455,16 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           if (response.ok) {
             addLog(`[API] Connection registered successfully.`, "SUCCESS");
           } else {
-            addLog(`[API] Connection registration returned status ${response.status}`, "WARN");
+            addLog(
+              `[API] Connection registration returned status ${response.status}`,
+              "WARN",
+            );
           }
         } catch {
-          addLog(`[API] Backend unavailable for connection entity registration, caching locally.`, "WARN");
+          addLog(
+            `[API] Backend unavailable for connection entity registration, caching locally.`,
+            "WARN",
+          );
         }
 
         localStorage.setItem(
