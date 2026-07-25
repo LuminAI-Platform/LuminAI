@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { apiFetch } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -314,7 +315,7 @@ const datasetStatusColor = (s: SyncJobStatus) => {
 
 export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
   job: jobProp,
-  demo = true,
+  demo = false,
   onPause,
   onResume,
   onCancel,
@@ -332,7 +333,63 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
     if (jobProp) setJob(jobProp);
   }, [jobProp]);
 
-  // Live simulation tick — only when status is "running"
+  // Poll backend status API /api/v1/sync-jobs when not in demo mode
+  const fetchSyncJobs = useCallback(async () => {
+    if (demo) return;
+    try {
+      const res = await apiFetch("/api/v1/sync-jobs");
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          const rawJob = Array.isArray(data) ? data[0] : data;
+          if (rawJob) {
+            setJob((prev) => ({
+              id: String(rawJob.id || prev.id),
+              name: String(rawJob.name || prev.name),
+              connection: String(rawJob.connection || prev.connection),
+              connectionType: rawJob.connectionType || prev.connectionType,
+              status: (rawJob.status?.toLowerCase() as SyncJobStatus) || prev.status,
+              startedAt: rawJob.startedAt ? new Date(rawJob.startedAt) : prev.startedAt,
+              estimatedEnd: rawJob.estimatedEnd ? new Date(rawJob.estimatedEnd) : prev.estimatedEnd,
+              datasets: Array.isArray(rawJob.datasets) && rawJob.datasets.length > 0
+                ? rawJob.datasets.map((ds: Record<string, unknown>, i: number) => ({
+                    id: String(ds.id || `ds-${i}`),
+                    name: String(ds.name || `dataset-${i}`),
+                    source: String(ds.source || "default"),
+                    totalRecords: Number(ds.totalRecords ?? ds.rowsTotal ?? 1000),
+                    syncedRecords: Number(ds.syncedRecords ?? ds.rowsProcessed ?? 0),
+                    failedRecords: Number(ds.failedRecords ?? ds.rowsFailed ?? 0),
+                    status: (ds.status ? String(ds.status).toLowerCase() : "running") as SyncJobStatus,
+                    startedAt: ds.startedAt ? new Date(String(ds.startedAt)) : new Date(),
+                  }))
+                : prev.datasets,
+            }));
+            if (typeof rawJob.currentSpeed === "number") {
+              const speed = rawJob.currentSpeed;
+              setCurrentSpeed(speed);
+              setSpeedHistory((h) => {
+                const next = [...h, speed].slice(-24);
+                setAvgSpeed(Math.floor(next.reduce((a, b) => a + b, 0) / next.length));
+                return next;
+              });
+            }
+          }
+        }
+      }
+    } catch {
+      // Endpoint may not exist yet in dev backend; keep existing state gracefully
+    }
+  }, [demo]);
+
+  useEffect(() => {
+    if (!demo) {
+      fetchSyncJobs();
+      const interval = setInterval(fetchSyncJobs, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [demo, fetchSyncJobs]);
+
+  // Live simulation tick — only when demo mode is true and status is "running"
   const advance = useCallback(() => {
     if (!demo) return;
 

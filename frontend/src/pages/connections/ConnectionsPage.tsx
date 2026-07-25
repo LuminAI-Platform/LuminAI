@@ -547,8 +547,8 @@ export const ConnectionsPage: React.FC = () => {
 
       {/* Sync pipeline monitoring panels */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <SyncJobDetails demo={true} />
-        <ExecutionLogs demo={true} title="Pipeline Execution Logs" />
+        <SyncJobDetails />
+        <ExecutionLogs title="Pipeline Execution Logs" />
       </div>
 
       {/* File Ingestion Modal */}

@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { apiFetch } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -359,7 +360,7 @@ const ErrorBlock: React.FC<ErrorBlockProps> = ({ error, onDismiss }) => {
 export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
   entries: entriesProp,
   errors: errorsProp,
-  demo = true,
+  demo = false,
   maxLines = 200,
   title = "Execution Logs",
 }) => {
@@ -390,6 +391,44 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (errorsProp) setErrors(errorsProp);
   }, [errorsProp]);
+
+  // Poll real backend execution logs if not in demo mode and not paused
+  const fetchBackendLogs = useCallback(async () => {
+    if (demo || paused) return;
+    try {
+      const res = await apiFetch("/api/v1/sync-jobs/logs");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const fetchedLogs: LogEntry[] = data.map(
+            (item: Record<string, unknown>, idx: number) => ({
+              id: String(item.id || `backend-log-${idx}`),
+              ts: item.timestamp ? new Date(String(item.timestamp)) : new Date(),
+              level: (item.level as LogLevel) || "INFO",
+              source: String(item.source || "Backend"),
+              message: String(item.message || ""),
+            }),
+          );
+          setLogs((prev) => {
+            const existingIds = new Set(prev.map((l) => l.id));
+            const newEntries = fetchedLogs.filter((l) => !existingIds.has(l.id));
+            if (newEntries.length === 0) return prev;
+            return [...prev, ...newEntries].slice(-maxLines);
+          });
+        }
+      }
+    } catch {
+      // Endpoint may not exist yet in dev backend; keep existing state gracefully
+    }
+  }, [demo, paused, maxLines]);
+
+  useEffect(() => {
+    if (!demo) {
+      fetchBackendLogs();
+      const interval = setInterval(fetchBackendLogs, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [demo, fetchBackendLogs]);
 
   // Auto-scroll
   useEffect(() => {
