@@ -348,28 +348,48 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
               name: String(rawJob.name || prev.name),
               connection: String(rawJob.connection || prev.connection),
               connectionType: rawJob.connectionType || prev.connectionType,
-              status: (rawJob.status?.toLowerCase() as SyncJobStatus) || prev.status,
-              startedAt: rawJob.startedAt ? new Date(rawJob.startedAt) : prev.startedAt,
-              estimatedEnd: rawJob.estimatedEnd ? new Date(rawJob.estimatedEnd) : prev.estimatedEnd,
-              datasets: Array.isArray(rawJob.datasets) && rawJob.datasets.length > 0
-                ? rawJob.datasets.map((ds: Record<string, unknown>, i: number) => ({
-                    id: String(ds.id || `ds-${i}`),
-                    name: String(ds.name || `dataset-${i}`),
-                    source: String(ds.source || "default"),
-                    totalRecords: Number(ds.totalRecords ?? ds.rowsTotal ?? 1000),
-                    syncedRecords: Number(ds.syncedRecords ?? ds.rowsProcessed ?? 0),
-                    failedRecords: Number(ds.failedRecords ?? ds.rowsFailed ?? 0),
-                    status: (ds.status ? String(ds.status).toLowerCase() : "running") as SyncJobStatus,
-                    startedAt: ds.startedAt ? new Date(String(ds.startedAt)) : new Date(),
-                  }))
-                : prev.datasets,
+              status:
+                (rawJob.status?.toLowerCase() as SyncJobStatus) || prev.status,
+              startedAt: rawJob.startedAt
+                ? new Date(rawJob.startedAt)
+                : prev.startedAt,
+              estimatedEnd: rawJob.estimatedEnd
+                ? new Date(rawJob.estimatedEnd)
+                : prev.estimatedEnd,
+              datasets:
+                Array.isArray(rawJob.datasets) && rawJob.datasets.length > 0
+                  ? rawJob.datasets.map(
+                      (ds: Record<string, unknown>, i: number) => ({
+                        id: String(ds.id || `ds-${i}`),
+                        name: String(ds.name || `dataset-${i}`),
+                        source: String(ds.source || "default"),
+                        totalRecords: Number(
+                          ds.totalRecords ?? ds.rowsTotal ?? 1000,
+                        ),
+                        syncedRecords: Number(
+                          ds.syncedRecords ?? ds.rowsProcessed ?? 0,
+                        ),
+                        failedRecords: Number(
+                          ds.failedRecords ?? ds.rowsFailed ?? 0,
+                        ),
+                        status: (ds.status
+                          ? String(ds.status).toLowerCase()
+                          : "running") as SyncJobStatus,
+                        startedAt: ds.startedAt
+                          ? new Date(String(ds.startedAt))
+                          : new Date(),
+                      }),
+                    )
+                  : prev.datasets,
             }));
             if (typeof rawJob.currentSpeed === "number") {
               const speed = rawJob.currentSpeed;
               setCurrentSpeed(speed);
               setSpeedHistory((h) => {
                 const next = [...h, speed].slice(-24);
-                setAvgSpeed(Math.floor(next.reduce((a, b) => a + b, 0) / next.length));
+                setAvgSpeed(
+                  Math.floor(next.reduce((a, b) => a + b, 0) / next.length),
+                );
                 return next;
               });
             }

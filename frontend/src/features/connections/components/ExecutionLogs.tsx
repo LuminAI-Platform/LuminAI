@@ -403,7 +403,9 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
           const fetchedLogs: LogEntry[] = data.map(
             (item: Record<string, unknown>, idx: number) => ({
               id: String(item.id || `backend-log-${idx}`),
-              ts: item.timestamp ? new Date(String(item.timestamp)) : new Date(),
+              ts: item.timestamp
+                ? new Date(String(item.timestamp))
+                : new Date(),
               level: (item.level as LogLevel) || "INFO",
               source: String(item.source || "Backend"),
               message: String(item.message || ""),
@@ -411,7 +413,9 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
           );
           setLogs((prev) => {
             const existingIds = new Set(prev.map((l) => l.id));
-            const newEntries = fetchedLogs.filter((l) => !existingIds.has(l.id));
+            const newEntries = fetchedLogs.filter(
+              (l) => !existingIds.has(l.id),
+            );
             if (newEntries.length === 0) return prev;
             return [...prev, ...newEntries].slice(-maxLines);
           });
