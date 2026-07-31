@@ -428,12 +428,14 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
   useEffect(() => {
     if (!demo) {
-      fetchBackendLogs();
+      // Defers initial synchronous state mutation out of the render stack frame
+      Promise.resolve().then(() => {
+        fetchBackendLogs();
+      });
       const interval = setInterval(fetchBackendLogs, 3000);
       return () => clearInterval(interval);
     }
-  }, [demo, fetchBackendLogs]);
-
+  }, [demo]);
   // Auto-scroll
   useEffect(() => {
     if (isFollowing && !isUserScrollingRef.current && scrollRef.current) {

@@ -403,12 +403,14 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
 
   useEffect(() => {
     if (!demo) {
-      fetchSyncJobs();
+      // Defers initial synchronous state mutation out of the render stack frame
+      Promise.resolve().then(() => {
+        fetchSyncJobs();
+      });
       const interval = setInterval(fetchSyncJobs, 3000);
       return () => clearInterval(interval);
     }
-  }, [demo, fetchSyncJobs]);
-
+  }, [demo]);
   // Live simulation tick — only when demo mode is true and status is "running"
   const advance = useCallback(() => {
     if (!demo) return;
