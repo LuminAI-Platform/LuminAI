@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { apiFetch } from "../../lib/api";
 import {
   VisualSchemaMapper,
   type SourceColumn,
@@ -412,6 +413,32 @@ export const SchemaMapPage: React.FC = () => {
     [],
   );
   const [showHistory, setShowHistory] = useState(false);
+
+  // Fetch saved mapping history from backend API GET /api/v1/schema-mappings
+  useEffect(() => {
+    const fetchSavedMappings = async () => {
+      try {
+        const res = await apiFetch("/api/v1/schema-mappings");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setSavedMappings(data);
+          }
+        }
+      } catch {
+        // Fallback to local storage if endpoint unavailable
+        const local = localStorage.getItem("lumin_schema_mapping");
+        if (local) {
+          try {
+            setSavedMappings([JSON.parse(local)]);
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    };
+    fetchSavedMappings();
+  }, []);
 
   const handleSave = (payload: SchemaMappingPayload) => {
     setSavedMappings((prev) => [payload, ...prev.slice(0, 4)]);
