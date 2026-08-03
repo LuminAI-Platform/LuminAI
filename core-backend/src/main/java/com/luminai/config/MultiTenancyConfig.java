@@ -1,6 +1,5 @@
 package com.luminai.config;
 
-import com.luminai.common.tenant.TenantContext;
 import com.luminai.common.tenant.TenantIdentifierResolver;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -67,30 +66,23 @@ public class MultiTenancyConfig {
       this.dataSource = dataSource;
     }
 
-    /*
-     * Returns a connection for use outside a tenant context (e.g. Hibernate
-     * schema validation at startup). Routes to the public/default schema.
-     */
+    // Returns a connection outside a tenant context. Includes tenant_template
+    // in the search path so Hibernate can discover entity table metadata at startup.
     @Override
     public Connection getAnyConnection() throws SQLException {
       Connection connection = dataSource.getConnection();
-      setSearchPath(connection, TenantContext.DEFAULT_TENANT);
+      try (var stmt = connection.createStatement()) {
+        stmt.execute("SET search_path = public, tenant_template");
+      }
       return connection;
     }
 
-    /*
-     * Releases a connection that was obtained via {@link #getAnyConnection()}.
-     * Resets the {@code search_path} to {@code public} before returning to the pool.
-     */
     @Override
     public void releaseAnyConnection(Connection connection) throws SQLException {
       resetSearchPath(connection);
       connection.close();
     }
 
-    /*
-     * Returns a connection pointed at the schema for the specified {@code tenantIdentifier}.
-     */
     @Override
     public Connection getConnection(String tenantIdentifier) throws SQLException {
       log.debug("Acquiring connection for schema: {}", tenantIdentifier);
@@ -99,10 +91,6 @@ public class MultiTenancyConfig {
       return connection;
     }
 
-    /*
-     * Releases a tenant-specific connection back to the pool.
-     * Always resets the {@code search_path} to {@code public} first.
-     */
     @Override
     public void releaseConnection(String tenantIdentifier, Connection connection)
         throws SQLException {
@@ -111,27 +99,16 @@ public class MultiTenancyConfig {
       connection.close();
     }
 
-    /*
-     * Returns {@code false} — this provider does not support aggressive connection
-     * release between transactions (which would require re-routing on every reacquire).
-     */
     @Override
     public boolean supportsAggressiveRelease() {
       return false;
     }
 
-    /*
-     * Confirms this provider can unwrap to the given type.
-     * Returning {@code false} for all types is safe for a delegating provider.
-     */
     @Override
     public boolean isUnwrappableAs(Class<?> unwrapType) {
       return false;
     }
 
-    /*
-     * This provider does not support unwrapping; always returns {@code null}.
-     */
     @Override
     public <T> T unwrap(Class<T> unwrapType) {
       return null;
@@ -141,14 +118,7 @@ public class MultiTenancyConfig {
     // Private helpers
     // ------------------------------------------------------------------
 
-    /*
-     * Issues {@code SET search_path = <schema>} on the given connection.
-     * Sanitizes the schema name to prevent SQL injection.
-     */
     private void setSearchPath(Connection connection, String schema) throws SQLException {
-      // Sanitize: allow only alphanumerics, underscores, and hyphens.
-      // This guards against SQL injection even though schema names come from
-      // our own JWT claims rather than user-typed input.
       String safeSchema = sanitizeSchemaName(schema);
       String sql = String.format("SET search_path = %s", safeSchema);
       log.trace("Executing: {}", sql);
