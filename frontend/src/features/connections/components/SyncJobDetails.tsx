@@ -128,8 +128,6 @@ const formatNumber = (n: number): string => {
   return n.toLocaleString();
 };
 
-
-
 // ─── Speed sparkline ─────────────────────────────────────────────────────────
 
 interface SparklineProps {
@@ -305,10 +303,15 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
             setJob((prev) => ({
               id: String(rawJob.id || prev?.id || `job-${Date.now()}`),
               name: String(rawJob.name || prev?.name || "Pipeline Sync"),
-              connection: String(rawJob.connection || prev?.connection || "Database"),
-              connectionType: rawJob.connectionType || prev?.connectionType || "postgresql",
+              connection: String(
+                rawJob.connection || prev?.connection || "Database",
+              ),
+              connectionType:
+                rawJob.connectionType || prev?.connectionType || "postgresql",
               status:
-                (rawJob.status?.toLowerCase() as SyncJobStatus) || prev?.status || "running",
+                (rawJob.status?.toLowerCase() as SyncJobStatus) ||
+                prev?.status ||
+                "running",
               startedAt: rawJob.startedAt
                 ? new Date(rawJob.startedAt)
                 : prev?.startedAt || new Date(),
@@ -453,7 +456,8 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
           No Active Sync Jobs
         </span>
         <span className="text-xs text-zinc-500 mt-1 max-w-[280px]">
-          Connect a database or ingest a file to monitor real-time pipeline execution details
+          Connect a database or ingest a file to monitor real-time pipeline
+          execution details
         </span>
       </div>
     );

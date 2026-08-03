@@ -35,12 +35,22 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     const updateMemory = () => {
       const perf = performance as PerformanceWithMemory;
       if (perf && perf.memory) {
-        const usedGB = (perf.memory.usedJSHeapSize / (1024 * 1024 * 1024)).toFixed(1);
-        const totalGB = (perf.memory.jsHeapSizeLimit / (1024 * 1024 * 1024)).toFixed(1);
+        const usedGB = (
+          perf.memory.usedJSHeapSize /
+          (1024 * 1024 * 1024)
+        ).toFixed(1);
+        const totalGB = (
+          perf.memory.jsHeapSizeLimit /
+          (1024 * 1024 * 1024)
+        ).toFixed(1);
         setRamMetric(`${usedGB}GB / ${totalGB}GB`);
-      } else if (typeof navigator !== "undefined" && "deviceMemory" in navigator) {
+      } else if (
+        typeof navigator !== "undefined" &&
+        "deviceMemory" in navigator
+      ) {
         // Fallback for Firefox/Safari supporting navigator.deviceMemory
-        const devRam = (navigator as unknown as { deviceMemory: number }).deviceMemory;
+        const devRam = (navigator as unknown as { deviceMemory: number })
+          .deviceMemory;
         setRamMetric(`~${devRam}GB System`);
       }
     };
@@ -96,7 +106,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </span>
             <span>|</span>
             <span>
-              CORES: <span className="text-zinc-300">{cores ? `${cores} Cores` : "N/A"}</span>
+              CORES:{" "}
+              <span className="text-zinc-300">
+                {cores ? `${cores} Cores` : "N/A"}
+              </span>
             </span>
             <span>|</span>
             <span>
