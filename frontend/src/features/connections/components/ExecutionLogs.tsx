@@ -44,39 +44,6 @@ interface ExecutionLogsProps {
 
 // ─── Static seed data for demo ────────────────────────────────────────────────
 
-const SEED_LOGS: Omit<LogEntry, "id" | "ts">[] = [
-  {
-    level: "INFO",
-    source: "Orchestrator",
-    message: "Sync job job-demo-001 dispatched to executor pool.",
-  },
-  {
-    level: "INFO",
-    source: "Kafka",
-    message: "Connected to brokers at upstash-kafka-prod:9092. 3 partitions.",
-  },
-  {
-    level: "INFO",
-    source: "DataEngine",
-    message: "Polars thread pool instantiated — 8 workers, 64-bit alignment.",
-  },
-  {
-    level: "SUCCESS",
-    source: "MinIO",
-    message: "Bucket 'lumin-raw-bucket' health OK. Free space: 2.1 TB.",
-  },
-  {
-    level: "DEBUG",
-    source: "Scheduler",
-    message: "Heartbeat ACK received from coordinator-02 (RTT 4ms).",
-  },
-  {
-    level: "INFO",
-    source: "Sync",
-    message: "Schema diff resolved. 0 breaking changes detected.",
-  },
-];
-
 const LIVE_LOG_POOL: Omit<LogEntry, "id" | "ts">[] = [
   {
     level: "INFO",
@@ -147,29 +114,6 @@ const LIVE_LOG_POOL: Omit<LogEntry, "id" | "ts">[] = [
     level: "DEBUG",
     source: "QueryPlanner",
     message: "CTE rewrite saved %n full-table scans.",
-  },
-];
-
-const DEMO_ERRORS: ExecutionError[] = [
-  {
-    id: "err-1",
-    ts: new Date(Date.now() - 45_000),
-    code: "NET_RESET_001",
-    source: "NetLayer → replica-3",
-    message: "Connection reset by peer during streaming read.",
-    detail:
-      "TCP RST received after 2,048 ms idle timeout. The replica failover resolved automatically after 240 ms backoff. No data loss detected for this batch window.",
-    retryable: true,
-  },
-  {
-    id: "err-2",
-    ts: new Date(Date.now() - 10_000),
-    code: "PARSE_NULL_012",
-    source: "Parser → public.users",
-    message: "Nullable constraint violation on field 'email' (3 rows).",
-    detail:
-      "Rows [48821, 49103, 49204] contained empty strings for a NOT NULL declared column. Values coerced to NULL per schema relaxation policy.",
-    retryable: false,
   },
 ];
 
@@ -364,16 +308,8 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
   maxLines = 200,
   title = "Execution Logs",
 }) => {
-  const [logs, setLogs] = useState<LogEntry[]>(() =>
-    SEED_LOGS.map((l, i) => ({
-      ...l,
-      id: `seed-${i}`,
-      ts: new Date(Date.now() - (SEED_LOGS.length - i) * 4_000),
-    })),
-  );
-  const [errors, setErrors] = useState<ExecutionError[]>(
-    errorsProp ?? DEMO_ERRORS,
-  );
+  const [logs, setLogs] = useState<LogEntry[]>(entriesProp ?? []);
+  const [errors, setErrors] = useState<ExecutionError[]>(errorsProp ?? []);
   const [filter, setFilter] = useState<LogLevel | "ALL">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [isFollowing, setIsFollowing] = useState(true);
@@ -435,7 +371,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
       const interval = setInterval(fetchBackendLogs, 3000);
       return () => clearInterval(interval);
     }
-  }, [demo]);
+  }, [demo, fetchBackendLogs]);
   // Auto-scroll
   useEffect(() => {
     if (isFollowing && !isUserScrollingRef.current && scrollRef.current) {
