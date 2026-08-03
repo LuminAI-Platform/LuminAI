@@ -90,13 +90,11 @@ spring:
       properties:
         bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
-  # ── Security — Keycloak OIDC (local dev) ─────────────────────────────
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/luminai}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/luminai/protocol/openid-connect/certs}
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI:${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/luminai}}
 
 # Logging
 logging:
