@@ -1,13 +1,22 @@
 import { UserManager } from "oidc-client-ts";
 import type { UserManagerSettings } from "oidc-client-ts";
 
+const authUrl =
+  (import.meta.env.VITE_AUTH_URL as string | undefined) ??
+  "http://localhost:8180/realms/luminai";
+const clientId =
+  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ??
+  "luminai-spa";
+const appOrigin =
+  typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+
 const oidcConfig: UserManagerSettings = {
-  authority: "http://localhost:8180/realms/luminai",
-  client_id: "luminai-spa",
-  redirect_uri: "http://localhost:3000/callback",
+  authority: authUrl,
+  client_id: clientId,
+  redirect_uri: `${appOrigin}/callback`,
   response_type: "code",
   scope: "openid profile email",
-  post_logout_redirect_uri: "http://localhost:3000/",
+  post_logout_redirect_uri: `${appOrigin}/`,
 
   // Use PKCE S256 explicitly (default in oidc-client-ts v3, stated for clarity)
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

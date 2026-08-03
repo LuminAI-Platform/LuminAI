@@ -3,9 +3,9 @@ spring:
     name: luminai-core
   # DataSource — single shared HikariCP pool (all tenants share connections)
   datasource:
-    url: ${POSTGRESQL_URL:jdbc:postgresql://localhost:5432/luminai}
-    username: ${POSTGRESQL_USERNAME:postgres}
-    password: ${POSTGRESQL_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:${POSTGRESQL_URL:jdbc:postgresql://localhost:5432/luminai}}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRESQL_USERNAME:postgres}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRESQL_PASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: LuminaiHikariPool
