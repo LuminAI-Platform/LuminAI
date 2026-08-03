@@ -5,10 +5,11 @@ const authUrl =
   (import.meta.env.VITE_AUTH_URL as string | undefined) ??
   "http://localhost:8180/realms/luminai";
 const clientId =
-  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ??
-  "luminai-spa";
+  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ?? "luminai-spa";
 const appOrigin =
-  typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:3000";
 
 const oidcConfig: UserManagerSettings = {
   authority: authUrl,

@@ -19,8 +19,7 @@ const AUTH_URL =
   (import.meta.env.VITE_AUTH_URL as string | undefined) ??
   "http://localhost:8180/realms/luminai";
 const CLIENT_ID =
-  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ??
-  "luminai-spa";
+  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ?? "luminai-spa";
 
 const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
 
