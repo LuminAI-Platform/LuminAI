@@ -22,7 +22,10 @@ import { useAuthStore } from "../stores/authStore";
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  "http://localhost:8080";
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  (import.meta.env.PROD
+    ? "https://luminai-api.onrender.com"
+    : "http://localhost:8080");
 
 // ─── Token resolver ───────────────────────────────────────────────────────────
 
