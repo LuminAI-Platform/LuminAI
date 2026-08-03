@@ -60,7 +60,7 @@ def create_app() -> FastAPI:
         ),
         contact={
             "name": "LuminAI Engineering",
-            "url": "https://luminai.io",
+            "url": settings.app_frontend_url,
         },
         license_info={
             "name": "Proprietary",

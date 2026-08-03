@@ -32,6 +32,9 @@ public class TenantFilter extends OncePerRequestFilter {
   private static final String[] BYPASS_PATHS = {
     "/actuator/health",
     "/actuator/info",
+    "/v3/api-docs",
+    "/swagger-ui",
+    "/swagger-ui.html",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
     "/api/v1/public/"
