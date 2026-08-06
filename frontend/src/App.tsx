@@ -12,6 +12,7 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
 import { ConnectionsPage } from "./pages/connections/ConnectionsPage";
 import { SchemaMapPage } from "./pages/connections/SchemaMapPage";
+import { PipelinePage } from "./pages/connections/PipelinePage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -429,6 +430,12 @@ const schemaMapRoute = createRoute({
   component: SchemaMapPage,
 });
 
+const pipelineRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/connections/pipelines",
+  component: PipelinePage,
+});
+
 const ontologyRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/ontology",
@@ -455,6 +462,7 @@ const routeTree = rootRoute.addChildren([
     explorerRoute,
     connectionsRoute,
     schemaMapRoute,
+    pipelineRoute,
     ontologyRoute,
     graphRoute,
     settingsRoute,
