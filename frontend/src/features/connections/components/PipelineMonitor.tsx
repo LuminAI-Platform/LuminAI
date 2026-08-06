@@ -80,7 +80,8 @@ function makeMockJobs(): PipelineJob[] {
         {
           timestamp: new Date(Date.now() - 600_000).toISOString(),
           level: "WARN",
-          message: "Encoding mismatch detected on 10 rows — converted to UTF-8.",
+          message:
+            "Encoding mismatch detected on 10 rows — converted to UTF-8.",
         },
       ],
     },
@@ -129,9 +130,9 @@ function makeMockJobs(): PipelineJob[] {
 // ─── Normalise raw API payload to PipelineJob ─────────────────────────────────
 
 function normaliseJob(raw: Record<string, unknown>): PipelineJob {
-  const status = (
-    String(raw.status ?? "RUNNING").toUpperCase()
-  ) as PipelineJobStatus;
+  const status = String(
+    raw.status ?? "RUNNING",
+  ).toUpperCase() as PipelineJobStatus;
 
   const errors: PipelineErrorEntry[] = Array.isArray(raw.errors)
     ? (raw.errors as Record<string, unknown>[]).map((e) => ({
@@ -201,8 +202,7 @@ const ThroughputGauge: React.FC<{ value: number; max?: number }> = ({
   const ny = cy + (r - 6) * Math.sin(toRad(needleAngle));
 
   // Color zones
-  const gaugeColor =
-    pct < 0.4 ? "#3b82f6" : pct < 0.75 ? "#f59e0b" : "#ef4444";
+  const gaugeColor = pct < 0.4 ? "#3b82f6" : pct < 0.75 ? "#f59e0b" : "#ef4444";
 
   return (
     <svg width="96" height="68" viewBox="0 0 96 68">
@@ -241,9 +241,18 @@ const ThroughputGauge: React.FC<{ value: number; max?: number }> = ({
         stroke={gaugeColor}
         strokeWidth="2"
         strokeLinecap="round"
-        style={{ transition: "all 0.6s ease", transformOrigin: `${cx}px ${cy}px` }}
+        style={{
+          transition: "all 0.6s ease",
+          transformOrigin: `${cx}px ${cy}px`,
+        }}
       />
-      <circle cx={cx} cy={cy} r="3" fill={gaugeColor} style={{ transition: "fill 0.6s ease" }} />
+      <circle
+        cx={cx}
+        cy={cy}
+        r="3"
+        fill={gaugeColor}
+        style={{ transition: "fill 0.6s ease" }}
+      />
     </svg>
   );
 };
@@ -265,7 +274,9 @@ const KpiCard: React.FC<{
       <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
         {label}
       </div>
-      <div className={`text-sm font-bold font-mono leading-tight mt-0.5 ${accent}`}>
+      <div
+        className={`text-sm font-bold font-mono leading-tight mt-0.5 ${accent}`}
+      >
         {value}
       </div>
       {sub && <div className="text-[10px] text-zinc-600 mt-0.5">{sub}</div>}
@@ -311,7 +322,11 @@ const ConnectionDot: React.FC<{ connected: boolean; polling: boolean }> = ({
   <div className="flex items-center gap-1.5">
     <span
       className={`w-1.5 h-1.5 rounded-full ${
-        connected ? "bg-emerald-500 animate-pulse" : polling ? "bg-amber-500 animate-pulse" : "bg-zinc-600"
+        connected
+          ? "bg-emerald-500 animate-pulse"
+          : polling
+            ? "bg-amber-500 animate-pulse"
+            : "bg-zinc-600"
       }`}
     />
     <span className="text-[10px] text-zinc-500 select-none">
@@ -383,7 +398,7 @@ export const PipelineMonitor: React.FC = () => {
           throughput: Math.floor(Math.random() * 5_000 + 8_000),
           durationSeconds: j.durationSeconds + 3,
         };
-      })
+      }),
     );
     setLastUpdated(new Date());
   }, []);
@@ -422,7 +437,9 @@ export const PipelineMonitor: React.FC = () => {
           setIsLoading(false);
           try {
             ingestPayload(JSON.parse(e.data));
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         });
 
         es.onerror = () => {
@@ -478,7 +495,6 @@ export const PipelineMonitor: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div id="pipeline-monitor" className="flex flex-col gap-5">
-
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between select-none">
         <div>
@@ -510,7 +526,10 @@ export const PipelineMonitor: React.FC = () => {
             </div>
             <div className="text-sm font-bold font-mono text-blue-400 leading-tight mt-0.5">
               {formatNumber(totalThroughput)}
-              <span className="text-zinc-500 font-normal text-[10px]"> rec/s</span>
+              <span className="text-zinc-500 font-normal text-[10px]">
+                {" "}
+                rec/s
+              </span>
             </div>
             <div className="text-[10px] text-zinc-600 mt-0.5">
               {running.length} active pipeline{running.length !== 1 ? "s" : ""}
@@ -524,7 +543,14 @@ export const PipelineMonitor: React.FC = () => {
           sub={`${formatNumber(jobs.reduce((a, j) => a + j.recordsOutput, 0))} processed`}
           accent="text-zinc-100"
           icon={
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <rect x="2" y="3" width="20" height="14" rx="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
@@ -535,10 +561,21 @@ export const PipelineMonitor: React.FC = () => {
         <KpiCard
           label="Failed Records"
           value={formatNumber(totalFailed)}
-          sub={totalInput > 0 ? `${((totalFailed / totalInput) * 100).toFixed(2)}% error rate` : "—"}
+          sub={
+            totalInput > 0
+              ? `${((totalFailed / totalInput) * 100).toFixed(2)}% error rate`
+              : "—"
+          }
           accent={totalFailed > 0 ? "text-red-400" : "text-zinc-400"}
           icon={
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -551,7 +588,14 @@ export const PipelineMonitor: React.FC = () => {
           value={jobs.length}
           sub={`${counts.COMPLETED} completed · ${counts.FAILED} failed`}
           icon={
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           }
@@ -560,18 +604,18 @@ export const PipelineMonitor: React.FC = () => {
 
       {/* ── Filter Tabs ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
-        {(["ALL", "RUNNING", "CLEANED", "COMPLETED", "FAILED"] as FilterStatus[]).map(
-          (f) => (
-            <FilterPill
-              key={f}
-              id={`pipeline-filter-${f.toLowerCase()}`}
-              label={f}
-              count={counts[f]}
-              active={filter === f}
-              onClick={() => setFilter(f)}
-            />
-          )
-        )}
+        {(
+          ["ALL", "RUNNING", "CLEANED", "COMPLETED", "FAILED"] as FilterStatus[]
+        ).map((f) => (
+          <FilterPill
+            key={f}
+            id={`pipeline-filter-${f.toLowerCase()}`}
+            label={f}
+            count={counts[f]}
+            active={filter === f}
+            onClick={() => setFilter(f)}
+          />
+        ))}
       </div>
 
       {/* ── Table Header ───────────────────────────────────────────────────── */}
@@ -596,7 +640,11 @@ export const PipelineMonitor: React.FC = () => {
             strokeWidth="2.5"
           >
             <circle cx="12" cy="12" r="10" className="opacity-25" />
-            <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4" className="opacity-75" />
+            <path
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4"
+              className="opacity-75"
+            />
           </svg>
           Loading pipeline jobs…
         </div>
@@ -606,7 +654,15 @@ export const PipelineMonitor: React.FC = () => {
         </div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center border border-zinc-800/80 rounded-xl bg-zinc-950/60 select-none">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-600 mb-3">
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="text-zinc-600 mb-3"
+          >
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
           </svg>
           <span className="text-sm font-semibold text-zinc-400">

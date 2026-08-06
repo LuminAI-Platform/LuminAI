@@ -44,29 +44,25 @@ const STATUS_META: Record<
   RUNNING: {
     label: "RUNNING",
     dotClass: "bg-blue-500 animate-pulse",
-    badgeClass:
-      "bg-blue-500/10 border-blue-500/30 text-blue-400",
+    badgeClass: "bg-blue-500/10 border-blue-500/30 text-blue-400",
     barColor: "#3b82f6",
   },
   CLEANED: {
     label: "CLEANED",
     dotClass: "bg-violet-500",
-    badgeClass:
-      "bg-violet-500/10 border-violet-500/30 text-violet-400",
+    badgeClass: "bg-violet-500/10 border-violet-500/30 text-violet-400",
     barColor: "#8b5cf6",
   },
   COMPLETED: {
     label: "COMPLETED",
     dotClass: "bg-emerald-500",
-    badgeClass:
-      "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+    badgeClass: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
     barColor: "#10b981",
   },
   FAILED: {
     label: "FAILED",
     dotClass: "bg-red-500",
-    badgeClass:
-      "bg-red-500/10 border-red-500/30 text-red-400",
+    badgeClass: "bg-red-500/10 border-red-500/30 text-red-400",
     barColor: "#ef4444",
   },
 };
@@ -110,7 +106,14 @@ const ConnectorIcon: React.FC<{ type: string }> = ({ type }) => {
   const t = type.toLowerCase();
   if (t.includes("postgres") || t.includes("mysql") || t.includes("sql")) {
     return (
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <ellipse cx="12" cy="5" rx="9" ry="3" />
         <path d="M3 5v14c0 1.657 4.03 3 9 3s9-1.343 9-3V5" />
         <path d="M3 12c0 1.657 4.03 3 9 3s9-1.343 9-3" />
@@ -119,7 +122,14 @@ const ConnectorIcon: React.FC<{ type: string }> = ({ type }) => {
   }
   if (t.includes("snowflake")) {
     return (
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <line x1="12" y1="2" x2="12" y2="22" />
         <path d="m20 10-8-8-8 8" />
         <path d="m4 14 8 8 8-8" />
@@ -128,7 +138,14 @@ const ConnectorIcon: React.FC<{ type: string }> = ({ type }) => {
   }
   if (t.includes("kafka") || t.includes("stream")) {
     return (
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <circle cx="12" cy="12" r="3" />
         <path d="M12 3v3m0 12v3M3 12h3m12 0h3" />
       </svg>
@@ -136,7 +153,14 @@ const ConnectorIcon: React.FC<{ type: string }> = ({ type }) => {
   }
   if (t.includes("s3") || t.includes("file") || t.includes("csv")) {
     return (
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <polyline points="17 8 12 3 7 8" />
         <line x1="12" y1="3" x2="12" y2="15" />
@@ -145,7 +169,14 @@ const ConnectorIcon: React.FC<{ type: string }> = ({ type }) => {
   }
   // Default: generic database
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <rect x="2" y="3" width="20" height="14" rx="2" />
       <line x1="8" y1="21" x2="16" y2="21" />
       <line x1="12" y1="17" x2="12" y2="21" />
@@ -167,7 +198,6 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
     >
       {/* ── Main Row ─────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-12 items-center gap-3 px-4 py-3.5 select-none">
-
         {/* Connector name + type */}
         <div className="col-span-3 flex items-center gap-2.5 min-w-0">
           <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400">
@@ -185,7 +215,9 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
 
         {/* Status badge */}
         <div className="col-span-2 flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${meta.dotClass}`} />
+          <span
+            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${meta.dotClass}`}
+          />
           <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full border tracking-wide ${meta.badgeClass}`}
           >
@@ -209,9 +241,10 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
               style={{
                 width: `${Math.min(job.progress, 100)}%`,
                 backgroundColor: meta.barColor,
-                boxShadow: job.status === "RUNNING"
-                  ? `0 0 6px ${meta.barColor}66`
-                  : undefined,
+                boxShadow:
+                  job.status === "RUNNING"
+                    ? `0 0 6px ${meta.barColor}66`
+                    : undefined,
               }}
             />
           </div>
@@ -221,7 +254,10 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
         <div className="col-span-2 flex flex-col items-start">
           <div className="text-xs font-mono font-bold text-blue-400 leading-tight">
             {formatNumber(job.throughput)}
-            <span className="text-zinc-500 font-normal text-[10px]"> rec/s</span>
+            <span className="text-zinc-500 font-normal text-[10px]">
+              {" "}
+              rec/s
+            </span>
           </div>
           <div className="text-[10px] text-zinc-600 mt-0.5 font-mono">
             {formatDuration(job.durationSeconds)}
@@ -294,7 +330,14 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
             {/* Accordion header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800/50">
               <div className="flex items-center gap-2">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth="2.5"
+                >
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
