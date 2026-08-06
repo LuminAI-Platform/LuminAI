@@ -23,13 +23,12 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
+    app_frontend_url: str = "https://luminai-sand.vercel.app"
     debug: bool = False
 
     # CORS Configuration
-    # Origins allowed to call this API (comma-separated list for env override)
     cors_origins: list[str] = [
-        "http://localhost:8080",  # Core Java Backend
-        "http://localhost:5173",  # React Frontend (dev)
+        "*",  # Allow all origins for API calls from frontend/backend
     ]
 
     # Kafka Configuration
@@ -40,7 +39,9 @@ class Settings(BaseSettings):
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
 
-    # PostgreSQL Configuration
+    # Database & Redis Configuration
+    database_url: str | None = None
+    redis_url: str | None = None
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_user: str = "luminai"
@@ -49,6 +50,8 @@ class Settings(BaseSettings):
 
     @property
     def postgres_dsn(self) -> str:
+        if self.database_url:
+            return self.database_url
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"

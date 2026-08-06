@@ -37,3 +37,10 @@ def test_postgres_dsn():
         postgres_db="testdb",
     )
     assert settings.postgres_dsn == "postgresql://testuser:testpass@db.example.com:5433/testdb"
+
+
+def test_database_url_override():
+    """DATABASE_URL overrides component-based DSN construction."""
+    settings = Settings(database_url="postgresql://user:pass@render-db:5432/luminai")
+    assert settings.postgres_dsn == "postgresql://user:pass@render-db:5432/luminai"
+

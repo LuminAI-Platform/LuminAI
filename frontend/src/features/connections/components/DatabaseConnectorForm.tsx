@@ -18,47 +18,10 @@ interface ConnectionCheckStep {
 }
 
 const DEFAULT_DISCOVERED_DATA: Record<DBType, SchemaDiscovery[]> = {
-  postgresql: [
-    {
-      schema: "public",
-      tables: ["users", "profiles", "organizations", "roles", "audit_events"],
-    },
-    {
-      schema: "analytics",
-      tables: ["monthly_active_users", "revenue_summary", "feature_usage"],
-    },
-    {
-      schema: "inventory",
-      tables: ["products", "orders", "suppliers", "stock_items"],
-    },
-  ],
-  mysql: [
-    {
-      schema: "default",
-      tables: ["customers", "orders", "payments", "shippers"],
-    },
-    {
-      schema: "marketing",
-      tables: ["campaigns", "clicks", "conversions", "leads"],
-    },
-  ],
-  snowflake: [
-    {
-      schema: "RAW_DATA",
-      tables: ["EVENTS_STREAM", "USER_CLICKS", "TRANSACTIONS_LOG"],
-    },
-    {
-      schema: "REPORTING",
-      tables: ["DAILY_KPI", "FINANCIAL_LEDGER", "RETENTION_COHORTS"],
-    },
-  ],
-  sqlserver: [
-    {
-      schema: "dbo",
-      tables: ["Employees", "Departments", "Salaries", "Addresses"],
-    },
-    { schema: "sales", tables: ["Customers", "Invoices", "LineItems"] },
-  ],
+  postgresql: [],
+  mysql: [],
+  snowflake: [],
+  sqlserver: [],
 };
 
 export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
@@ -247,13 +210,15 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
 
     const payload = {
       name,
-      type: dbType,
-      host,
-      port,
-      database: databaseName,
-      username,
-      selectedTables,
-      status: "Connected",
+      type: dbType === "sqlserver" ? "MSSQL" : dbType.toUpperCase(),
+      config: JSON.stringify({
+        host,
+        port,
+        database: databaseName,
+        username,
+        selectedTables,
+      }),
+      credentialsRef: `vault-secret-${Date.now()}`,
     };
 
     try {

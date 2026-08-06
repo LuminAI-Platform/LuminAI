@@ -15,10 +15,13 @@ interface AuthState {
   clearError: () => void;
 }
 
-// oidc-client-ts v3 session storage key format:
-// "oidc.user:<authority>:<client_id>"
-const OIDC_SESSION_KEY =
-  "oidc.user:http://localhost:8180/realms/luminai:luminai-spa";
+const AUTH_URL =
+  (import.meta.env.VITE_AUTH_URL as string | undefined) ??
+  "http://localhost:8180/realms/luminai";
+const CLIENT_ID =
+  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ?? "luminai-spa";
+
+const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
 
 // Module-level flag: prevents concurrent checkUser() calls (e.g. React StrictMode
 // double-invokes effects, which would otherwise race two getUser() promises).

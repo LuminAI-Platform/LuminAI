@@ -425,13 +425,18 @@ def staged_ingestion_data(
     validated_ingestion_data.write_parquet(local_file_path)
     context.log.info("💾 Saved Parquet locally to %s", local_file_path)
 
+    endpoint = settings.minio_endpoint
+    if not endpoint.startswith("http://") and not endpoint.startswith("https://"):
+        protocol = "https" if settings.minio_secure else "http"
+        endpoint_url = f"{protocol}://{endpoint}"
+    else:
+        endpoint_url = endpoint
+
     minio_url = f"s3://{tenant_id}-staging/{source_id}/{batch_id}.parquet"
     s3_options = {
         "key": settings.minio_access_key,
         "secret": settings.minio_secret_key,
-        "client_kwargs": {
-            "endpoint_url": f"http://{settings.minio_endpoint}"
-        }
+        "client_kwargs": {"endpoint_url": endpoint_url},
     }
 
     staging_path = local_file_path

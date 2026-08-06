@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { apiFetch } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -180,9 +181,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   const getMappedColId = (propId: string) =>
     mappings.find((m) => m.ontologyPropertyId === propId)?.sourceColumnId;
 
-  // ── Save ───────────────────────────────────────────────────────────────────
-
-  const handleSave = () => {
+  const handleSave = async () => {
     const payload: SchemaMappingPayload = {
       connectionId,
       sourceTable,
@@ -190,7 +189,15 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
       mappings,
       createdAt: new Date().toISOString(),
     };
-    localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
+    try {
+      await apiFetch("/api/v1/schema-mappings", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Graceful fallback to localStorage if backend is offline/unreachable
+      localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
+    }
     setSavedPayload(payload);
     setSaveSuccess(true);
     onSave?.(payload);

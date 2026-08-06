@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { apiFetch } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,49 +127,6 @@ const formatNumber = (n: number): string => {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
 };
-
-// ─── Demo seed data ───────────────────────────────────────────────────────────
-
-const createDemoJob = (): SyncJob => ({
-  id: "job-demo-001",
-  name: "Production → LuminAI Lake",
-  connection: "PostgreSQL — prod-db-1",
-  connectionType: "postgresql",
-  status: "running",
-  startedAt: new Date(Date.now() - 124_000),
-  datasets: [
-    {
-      id: "ds-1",
-      name: "public.users",
-      source: "public",
-      totalRecords: 480_000,
-      syncedRecords: 0,
-      failedRecords: 0,
-      status: "running",
-      startedAt: new Date(Date.now() - 124_000),
-    },
-    {
-      id: "ds-2",
-      name: "analytics.revenue_summary",
-      source: "analytics",
-      totalRecords: 92_000,
-      syncedRecords: 0,
-      failedRecords: 0,
-      status: "running",
-      startedAt: new Date(Date.now() - 98_000),
-    },
-    {
-      id: "ds-3",
-      name: "inventory.orders",
-      source: "inventory",
-      totalRecords: 240_000,
-      syncedRecords: 0,
-      failedRecords: 0,
-      status: "running",
-      startedAt: new Date(Date.now() - 60_000),
-    },
-  ],
-});
 
 // ─── Speed sparkline ─────────────────────────────────────────────────────────
 
@@ -314,12 +272,12 @@ const datasetStatusColor = (s: SyncJobStatus) => {
 
 export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
   job: jobProp,
-  demo = true,
+  demo = false,
   onPause,
   onResume,
   onCancel,
 }) => {
-  const [job, setJob] = useState<SyncJob>(() => jobProp ?? createDemoJob());
+  const [job, setJob] = useState<SyncJob | null>(() => jobProp ?? null);
   const [speedHistory, setSpeedHistory] = useState<number[]>([]);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [avgSpeed, setAvgSpeed] = useState(0);
@@ -332,12 +290,96 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
     if (jobProp) setJob(jobProp);
   }, [jobProp]);
 
-  // Live simulation tick — only when status is "running"
+  // Poll backend status API /api/v1/sync-jobs when not in demo mode
+  const fetchSyncJobs = useCallback(async () => {
+    if (demo) return;
+    try {
+      const res = await apiFetch("/api/v1/sync-jobs");
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          const rawJob = Array.isArray(data) ? data[0] : data;
+          if (rawJob) {
+            setJob((prev) => ({
+              id: String(rawJob.id || prev?.id || `job-${Date.now()}`),
+              name: String(rawJob.name || prev?.name || "Pipeline Sync"),
+              connection: String(
+                rawJob.connection || prev?.connection || "Database",
+              ),
+              connectionType:
+                rawJob.connectionType || prev?.connectionType || "postgresql",
+              status:
+                (rawJob.status?.toLowerCase() as SyncJobStatus) ||
+                prev?.status ||
+                "running",
+              startedAt: rawJob.startedAt
+                ? new Date(rawJob.startedAt)
+                : prev?.startedAt || new Date(),
+              estimatedEnd: rawJob.estimatedEnd
+                ? new Date(rawJob.estimatedEnd)
+                : prev?.estimatedEnd,
+              datasets:
+                Array.isArray(rawJob.datasets) && rawJob.datasets.length > 0
+                  ? rawJob.datasets.map(
+                      (ds: Record<string, unknown>, i: number) => ({
+                        id: String(ds.id || `ds-${i}`),
+                        name: String(ds.name || `dataset-${i}`),
+                        source: String(ds.source || "default"),
+                        totalRecords: Number(
+                          ds.totalRecords ?? ds.rowsTotal ?? 1000,
+                        ),
+                        syncedRecords: Number(
+                          ds.syncedRecords ?? ds.rowsProcessed ?? 0,
+                        ),
+                        failedRecords: Number(
+                          ds.failedRecords ?? ds.rowsFailed ?? 0,
+                        ),
+                        status: (ds.status
+                          ? String(ds.status).toLowerCase()
+                          : "running") as SyncJobStatus,
+                        startedAt: ds.startedAt
+                          ? new Date(String(ds.startedAt))
+                          : new Date(),
+                      }),
+                    )
+                  : prev?.datasets || [],
+            }));
+            if (typeof rawJob.currentSpeed === "number") {
+              const speed = rawJob.currentSpeed;
+              setCurrentSpeed(speed);
+              setSpeedHistory((h) => {
+                const next = [...h, speed].slice(-24);
+                setAvgSpeed(
+                  Math.floor(next.reduce((a, b) => a + b, 0) / next.length),
+                );
+                return next;
+              });
+            }
+          }
+        }
+      }
+    } catch {
+      // Endpoint may not exist yet in dev backend; keep existing state gracefully
+    }
+  }, [demo]);
+
+  useEffect(() => {
+    if (!demo) {
+      // Defers initial synchronous state mutation out of the render stack frame
+      Promise.resolve().then(() => {
+        fetchSyncJobs();
+      });
+      const interval = setInterval(fetchSyncJobs, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [demo, fetchSyncJobs]);
+
+  // Live simulation tick — only when demo mode is true and status is "running"
   const advance = useCallback(() => {
     if (!demo) return;
 
     setJob((prev) => {
-      if (prev.status !== "running") return prev;
+      if (!prev || prev.status !== "running") return prev;
 
       const batchBase = 12_000 + Math.random() * 6_000;
       let remaining = 0;
@@ -389,6 +431,38 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
     return () => clearInterval(id);
   }, [advance]);
 
+  // ── Empty State ─────────────────────────────────────────────────────────────
+  if (!job || !job.id || !job.datasets || job.datasets.length === 0) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center p-8 bg-zinc-950 border border-zinc-800/80 rounded-xl shadow-2xl shadow-black/40 text-center select-none min-h-[280px]"
+        data-testid="sync-job-details-empty"
+      >
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-zinc-600 mb-3"
+        >
+          <path d="M21.5 2v6h-6" />
+          <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+        <span className="text-sm font-semibold text-zinc-400">
+          No Active Sync Jobs
+        </span>
+        <span className="text-xs text-zinc-500 mt-1 max-w-[280px]">
+          Connect a database or ingest a file to monitor real-time pipeline
+          execution details
+        </span>
+      </div>
+    );
+  }
+
   // ── Derived totals ──────────────────────────────────────────────────────────
   const totalRecords = job.datasets.reduce((a, d) => a + d.totalRecords, 0);
   const totalSynced = job.datasets.reduce((a, d) => a + d.syncedRecords, 0);
@@ -434,7 +508,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
           {job.status === "running" && (
             <button
               onClick={() => {
-                setJob((j) => ({ ...j, status: "paused" }));
+                setJob((j) => (j ? { ...j, status: "paused" } : null));
                 onPause?.(job.id);
               }}
               title="Pause sync"
@@ -454,7 +528,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
           {job.status === "paused" && (
             <button
               onClick={() => {
-                setJob((j) => ({ ...j, status: "running" }));
+                setJob((j) => (j ? { ...j, status: "running" } : null));
                 onResume?.(job.id);
               }}
               title="Resume sync"
@@ -473,7 +547,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
           {(job.status === "running" || job.status === "paused") && (
             <button
               onClick={() => {
-                setJob((j) => ({ ...j, status: "failed" }));
+                setJob((j) => (j ? { ...j, status: "failed" } : null));
                 onCancel?.(job.id);
               }}
               title="Cancel sync"

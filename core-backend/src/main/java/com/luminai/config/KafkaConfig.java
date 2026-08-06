@@ -44,11 +44,10 @@ public class KafkaConfig {
   public static final String TOPIC_ALERTS_TRIGGERED = "alerts.triggered";
   public static final String TOPIC_DEAD_LETTER = "ingest.dead_letter";
 
-  // Injected properties (from application-dev.yml)
-  @Value("${spring.kafka.bootstrap-servers}")
+  @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
   private String bootstrapServers;
 
-  @Value("${spring.kafka.consumer.group-id}")
+  @Value("${spring.kafka.consumer.group-id:luminai-core-consumer-group}")
   private String consumerGroupId;
 
   @Value("${luminai.kafka.topic.partitions:3}")
@@ -56,6 +55,45 @@ public class KafkaConfig {
 
   @Value("${luminai.kafka.topic.replication-factor:1}")
   private short replicationFactor;
+
+  @Value("${KAFKA_USERNAME:}")
+  private String kafkaUsername;
+
+  @Value("${KAFKA_PASSWORD:}")
+  private String kafkaPassword;
+
+  @Value("${KAFKA_SECURITY_PROTOCOL:SASL_SSL}")
+  private String securityProtocol;
+
+  @Value("${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}")
+  private String saslMechanism;
+
+  private void applySaslConfig(Map<String, Object> props) {
+    if (kafkaUsername != null && !kafkaUsername.isBlank()) {
+      props.put("security.protocol", securityProtocol);
+      props.put("sasl.mechanism", saslMechanism);
+      String jaasConfig =
+          String.format(
+              "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";",
+              kafkaUsername, kafkaPassword);
+      props.put("sasl.jaas.config", jaasConfig);
+      log.info("Kafka SASL/SCRAM authentication configured for user: {}", kafkaUsername);
+    }
+  }
+
+  // ===========================================================
+  // ADMIN
+  // ===========================================================
+
+  @Bean
+  public KafkaAdmin kafkaAdmin() {
+    Map<String, Object> configs = new HashMap<>();
+    configs.put(
+        org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
+        bootstrapServers);
+    applySaslConfig(configs);
+    return new KafkaAdmin(configs);
+  }
 
   // ===========================================================
   // PRODUCER
@@ -83,6 +121,8 @@ public class KafkaConfig {
     // deserialise into the correct class without extra configuration.
     props.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, true);
 
+    applySaslConfig(props);
+
     log.info("Kafka Producer Factory configured -> {}", bootstrapServers);
     return new DefaultKafkaProducerFactory<>(props);
   }
@@ -107,6 +147,8 @@ public class KafkaConfig {
     props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupId);
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+    applySaslConfig(props);
 
     // Offset management
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
