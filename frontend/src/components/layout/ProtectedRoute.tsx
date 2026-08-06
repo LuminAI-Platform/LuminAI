@@ -26,6 +26,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   useEffect(() => {
     checkUser().then((user) => {
       if (!user) {
+        // Save the page user was trying to reach
+        const path = window.location.pathname;
+        if (path !== "/login") {
+          sessionStorage.setItem("post_login_redirect", path);
+        }
         navigate({ to: "/login", replace: true });
       }
     });
@@ -34,6 +39,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, []);
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
+      const path = window.location.pathname;
+      if (path !== "/login") {
+        sessionStorage.setItem("post_login_redirect", path);
+      }
       navigate({ to: "/login", replace: true });
     }
   }, [isLoading, isAuthenticated, navigate]);

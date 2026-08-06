@@ -7,9 +7,13 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Capture the path the user was trying to reach before being bounced to /login
+    const intended = sessionStorage.getItem("post_login_redirect");
     checkUser().then((user) => {
       if (user) {
-        navigate({ to: "/", replace: true });
+        const dest = intended ?? "/";
+        sessionStorage.removeItem("post_login_redirect");
+        navigate({ to: dest as "/", replace: true });
       }
     });
   }, [checkUser, navigate]);
@@ -29,7 +33,9 @@ export const LoginPage: React.FC = () => {
     setIsConnecting(true);
     try {
       await loginMock("admin@luminai.dev", "Admin User");
-      navigate({ to: "/", replace: true });
+      const dest = sessionStorage.getItem("post_login_redirect") ?? "/";
+      sessionStorage.removeItem("post_login_redirect");
+      navigate({ to: dest as "/", replace: true });
     } catch {
       setIsConnecting(false);
     }
