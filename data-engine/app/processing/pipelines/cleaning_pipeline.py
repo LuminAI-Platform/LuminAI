@@ -404,14 +404,10 @@ def staged_ingestion_data(
     tenant_id = run_tags.get("tenant_id", "acme")
     source_id = run_tags.get("source_id", "default-source")
 
-    batch_id = None
-    if has_run:
-        batch_id = run_tags.get("dagster/run_id", context.run_id)
+    if has_run and hasattr(context.run, "run_id"):
+        batch_id = run_tags.get("dagster/run_id", context.run.run_id)
     else:
-        try:
-            batch_id = context.run_id
-        except Exception:
-            batch_id = str(uuid.uuid4())
+        batch_id = str(uuid.uuid4())
     if not batch_id:
         batch_id = str(uuid.uuid4())
 
