@@ -8,8 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 /**
- * Spring Data JPA repository for {@link CleaningRule}.
- * All query methods include {@code tenantId} to enforce strict multi-tenant data isolation at the database query level.
+ * Spring Data JPA repository for {@link CleaningRule}. All query methods include {@code tenantId}
+ * to enforce strict multi-tenant data isolation at the database query level.
  */
 @Repository
 public interface CleaningRuleRepository extends JpaRepository<CleaningRule, UUID> {

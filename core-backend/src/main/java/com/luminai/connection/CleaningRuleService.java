@@ -12,10 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service layer for CleaningRule CRUD operations.
- * Tenant isolation is enforced on every operation by extracting the tenant ID from the
- * authenticated JWT. A request from Tenant A can never read, update, or delete Tenant B's cleaning
- * rules.
+ * Service layer for CleaningRule CRUD operations. Tenant isolation is enforced on every operation
+ * by extracting the tenant ID from the authenticated JWT. A request from Tenant A can never read,
+ * update, or delete Tenant B's cleaning rules.
  */
 @Service
 public class CleaningRuleService {

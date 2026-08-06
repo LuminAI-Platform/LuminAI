@@ -14,11 +14,9 @@ import org.hibernate.type.SqlTypes;
 /**
  * JPA entity representing a configurable cleaning rule for a data connector. Each rule defines a
  * single transformation operation applied to a specific column during the Data Engine cleaning
- * pipeline.
- * Rules are executed in ascending {@code priority} order. The Data Engine fetches these rules
- * via the REST API before each pipeline run.
- * All queries MUST be scoped by {@code tenantId} to enforce multi-tenant isolation at the data
- * layer.
+ * pipeline. Rules are executed in ascending {@code priority} order. The Data Engine fetches these
+ * rules via the REST API before each pipeline run. All queries MUST be scoped by {@code tenantId}
+ * to enforce multi-tenant isolation at the data layer.
  */
 @Entity
 @Table(name = "cleaning_rules")

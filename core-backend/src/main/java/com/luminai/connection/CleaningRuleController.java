@@ -11,16 +11,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * REST API for managing per-connector cleaning rules.
- * Cleaning rules define data transformation operations (TRIM, UPPERCASE, DATE_NORMALIZE, etc.)
- * that the Data Engine cleaning pipeline applies to specific columns during ingestion. Rules are
- * executed in ascending priority order.
- * All endpoints require a valid JWT. Tenant isolation is enforced by the service layer — the
- * authenticated tenant can only access its own cleaning rules.
- * GET    /api/v1/connections/{connectionId}/cleaning-rules            — List rules for connector
- * POST   /api/v1/connections/{connectionId}/cleaning-rules            — Create rule
- * PUT    /api/v1/connections/{connectionId}/cleaning-rules/{ruleId}   — Update rule
- * DELETE /api/v1/connections/{connectionId}/cleaning-rules/{ruleId}   — Delete rule
+ * REST API for managing per-connector cleaning rules. Cleaning rules define data transformation
+ * operations (TRIM, UPPERCASE, DATE_NORMALIZE, etc.) that the Data Engine cleaning pipeline applies
+ * to specific columns during ingestion. Rules are executed in ascending priority order. All
+ * endpoints require a valid JWT. Tenant isolation is enforced by the service layer — the
+ * authenticated tenant can only access its own cleaning rules. GET
+ * /api/v1/connections/{connectionId}/cleaning-rules — List rules for connector POST
+ * /api/v1/connections/{connectionId}/cleaning-rules — Create rule PUT
+ * /api/v1/connections/{connectionId}/cleaning-rules/{ruleId} — Update rule DELETE
+ * /api/v1/connections/{connectionId}/cleaning-rules/{ruleId} — Delete rule
  */
 @RestController
 @RequestMapping("/api/v1/connections/{connectionId}/cleaning-rules")
