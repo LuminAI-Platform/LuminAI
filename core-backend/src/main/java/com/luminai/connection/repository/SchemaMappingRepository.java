@@ -1,4 +1,4 @@
-package com.luminai.connection;
+package com.luminai.connection.repository;
 
 import com.luminai.connection.model.SchemaMapping;
 import java.util.List;

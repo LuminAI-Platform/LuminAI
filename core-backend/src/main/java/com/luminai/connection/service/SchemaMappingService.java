@@ -1,7 +1,8 @@
-package com.luminai.connection;
+package com.luminai.connection.service;
 
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
+import com.luminai.connection.repository.SchemaMappingRepository;
 import com.luminai.connection.dto.SchemaMappingDto;
 import com.luminai.connection.model.SchemaMapping;
 import java.util.List;

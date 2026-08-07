@@ -1,4 +1,4 @@
-package com.luminai.connection;
+package com.luminai.connection.repository;
 
 import java.util.List;
 import java.util.Map;

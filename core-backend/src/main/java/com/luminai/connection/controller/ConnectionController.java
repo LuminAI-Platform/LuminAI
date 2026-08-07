@@ -1,5 +1,7 @@
-package com.luminai.connection;
+package com.luminai.connection.controller;
 
+import com.luminai.connection.repository.ConnectionPreviewService;
+import com.luminai.connection.service.ConnectionService;
 import com.luminai.connection.dto.ConnectionDto;
 import jakarta.validation.Valid;
 import java.util.List;

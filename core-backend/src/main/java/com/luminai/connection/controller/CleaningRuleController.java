@@ -1,5 +1,6 @@
-package com.luminai.connection;
+package com.luminai.connection.controller;
 
+import com.luminai.connection.service.CleaningRuleService;
 import com.luminai.connection.dto.CleaningRuleDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

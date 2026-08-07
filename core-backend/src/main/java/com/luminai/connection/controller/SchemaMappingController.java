@@ -1,5 +1,6 @@
-package com.luminai.connection;
+package com.luminai.connection.controller;
 
+import com.luminai.connection.service.SchemaMappingService;
 import com.luminai.connection.dto.SchemaMappingDto;
 import jakarta.validation.Valid;
 import java.util.List;
