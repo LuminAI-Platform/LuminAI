@@ -1,4 +1,4 @@
-"""Tests for the Dagster pipeline trigger integration (S2-01).
+"""Tests for the Dagster pipeline trigger integration.
 
 Tests the DagsterTrigger class and its integration with the Kafka
 consumer's on_batch_complete callback. Uses mocking to avoid

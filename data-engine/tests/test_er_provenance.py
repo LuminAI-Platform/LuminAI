@@ -1,4 +1,4 @@
-"""Unit tests for TASK S2-11: ER Provenance Tracking Engine."""
+"""Unit tests for ER Provenance Tracking Engine."""
 
 from app.processing.er.provenance import (
     persist_provenance_records,

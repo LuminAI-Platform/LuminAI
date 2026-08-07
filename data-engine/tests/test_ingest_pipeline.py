@@ -1,4 +1,4 @@
-"""Tests for the Dagster workspace and ingest pipeline (S0-16).
+"""Tests for the Dagster workspace and ingest pipeline
 
 Verifies:
   - Dagster Definitions object loads correctly with all registered assets.

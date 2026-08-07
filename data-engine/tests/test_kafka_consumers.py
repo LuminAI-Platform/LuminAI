@@ -1,4 +1,4 @@
-"""Tests for the Kafka consumer scaffold (S1-14).
+"""Tests for the Kafka consumer scaffold
 
 Tests the IngestRawConsumer class in isolation without requiring
 a live Kafka broker. Uses mocking to simulate message polling,

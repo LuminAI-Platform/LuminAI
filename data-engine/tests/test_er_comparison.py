@@ -1,4 +1,4 @@
-"""Unit tests for TASK S2-08: ER Pairwise Comparison Engine."""
+"""Unit tests for TASK ER Pairwise Comparison Engine."""
 
 import polars as pl
 

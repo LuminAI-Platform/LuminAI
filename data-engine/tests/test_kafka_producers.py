@@ -1,4 +1,4 @@
-"""Unit tests for TASK S2-12: Kafka Event Publisher (entity.resolved)."""
+"""Unit tests for Kafka Event Publisher (entity.resolved)."""
 
 from unittest.mock import MagicMock, patch
 

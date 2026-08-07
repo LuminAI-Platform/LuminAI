@@ -1,4 +1,4 @@
-"""Unit tests for TASK S2-07: ER Blocking Engine."""
+"""Unit tests for ER Blocking Engine."""
 
 import polars as pl
 
