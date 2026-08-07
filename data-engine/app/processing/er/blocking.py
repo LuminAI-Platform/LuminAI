@@ -28,7 +28,7 @@ def generate_blocking_key(
 
     Handles edge cases like null values, special characters, whitespace, and numbers.
     """
-    # 1. Clean and normalize name
+    # Clean and normalize name
     if not name or not isinstance(name, str):
         meta_code = "EMPTY"
     else:
@@ -44,13 +44,13 @@ def generate_blocking_key(
             except Exception:
                 meta_code = "EMPTY"
 
-    # 2. Normalize country
+    # Normalize country
     if not country or not isinstance(country, str) or not country.strip():
         norm_country = "GLOBAL"
     else:
         norm_country = country.strip().upper()
 
-    # 3. Normalize entity_type
+    # Normalize entity_type
     if not entity_type or not isinstance(entity_type, str) or not entity_type.strip():
         norm_entity_type = "DEFAULT"
     else:

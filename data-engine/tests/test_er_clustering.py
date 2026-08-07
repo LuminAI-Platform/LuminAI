@@ -1,4 +1,4 @@
-"""Unit tests for TASK S2-10: ER Clustering & Golden Record Merge Engine."""
+"""Unit tests for ER Clustering & Golden Record Merge Engine."""
 
 import polars as pl
 
