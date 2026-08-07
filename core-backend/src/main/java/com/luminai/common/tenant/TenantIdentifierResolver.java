@@ -16,8 +16,7 @@ public class TenantIdentifierResolver
 
   private final MultiTenantConnectionProvider connectionProvider;
 
-  public TenantIdentifierResolver(
-          MultiTenantConnectionProvider connectionProvider) {
+  public TenantIdentifierResolver(MultiTenantConnectionProvider connectionProvider) {
     this.connectionProvider = connectionProvider;
   }
 

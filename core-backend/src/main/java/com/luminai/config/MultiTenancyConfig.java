@@ -16,18 +16,12 @@ public class MultiTenancyConfig {
 
   @Bean
   public HibernatePropertiesCustomizer multiTenancyCustomizer(
-          MultiTenantConnectionProvider provider,
-          TenantIdentifierResolver resolver) {
+      MultiTenantConnectionProvider provider, TenantIdentifierResolver resolver) {
 
     return properties -> {
-      properties.put(
-              AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER,
-              provider);
+      properties.put(AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER, provider);
 
-      properties.put(
-              AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER,
-              resolver);
-
+      properties.put(AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER, resolver);
 
       log.info("Registered Hibernate MultiTenantConnectionProvider");
       log.info("Registered Hibernate TenantIdentifierResolver");
