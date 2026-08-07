@@ -18,6 +18,7 @@ dependencies = [
     "pg8000>=1.30.0",
     "pyarrow>=15.0.0",
     "sqlalchemy>=2.0.0",
+    "jellyfish>=1.2.1",
 ]
 
 [dependency-groups]
