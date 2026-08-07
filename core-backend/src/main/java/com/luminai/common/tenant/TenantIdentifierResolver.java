@@ -14,6 +14,12 @@ public class TenantIdentifierResolver
 
   private static final Logger log = LoggerFactory.getLogger(TenantIdentifierResolver.class);
 
+  private final MultiTenantConnectionProvider connectionProvider;
+
+  public TenantIdentifierResolver(MultiTenantConnectionProvider connectionProvider) {
+    this.connectionProvider = connectionProvider;
+  }
+
   // Returns the schema identifier for the current thread's tenant.
   @Override
   public String resolveCurrentTenantIdentifier() {
@@ -34,6 +40,7 @@ public class TenantIdentifierResolver
   @Override
   public void customize(Map<String, Object> hibernateProperties) {
     hibernateProperties.put(AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER, this);
+    hibernateProperties.put(AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER, connectionProvider);
     log.debug("TenantIdentifierResolver registered into Hibernate properties");
   }
 }
