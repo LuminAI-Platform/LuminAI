@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     kafka_topic_ingest_raw: str = "ingest.raw"
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
+    kafka_topic_entity_resolved: str = "entity.resolved"
 
     # Database & Redis Configuration
     database_url: str | None = None
