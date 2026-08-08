@@ -2,7 +2,6 @@ package com.luminai.connection.model;
 
 import com.luminai.connection.JsonMapConverter;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -20,7 +19,7 @@ import java.util.UUID;
  *
  * <p>{@link #sourceRecordIds} tracks cluster membership; {@link #properties} holds the current
  * merged field values; {@link #provenance} is an append-only audit trail of how each field/member
- * arrived (or left) via {@link com.luminai.connection.MergeReviewService} accept/split operations.
+ * arrived (or left) via {@link com.luminai.connection.service.MergeReviewService} accept/split operations.
  */
 @Entity
 @Table(
@@ -31,10 +30,6 @@ public class GoldenRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private UUID tenantId;
 
     @ElementCollection
     @CollectionTable(
@@ -69,21 +64,13 @@ public class GoldenRecord {
         // required by JPA
     }
 
-    public GoldenRecord(UUID tenantId) {
-        this.tenantId = tenantId;
+    public static GoldenRecord newStandalone() {
+        return new GoldenRecord();
     }
 
 
     public UUID getId() {
         return id;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
-    }
-
-    public void setTenantId(UUID tenantId) {
-        this.tenantId = tenantId;
     }
 
     public Set<UUID> getSourceRecordIds() {

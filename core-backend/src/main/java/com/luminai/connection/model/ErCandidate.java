@@ -36,10 +36,6 @@ public class ErCandidate {
     private UUID id;
 
     @NotNull
-    @Column(name = "tenant_id", nullable = false)
-    private UUID tenantId;
-
-    @NotNull
     @Column(name = "record_a_id", nullable = false)
     private UUID recordAId;
 
@@ -95,13 +91,11 @@ public class ErCandidate {
     }
 
     public ErCandidate(
-            UUID tenantId,
             UUID recordAId,
             UUID recordBId,
             UUID goldenRecordId,
             double similarityScore,
             String matchRationale) {
-        this.tenantId = Objects.requireNonNull(tenantId, "tenantId");
         this.recordAId = Objects.requireNonNull(recordAId, "recordAId");
         this.recordBId = Objects.requireNonNull(recordBId, "recordBId");
         this.goldenRecordId = Objects.requireNonNull(goldenRecordId, "goldenRecordId");
@@ -117,10 +111,6 @@ public class ErCandidate {
 
     public UUID getId() {
         return id;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public UUID getRecordAId() {
