@@ -3,18 +3,18 @@ package com.luminai.connection.service;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.connection.dto.PipelineMetricsDto;
 import com.luminai.connection.dto.PipelineRunDto;
+import com.luminai.connection.model.ErCandidate.CandidateStatus;
 import com.luminai.connection.model.Connection;
 import com.luminai.connection.model.PipelineRun;
 import com.luminai.connection.repository.ConnectionRepository;
-import com.luminai.connection.repository.GoldenRecordRepository;
+import com.luminai.connection.repository.ErCandidateRepository;
 import com.luminai.connection.repository.PipelineRunRepository;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,67 +25,79 @@ public class PipelineMonitoringService {
 
   private final PipelineRunRepository pipelineRunRepository;
   private final ConnectionRepository connectionRepository;
-  private final GoldenRecordRepository goldenRecordRepository;
+  private final ErCandidateRepository erCandidateRepository;
 
   public PipelineMonitoringService(
-      PipelineRunRepository pipelineRunRepository,
-      ConnectionRepository connectionRepository,
-      GoldenRecordRepository goldenRecordRepository) {
+          PipelineRunRepository pipelineRunRepository,
+          ConnectionRepository connectionRepository,
+          ErCandidateRepository erCandidateRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
     this.connectionRepository = connectionRepository;
-    this.goldenRecordRepository = goldenRecordRepository;
+    this.erCandidateRepository = erCandidateRepository;
   }
 
-  public List<PipelineRunDto> listPipelineRuns(String statusFilter) {
-    List<PipelineRun> runs;
-    if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
-      Page<PipelineRun> page =
-          pipelineRunRepository.findByStatus(
-              statusFilter.toUpperCase(),
-              PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "startedAt")));
-      runs = page.getContent();
-    } else {
-      runs = pipelineRunRepository.findTop50ByOrderByStartedAtDesc();
-    }
+  /**
+   * Lists pipeline runs, optionally filtered by status, honoring the caller's page/size instead
+   * of the top-50 window.
+   */
+  public Page<PipelineRunDto> listPipelineRuns(String statusFilter, Pageable pageable) {
+    Page<PipelineRun> runs =
+            (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter))
+                    ? pipelineRunRepository.findByStatus(statusFilter.toUpperCase(), pageable)
+                    : pipelineRunRepository.findAllByOrderByStartedAtDesc(pageable);
 
-    Map<UUID, Connection> connectionMap =
-        connectionRepository.findAll().stream()
-            .collect(Collectors.toMap(Connection::getId, c -> c, (c1, c2) -> c1));
+    Map<UUID, Connection> connectionMap = loadConnectionsFor(runs);
 
-    return runs.stream()
-        .map(
-            run -> {
-              Connection conn = connectionMap.get(run.getConnectionId());
-              String name = conn != null ? conn.getName() : "Pipeline";
-              String type =
-                  conn != null && conn.getType() != null ? conn.getType().name() : "Database";
-              return PipelineRunDto.fromEntity(run, name, type);
-            })
-        .collect(Collectors.toList());
+    return runs.map(run -> toDto(run, connectionMap.get(run.getConnectionId())));
   }
 
   public PipelineRunDto getPipelineRunById(UUID id) {
     PipelineRun run =
-        pipelineRunRepository
-            .findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("PipelineRun", id));
+            pipelineRunRepository
+                    .findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("PipelineRun", id));
 
     Connection conn = connectionRepository.findById(run.getConnectionId()).orElse(null);
-    String name = conn != null ? conn.getName() : "Pipeline";
-    String type = conn != null && conn.getType() != null ? conn.getType().name() : "Database";
-
-    return PipelineRunDto.fromEntity(run, name, type);
+    return toDto(run, conn);
   }
 
+  /**
+   * Aggregates are computed in the database (SUM/COUNT queries), not by loading every run into
+   * memory
+   * <p>"Total entities resolved" is sourced from accepted merge candidates
+   * ({@code ErCandidateRepository.countByStatus(ACCEPTED)}), not
+   * {@code goldenRecordRepository.count()}
+   */
   public PipelineMetricsDto getPipelineMetrics() {
-    List<PipelineRun> runs = pipelineRunRepository.findAll();
-
-    long totalCleaned = runs.stream().mapToLong(PipelineRun::getRecordsOutput).sum();
-    long totalFailed = runs.stream().mapToLong(PipelineRun::getRecordsFailed).sum();
+    long totalCleaned = pipelineRunRepository.sumRecordsOutput();
+    long totalFailed = pipelineRunRepository.sumRecordsFailed();
     long activeJobs = pipelineRunRepository.countByStatus("RUNNING");
-    long totalResolved = goldenRecordRepository.count();
+    long totalResolved = erCandidateRepository.countByStatus(CandidateStatus.ACCEPTED);
+    long totalRuns = pipelineRunRepository.count();
 
-    return new PipelineMetricsDto(
-        totalCleaned, totalResolved, activeJobs, totalFailed, runs.size());
+    return new PipelineMetricsDto(totalCleaned, totalResolved, activeJobs, totalFailed, totalRuns);
+  }
+
+  // -----------------------------------------------------------------------------------------
+  // Helpers
+  // -----------------------------------------------------------------------------------------
+
+  /**
+   * Batch-fetches only the connections referenced by this page of runs
+   */
+  private Map<UUID, Connection> loadConnectionsFor(Page<PipelineRun> runs) {
+    Set<UUID> connectionIds =
+            runs.getContent().stream().map(PipelineRun::getConnectionId).collect(Collectors.toSet());
+    if (connectionIds.isEmpty()) {
+      return Map.of();
+    }
+    return connectionRepository.findAllById(connectionIds).stream()
+            .collect(Collectors.toMap(Connection::getId, c -> c, (c1, c2) -> c1));
+  }
+
+  private PipelineRunDto toDto(PipelineRun run, Connection conn) {
+    String name = conn != null ? conn.getName() : "Pipeline";
+    String type = conn != null && conn.getType() != null ? conn.getType().name() : "Database";
+    return PipelineRunDto.fromEntity(run, name, type);
   }
 }
