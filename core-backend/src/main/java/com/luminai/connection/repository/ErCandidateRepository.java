@@ -19,4 +19,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ErCandidateRepository extends JpaRepository<ErCandidate, UUID> {
 
   Page<ErCandidate> findByStatus(CandidateStatus status, Pageable pageable);
+
+  long countByStatus(CandidateStatus status);
 }
