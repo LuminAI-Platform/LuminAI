@@ -1,9 +1,9 @@
 ## Sprint 2 — Pipeline + Entity Resolution
 
 - **Role:** DevOps Engineer
-- **Primary Focus:** Dagster schedules & daemon configuration, staging environment setup on Render/AWS, Aiven Kafka topic configuration, and CI/CD enhancements.
-- **Working Directory:** `infra/` & `data-engine/`
-- **Total Load:** 11 SP (2 tasks)
+- **Primary Focus:** Staging environment setup on Render/AWS, Aiven Kafka topic configuration, and CI/CD enhancements.
+- **Working Directory:** `infra/`
+- **Total Load:** 8 SP (1 task)
 
 ---
 
@@ -14,27 +14,6 @@
 ---
 
 ## 📋 Assigned Tasks
-
----
-
-### TASK S2-17: Dagster Schedules & Daemon Config (3 pts)
-* **Goal:** Configure recurring Dagster schedules and daemon process monitoring for automated background data cleaning and entity resolution runs.
-* **Branch:** `feature/S2-17-dagster-schedules`
-* **Target Files:**
-  * `data-engine/app/processing/schedules.py` 
-  * `data-engine/workspace.yaml`
-  * `infra/docker-compose.yml` 
-
-#### Requirements
-1. **Schedules:**
-   * Hourly cleaning pipeline trigger schedule.
-   * Daily entity resolution clustering schedule.
-2. **Daemon Verification:**
-   * Configure `dagster-daemon` in Docker Compose / Render background worker.
-
-#### Acceptance Criteria
-- [ ] Dagster webserver UI shows active schedules.
-- [ ] Daemon automatically executes scheduled materializations.
 
 ---
 

@@ -62,10 +62,10 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ConflictException.class)
   public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
     return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(ApiError.of(
-                    HttpStatus.CONFLICT.value(),
-                    HttpStatus.CONFLICT.getReasonPhrase(),
-                    ex.getMessage()));
+        .body(
+            ApiError.of(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage()));
   }
 }
-

@@ -17,6 +17,10 @@ from app.processing.pipelines.cleaning_pipeline import (
     validated_ingestion_data,
     staged_ingestion_data,
 )
+from app.processing.schedules import (
+    daily_er_schedule,
+    hourly_cleaning_schedule,
+)
 
 
 @asset(
@@ -112,7 +116,6 @@ def cleaned_data_placeholder(
     return cleaned
 
 
-def_or_node = None # just to verify
 defs = Definitions(
     assets=[
         # Mock/placeholder assets kept for testing
@@ -124,6 +127,10 @@ defs = Definitions(
         deduplicated_ingestion_data,
         validated_ingestion_data,
         staged_ingestion_data,
+    ],
+    schedules=[
+        hourly_cleaning_schedule,
+        daily_er_schedule,
     ],
 )
 
