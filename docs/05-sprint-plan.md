@@ -127,7 +127,7 @@ Features **not** in this MVP: AI/ML, API connectors, streaming ingestion, collab
 | S2-14 | Manual review API: pending merges, accept/reject/split | 5 | E2 |
 | S2-15 | Pipeline monitoring UI: job list, status, progress bars | 5 | E3 |
 | S2-16 | Entity merge review UI: side-by-side comparison, confidence scores | 8 | E3 |
-| S2-17 | Dagster schedules for recurring pipelines | 3 | E4 |
+| S2-17 | Dagster schedules for recurring pipelines | 3 | E5 |
 | S2-18 | Staging environment setup on AWS (EKS + RDS + MSK) | 8 | E4 |
 | **Total** | | **87** | 3 weeks |
 

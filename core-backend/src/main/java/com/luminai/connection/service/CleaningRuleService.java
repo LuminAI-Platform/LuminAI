@@ -1,9 +1,10 @@
-package com.luminai.connection;
+package com.luminai.connection.service;
 
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
 import com.luminai.connection.dto.CleaningRuleDto;
 import com.luminai.connection.model.CleaningRule;
+import com.luminai.connection.repository.CleaningRuleRepository;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
