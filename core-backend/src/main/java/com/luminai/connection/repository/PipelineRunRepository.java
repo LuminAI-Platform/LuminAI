@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * Access to {@link PipelineRun} entities. Schema-based multi-tenancy is handled via TenantContext &
@@ -17,7 +18,13 @@ public interface PipelineRunRepository extends JpaRepository<PipelineRun, UUID> 
 
   Page<PipelineRun> findByStatus(String status, Pageable pageable);
 
-  List<PipelineRun> findTop50ByOrderByStartedAtDesc();
+  Page<PipelineRun> findAllByOrderByStartedAtDesc(Pageable pageable);
 
   long countByStatus(String status);
+
+  @Query("select coalesce(sum(p.recordsOutput), 0) from PipelineRun p")
+  long sumRecordsOutput();
+
+  @Query("select coalesce(sum(p.recordsFailed), 0) from PipelineRun p")
+  long sumRecordsFailed();
 }
