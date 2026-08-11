@@ -146,6 +146,36 @@ services:
     volumes:
       - opensearch_data:/usr/share/opensearch/data
 
+  # ---------------------------------------------------------------------------
+  # Dagster Webserver — Dagster UI & Asset Management Studio
+  # ---------------------------------------------------------------------------
+  dagster-webserver:
+    build:
+      context: ./data-engine
+      dockerfile: Dockerfile
+    container_name: luminai-dagster-webserver
+    command: ["uv", "run", "dagster", "dev", "-h", "0.0.0.0", "-p", "3001", "-w", "dagster_workspace.yaml"]
+    ports:
+      - "3001:3001"
+    environment:
+      DAGSTER_HOME: /tmp/dagster_home
+    volumes:
+      - ./data-engine:/app
+
+  # ---------------------------------------------------------------------------
+  # Dagster Daemon — Background Schedule & Sensors Execution Engine
+  # ---------------------------------------------------------------------------
+  dagster-daemon:
+    build:
+      context: ./data-engine
+      dockerfile: Dockerfile
+    container_name: luminai-dagster-daemon
+    command: ["uv", "run", "dagster-daemon", "run", "-w", "dagster_workspace.yaml"]
+    environment:
+      DAGSTER_HOME: /tmp/dagster_home
+    volumes:
+      - ./data-engine:/app
+
 volumes:
   postgres_data:
   minio_data:
