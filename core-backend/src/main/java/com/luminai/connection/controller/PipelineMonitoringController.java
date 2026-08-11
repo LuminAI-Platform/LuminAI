@@ -24,14 +24,6 @@ public class PipelineMonitoringController {
     this.pipelineMonitoringService = pipelineMonitoringService;
   }
 
-  @GetMapping
-  @Operation(
-      summary = "List recent pipeline execution runs",
-      description = "Returns the 50 most recent pipeline runs, optionally filtered by status.")
-  public ResponseEntity<List<PipelineRunDto>> listPipelines(
-      @RequestParam(required = false) String status) {
-    return ResponseEntity.ok(pipelineMonitoringService.listPipelineRuns(status));
-  }
 
   @GetMapping("/runs")
   @Operation(
