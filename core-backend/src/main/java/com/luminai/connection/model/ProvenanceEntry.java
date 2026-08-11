@@ -15,53 +15,53 @@ import java.util.UUID;
 @Embeddable
 public class ProvenanceEntry {
 
-    @Column(name = "source_record_id")
-    private UUID sourceRecordId;
+  @Column(name = "source_record_id")
+  private UUID sourceRecordId;
 
-    /** Name of the merged field, or {@code null} when the entry describes a record-level action. */
-    @Column(name = "field_name")
-    private String fieldName;
+  /** Name of the merged field, or {@code null} when the entry describes a record-level action. */
+  @Column(name = "field_name")
+  private String fieldName;
 
-    @Column(name = "candidate_id")
-    private UUID candidateId;
+  @Column(name = "candidate_id")
+  private UUID candidateId;
 
-    @Column(name = "occurred_at")
-    private Instant occurredAt;
+  @Column(name = "occurred_at")
+  private Instant occurredAt;
 
-    /** e.g. FIELD_MERGE, MERGE_ACCEPT, SPLIT_REMOVE, SPLIT_CREATE. */
-    @Column(name = "action")
-    private String action;
+  /** e.g. FIELD_MERGE, MERGE_ACCEPT, SPLIT_REMOVE, SPLIT_CREATE. */
+  @Column(name = "action")
+  private String action;
 
-    protected ProvenanceEntry() {
-        // required by JPA
-    }
+  protected ProvenanceEntry() {
+    // required by JPA
+  }
 
-    public ProvenanceEntry(
-            UUID sourceRecordId, String fieldName, UUID candidateId, Instant occurredAt, String action) {
-        this.sourceRecordId = sourceRecordId;
-        this.fieldName = fieldName;
-        this.candidateId = candidateId;
-        this.occurredAt = occurredAt;
-        this.action = action;
-    }
+  public ProvenanceEntry(
+      UUID sourceRecordId, String fieldName, UUID candidateId, Instant occurredAt, String action) {
+    this.sourceRecordId = sourceRecordId;
+    this.fieldName = fieldName;
+    this.candidateId = candidateId;
+    this.occurredAt = occurredAt;
+    this.action = action;
+  }
 
-    public UUID getSourceRecordId() {
-        return sourceRecordId;
-    }
+  public UUID getSourceRecordId() {
+    return sourceRecordId;
+  }
 
-    public String getFieldName() {
-        return fieldName;
-    }
+  public String getFieldName() {
+    return fieldName;
+  }
 
-    public UUID getCandidateId() {
-        return candidateId;
-    }
+  public UUID getCandidateId() {
+    return candidateId;
+  }
 
-    public Instant getOccurredAt() {
-        return occurredAt;
-    }
+  public Instant getOccurredAt() {
+    return occurredAt;
+  }
 
-    public String getAction() {
-        return action;
-    }
+  public String getAction() {
+    return action;
+  }
 }

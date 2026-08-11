@@ -1,7 +1,7 @@
 package com.luminai.connection.controller;
 
-import com.luminai.connection.service.SchemaMappingService;
 import com.luminai.connection.dto.SchemaMappingDto;
+import com.luminai.connection.service.SchemaMappingService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;

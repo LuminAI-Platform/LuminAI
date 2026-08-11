@@ -1,10 +1,9 @@
 package com.luminai.connection;
 
+import com.luminai.connection.repository.ConnectionPreviewService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import com.luminai.connection.repository.ConnectionPreviewService;
 import org.springframework.stereotype.Service;
 
 @Service

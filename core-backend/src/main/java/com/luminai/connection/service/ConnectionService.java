@@ -2,9 +2,9 @@ package com.luminai.connection.service;
 
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
-import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.dto.ConnectionDto;
 import com.luminai.connection.model.Connection;
+import com.luminai.connection.repository.ConnectionRepository;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;

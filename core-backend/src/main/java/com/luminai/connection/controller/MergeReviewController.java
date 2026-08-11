@@ -28,40 +28,41 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/er")
 public class MergeReviewController {
 
-    private final MergeReviewService mergeReviewService;
+  private final MergeReviewService mergeReviewService;
 
-    public MergeReviewController(MergeReviewService mergeReviewService) {
-        this.mergeReviewService = mergeReviewService;
-    }
+  public MergeReviewController(MergeReviewService mergeReviewService) {
+    this.mergeReviewService = mergeReviewService;
+  }
 
-    @GetMapping("/candidates")
-    public ResponseEntity<Page<MergeReviewDto.CandidateResponse>> listCandidates(
-            @RequestParam(required = false) CandidateStatus status, Pageable pageable) {
+  @GetMapping("/candidates")
+  public ResponseEntity<Page<MergeReviewDto.CandidateResponse>> listCandidates(
+      @RequestParam(required = false) CandidateStatus status, Pageable pageable) {
 
-        return ResponseEntity.ok(mergeReviewService.listCandidates(status, pageable));
-    }
+    return ResponseEntity.ok(mergeReviewService.listCandidates(status, pageable));
+  }
 
-    @GetMapping("/candidates/{id}")
-    public ResponseEntity<MergeReviewDto.CandidateResponse> getCandidate(@PathVariable UUID id) {
-        return ResponseEntity.ok(mergeReviewService.getCandidate(id));
-    }
+  @GetMapping("/candidates/{id}")
+  public ResponseEntity<MergeReviewDto.CandidateResponse> getCandidate(@PathVariable UUID id) {
+    return ResponseEntity.ok(mergeReviewService.getCandidate(id));
+  }
 
-    @PostMapping("/candidates/{id}/accept")
-    public ResponseEntity<MergeReviewDto.CandidateResponse> acceptCandidate(@PathVariable UUID id) {
-        return ResponseEntity.ok(mergeReviewService.acceptCandidate(id));
-    }
+  @PostMapping("/candidates/{id}/accept")
+  public ResponseEntity<MergeReviewDto.CandidateResponse> acceptCandidate(@PathVariable UUID id) {
+    return ResponseEntity.ok(mergeReviewService.acceptCandidate(id));
+  }
 
-    @PostMapping("/candidates/{id}/reject")
-    public ResponseEntity<MergeReviewDto.CandidateResponse> rejectCandidate(@PathVariable UUID id) {
-        return ResponseEntity.ok(mergeReviewService.rejectCandidate(id));
-    }
+  @PostMapping("/candidates/{id}/reject")
+  public ResponseEntity<MergeReviewDto.CandidateResponse> rejectCandidate(@PathVariable UUID id) {
+    return ResponseEntity.ok(mergeReviewService.rejectCandidate(id));
+  }
 
-    @PostMapping("/golden-records/{id}/split")
-    public ResponseEntity<MergeReviewDto.SplitResponse> splitGoldenRecord(
-            @PathVariable("id") UUID goldenRecordId, @Valid @RequestBody MergeReviewDto.SplitRequest request) {
+  @PostMapping("/golden-records/{id}/split")
+  public ResponseEntity<MergeReviewDto.SplitResponse> splitGoldenRecord(
+      @PathVariable("id") UUID goldenRecordId,
+      @Valid @RequestBody MergeReviewDto.SplitRequest request) {
 
-        MergeReviewDto.SplitResponse response =
-                mergeReviewService.splitGoldenRecord(goldenRecordId, request.sourceRecordIdToExtract());
-        return ResponseEntity.ok(response);
-    }
+    MergeReviewDto.SplitResponse response =
+        mergeReviewService.splitGoldenRecord(goldenRecordId, request.sourceRecordIdToExtract());
+    return ResponseEntity.ok(response);
+  }
 }

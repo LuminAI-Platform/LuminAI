@@ -21,30 +21,30 @@ import java.util.Map;
 @Converter
 public class JsonMapConverter implements AttributeConverter<Map<String, Object>, String> {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
-    @Override
-    public String convertToDatabaseColumn(Map<String, Object> attribute) {
-        if (attribute == null) {
-            return null;
-        }
-        try {
-            return OBJECT_MAPPER.writeValueAsString(attribute);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to serialize map attribute to JSON", e);
-        }
+  @Override
+  public String convertToDatabaseColumn(Map<String, Object> attribute) {
+    if (attribute == null) {
+      return null;
     }
+    try {
+      return OBJECT_MAPPER.writeValueAsString(attribute);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to serialize map attribute to JSON", e);
+    }
+  }
 
-    @Override
-    public Map<String, Object> convertToEntityAttribute(String dbData) {
-        if (dbData == null || dbData.isBlank()) {
-            return new LinkedHashMap<>();
-        }
-        try {
-            return OBJECT_MAPPER.readValue(dbData, MAP_TYPE);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to deserialize JSON map attribute", e);
-        }
+  @Override
+  public Map<String, Object> convertToEntityAttribute(String dbData) {
+    if (dbData == null || dbData.isBlank()) {
+      return new LinkedHashMap<>();
     }
+    try {
+      return OBJECT_MAPPER.readValue(dbData, MAP_TYPE);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to deserialize JSON map attribute", e);
+    }
+  }
 }

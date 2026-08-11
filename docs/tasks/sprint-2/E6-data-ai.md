@@ -1,10 +1,10 @@
 ## Sprint 2 — Pipeline + Entity Resolution
 
 - **Role:** Data / AI Engineer
-- **Primary Focus:** Entity Resolution (ER) Engine in Python (phonetic blocking, pairwise comparison with Jaro-Winkler/Levenshtein algorithms, candidate classification, connected components clustering, golden record merge, and provenance tracking).
-- **Working Directory:** `data-engine/`
+- **Primary Focus:** Entity Resolution (ER) Engine in Python, Dagster schedules & daemon configuration.
+- **Working Directory:** `data-engine/` & `infra/`
 - **Language:** Python 3.12 + Polars + DuckDB + FastAPI + Dagster
-- **Total Load:** 38 SP (6 core engine tasks)
+- **Total Load:** 41 SP (7 tasks)
 
 ---
 
@@ -16,6 +16,27 @@
 ---
 
 ## 📋 Assigned Tasks
+
+---
+
+### TASK S2-17: Dagster Schedules & Daemon Config (3 pts)
+* **Goal:** Configure recurring Dagster schedules and daemon process monitoring for automated background data cleaning and entity resolution runs.
+* **Branch:** `feature/S2-17-dagster-schedules`
+* **Target Files:**
+  * `data-engine/app/processing/schedules.py` 
+  * `data-engine/workspace.yaml`
+  * `infra/docker-compose.yml` 
+
+#### Requirements
+1. **Schedules:**
+   * Hourly cleaning pipeline trigger schedule.
+   * Daily entity resolution clustering schedule.
+2. **Daemon Verification:**
+   * Configure `dagster-daemon` in Docker Compose / Render background worker.
+
+#### Acceptance Criteria
+- [ ] Dagster webserver UI shows active schedules.
+- [ ] Daemon automatically executes scheduled materializations.
 
 ---
 
