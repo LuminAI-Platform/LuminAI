@@ -17,6 +17,10 @@ from app.processing.pipelines.cleaning_pipeline import (
     validated_ingestion_data,
     staged_ingestion_data,
 )
+from app.processing.schedules import (
+    daily_er_schedule,
+    hourly_cleaning_schedule,
+)
 
 
 @asset(
@@ -110,12 +114,6 @@ def cleaned_data_placeholder(
     context.log.info("🟢 cleaned_data_placeholder: result:\n%s", cleaned)
 
     return cleaned
-
-
-from app.processing.schedules import (
-    daily_er_schedule,
-    hourly_cleaning_schedule,
-)
 
 
 defs = Definitions(
