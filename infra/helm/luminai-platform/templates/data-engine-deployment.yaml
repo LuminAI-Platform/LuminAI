@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-data-engine
+  labels:
+    {{- include "luminai-platform.labels" . | nindent 4 }}
+    {{- include "luminai-platform.selectorLabels" "data-engine" | nindent 4 }}
+spec:
+  replicas: {{ .Values.dataEngine.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "luminai-platform.selectorLabels" "data-engine" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "luminai-platform.labels" . | nindent 8 }}
+        {{- include "luminai-platform.selectorLabels" "data-engine" | nindent 8 }}
+    spec:
+      containers:
+        - name: data-engine
+          image: "{{ .Values.dataEngine.image.repository }}:{{ .Values.dataEngine.image.tag }}"
+          imagePullPolicy: {{ .Values.dataEngine.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dataEngine.service.port }}
+          env:
+            {{- range $key, $value := .Values.dataEngine.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.dataEngine.resources | nindent 12 }}
