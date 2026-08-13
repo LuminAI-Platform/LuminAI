@@ -34,16 +34,17 @@ public record PipelineRunDto(
       duration = Math.max(0, Duration.between(start, end).getSeconds());
     }
 
+    String status = run.getStatus();
+
     double progress = 0.0;
     if (run.getRecordsInput() > 0) {
       progress = Math.min(100.0, ((double) run.getRecordsOutput() / run.getRecordsInput()) * 100.0);
-    } else if ("COMPLETED".equalsIgnoreCase(run.getStatus())
-        || "CLEANED".equalsIgnoreCase(run.getStatus())) {
+    } else if ("COMPLETED".equalsIgnoreCase(status)) {
       progress = 100.0;
     }
 
     double throughput = 0.0;
-    if (duration > 0 && run.getRecordsOutput() > 0 && "RUNNING".equalsIgnoreCase(run.getStatus())) {
+    if (duration > 0 && run.getRecordsOutput() > 0 && "RUNNING".equalsIgnoreCase(status)) {
       throughput = (double) run.getRecordsOutput() / duration;
     }
 
@@ -53,7 +54,7 @@ public record PipelineRunDto(
         connectorName != null ? connectorName : "Data Connector",
         connectorType != null ? connectorType : "Database",
         run.getPipelineType(),
-        run.getStatus(),
+        status,
         progress,
         run.getRecordsInput(),
         run.getRecordsOutput(),

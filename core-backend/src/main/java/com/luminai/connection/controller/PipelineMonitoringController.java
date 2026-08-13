@@ -5,8 +5,9 @@ import com.luminai.connection.dto.PipelineRunDto;
 import com.luminai.connection.service.PipelineMonitoringService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,22 +25,15 @@ public class PipelineMonitoringController {
     this.pipelineMonitoringService = pipelineMonitoringService;
   }
 
-  @GetMapping
-  @Operation(
-      summary = "List recent pipeline execution runs",
-      description = "Returns the 50 most recent pipeline runs, optionally filtered by status.")
-  public ResponseEntity<List<PipelineRunDto>> listPipelines(
-      @RequestParam(required = false) String status) {
-    return ResponseEntity.ok(pipelineMonitoringService.listPipelineRuns(status));
-  }
-
   @GetMapping("/runs")
   @Operation(
       summary = "List pipeline execution runs",
-      description = "Returns recent pipeline runs sorted by start time.")
-  public ResponseEntity<List<PipelineRunDto>> listPipelineRuns(
-      @RequestParam(required = false) String status) {
-    return ResponseEntity.ok(pipelineMonitoringService.listPipelineRuns(status));
+      description =
+          "Returns pipeline runs sorted by start time (most recent first), optionally filtered"
+              + " by status. Paginated via standard page/size query params.")
+  public ResponseEntity<Page<PipelineRunDto>> listPipelineRuns(
+      @RequestParam(required = false) String status, Pageable pageable) {
+    return ResponseEntity.ok(pipelineMonitoringService.listPipelineRuns(status, pageable));
   }
 
   @GetMapping("/runs/{id}")
@@ -54,7 +48,8 @@ public class PipelineMonitoringController {
   @Operation(
       summary = "Get pipeline summary metrics",
       description =
-          "Aggregates total records cleaned, total entities resolved, active jobs count, and failure metrics.")
+          "Aggregates total records cleaned, total entities resolved, active jobs count, and"
+              + " failure metrics.")
   public ResponseEntity<PipelineMetricsDto> getPipelineMetrics() {
     return ResponseEntity.ok(pipelineMonitoringService.getPipelineMetrics());
   }
