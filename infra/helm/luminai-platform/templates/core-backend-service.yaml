@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-core-backend
+  labels:
+    {{- include "luminai-platform.labels" . | nindent 4 }}
+    {{- include "luminai-platform.selectorLabels" "core-backend" | nindent 4 }}
+spec:
+  type: {{ .Values.coreBackend.service.type }}
+  ports:
+    - port: {{ .Values.coreBackend.service.port }}
+      targetPort: {{ .Values.coreBackend.service.port }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "luminai-platform.selectorLabels" "core-backend" | nindent 4 }}
