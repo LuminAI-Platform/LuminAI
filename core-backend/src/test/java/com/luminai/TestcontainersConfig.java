@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -39,6 +40,14 @@ public class TestcontainersConfig {
   @ServiceConnection
   KafkaContainer kafkaContainer() {
     return new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
+  }
+
+  // ── Neo4j ───────────────────────────────────────────────────────────
+  @Bean
+  @ServiceConnection
+  Neo4jContainer<?> neo4jContainer() {
+    return new Neo4jContainer<>(DockerImageName.parse("neo4j:5-community"))
+            .withAdminPassword("test-only-password");
   }
 
   // ── Security — permit all (replaces production Keycloak/OAuth2) ────
