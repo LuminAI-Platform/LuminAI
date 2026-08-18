@@ -34,7 +34,7 @@ public record PipelineRunDto(
       duration = Math.max(0, Duration.between(start, end).getSeconds());
     }
 
-    String status = run.getStatus();
+    String status = run.getStatus().toString();
 
     double progress = 0.0;
     if (run.getRecordsInput() > 0) {
