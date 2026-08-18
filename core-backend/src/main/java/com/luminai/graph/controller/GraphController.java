@@ -41,4 +41,11 @@ public class GraphController {
     return ResponseEntity.ok(
         graphQueryService.getNeighbourhood(entityId.trim(), depth, relationshipType));
   }
+
+  @GetMapping("/shortest-path")
+  public ResponseEntity<GraphQueryResponseDto> getShortestPath(
+      @RequestParam @NotBlank(message = "sourceId must not be blank") String sourceId,
+      @RequestParam @NotBlank(message = "targetId must not be blank") String targetId) {
+    return ResponseEntity.ok(graphQueryService.getShortestPath(sourceId.trim(), targetId.trim()));
+  }
 }
