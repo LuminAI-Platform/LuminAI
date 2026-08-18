@@ -32,30 +32,30 @@ import org.springframework.stereotype.Component;
 @Component
 public class GraphSyncConsumer {
 
-    private static final Logger log = LoggerFactory.getLogger(GraphSyncConsumer.class);
+  private static final Logger log = LoggerFactory.getLogger(GraphSyncConsumer.class);
 
-    private final Neo4jSyncService syncService;
+  private final Neo4jSyncService syncService;
 
-    public GraphSyncConsumer(Neo4jSyncService syncService) {
-        this.syncService = syncService;
-    }
+  public GraphSyncConsumer(Neo4jSyncService syncService) {
+    this.syncService = syncService;
+  }
 
-    @KafkaListener(
-            topics = KafkaConfig.TOPIC_ENTITY_RESOLVED,
-            containerFactory = "kafkaListenerContainerFactory",
-            properties = {
-                    JsonDeserializer.VALUE_DEFAULT_TYPE + "=com.luminai.graph.EntityResolvedEvent",
-                    JsonDeserializer.USE_TYPE_INFO_HEADERS + "=false"
-            })
-    public void onEntityResolved(EntityResolvedEvent event, Acknowledgment acknowledgment) {
-        log.info(
-                "Received entity.resolved event: golden_id={} tenant_id={} entity_type={}",
-                event.goldenId(),
-                event.tenantId(),
-                event.entityType());
+  @KafkaListener(
+      topics = KafkaConfig.TOPIC_ENTITY_RESOLVED,
+      containerFactory = "kafkaListenerContainerFactory",
+      properties = {
+        JsonDeserializer.VALUE_DEFAULT_TYPE + "=com.luminai.graph.EntityResolvedEvent",
+        JsonDeserializer.USE_TYPE_INFO_HEADERS + "=false"
+      })
+  public void onEntityResolved(EntityResolvedEvent event, Acknowledgment acknowledgment) {
+    log.info(
+        "Received entity.resolved event: golden_id={} tenant_id={} entity_type={}",
+        event.goldenId(),
+        event.tenantId(),
+        event.entityType());
 
-        syncService.sync(event);
+    syncService.sync(event);
 
-        acknowledgment.acknowledge();
-    }
+    acknowledgment.acknowledge();
+  }
 }

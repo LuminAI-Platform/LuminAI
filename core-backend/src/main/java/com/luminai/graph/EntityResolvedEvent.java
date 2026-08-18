@@ -13,11 +13,11 @@ import java.util.Map;
  * consumer of Golden Records in this codebase ({@code ErCandidate} is duplicate-record matching for
  * the merge-review UI, not a graph edge). {@link com.luminai.graph.service.Neo4jSyncService}
  * therefore treats an optional {@code data.relationships} array as a forward-compatible, additive
- * contract: if the producer starts emitting it, edges sync automatically; until then this is
- * always a node-only sync, which is the accurate state of the data today.
+ * contract: if the producer starts emitting it, edges sync automatically; until then this is always
+ * a node-only sync, which is the accurate state of the data today.
  */
 public record EntityResolvedEvent(
-        @JsonProperty("tenant_id") String tenantId,
-        @JsonProperty("golden_id") String goldenId,
-        @JsonProperty("entity_type") String entityType,
-        @JsonProperty("data") Map<String, Object> data) {}
+    @JsonProperty("tenant_id") String tenantId,
+    @JsonProperty("golden_id") String goldenId,
+    @JsonProperty("entity_type") String entityType,
+    @JsonProperty("data") Map<String, Object> data) {}

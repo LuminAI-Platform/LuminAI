@@ -107,6 +107,7 @@ public class PipelineRun {
   public void setStatus(PipelineRunStatus status) {
     this.status = status;
   }
+
   public Instant getStartedAt() {
     return startedAt;
   }

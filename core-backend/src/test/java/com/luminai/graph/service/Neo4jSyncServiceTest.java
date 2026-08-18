@@ -25,7 +25,10 @@ class Neo4jSyncServiceTest {
   void syncsNodeUsingCanonicalNameFieldWhenPresent() {
     EntityResolvedEvent event =
         new EntityResolvedEvent(
-            "acme", "gr-100", "Person", Map.of("canonical_name", "Alice Canonical", "name", "Alice"));
+            "acme",
+            "gr-100",
+            "Person",
+            Map.of("canonical_name", "Alice Canonical", "name", "Alice"));
 
     service.sync(event);
 
@@ -100,7 +103,8 @@ class Neo4jSyncServiceTest {
             "Person",
             Map.of(
                 "relationships",
-                List.of(Map.of("targetId", "gr-200", "type", "MANAGED_BY", "direction", "INCOMING"))));
+                List.of(
+                    Map.of("targetId", "gr-200", "type", "MANAGED_BY", "direction", "INCOMING"))));
 
     service.sync(event);
 

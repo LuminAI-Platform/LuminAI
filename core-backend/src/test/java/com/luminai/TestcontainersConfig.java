@@ -47,7 +47,7 @@ public class TestcontainersConfig {
   @ServiceConnection
   Neo4jContainer<?> neo4jContainer() {
     return new Neo4jContainer<>(DockerImageName.parse("neo4j:5-community"))
-            .withAdminPassword("test-only-password");
+        .withAdminPassword("test-only-password");
   }
 
   // ── Security — permit all (replaces production Keycloak/OAuth2) ────
