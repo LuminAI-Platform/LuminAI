@@ -22,10 +22,6 @@ public class PipelineRun {
   private UUID id;
 
   @NotNull
-  @Column(name = "tenant_id", nullable = false)
-  private UUID tenantId;
-
-  @NotNull
   @Column(name = "connection_id", nullable = false)
   private UUID connectionId;
 
@@ -33,9 +29,9 @@ public class PipelineRun {
   @Column(name = "pipeline_type", nullable = false, length = 50)
   private String pipelineType;
 
-  @NotNull
+  @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 20)
-  private String status = "PENDING";
+  private PipelineRunStatus status = PipelineRunStatus.PENDING;
 
   @Column(name = "started_at")
   private Instant startedAt;
@@ -65,12 +61,19 @@ public class PipelineRun {
 
   public PipelineRun() {}
 
-  public PipelineRun(UUID tenantId, UUID connectionId, String pipelineType) {
-    this.tenantId = tenantId;
+  public PipelineRun(UUID connectionId, String pipelineType) {
     this.connectionId = connectionId;
     this.pipelineType = pipelineType;
-    this.status = "PENDING";
+    this.status = PipelineRunStatus.PENDING;
     this.startedAt = Instant.now();
+  }
+
+  public enum PipelineRunStatus {
+    PENDING,
+    RUNNING,
+    COMPLETED,
+    FAILED,
+    CANCELLED
   }
 
   public UUID getId() {
@@ -79,14 +82,6 @@ public class PipelineRun {
 
   public void setId(UUID id) {
     this.id = id;
-  }
-
-  public UUID getTenantId() {
-    return tenantId;
-  }
-
-  public void setTenantId(UUID tenantId) {
-    this.tenantId = tenantId;
   }
 
   public UUID getConnectionId() {
@@ -105,14 +100,13 @@ public class PipelineRun {
     this.pipelineType = pipelineType;
   }
 
-  public String getStatus() {
+  public PipelineRunStatus getStatus() {
     return status;
   }
 
-  public void setStatus(String status) {
+  public void setStatus(PipelineRunStatus status) {
     this.status = status;
   }
-
   public Instant getStartedAt() {
     return startedAt;
   }

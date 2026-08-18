@@ -78,10 +78,6 @@ public class PipelineMonitoringService {
     return new PipelineMetricsDto(totalCleaned, totalResolved, activeJobs, totalFailed, totalRuns);
   }
 
-  // -----------------------------------------------------------------------------------------
-  // Helpers
-  // -----------------------------------------------------------------------------------------
-
   /**
    * Batch-fetches only the connections referenced by this page of runs
    */
