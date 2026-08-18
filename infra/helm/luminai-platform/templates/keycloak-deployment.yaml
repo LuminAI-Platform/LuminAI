@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-keycloak
+  labels:
+    {{- include "luminai-platform.labels" . | nindent 4 }}
+    {{- include "luminai-platform.selectorLabels" "keycloak" | nindent 4 }}
+spec:
+  replicas: {{ .Values.keycloak.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "luminai-platform.selectorLabels" "keycloak" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "luminai-platform.labels" . | nindent 8 }}
+        {{- include "luminai-platform.selectorLabels" "keycloak" | nindent 8 }}
+    spec:
+      containers:
+        - name: keycloak
+          image: "{{ .Values.keycloak.image.repository }}:{{ .Values.keycloak.image.tag }}"
+          imagePullPolicy: {{ .Values.keycloak.image.pullPolicy }}
+          {{- if .Values.keycloak.args }}
+          args:
+            {{- toYaml .Values.keycloak.args | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.keycloak.service.port }}
+          env:
+            {{- range $key, $value := .Values.keycloak.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-keycloak-admin
+                  key: admin-password
+          resources:
+            {{- toYaml .Values.keycloak.resources | nindent 12 }}

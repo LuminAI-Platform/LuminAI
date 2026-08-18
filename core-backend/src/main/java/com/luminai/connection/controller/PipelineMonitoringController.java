@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/pipelines")
 @Tag(
-        name = "Pipeline Monitoring",
-        description = "Endpoints for monitoring active and historical pipeline execution runs.")
+    name = "Pipeline Monitoring",
+    description = "Endpoints for monitoring active and historical pipeline execution runs.")
 public class PipelineMonitoringController {
 
   private final PipelineMonitoringService pipelineMonitoringService;
@@ -27,29 +27,29 @@ public class PipelineMonitoringController {
 
   @GetMapping("/runs")
   @Operation(
-          summary = "List pipeline execution runs",
-          description =
-                  "Returns pipeline runs sorted by start time (most recent first), optionally filtered"
-                          + " by status. Paginated via standard page/size query params.")
+      summary = "List pipeline execution runs",
+      description =
+          "Returns pipeline runs sorted by start time (most recent first), optionally filtered"
+              + " by status. Paginated via standard page/size query params.")
   public ResponseEntity<Page<PipelineRunDto>> listPipelineRuns(
-          @RequestParam(required = false) String status, Pageable pageable) {
+      @RequestParam(required = false) String status, Pageable pageable) {
     return ResponseEntity.ok(pipelineMonitoringService.listPipelineRuns(status, pageable));
   }
 
   @GetMapping("/runs/{id}")
   @Operation(
-          summary = "Get pipeline run details",
-          description = "Retrieves detailed execution metrics for a specific pipeline run by ID.")
+      summary = "Get pipeline run details",
+      description = "Retrieves detailed execution metrics for a specific pipeline run by ID.")
   public ResponseEntity<PipelineRunDto> getPipelineRun(@PathVariable UUID id) {
     return ResponseEntity.ok(pipelineMonitoringService.getPipelineRunById(id));
   }
 
   @GetMapping("/metrics")
   @Operation(
-          summary = "Get pipeline summary metrics",
-          description =
-                  "Aggregates total records cleaned, total entities resolved, active jobs count, and"
-                          + " failure metrics.")
+      summary = "Get pipeline summary metrics",
+      description =
+          "Aggregates total records cleaned, total entities resolved, active jobs count, and"
+              + " failure metrics.")
   public ResponseEntity<PipelineMetricsDto> getPipelineMetrics() {
     return ResponseEntity.ok(pipelineMonitoringService.getPipelineMetrics());
   }

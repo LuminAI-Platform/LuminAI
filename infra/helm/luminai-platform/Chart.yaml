@@ -1,0 +1,6 @@
+apiVersion: v2
+name: luminai-platform
+description: LuminAI platform Helm chart — core-backend, data-engine, and keycloak
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

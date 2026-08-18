@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-core-backend
+  labels:
+    {{- include "luminai-platform.labels" . | nindent 4 }}
+    {{- include "luminai-platform.selectorLabels" "core-backend" | nindent 4 }}
+spec:
+  replicas: {{ .Values.coreBackend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "luminai-platform.selectorLabels" "core-backend" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "luminai-platform.labels" . | nindent 8 }}
+        {{- include "luminai-platform.selectorLabels" "core-backend" | nindent 8 }}
+    spec:
+      containers:
+        - name: core-backend
+          image: "{{ .Values.coreBackend.image.repository }}:{{ .Values.coreBackend.image.tag }}"
+          imagePullPolicy: {{ .Values.coreBackend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.coreBackend.service.port }}
+          env:
+            {{- range $key, $value := .Values.coreBackend.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.coreBackend.resources | nindent 12 }}
