@@ -8,8 +8,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -38,6 +40,29 @@ public class GlobalExceptionHandler {
             .toList();
 
     return ResponseEntity.badRequest().body(ApiError.ofValidation(fieldErrors));
+  }
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<ApiError> handleMissingRequestParameter(
+      MissingServletRequestParameterException ex) {
+    return ResponseEntity.badRequest()
+        .body(
+            ApiError.ofValidation(
+                List.of(new ApiError.FieldError(ex.getParameterName(), "parameter is required"))));
+  }
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<ApiError> handleArgumentTypeMismatch(
+      MethodArgumentTypeMismatchException ex) {
+    return ResponseEntity.badRequest()
+        .body(
+            ApiError.ofValidation(
+                List.of(new ApiError.FieldError(ex.getName(), "has an invalid value"))));
+  }
+
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
+    return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", ex.getMessage()));
   }
 
   @ExceptionHandler(AccessDeniedException.class)
