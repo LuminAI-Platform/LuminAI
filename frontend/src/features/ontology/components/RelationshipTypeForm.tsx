@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../../../lib/api";
 
-export type RelationshipCardinality = "ONE_TO_ONE" | "ONE_TO_MANY" | "MANY_TO_ONE" | "MANY_TO_MANY";
+export type RelationshipCardinality =
+  | "ONE_TO_ONE"
+  | "ONE_TO_MANY"
+  | "MANY_TO_ONE"
+  | "MANY_TO_MANY";
 
 export interface RelationshipType {
   id?: string;
@@ -25,20 +29,47 @@ interface RelationshipTypeFormProps {
   onSaved: (rel: RelationshipType) => void;
 }
 
-const CARDINALITY_OPTIONS: { value: RelationshipCardinality; label: string; desc: string }[] = [
-  { value: "ONE_TO_ONE", label: "1 : 1", desc: "One source relates to one target" },
-  { value: "ONE_TO_MANY", label: "1 : N", desc: "One source relates to many targets" },
-  { value: "MANY_TO_ONE", label: "N : 1", desc: "Many sources relate to one target" },
-  { value: "MANY_TO_MANY", label: "N : N", desc: "Many sources relate to many targets" },
+const CARDINALITY_OPTIONS: {
+  value: RelationshipCardinality;
+  label: string;
+  desc: string;
+}[] = [
+  {
+    value: "ONE_TO_ONE",
+    label: "1 : 1",
+    desc: "One source relates to one target",
+  },
+  {
+    value: "ONE_TO_MANY",
+    label: "1 : N",
+    desc: "One source relates to many targets",
+  },
+  {
+    value: "MANY_TO_ONE",
+    label: "N : 1",
+    desc: "Many sources relate to one target",
+  },
+  {
+    value: "MANY_TO_MANY",
+    label: "N : N",
+    desc: "Many sources relate to many targets",
+  },
 ];
 
 const EMPTY: RelationshipType = {
-  name: "", label: "", sourceEntityTypeId: "", targetEntityTypeId: "",
-  cardinality: "ONE_TO_MANY", description: "", directed: true,
+  name: "",
+  label: "",
+  sourceEntityTypeId: "",
+  targetEntityTypeId: "",
+  cardinality: "ONE_TO_MANY",
+  description: "",
+  directed: true,
 };
 
 export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
-  initial, onClose, onSaved,
+  initial,
+  onClose,
+  onSaved,
 }) => {
   const [form, setForm] = useState<RelationshipType>(initial ?? EMPTY);
   const [entityOptions, setEntityOptions] = useState<EntityTypeOption[]>([]);
@@ -55,7 +86,7 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
             (data as Record<string, unknown>[]).map((d) => ({
               id: String(d.id ?? ""),
               name: String(d.name ?? ""),
-            }))
+            })),
           );
         }
       })
@@ -86,10 +117,14 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
         method,
         body: JSON.stringify(form),
       });
-      const saved = await res.json() as RelationshipType;
+      const saved = (await res.json()) as RelationshipType;
       onSaved(saved);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to save relationship type.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to save relationship type.",
+      );
     } finally {
       setSaving(false);
     }
@@ -98,12 +133,20 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col">
-
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/25 flex items-center justify-center text-purple-400">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                 <polyline points="15 3 21 3 21 9" />
                 <line x1="10" y1="14" x2="21" y2="3" />
@@ -113,7 +156,9 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
               <h2 className="text-sm font-semibold text-zinc-100">
                 {form.id ? "Edit Relationship Type" : "New Relationship Type"}
               </h2>
-              <p className="text-[10px] text-zinc-500 mt-0.5">Define a typed edge between two entity classes</p>
+              <p className="text-[10px] text-zinc-500 mt-0.5">
+                Define a typed edge between two entity classes
+              </p>
             </div>
           </div>
           <button
@@ -122,33 +167,53 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
             onClick={onClose}
             className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
         {/* Form body */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 py-5 overflow-y-auto">
-
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-5 px-6 py-5 overflow-y-auto"
+        >
           {/* Name + Label */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="rel-name" className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+              <label
+                htmlFor="rel-name"
+                className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider"
+              >
                 Internal Name *
               </label>
               <input
                 id="rel-name"
                 type="text"
                 value={form.name}
-                onChange={(e) => set("name", e.target.value.toUpperCase().replace(/\s+/g, "_"))}
+                onChange={(e) =>
+                  set("name", e.target.value.toUpperCase().replace(/\s+/g, "_"))
+                }
                 placeholder="HAS_PRODUCT"
                 className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 font-mono placeholder:text-zinc-600 transition-colors uppercase"
               />
-              <span className="text-[10px] text-zinc-600">Snake-case, uppercase</span>
+              <span className="text-[10px] text-zinc-600">
+                Snake-case, uppercase
+              </span>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="rel-label" className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+              <label
+                htmlFor="rel-label"
+                className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider"
+              >
                 Display Label *
               </label>
               <input
@@ -164,10 +229,17 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
 
           {/* Source → Target */}
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Entity Endpoints *</span>
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+              Entity Endpoints *
+            </span>
             <div className="flex items-center gap-3">
               <div className="flex-1 flex flex-col gap-1">
-                <label htmlFor="rel-source" className="text-[10px] text-zinc-600">Source</label>
+                <label
+                  htmlFor="rel-source"
+                  className="text-[10px] text-zinc-600"
+                >
+                  Source
+                </label>
                 <select
                   id="rel-source"
                   value={form.sourceEntityTypeId}
@@ -176,7 +248,9 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
                 >
                   <option value="">Select entity…</option>
                   {entityOptions.map((e) => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -194,19 +268,40 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
                       : "text-zinc-500 border-zinc-700 bg-zinc-900"
                   }`}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
                     {form.directed ? (
-                      <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="13 6 19 12 13 18" /></>
+                      <>
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="13 6 19 12 13 18" />
+                      </>
                     ) : (
-                      <><polyline points="11 6 5 12 11 18" /><line x1="5" y1="12" x2="19" y2="12" /><polyline points="13 6 19 12 13 18" /></>
+                      <>
+                        <polyline points="11 6 5 12 11 18" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="13 6 19 12 13 18" />
+                      </>
                     )}
                   </svg>
                 </button>
-                <span className="text-[9px] text-zinc-600">{form.directed ? "directed" : "undirected"}</span>
+                <span className="text-[9px] text-zinc-600">
+                  {form.directed ? "directed" : "undirected"}
+                </span>
               </div>
 
               <div className="flex-1 flex flex-col gap-1">
-                <label htmlFor="rel-target" className="text-[10px] text-zinc-600">Target</label>
+                <label
+                  htmlFor="rel-target"
+                  className="text-[10px] text-zinc-600"
+                >
+                  Target
+                </label>
                 <select
                   id="rel-target"
                   value={form.targetEntityTypeId}
@@ -215,7 +310,9 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
                 >
                   <option value="">Select entity…</option>
                   {entityOptions.map((e) => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -224,7 +321,9 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
 
           {/* Cardinality */}
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Cardinality</span>
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+              Cardinality
+            </span>
             <div className="grid grid-cols-2 gap-2">
               {CARDINALITY_OPTIONS.map((c) => (
                 <button
@@ -247,7 +346,10 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="rel-description" className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+            <label
+              htmlFor="rel-description"
+              className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider"
+            >
               Description
             </label>
             <textarea
@@ -286,15 +388,34 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 border border-purple-500/40 rounded-lg shadow-lg shadow-purple-500/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
-              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg
+                className="animate-spin"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
                 <path d="M21 12a9 9 0 1 1-6.22-8.56" />
               </svg>
             ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             )}
-            {saving ? "Saving…" : form.id ? "Update Relationship" : "Create Relationship"}
+            {saving
+              ? "Saving…"
+              : form.id
+                ? "Update Relationship"
+                : "Create Relationship"}
           </button>
         </div>
       </div>
