@@ -27,11 +27,87 @@ const ENTITY_COLORS = [
   "#f59e0b", "#ef4444", "#ec4899", "#64748b",
 ];
 
-const ENTITY_ICONS = ["🏢", "👤", "📦", "💼", "🔗", "📊", "🌐", "⚙️", "📋", "🎯"];
+export const ENTITY_ICON_MAP: Record<string, React.ReactNode> = {
+  building: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="15" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+      <line x1="12" y1="12" x2="12" y2="12.01"/><line x1="12" y1="16" x2="12" y2="16.01"/>
+    </svg>
+  ),
+  user: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+  ),
+  package: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/>
+    </svg>
+  ),
+  briefcase: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+    </svg>
+  ),
+  link: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+    </svg>
+  ),
+  chart: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+    </svg>
+  ),
+  globe: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  ),
+  settings: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  ),
+  clipboard: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+      <rect x="8" y="2" width="8" height="4" rx="1"/>
+    </svg>
+  ),
+  target: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+    </svg>
+  ),
+};
+
+export const ENTITY_ICON_KEYS = Object.keys(ENTITY_ICON_MAP);
+
+/** Shared renderer — pass the stored key, get an SVG back */
+export const EntityIcon: React.FC<{ iconKey: string; size?: number }> = ({ iconKey, size = 16 }) => {
+  const icon = ENTITY_ICON_MAP[iconKey] ?? ENTITY_ICON_MAP["package"];
+  return (
+    <span style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      {icon}
+    </span>
+  );
+};
+
+const ENTITY_ICON_LABELS: Record<string, string> = {
+  building: "Building", user: "User", package: "Package", briefcase: "Briefcase",
+  link: "Link", chart: "Chart", globe: "Globe", settings: "Settings",
+  clipboard: "Clipboard", target: "Target",
+};
 
 const EMPTY: EntityType = {
   name: "", label: "", description: "", color: "#3b82f6",
-  icon: "📦", properties: [],
+  icon: "package", properties: [],
 };
 
 export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
@@ -82,12 +158,12 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
           <div className="flex items-center gap-3">
             {/* Entity icon preview */}
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold border-2 shrink-0 cursor-pointer select-none transition-all hover:scale-105"
+              className="w-9 h-9 rounded-xl flex items-center justify-center border-2 shrink-0 cursor-pointer select-none transition-all hover:scale-105"
               style={{ backgroundColor: `${form.color}20`, borderColor: `${form.color}40`, color: form.color }}
               onClick={() => { setIconPickerOpen(!iconPickerOpen); setColorPickerOpen(false); }}
               title="Change icon"
             >
-              {form.icon}
+              <EntityIcon iconKey={form.icon} size={16} />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-zinc-100">
@@ -112,15 +188,20 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
 
         {/* Icon picker dropdown */}
         {iconPickerOpen && (
-          <div className="absolute z-60 mt-14 ml-6 bg-zinc-900 border border-zinc-700 rounded-xl p-3 shadow-xl flex flex-wrap gap-2 w-48">
-            {ENTITY_ICONS.map((ic) => (
+          <div className="absolute z-60 mt-14 ml-6 bg-zinc-900 border border-zinc-700 rounded-xl p-3 shadow-xl flex flex-wrap gap-2 w-56">
+            {ENTITY_ICON_KEYS.map((key) => (
               <button
-                key={ic}
+                key={key}
                 type="button"
-                onClick={() => { set("icon", ic); setIconPickerOpen(false); }}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg hover:bg-zinc-800 transition-all cursor-pointer ${form.icon === ic ? "bg-zinc-800 ring-1 ring-blue-500" : ""}`}
+                title={ENTITY_ICON_LABELS[key]}
+                onClick={() => { set("icon", key); setIconPickerOpen(false); }}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center hover:bg-zinc-800 transition-all cursor-pointer ${
+                  form.icon === key
+                    ? "bg-zinc-800 ring-1 ring-blue-500 text-blue-400"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
               >
-                {ic}
+                <EntityIcon iconKey={key} size={15} />
               </button>
             ))}
           </div>
@@ -240,7 +321,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border-2 self-start"
                   style={{ backgroundColor: `${form.color}15`, borderColor: `${form.color}35` }}
                 >
-                  <span className="text-base">{form.icon}</span>
+                  <span style={{ color: form.color }}><EntityIcon iconKey={form.icon} size={16} /></span>
                   <span className="text-sm font-semibold" style={{ color: form.color }}>
                     {form.label || form.name || "Entity Label"}
                   </span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "../../lib/api";
-import { EntityTypeEditor } from "../../features/ontology/components/EntityTypeEditor";
+import { EntityTypeEditor, EntityIcon } from "../../features/ontology/components/EntityTypeEditor";
 import type { EntityType } from "../../features/ontology/components/EntityTypeEditor";
 import { RelationshipTypeForm } from "../../features/ontology/components/RelationshipTypeForm";
 import type { RelationshipType } from "../../features/ontology/components/RelationshipTypeForm";
@@ -207,9 +207,9 @@ export const OntologyPage: React.FC = () => {
                     {/* Card header */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl border-2 shrink-0"
-                          style={{ backgroundColor: `${entity.color ?? "#3b82f6"}18`, borderColor: `${entity.color ?? "#3b82f6"}35` }}>
-                          {entity.icon ?? "📦"}
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center border-2 shrink-0"
+                          style={{ backgroundColor: `${entity.color ?? "#3b82f6"}18`, borderColor: `${entity.color ?? "#3b82f6"}35`, color: entity.color ?? "#3b82f6" }}>
+                          <EntityIcon iconKey={entity.icon ?? "package"} size={18} />
                         </div>
                         <div>
                           <span className="text-sm font-bold text-zinc-100 block leading-tight">{entity.label || entity.name}</span>
