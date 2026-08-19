@@ -51,7 +51,7 @@ export const OntologyPage: React.FC = () => {
   const [entities, setEntities] = useState<EntityType[]>([]);
   const [relationships, setRelationships] = useState<RelationshipType[]>([]);
   const [versions, setVersions] = useState<OntologyVersion[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [entityEditorOpen, setEntityEditorOpen] = useState(false);
@@ -61,8 +61,6 @@ export const OntologyPage: React.FC = () => {
   const [publishing, setPublishing] = useState(false);
 
   const loadEntities = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
       const res = await apiFetch("/api/v1/ontology/entity-types");
       const data = (await res.json()) as unknown;
@@ -75,8 +73,6 @@ export const OntologyPage: React.FC = () => {
   }, []);
 
   const loadRelationships = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
       const res = await apiFetch("/api/v1/ontology/relationship-types");
       const data = (await res.json()) as unknown;
@@ -88,9 +84,23 @@ export const OntologyPage: React.FC = () => {
     }
   }, []);
 
+  const handleTabChange = (newTab: Tab) => {
+    if (newTab === tab) return;
+    setTab(newTab);
+    if (newTab === "entities" || newTab === "relationships") {
+      setLoading(true);
+    } else {
+      setLoading(false);
+    }
+    setError(null);
+  };
+
   useEffect(() => {
-    if (tab === "entities") loadEntities();
-    else if (tab === "relationships") loadRelationships();
+    const init = async () => {
+      if (tab === "entities") await loadEntities();
+      else if (tab === "relationships") await loadRelationships();
+    };
+    init();
   }, [tab, loadEntities, loadRelationships]);
 
   const deleteEntity = async (id: string) => {
@@ -126,6 +136,7 @@ export const OntologyPage: React.FC = () => {
       const v = (await res.json()) as OntologyVersion;
       setVersions((prev) => [v, ...prev]);
       setTab("versions");
+      setLoading(false);
     } catch {
       setError("Failed to publish ontology version.");
     } finally {
@@ -263,7 +274,7 @@ export const OntologyPage: React.FC = () => {
             key={t}
             id={`ontology-tab-${t}`}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => handleTabChange(t)}
             className={`py-2.5 px-5 text-xs font-semibold border-b-2 transition-all cursor-pointer capitalize ${
               tab === t
                 ? "border-blue-500 text-zinc-100"

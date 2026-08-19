@@ -33,7 +33,7 @@ const ENTITY_COLORS = [
   "#64748b",
 ];
 
-export const ENTITY_ICON_MAP: Record<string, React.ReactNode> = {
+const ENTITY_ICON_MAP: Record<string, React.ReactNode> = {
   building: (
     <svg
       width="16"
@@ -194,7 +194,7 @@ export const ENTITY_ICON_MAP: Record<string, React.ReactNode> = {
   ),
 };
 
-export const ENTITY_ICON_KEYS = Object.keys(ENTITY_ICON_MAP);
+const ENTITY_ICON_KEYS = Object.keys(ENTITY_ICON_MAP);
 
 /** Shared renderer — pass the stored key, get an SVG back */
 export const EntityIcon: React.FC<{ iconKey: string; size?: number }> = ({
