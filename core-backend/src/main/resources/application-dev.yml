@@ -47,6 +47,13 @@ spring:
     validate-on-migrate: true
     schemas: public
 
+  # Neo4j — graph database for resolved entities
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:luminai_dev_password}
+
   # Kafka
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

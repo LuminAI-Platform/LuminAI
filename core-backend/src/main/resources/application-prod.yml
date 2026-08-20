@@ -54,6 +54,13 @@ spring:
     clean-disabled: true
     schemas: public
 
+  # ── Neo4j — graph database for resolved entities ──────────────────
+  neo4j:
+    uri: ${NEO4J_URI}
+    authentication:
+      username: ${NEO4J_USERNAME}
+      password: ${NEO4J_PASSWORD}
+
   # ── Kafka — Aiven (SASL/SCRAM over TLS) ──────────────────────────
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
