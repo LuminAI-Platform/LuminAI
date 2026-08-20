@@ -79,9 +79,7 @@ export const EntityPropertyTable: React.FC<EntityPropertyTableProps> = ({
         {entries.map(([key, val], idx) => {
           const prov = provenance.find((p) => p.propertyKey === key);
           const isActive = activeKey === key;
-          const confStyle = prov
-            ? CONFIDENCE_STYLES[prov.confidence]
-            : null;
+          const confStyle = prov ? CONFIDENCE_STYLES[prov.confidence] : null;
 
           return (
             <div

@@ -45,24 +45,96 @@ const DEFAULT_TYPE = { color: "#3b82f6", icon: "package", label: undefined };
 
 const MOCK_PROPERTY_PROVENANCE: Record<string, ProvenanceLine[]> = {
   e1: [
-    { propertyKey: "email", sourceDataset: "users_gold_v2", sourceField: "user_email", ingestedAt: "2026-08-15T10:00:00Z", confidence: "high" },
-    { propertyKey: "role", sourceDataset: "hr_export_2026_q2", sourceField: "job_title", ingestedAt: "2026-08-14T08:30:00Z", confidence: "high" },
-    { propertyKey: "status", sourceDataset: "okta_directory_sync", sourceField: "account_status", ingestedAt: "2026-08-15T09:00:00Z", confidence: "high" },
-    { propertyKey: "department", sourceDataset: "hr_export_2026_q2", sourceField: "cost_center_name", ingestedAt: "2026-08-14T08:30:00Z", confidence: "medium" },
+    {
+      propertyKey: "email",
+      sourceDataset: "users_gold_v2",
+      sourceField: "user_email",
+      ingestedAt: "2026-08-15T10:00:00Z",
+      confidence: "high",
+    },
+    {
+      propertyKey: "role",
+      sourceDataset: "hr_export_2026_q2",
+      sourceField: "job_title",
+      ingestedAt: "2026-08-14T08:30:00Z",
+      confidence: "high",
+    },
+    {
+      propertyKey: "status",
+      sourceDataset: "okta_directory_sync",
+      sourceField: "account_status",
+      ingestedAt: "2026-08-15T09:00:00Z",
+      confidence: "high",
+    },
+    {
+      propertyKey: "department",
+      sourceDataset: "hr_export_2026_q2",
+      sourceField: "cost_center_name",
+      ingestedAt: "2026-08-14T08:30:00Z",
+      confidence: "medium",
+    },
   ],
   e2: [
-    { propertyKey: "domain", sourceDataset: "clearbit_enrichment", sourceField: "company.domain", ingestedAt: "2026-08-12T09:00:00Z", confidence: "high" },
-    { propertyKey: "industry", sourceDataset: "clearbit_enrichment", sourceField: "company.category.industry", ingestedAt: "2026-08-12T09:00:00Z", confidence: "medium" },
-    { propertyKey: "location", sourceDataset: "clearbit_enrichment", sourceField: "company.geo.city", ingestedAt: "2026-08-12T09:00:00Z", confidence: "medium" },
-    { propertyKey: "employees", sourceDataset: "linkedin_enrichment", sourceField: "employee_count", ingestedAt: "2026-08-10T12:00:00Z", confidence: "low" },
+    {
+      propertyKey: "domain",
+      sourceDataset: "clearbit_enrichment",
+      sourceField: "company.domain",
+      ingestedAt: "2026-08-12T09:00:00Z",
+      confidence: "high",
+    },
+    {
+      propertyKey: "industry",
+      sourceDataset: "clearbit_enrichment",
+      sourceField: "company.category.industry",
+      ingestedAt: "2026-08-12T09:00:00Z",
+      confidence: "medium",
+    },
+    {
+      propertyKey: "location",
+      sourceDataset: "clearbit_enrichment",
+      sourceField: "company.geo.city",
+      ingestedAt: "2026-08-12T09:00:00Z",
+      confidence: "medium",
+    },
+    {
+      propertyKey: "employees",
+      sourceDataset: "linkedin_enrichment",
+      sourceField: "employee_count",
+      ingestedAt: "2026-08-10T12:00:00Z",
+      confidence: "low",
+    },
   ],
   e3: [
-    { propertyKey: "size", sourceDataset: "s3_metadata_crawler", sourceField: "object_size_bytes", ingestedAt: "2026-08-19T23:40:00Z", confidence: "high" },
-    { propertyKey: "rows", sourceDataset: "s3_metadata_crawler", sourceField: "row_count_estimate", ingestedAt: "2026-08-19T23:40:00Z", confidence: "medium" },
+    {
+      propertyKey: "size",
+      sourceDataset: "s3_metadata_crawler",
+      sourceField: "object_size_bytes",
+      ingestedAt: "2026-08-19T23:40:00Z",
+      confidence: "high",
+    },
+    {
+      propertyKey: "rows",
+      sourceDataset: "s3_metadata_crawler",
+      sourceField: "row_count_estimate",
+      ingestedAt: "2026-08-19T23:40:00Z",
+      confidence: "medium",
+    },
   ],
   e9: [
-    { propertyKey: "ip", sourceDataset: "aws_ec2_inventory", sourceField: "private_ip_address", ingestedAt: "2026-08-01T04:20:00Z", confidence: "high" },
-    { propertyKey: "status", sourceDataset: "aws_cloudwatch_health", sourceField: "instance_state", ingestedAt: "2026-08-20T00:00:00Z", confidence: "high" },
+    {
+      propertyKey: "ip",
+      sourceDataset: "aws_ec2_inventory",
+      sourceField: "private_ip_address",
+      ingestedAt: "2026-08-01T04:20:00Z",
+      confidence: "high",
+    },
+    {
+      propertyKey: "status",
+      sourceDataset: "aws_cloudwatch_health",
+      sourceField: "instance_state",
+      ingestedAt: "2026-08-20T00:00:00Z",
+      confidence: "high",
+    },
   ],
 };
 
@@ -280,7 +352,7 @@ export const EntityDetailPage: React.FC = () => {
         </div>
 
         {/* Graph CTA Banner */}
-        <div className="flex items-center justify-between bg-gradient-to-r from-blue-950/40 to-zinc-900/40 border border-blue-500/15 rounded-2xl px-6 py-4">
+        <div className="flex items-center justify-between bg-linear-to-r from-blue-950/40 to-zinc-900/40 border border-blue-500/15 rounded-2xl px-6 py-4">
           <div>
             <h3 className="text-sm font-bold text-zinc-200 mb-1">
               Visualize entity connections
