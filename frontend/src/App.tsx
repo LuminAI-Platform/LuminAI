@@ -14,6 +14,7 @@ import { ConnectionsPage } from "./pages/connections/ConnectionsPage";
 import { SchemaMapPage } from "./pages/connections/SchemaMapPage";
 import { PipelinePage } from "./pages/connections/PipelinePage";
 import { OntologyPage } from "./pages/ontology/OntologyPage";
+import { ExplorerPage } from "./pages/explorer/ExplorerPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -158,65 +159,7 @@ const DashboardView = () => {
   );
 };
 
-// Explorer Component
-const ExplorerView = () => {
-  return (
-    <div>
-      <div className="mb-6 select-none">
-        <h1 className="text-xl font-semibold text-zinc-100">Explorer</h1>
-      </div>
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6">
-        <h2 className="text-zinc-100 font-semibold mb-2 text-base">
-          Data Catalog
-        </h2>
-        <p className="text-sm text-zinc-400 mb-6">
-          Browse and manage schemas, files, and ingestion tables.
-        </p>
-
-        <div className="flex flex-col gap-3">
-          {[
-            {
-              name: "users_gold_v2",
-              type: "Table",
-              size: "14.2 MB",
-              updated: "2 mins ago",
-            },
-            {
-              name: "sales_raw_parquet",
-              type: "S3 Folder",
-              size: "1.4 GB",
-              updated: "1 hr ago",
-            },
-            {
-              name: "stripe_transactions",
-              type: "API Stream",
-              size: "Real-time",
-              updated: "Active",
-            },
-          ].map((item) => (
-            <div
-              key={item.name}
-              className="flex justify-between items-center p-3.5 bg-zinc-950 border border-zinc-800/80 rounded-lg"
-            >
-              <div className="flex items-center">
-                <span className="font-semibold text-zinc-200 text-sm">
-                  {item.name}
-                </span>
-                <span className="text-[10px] text-zinc-400 ml-3 px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded font-medium">
-                  {item.type}
-                </span>
-              </div>
-              <div className="text-xs text-zinc-400 flex items-center gap-4">
-                <span>{item.size}</span>
-                <span>{item.updated}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+// ExplorerPage is now imported from src/pages/explorer/ExplorerPage
 
 // Connections Page is now imported from src/pages/connections/ConnectionsPage
 
@@ -371,7 +314,7 @@ const callbackRoute = createRoute({
 const explorerRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer",
-  component: ExplorerView,
+  component: ExplorerPage,
 });
 
 const connectionsRoute = createRoute({
