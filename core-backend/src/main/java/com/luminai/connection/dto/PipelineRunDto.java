@@ -7,26 +7,26 @@ import java.util.UUID;
 
 /** DTO for Pipeline execution run details. */
 public record PipelineRunDto(
-        UUID id,
-        UUID connectionId,
-        String connectorName,
-        String connectorType,
-        String pipelineType,
-        String status,
-        double progress,
-        long recordsInput,
-        long recordsOutput,
-        long recordsFailed,
-        double throughput,
-        Instant startedAt,
-        Instant completedAt,
-        long durationSeconds,
-        String errorMessage,
-        String metadata,
-        Instant createdAt) {
+    UUID id,
+    UUID connectionId,
+    String connectorName,
+    String connectorType,
+    String pipelineType,
+    String status,
+    double progress,
+    long recordsInput,
+    long recordsOutput,
+    long recordsFailed,
+    double throughput,
+    Instant startedAt,
+    Instant completedAt,
+    long durationSeconds,
+    String errorMessage,
+    String metadata,
+    Instant createdAt) {
 
   public static PipelineRunDto fromEntity(
-          PipelineRun run, String connectorName, String connectorType) {
+      PipelineRun run, String connectorName, String connectorType) {
     long duration = 0;
     Instant start = run.getStartedAt();
     Instant end = run.getCompletedAt() != null ? run.getCompletedAt() : Instant.now();
@@ -49,22 +49,22 @@ public record PipelineRunDto(
     }
 
     return new PipelineRunDto(
-            run.getId(),
-            run.getConnectionId(),
-            connectorName != null ? connectorName : "Data Connector",
-            connectorType != null ? connectorType : "Database",
-            run.getPipelineType(),
-            status,
-            progress,
-            run.getRecordsInput(),
-            run.getRecordsOutput(),
-            run.getRecordsFailed(),
-            throughput,
-            run.getStartedAt(),
-            run.getCompletedAt(),
-            duration,
-            run.getErrorMessage(),
-            run.getMetadata(),
-            run.getCreatedAt());
+        run.getId(),
+        run.getConnectionId(),
+        connectorName != null ? connectorName : "Data Connector",
+        connectorType != null ? connectorType : "Database",
+        run.getPipelineType(),
+        status,
+        progress,
+        run.getRecordsInput(),
+        run.getRecordsOutput(),
+        run.getRecordsFailed(),
+        throughput,
+        run.getStartedAt(),
+        run.getCompletedAt(),
+        duration,
+        run.getErrorMessage(),
+        run.getMetadata(),
+        run.getCreatedAt());
   }
 }
