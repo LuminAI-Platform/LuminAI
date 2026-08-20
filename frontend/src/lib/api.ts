@@ -144,12 +144,20 @@ export function createApiConfig() {
 
 // ─── Mock Explorer Search Fallback Data & Handler ─────────────────────────────
 
-interface MockEntity {
+export interface MockEntity {
   id: string;
   canonicalName: string;
   entityType: string;
   properties: Record<string, unknown>;
   createdAt: string;
+}
+
+/**
+ * Returns a single mock entity by ID for the EntityDetailPage fallback.
+ * TODO: Remove when GET /api/v1/explorer/entities/:id is available on the backend.
+ */
+export function getMockEntityById(id: string): MockEntity | undefined {
+  return MOCK_ENTITIES.find((e) => e.id === id);
 }
 
 const MOCK_ENTITIES: MockEntity[] = [
