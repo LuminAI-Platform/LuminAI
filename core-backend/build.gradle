@@ -37,6 +37,9 @@ dependencies {
 	// --- Kafka (E2 will configure, but dep needed) ---
 	implementation 'org.springframework.kafka:spring-kafka'
 
+	// --- Neo4j ---
+	implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
+
 	// --- Redis ---
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
@@ -59,6 +62,7 @@ dependencies {
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:postgresql'
 	testImplementation 'org.testcontainers:kafka'
+	testImplementation 'org.testcontainers:neo4j'
 }
 
 tasks.named('test') {
