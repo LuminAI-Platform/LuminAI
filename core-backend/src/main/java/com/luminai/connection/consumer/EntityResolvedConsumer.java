@@ -24,6 +24,8 @@ public class EntityResolvedConsumer {
 
   private static final Logger log = LoggerFactory.getLogger(EntityResolvedConsumer.class);
 
+  private static final String COMPLETED_STATUS = "COMPLETED";
+
   private final PipelineRunRepository pipelineRunRepository;
 
   public EntityResolvedConsumer(PipelineRunRepository pipelineRunRepository) {
@@ -60,14 +62,22 @@ public class EntityResolvedConsumer {
       UUID connectionId = UUID.fromString((String) payload.get("connectionId"));
       long resolvedEntities = toLong(payload.getOrDefault("resolvedEntities", 0));
 
+      // Validate resolvedEntities is non-negative
+      if (resolvedEntities < 0) {
+        log.error("Invalid resolvedEntities '{}' received — rejecting event", resolvedEntities);
+        ack.acknowledge();
+        return;
+      }
+
       pipelineRunRepository.findByConnectionId(connectionId).stream()
           .filter(run -> "VALIDATED".equals(run.getStatus()) || "CLEANED".equals(run.getStatus()))
           .findFirst()
           .ifPresentOrElse(
               run -> {
-                run.setStatus("COMPLETED");
+                run.setStatus(COMPLETED_STATUS);
                 run.setCompletedAt(Instant.now());
-                run.setMetadata(String.format("{\"resolvedEntities\": %d}", resolvedEntities));
+                // Use long value directly — safe from injection since it's a numeric type
+                run.setMetadata("{\"resolvedEntities\":" + resolvedEntities + "}");
                 pipelineRunRepository.save(run);
                 log.info(
                     "Marked PipelineRun '{}' COMPLETED for connection '{}' — resolvedEntities={}",

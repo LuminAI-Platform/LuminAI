@@ -3,6 +3,7 @@ package com.luminai.connection.consumer;
 import com.luminai.connection.model.PipelineRun;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Component;
 public class PipelineEventConsumer {
 
   private static final Logger log = LoggerFactory.getLogger(PipelineEventConsumer.class);
+
+  private static final Set<String> ALLOWED_STATUSES = Set.of("CLEANED", "VALIDATED");
 
   private final PipelineRunRepository pipelineRunRepository;
 
@@ -60,8 +63,17 @@ public class PipelineEventConsumer {
 
     try {
       UUID connectionId = UUID.fromString((String) payload.get("connectionId"));
-      String newStatus = (String) payload.getOrDefault("status", "VALIDATED");
+      String rawStatus = (String) payload.getOrDefault("status", "VALIDATED");
       long recordsOutput = toLong(payload.getOrDefault("recordsOutput", 0));
+
+      // Validate status against allowed values to prevent injection
+      if (!ALLOWED_STATUSES.contains(rawStatus)) {
+        log.error("Invalid status '{}' received in ingest.valid event — rejecting", rawStatus);
+        ack.acknowledge();
+        return;
+      }
+
+      String newStatus = rawStatus;
 
       pipelineRunRepository.findByConnectionId(connectionId).stream()
           .filter(run -> "PENDING".equals(run.getStatus()) || "INGESTING".equals(run.getStatus()))
