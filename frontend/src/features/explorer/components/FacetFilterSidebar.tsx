@@ -19,13 +19,13 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
   const handleToggle = (typeName: string) => {
     const isSelected = selectedTypes.includes(typeName);
     let updated: string[];
-    
+
     if (isSelected) {
       updated = selectedTypes.filter((t) => t !== typeName);
     } else {
       updated = [...selectedTypes, typeName];
     }
-    
+
     onChange(updated);
   };
 
@@ -35,7 +35,6 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
 
   return (
     <aside className="w-full md:w-64 bg-zinc-900/30 border border-zinc-800/80 rounded-2xl p-5 flex flex-col gap-5 select-none">
-      
       {/* Title & Clear Action */}
       <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
         <div className="flex items-center gap-2">
@@ -125,8 +124,8 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
                     isChecked
                       ? "bg-zinc-800 text-zinc-300"
                       : count > 0
-                      ? "bg-zinc-950/80 text-zinc-500"
-                      : "bg-zinc-950/40 text-zinc-650"
+                        ? "bg-zinc-950/80 text-zinc-500"
+                        : "bg-zinc-950/40 text-zinc-650"
                   }`}
                 >
                   {count}
@@ -136,7 +135,6 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
           })
         )}
       </div>
-
     </aside>
   );
 };

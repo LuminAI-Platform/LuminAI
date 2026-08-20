@@ -51,7 +51,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setActiveIndex((prev) => (prev + 1) % suggestions.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+      setActiveIndex(
+        (prev) => (prev - 1 + suggestions.length) % suggestions.length,
+      );
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (activeIndex >= 0 && activeIndex < suggestions.length) {
@@ -81,7 +83,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {/* Search Input Container */}
       <div className="relative flex items-center bg-zinc-900/50 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2.5 transition-all duration-300 focus-within:border-blue-500/50 focus-within:shadow-[0_0_12px_rgba(59,130,246,0.15)] group">
         <Search className="w-4 h-4 text-zinc-500 group-focus-within:text-blue-500 transition-colors mr-3 shrink-0" />
-        
+
         <input
           ref={inputRef}
           type="text"
@@ -141,15 +143,21 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   onClick={() => selectSuggestion(val)}
                   onMouseEnter={() => setActiveIndex(idx)}
                   className={`px-4 py-2.5 text-xs text-zinc-200 cursor-pointer flex items-center justify-between transition-colors ${
-                    isActive ? "bg-zinc-800/80 text-blue-400" : "hover:bg-zinc-800/40"
+                    isActive
+                      ? "bg-zinc-800/80 text-blue-400"
+                      : "hover:bg-zinc-800/40"
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Search className={`w-3.5 h-3.5 ${isActive ? "text-blue-500" : "text-zinc-500"}`} />
+                    <Search
+                      className={`w-3.5 h-3.5 ${isActive ? "text-blue-500" : "text-zinc-500"}`}
+                    />
                     <span className="font-medium">{val}</span>
                   </div>
                   {isActive && (
-                    <span className="text-[10px] text-zinc-500 font-mono">Select</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">
+                      Select
+                    </span>
                   )}
                 </li>
               );

@@ -23,11 +23,51 @@ interface SearchResponse {
 }
 
 const FALLBACK_ONTOLOGY_TYPES: EntityType[] = [
-  { id: "1", name: "Person", label: "Person", color: "#60a5fa", icon: "user", description: "", properties: [] },
-  { id: "2", name: "Organization", label: "Organization", color: "#34d399", icon: "briefcase", description: "", properties: [] },
-  { id: "3", name: "Dataset", label: "Dataset", color: "#fb923c", icon: "database", description: "", properties: [] },
-  { id: "4", name: "Device", label: "Device", color: "#a78bfa", icon: "cpu", description: "", properties: [] },
-  { id: "5", name: "Location", label: "Location", color: "#f43f5e", icon: "map-pin", description: "", properties: [] },
+  {
+    id: "1",
+    name: "Person",
+    label: "Person",
+    color: "#60a5fa",
+    icon: "user",
+    description: "",
+    properties: [],
+  },
+  {
+    id: "2",
+    name: "Organization",
+    label: "Organization",
+    color: "#34d399",
+    icon: "briefcase",
+    description: "",
+    properties: [],
+  },
+  {
+    id: "3",
+    name: "Dataset",
+    label: "Dataset",
+    color: "#fb923c",
+    icon: "database",
+    description: "",
+    properties: [],
+  },
+  {
+    id: "4",
+    name: "Device",
+    label: "Device",
+    color: "#a78bfa",
+    icon: "cpu",
+    description: "",
+    properties: [],
+  },
+  {
+    id: "5",
+    name: "Location",
+    label: "Location",
+    color: "#f43f5e",
+    icon: "map-pin",
+    description: "",
+    properties: [],
+  },
 ];
 
 export const ExplorerPage: React.FC = () => {
@@ -79,10 +119,12 @@ export const ExplorerPage: React.FC = () => {
       params.set("query", query);
       params.set("page", page.toString());
       params.set("size", pageSize.toString());
-      
+
       selectedTypes.forEach((t) => params.append("entityType", t));
 
-      const res = await apiFetch(`/api/v1/explorer/search?${params.toString()}`);
+      const res = await apiFetch(
+        `/api/v1/explorer/search?${params.toString()}`,
+      );
       if (!res.ok) {
         throw new Error(`Search failed: ${res.statusText}`);
       }
@@ -119,7 +161,6 @@ export const ExplorerPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 select-none">
-      
       {/* Page Header */}
       <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
         <div>
@@ -166,7 +207,6 @@ export const ExplorerPage: React.FC = () => {
 
         {/* Search Results Pane */}
         <div className="flex-1 w-full flex flex-col gap-5">
-          
           {/* Loading state */}
           {loading && !searchData && (
             <div className="flex flex-col items-center justify-center py-20 bg-zinc-900/10 border border-zinc-900 rounded-2xl gap-3">
@@ -183,9 +223,7 @@ export const ExplorerPage: React.FC = () => {
               <span className="text-xs text-red-400 font-bold mb-1">
                 Search Error
               </span>
-              <p className="text-[11px] text-zinc-500 max-w-sm mb-4">
-                {error}
-              </p>
+              <p className="text-[11px] text-zinc-500 max-w-sm mb-4">{error}</p>
               <button
                 onClick={executeSearch}
                 className="px-3.5 py-1.5 text-xs font-semibold text-zinc-200 hover:text-white bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
@@ -230,7 +268,8 @@ export const ExplorerPage: React.FC = () => {
                     No Entities Found
                   </h4>
                   <p className="text-xs text-zinc-500 max-w-xs mt-1.5">
-                    Your search query did not yield any matching records. Try widening your query or altering filters.
+                    Your search query did not yield any matching records. Try
+                    widening your query or altering filters.
                   </p>
                 </div>
               ) : (
@@ -272,22 +311,24 @@ export const ExplorerPage: React.FC = () => {
                   </button>
 
                   {/* Page numbers */}
-                  {Array.from({ length: searchData.totalPages }).map((_, idx) => {
-                    const isActive = page === idx;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => setPage(idx)}
-                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          isActive
-                            ? "bg-blue-600/10 border border-blue-500/30 text-blue-500 font-bold"
-                            : "border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
-                        }`}
-                      >
-                        {idx + 1}
-                      </button>
-                    );
-                  })}
+                  {Array.from({ length: searchData.totalPages }).map(
+                    (_, idx) => {
+                      const isActive = page === idx;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setPage(idx)}
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            isActive
+                              ? "bg-blue-600/10 border border-blue-500/30 text-blue-500 font-bold"
+                              : "border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                          }`}
+                        >
+                          {idx + 1}
+                        </button>
+                      );
+                    },
+                  )}
 
                   {/* Next Button */}
                   <button
@@ -310,10 +351,8 @@ export const ExplorerPage: React.FC = () => {
               )}
             </>
           )}
-
         </div>
       </div>
-
     </div>
   );
 };

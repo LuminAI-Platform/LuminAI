@@ -89,7 +89,11 @@ export async function apiFetch(
   }
 
   if (!response.ok) {
-    if (response.status === 404 && typeof url === "string" && url.includes("/api/v1/explorer/search")) {
+    if (
+      response.status === 404 &&
+      typeof url === "string" &&
+      url.includes("/api/v1/explorer/search")
+    ) {
       return getMockSearchResponse(url);
     }
     throw new ApiError(response);
@@ -153,91 +157,149 @@ const MOCK_ENTITIES: MockEntity[] = [
     id: "e1",
     canonicalName: "Alice Smith",
     entityType: "Person",
-    properties: { email: "alice.smith@luminai.com", role: "Software Engineer", status: "Active", department: "Engineering" },
-    createdAt: "2026-08-15T10:00:00Z"
+    properties: {
+      email: "alice.smith@luminai.com",
+      role: "Software Engineer",
+      status: "Active",
+      department: "Engineering",
+    },
+    createdAt: "2026-08-15T10:00:00Z",
   },
   {
     id: "e2",
     canonicalName: "LuminAI Technologies",
     entityType: "Organization",
-    properties: { domain: "luminai.com", industry: "Artificial Intelligence", location: "San Francisco, CA", employees: 120 },
-    createdAt: "2026-08-12T09:00:00Z"
+    properties: {
+      domain: "luminai.com",
+      industry: "Artificial Intelligence",
+      location: "San Francisco, CA",
+      employees: 120,
+    },
+    createdAt: "2026-08-12T09:00:00Z",
   },
   {
     id: "e3",
     canonicalName: "users_gold_v2",
     entityType: "Dataset",
-    properties: { size: "14.2 MB", rows: 154000, type: "Table", format: "Parquet" },
-    createdAt: "2026-08-19T23:40:00Z"
+    properties: {
+      size: "14.2 MB",
+      rows: 154000,
+      type: "Table",
+      format: "Parquet",
+    },
+    createdAt: "2026-08-19T23:40:00Z",
   },
   {
     id: "e4",
     canonicalName: "sales_raw_parquet",
     entityType: "Dataset",
-    properties: { size: "1.4 GB", rows: 12050000, type: "S3 Folder", format: "Parquet" },
-    createdAt: "2026-08-19T22:30:00Z"
+    properties: {
+      size: "1.4 GB",
+      rows: 12050000,
+      type: "S3 Folder",
+      format: "Parquet",
+    },
+    createdAt: "2026-08-19T22:30:00Z",
   },
   {
     id: "e5",
     canonicalName: "stripe_transactions",
     entityType: "Dataset",
-    properties: { size: "Real-time", rows: 92830, type: "API Stream", format: "JSON" },
-    createdAt: "2026-08-19T23:00:00Z"
+    properties: {
+      size: "Real-time",
+      rows: 92830,
+      type: "API Stream",
+      format: "JSON",
+    },
+    createdAt: "2026-08-19T23:00:00Z",
   },
   {
     id: "e6",
     canonicalName: "Bob Johnson",
     entityType: "Person",
-    properties: { email: "bob.johnson@luminai.com", role: "Product Manager", status: "Active", department: "Product" },
-    createdAt: "2026-08-14T11:00:00Z"
+    properties: {
+      email: "bob.johnson@luminai.com",
+      role: "Product Manager",
+      status: "Active",
+      department: "Product",
+    },
+    createdAt: "2026-08-14T11:00:00Z",
   },
   {
     id: "e7",
     canonicalName: "Charlie Brown",
     entityType: "Person",
-    properties: { email: "charlie@luminai.com", role: "Security Architect", status: "Inactive", department: "Security" },
-    createdAt: "2026-08-13T08:30:00Z"
+    properties: {
+      email: "charlie@luminai.com",
+      role: "Security Architect",
+      status: "Inactive",
+      department: "Security",
+    },
+    createdAt: "2026-08-13T08:30:00Z",
   },
   {
     id: "e8",
     canonicalName: "Acme Corp",
     entityType: "Organization",
-    properties: { domain: "acme.org", industry: "Manufacturing", location: "Chicago, IL", employees: 1250 },
-    createdAt: "2026-08-11T14:00:00Z"
+    properties: {
+      domain: "acme.org",
+      industry: "Manufacturing",
+      location: "Chicago, IL",
+      employees: 1250,
+    },
+    createdAt: "2026-08-11T14:00:00Z",
   },
   {
     id: "e9",
     canonicalName: "Prod Database Instance",
     entityType: "Device",
-    properties: { ip: "10.0.4.15", host: "aws-prod-db-01", os: "Ubuntu Linux", status: "Online" },
-    createdAt: "2026-08-01T04:20:00Z"
+    properties: {
+      ip: "10.0.4.15",
+      host: "aws-prod-db-01",
+      os: "Ubuntu Linux",
+      status: "Online",
+    },
+    createdAt: "2026-08-01T04:20:00Z",
   },
   {
     id: "e10",
     canonicalName: "Developer Workstation",
     entityType: "Device",
-    properties: { ip: "192.168.1.55", host: "workstation-mac-08", os: "macOS Sequoia", status: "Online" },
-    createdAt: "2026-08-10T12:00:00Z"
+    properties: {
+      ip: "192.168.1.55",
+      host: "workstation-mac-08",
+      os: "macOS Sequoia",
+      status: "Online",
+    },
+    createdAt: "2026-08-10T12:00:00Z",
   },
   {
     id: "e11",
     canonicalName: "San Francisco Office",
     entityType: "Location",
-    properties: { address: "100 Pine St", city: "San Francisco", state: "CA", country: "USA" },
-    createdAt: "2026-08-05T09:00:00Z"
+    properties: {
+      address: "100 Pine St",
+      city: "San Francisco",
+      state: "CA",
+      country: "USA",
+    },
+    createdAt: "2026-08-05T09:00:00Z",
   },
   {
     id: "e12",
     canonicalName: "London Office",
     entityType: "Location",
     properties: { address: "30 St Mary Axe", city: "London", country: "UK" },
-    createdAt: "2026-08-06T10:00:00Z"
-  }
+    createdAt: "2026-08-06T10:00:00Z",
+  },
 ];
 
 function getMockSearchResponse(url: string): Response {
   // Parse query parameters
-  const urlObj = new URL(url, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+  const urlObj = new URL(
+    url,
+    typeof window !== "undefined" ? window.location.origin : "http://localhost",
+  );
   const query = urlObj.searchParams.get("query") || "";
   const entityTypes = urlObj.searchParams.getAll("entityType");
   const page = parseInt(urlObj.searchParams.get("page") || "0", 10);
@@ -247,11 +309,11 @@ function getMockSearchResponse(url: string): Response {
   let filtered = MOCK_ENTITIES;
   if (query.trim()) {
     const q = query.toLowerCase().trim();
-    filtered = filtered.filter(item => {
+    filtered = filtered.filter((item) => {
       if (item.canonicalName.toLowerCase().includes(q)) return true;
       if (item.entityType.toLowerCase().includes(q)) return true;
-      return Object.values(item.properties).some(val => 
-        String(val).toLowerCase().includes(q)
+      return Object.values(item.properties).some((val) =>
+        String(val).toLowerCase().includes(q),
       );
     });
   }
@@ -259,16 +321,16 @@ function getMockSearchResponse(url: string): Response {
   // Calculate facets counts (group counts grouped by entityType before filtering by type)
   const facets: Record<string, number> = {};
   // Seed all known types with 0
-  MOCK_ENTITIES.forEach(e => {
+  MOCK_ENTITIES.forEach((e) => {
     facets[e.entityType] = 0;
   });
-  filtered.forEach(item => {
+  filtered.forEach((item) => {
     facets[item.entityType] = (facets[item.entityType] || 0) + 1;
   });
 
   // Filter by selected facet entityTypes
   if (entityTypes.length > 0 && !entityTypes.includes("")) {
-    filtered = filtered.filter(item => entityTypes.includes(item.entityType));
+    filtered = filtered.filter((item) => entityTypes.includes(item.entityType));
   }
 
   // Helper function to escape special characters for regex
@@ -277,7 +339,7 @@ function getMockSearchResponse(url: string): Response {
   }
 
   // Generate highlights
-  const content = filtered.map(item => {
+  const content = filtered.map((item) => {
     const highlights: Record<string, string[]> = {};
     const q = query.toLowerCase().trim();
     if (q) {
@@ -287,7 +349,7 @@ function getMockSearchResponse(url: string): Response {
         const originalText = item.canonicalName.substring(idx, idx + q.length);
         const highlighted = item.canonicalName.replace(
           new RegExp(escapeRegExp(originalText), "gi"),
-          match => `<em>${match}</em>`
+          (match) => `<em>${match}</em>`,
         );
         highlights["canonicalName"] = [highlighted];
       }
@@ -300,7 +362,7 @@ function getMockSearchResponse(url: string): Response {
           const originalText = valStr.substring(idx, idx + q.length);
           const highlighted = valStr.replace(
             new RegExp(escapeRegExp(originalText), "gi"),
-            match => `<em>${match}</em>`
+            (match) => `<em>${match}</em>`,
           );
           highlights[`properties.${key}`] = [highlighted];
         }
@@ -309,7 +371,7 @@ function getMockSearchResponse(url: string): Response {
 
     return {
       ...item,
-      highlights
+      highlights,
     };
   });
 
@@ -325,12 +387,11 @@ function getMockSearchResponse(url: string): Response {
     totalElements,
     totalPages,
     size,
-    number: page
+    number: page,
   };
 
   return new Response(JSON.stringify(mockData), {
     status: 200,
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
 }
-

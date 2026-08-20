@@ -25,7 +25,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
 }) => {
   // Find ontology type mapping
   const matchedType = ontologyTypes.find(
-    (t) => t.name.toLowerCase() === entityType.toLowerCase()
+    (t) => t.name.toLowerCase() === entityType.toLowerCase(),
   );
 
   const typeColor = matchedType?.color || "#3b82f6"; // Default blue
@@ -35,8 +35,8 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   const nameHighlighted = highlights["canonicalName"]?.[0];
 
   // Extract property highlights
-  const propertyHighlights = Object.entries(highlights).filter(
-    ([key]) => key.startsWith("properties.")
+  const propertyHighlights = Object.entries(highlights).filter(([key]) =>
+    key.startsWith("properties."),
   );
 
   // Format date
@@ -47,8 +47,10 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   });
 
   return (
-    <div data-id={id} className="bg-zinc-900/40 hover:bg-zinc-900/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between gap-4 group">
-      
+    <div
+      data-id={id}
+      className="bg-zinc-900/40 hover:bg-zinc-900/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between gap-4 group"
+    >
       {/* Header Section */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -63,7 +65,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
           >
             <EntityIcon iconKey={typeIcon} size={15} />
           </div>
-          
+
           <div className="min-w-0">
             {/* Title / Name */}
             <h3 className="text-sm font-bold text-zinc-100 leading-tight truncate group-hover:text-blue-400 transition-colors">
@@ -76,7 +78,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                 canonicalName
               )}
             </h3>
-            
+
             {/* Created date */}
             <div className="flex items-center gap-1 text-[10px] text-zinc-500 mt-1 select-none">
               <Calendar className="w-3 h-3" />
@@ -136,7 +138,9 @@ export const EntityCard: React.FC<EntityCardProps> = ({
             const propName = key.replace("properties.", "");
             return (
               <div key={key} className="text-zinc-400">
-                <span className="text-zinc-500 font-mono font-medium">{propName}:</span>{" "}
+                <span className="text-zinc-500 font-mono font-medium">
+                  {propName}:
+                </span>{" "}
                 <span
                   dangerouslySetInnerHTML={{ __html: snippetList[0] }}
                   className="italic [&>em]:bg-blue-500/20 [&>em]:text-blue-400 [&>em]:not-italic [&>em]:font-semibold [&>em]:px-0.5 [&>em]:rounded"
@@ -157,7 +161,6 @@ export const EntityCard: React.FC<EntityCardProps> = ({
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </div>
-
     </div>
   );
 };
