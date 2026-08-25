@@ -48,7 +48,10 @@ public class GraphQueryService {
   }
 
   private String currentTenantId() {
-    String tenantId = currentTenantId();
+    String tenantId = TenantContext.getTenantId();
+    if (tenantId == null || tenantId.isBlank()) {
+      throw new IllegalStateException("No tenant context is available for graph query");
+    }
     return tenantId;
   }
 }
