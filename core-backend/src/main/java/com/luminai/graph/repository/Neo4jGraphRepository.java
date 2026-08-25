@@ -163,36 +163,37 @@ public class Neo4jGraphRepository {
   public Optional<GraphQueryResponseDto> findNeighbourhood(
       String tenantId, String entityId, int depth, String relationshipType) {
     String cypher =
-        """
-                MATCH (start:Entity {id: $entityId, tenant_id: $tenantId})
-                CALL {
-                  WITH start
-                  OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
-                  WHERE length(path) <= $depth
-                    AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
-                    AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
-                  UNWIND [start] + reduce(result = [], candidate IN collect(path) | result + nodes(candidate)) AS node
-                  RETURN collect(DISTINCT {
-                    id: node.id,
-                    label: coalesce(node.canonical_name, node.id),
-                    entityType: node.entity_type
-                  }) AS nodes
-                }
-                CALL {
-                  WITH start
-                  OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
-                  WHERE length(path) <= $depth
-                    AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
-                    AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
-                  UNWIND relationships(path) AS rel
-                  RETURN collect(DISTINCT {
-                    id: elementId(rel),
-                    source: startNode(rel).id,
-                    target: endNode(rel).id,
-                    relationshipType: type(rel)
-                  }) AS edges
-                }
-                RETURN nodes, edges
+            """
+              MATCH (start:Entity {id: $entityId, tenant_id: $tenantId})
+              CALL {
+                WITH start
+                OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
+                WHERE length(path) <= $depth
+                  AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
+                  AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
+                WITH start, collect(path) AS paths
+                UNWIND [start] + reduce(result = [], candidate IN paths | result + nodes(candidate)) AS node
+                RETURN collect(DISTINCT {
+                  id: node.id,
+                  label: coalesce(node.canonical_name, node.id),
+                  entityType: node.entity_type
+                }) AS nodes
+              }
+              CALL {
+                WITH start
+                OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
+                WHERE length(path) <= $depth
+                  AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
+                  AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
+                UNWIND relationships(path) AS rel
+                RETURN collect(DISTINCT {
+                  id: elementId(rel),
+                  source: startNode(rel).id,
+                  target: endNode(rel).id,
+                  relationshipType: type(rel)
+                }) AS edges
+              }
+              RETURN nodes, edges
                 """;
 
     return neo4jClient
