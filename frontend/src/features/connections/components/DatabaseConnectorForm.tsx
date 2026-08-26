@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TableSelector } from "./TableSelector";
 import type { SchemaDiscovery } from "./TableSelector";
 import { apiFetch } from "../../../lib/api";
@@ -52,6 +52,20 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
     { id: 3, label: "Authenticating credentials...", status: "idle" },
     { id: 4, label: "Discovering database schemas...", status: "idle" },
   ]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
 
   // Update default port based on database type selection
   const handleDbTypeChange = (type: DBType) => {
