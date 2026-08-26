@@ -34,7 +34,7 @@ public record PipelineRunDto(
       duration = Math.max(0, Duration.between(start, end).getSeconds());
     }
 
-    String status = run.getStatus();
+    String status = run.getStatus().name();
 
     double progress = 0.0;
     if (run.getRecordsInput() > 0) {
@@ -44,7 +44,7 @@ public record PipelineRunDto(
     }
 
     double throughput = 0.0;
-    if (duration > 0 && run.getRecordsOutput() > 0 && "RUNNING".equalsIgnoreCase(status)) {
+    if (duration > 0 && run.getRecordsOutput() > 0) {
       throughput = (double) run.getRecordsOutput() / duration;
     }
 
