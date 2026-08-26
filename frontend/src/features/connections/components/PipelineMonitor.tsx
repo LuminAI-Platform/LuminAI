@@ -353,7 +353,12 @@ export const PipelineMonitor: React.FC = () => {
   // ── Ingest raw payload ──────────────────────────────────────────────────────
   const ingestPayload = useCallback((raw: unknown) => {
     try {
-      const arr = Array.isArray(raw) ? raw : [raw];
+      const dataObj = raw as Record<string, unknown>;
+      const arr = Array.isArray(raw)
+        ? raw
+        : Array.isArray(dataObj?.content)
+          ? (dataObj.content as unknown[])
+          : [raw];
       const normalised = (arr as Record<string, unknown>[]).map(normaliseJob);
       setJobs(normalised);
       setLastUpdated(new Date());
@@ -367,7 +372,7 @@ export const PipelineMonitor: React.FC = () => {
   const fetchOnce = useCallback(async () => {
     if (useMockRef.current) return;
     try {
-      const res = await apiFetch("/api/v1/pipelines");
+      const res = await apiFetch("/api/v1/pipelines/runs");
       const data = await res.json();
       ingestPayload(data);
     } catch {
@@ -429,7 +434,7 @@ export const PipelineMonitor: React.FC = () => {
           }
         }, 3000);
 
-        es.addEventListener("pipeline-update", (e) => {
+        const handleEvent = (e: MessageEvent) => {
           clearTimeout(timeout);
           sseOk = true;
           setSseConnected(true);
@@ -440,7 +445,14 @@ export const PipelineMonitor: React.FC = () => {
           } catch {
             /* ignore */
           }
-        });
+        };
+
+        es.onmessage = handleEvent;
+        es.addEventListener("pipeline-update", handleEvent);
+        es.addEventListener("JOB_PROGRESS", handleEvent);
+        es.addEventListener("JOB_COMPLETE", handleEvent);
+        es.addEventListener("RECORD_CLEANED", handleEvent);
+        es.addEventListener("ENTITY_MATCHED", handleEvent);
 
         es.onerror = () => {
           clearTimeout(timeout);

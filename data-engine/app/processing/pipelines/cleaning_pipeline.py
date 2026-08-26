@@ -520,13 +520,16 @@ def staged_ingestion_data(
             entity_type="Person",
             payload={
                 "tenant_id": tenant_id,
+                "tenantId": tenant_id,
                 "source_id": source_id,
+                "connectionId": source_id,
                 "batch_id": batch_id,
-                "status": "valid",
+                "status": "VALIDATED",
                 "staging_path": staging_path,
                 "record_count": validated_ingestion_data.height,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+                "recordsOutput": validated_ingestion_data.height,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
         )
     except Exception as ke:
         context.log.error("❌ Failed to publish Kafka ingest.valid event: %s", ke)

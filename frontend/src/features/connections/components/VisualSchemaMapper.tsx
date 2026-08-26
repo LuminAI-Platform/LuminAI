@@ -182,18 +182,45 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
     mappings.find((m) => m.ontologyPropertyId === propId)?.sourceColumnId;
 
   const handleSave = async () => {
+    const targetEntityName = ontologyProperties[0]?.entityClass ?? "Entity";
     const payload: SchemaMappingPayload = {
       connectionId,
       sourceTable,
-      targetEntity: ontologyProperties[0]?.entityClass ?? "Entity",
+      targetEntity: targetEntityName,
       mappings,
       createdAt: new Date().toISOString(),
     };
+
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        connectionId,
+      );
+    const effectiveConnectorId = isUuid
+      ? connectionId
+      : "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d";
+
     try {
-      await apiFetch("/api/v1/schema-mappings", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      // Send individual mapping records matching backend SchemaMappingDto.CreateRequest
+      for (const m of mappings) {
+        const sourceCol =
+          sourceColumns.find((c) => c.id === m.sourceColumnId)?.name ??
+          m.sourceColumnId;
+        const targetProp =
+          ontologyProperties.find((p) => p.id === m.ontologyPropertyId)?.name ??
+          m.ontologyPropertyId;
+
+        await apiFetch("/api/v1/schema-mappings", {
+          method: "POST",
+          body: JSON.stringify({
+            connectorId: effectiveConnectorId,
+            name: `${sourceTable} - ${sourceCol} Map`,
+            sourceColumn: sourceCol,
+            targetEntityType: targetEntityName,
+            targetProperty: targetProp,
+            transformation: "NONE",
+          }),
+        });
+      }
     } catch {
       // Graceful fallback to localStorage if backend is offline/unreachable
       localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));

@@ -63,9 +63,28 @@ public class PipelineEventConsumer {
         payload);
 
     try {
-      UUID connectionId = UUID.fromString((String) payload.get("connectionId"));
+      String rawConnectionId =
+          (String)
+              (payload.get("connectionId") != null
+                  ? payload.get("connectionId")
+                  : payload.get("source_id"));
+      if (rawConnectionId == null) {
+        log.error("Missing connectionId/source_id in ingest.valid event — rejecting");
+        ack.acknowledge();
+        return;
+      }
+
+      UUID connectionId = UUID.fromString(rawConnectionId);
       String rawStatus = (String) payload.getOrDefault("status", "VALIDATED");
-      long recordsOutput = toLong(payload.getOrDefault("recordsOutput", 0));
+      if ("valid".equalsIgnoreCase(rawStatus)) {
+        rawStatus = "VALIDATED";
+      }
+
+      long recordsOutput =
+          toLong(
+              payload.get("recordsOutput") != null
+                  ? payload.get("recordsOutput")
+                  : payload.getOrDefault("record_count", 0));
 
       // Validate status against allowed values to prevent injection
       if (!ALLOWED_STATUSES.contains(rawStatus)) {

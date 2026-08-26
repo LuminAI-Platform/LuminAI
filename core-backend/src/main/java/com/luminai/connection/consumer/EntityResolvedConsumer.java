@@ -60,8 +60,22 @@ public class EntityResolvedConsumer {
         payload);
 
     try {
-      UUID connectionId = UUID.fromString((String) payload.get("connectionId"));
-      long resolvedEntities = toLong(payload.getOrDefault("resolvedEntities", 0));
+      Object rawConnId =
+          payload.get("connectionId") != null
+              ? payload.get("connectionId")
+              : payload.get("source_id");
+      if (rawConnId == null) {
+        log.debug("entity.resolved event without connectionId/source_id — acknowledging message");
+        ack.acknowledge();
+        return;
+      }
+
+      UUID connectionId = UUID.fromString((String) rawConnId);
+      long resolvedEntities =
+          toLong(
+              payload.get("resolvedEntities") != null
+                  ? payload.get("resolvedEntities")
+                  : payload.getOrDefault("record_count", 0));
 
       // Validate resolvedEntities is non-negative
       if (resolvedEntities < 0) {

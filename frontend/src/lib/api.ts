@@ -82,24 +82,40 @@ export async function apiFetch(
   try {
     response = await fetch(url, { ...resolvedInit, headers });
   } catch (err) {
-    if (typeof url === "string" && url.includes("/api/v1/explorer/search")) {
-      return getMockSearchResponse(url);
+    if (typeof url === "string") {
+      if (url.includes("/api/v1/explorer/search")) {
+        return getMockSearchResponse(url);
+      }
+      if (url.includes("/api/v1/explorer/entities/")) {
+        return getMockEntityDetailResponse(url);
+      }
     }
     throw err;
   }
 
   if (!response.ok) {
-    if (
-      response.status === 404 &&
-      typeof url === "string" &&
-      url.includes("/api/v1/explorer/search")
-    ) {
-      return getMockSearchResponse(url);
+    if (response.status === 404 && typeof url === "string") {
+      if (url.includes("/api/v1/explorer/search")) {
+        return getMockSearchResponse(url);
+      }
+      if (url.includes("/api/v1/explorer/entities/")) {
+        return getMockEntityDetailResponse(url);
+      }
     }
     throw new ApiError(response);
   }
 
   return response;
+}
+
+function getMockEntityDetailResponse(url: string): Response {
+  const parts = url.split("/api/v1/explorer/entities/");
+  const entityId = parts[1]?.split("?")[0] ?? "";
+  const entity = getMockEntityById(entityId) ?? MOCK_ENTITIES[0];
+  return new Response(JSON.stringify(entity), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 // ─── ApiError ─────────────────────────────────────────────────────────────────
