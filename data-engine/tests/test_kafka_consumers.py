@@ -66,6 +66,23 @@ class TestMessageHandling:
         )
         # No exception means success
 
+    def test_handle_java_camelcase_envelope(self):
+        """handle() processes Java IngestEvent camelCase payload without error."""
+        consumer = IngestRawConsumer()
+        consumer.handle(
+            key="tenant-abc",
+            value={
+                "eventId": "evt-123",
+                "tenantId": "tenant-abc",
+                "connectionId": "conn-456",
+                "source": "public.users",
+                "ingestedAt": "2026-08-26T08:00:00Z",
+                "totalRows": 250,
+                "rows": [{"id": 1, "name": "Test User"}],
+            },
+        )
+        # No exception means success
+
     def test_handle_extracts_tenant_id(self):
         """handle() correctly reads tenant_id from the message payload."""
         consumer = IngestRawConsumer()

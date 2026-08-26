@@ -42,6 +42,7 @@ public class GraphSyncConsumer {
 
   @KafkaListener(
       topics = KafkaConfig.TOPIC_ENTITY_RESOLVED,
+      groupId = "luminai-graph-sync-group",
       containerFactory = "kafkaListenerContainerFactory",
       properties = {
         JsonDeserializer.VALUE_DEFAULT_TYPE + "=com.luminai.graph.EntityResolvedEvent",

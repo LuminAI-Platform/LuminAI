@@ -422,7 +422,32 @@ export const SchemaMapPage: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
-            setSavedMappings(data);
+            const normalised: SchemaMappingPayload[] = data.map(
+              (item: Record<string, unknown>) => {
+                if (item.sourceTable && item.mappings) {
+                  return item as unknown as SchemaMappingPayload;
+                }
+                return {
+                  connectionId: String(
+                    item.connectorId ?? item.connectionId ?? "",
+                  ),
+                  sourceTable: String(
+                    item.name ?? item.sourceColumn ?? "source_table",
+                  ),
+                  targetEntity: String(
+                    item.targetEntityType ?? item.targetEntity ?? "Entity",
+                  ),
+                  mappings: [
+                    {
+                      sourceColumnId: String(item.sourceColumn ?? ""),
+                      ontologyPropertyId: String(item.targetProperty ?? ""),
+                    },
+                  ],
+                  createdAt: String(item.createdAt ?? new Date().toISOString()),
+                };
+              },
+            );
+            setSavedMappings(normalised);
           }
         }
       } catch {
@@ -549,7 +574,7 @@ export const SchemaMapPage: React.FC = () => {
                 >
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-zinc-400">
-                      {m.sourceTable.split(".").pop()}
+                      {(m.sourceTable ?? "table").split(".").pop()}
                     </span>
                     <svg
                       width="10"
@@ -563,12 +588,19 @@ export const SchemaMapPage: React.FC = () => {
                       <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
                     <span className="font-mono text-emerald-400">
-                      {m.targetEntity}
+                      {m.targetEntity ?? "Entity"}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-zinc-600">
-                    <span>{m.mappings.length} mappings</span>
-                    <span>{new Date(m.createdAt).toLocaleTimeString()}</span>
+                    <span>
+                      {m.mappings?.length ?? 1} mapping
+                      {(m.mappings?.length ?? 1) === 1 ? "" : "s"}
+                    </span>
+                    <span>
+                      {m.createdAt
+                        ? new Date(m.createdAt).toLocaleTimeString()
+                        : ""}
+                    </span>
                   </div>
                 </div>
               ))}

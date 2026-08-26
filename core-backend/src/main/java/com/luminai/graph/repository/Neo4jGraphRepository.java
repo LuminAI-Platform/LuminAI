@@ -163,7 +163,7 @@ public class Neo4jGraphRepository {
   public Optional<GraphQueryResponseDto> findNeighbourhood(
       String tenantId, String entityId, int depth, String relationshipType) {
     String cypher =
-            """
+        """
               MATCH (start:Entity {id: $entityId, tenant_id: $tenantId})
               CALL {
                 WITH start

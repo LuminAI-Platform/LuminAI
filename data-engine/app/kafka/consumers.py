@@ -76,9 +76,19 @@ class IngestRawConsumer:
             key:   Kafka message key (``{tenant_id}:{source_id}``).
             value: Deserialized JSON payload from the Core Backend.
         """
-        tenant_id = value.get("tenant_id", "unknown")
-        source_id = value.get("source_id", "unknown")
-        row_count = value.get("row_count", 0)
+        tenant_id = value.get("tenant_id") or value.get("tenantId") or "unknown"
+        source_id = (
+            value.get("source_id")
+            or value.get("connectionId")
+            or value.get("connection_id")
+            or "unknown"
+        )
+        row_count = (
+            value.get("row_count")
+            or value.get("totalRows")
+            or value.get("total_rows")
+            or 0
+        )
 
         logger.info(
             "Received ingest.raw — tenant=%s, source=%s, rows=%d",

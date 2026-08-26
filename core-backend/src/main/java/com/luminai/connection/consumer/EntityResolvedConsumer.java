@@ -1,5 +1,6 @@
 package com.luminai.connection.consumer;
 
+import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.time.Instant;
 import java.util.Map;
@@ -24,7 +25,7 @@ public class EntityResolvedConsumer {
 
   private static final Logger log = LoggerFactory.getLogger(EntityResolvedConsumer.class);
 
-  private static final String COMPLETED_STATUS = "COMPLETED";
+  private static final PipelineRunStatus COMPLETED_STATUS = PipelineRunStatus.COMPLETED;
 
   private final PipelineRunRepository pipelineRunRepository;
 
@@ -59,8 +60,22 @@ public class EntityResolvedConsumer {
         payload);
 
     try {
-      UUID connectionId = UUID.fromString((String) payload.get("connectionId"));
-      long resolvedEntities = toLong(payload.getOrDefault("resolvedEntities", 0));
+      Object rawConnId =
+          payload.get("connectionId") != null
+              ? payload.get("connectionId")
+              : payload.get("source_id");
+      if (rawConnId == null) {
+        log.debug("entity.resolved event without connectionId/source_id — acknowledging message");
+        ack.acknowledge();
+        return;
+      }
+
+      UUID connectionId = UUID.fromString((String) rawConnId);
+      long resolvedEntities =
+          toLong(
+              payload.get("resolvedEntities") != null
+                  ? payload.get("resolvedEntities")
+                  : payload.getOrDefault("record_count", 0));
 
       // Validate resolvedEntities is non-negative
       if (resolvedEntities < 0) {
@@ -70,7 +85,10 @@ public class EntityResolvedConsumer {
       }
 
       pipelineRunRepository.findByConnectionId(connectionId).stream()
-          .filter(run -> "VALIDATED".equals(run.getStatus()) || "CLEANED".equals(run.getStatus()))
+          .filter(
+              run ->
+                  run.getStatus() == PipelineRunStatus.VALIDATED
+                      || run.getStatus() == PipelineRunStatus.CLEANED)
           .findFirst()
           .ifPresentOrElse(
               run -> {

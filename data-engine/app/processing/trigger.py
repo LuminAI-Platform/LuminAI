@@ -50,7 +50,7 @@ class DagsterTrigger:
             "Triggering cleaning pipeline — tenant=%s, source=%s, rows=%s",
             tenant_id,
             source_id,
-            batch_metadata.get("total_rows", "unknown"),
+            batch_metadata.get("total_rows") or batch_metadata.get("totalRows", "unknown"),
         )
 
         try:
