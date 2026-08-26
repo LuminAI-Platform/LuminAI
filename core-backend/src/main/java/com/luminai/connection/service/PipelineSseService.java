@@ -79,7 +79,7 @@ public class PipelineSseService {
    * @param data the event payload
    */
   public void broadcast(String eventType, UUID connectionId, Map<String, Object> data) {
-    List<EmitterEntry> stale = new CopyOnWriteArrayList<>();
+    List<EmitterEntry> stale = new java.util.ArrayList<>();
 
     for (EmitterEntry entry : emitters) {
       if (entry.connectionIdFilter() != null && !entry.connectionIdFilter().equals(connectionId)) {

@@ -22,6 +22,10 @@ public class PipelineRun {
   private UUID id;
 
   @NotNull
+  @Column(name = "tenant_id", nullable = false)
+  private UUID tenantId;
+
+  @NotNull
   @Column(name = "connection_id", nullable = false)
   private UUID connectionId;
 
@@ -70,6 +74,9 @@ public class PipelineRun {
 
   public enum PipelineRunStatus {
     PENDING,
+    INGESTING,
+    CLEANED,
+    VALIDATED,
     RUNNING,
     COMPLETED,
     FAILED,
@@ -82,6 +89,14 @@ public class PipelineRun {
 
   public void setId(UUID id) {
     this.id = id;
+  }
+
+  public UUID getTenantId() {
+    return tenantId;
+  }
+
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
   }
 
   public UUID getConnectionId() {

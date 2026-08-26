@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.luminai.TestcontainersConfig;
 import com.luminai.connection.model.PipelineRun;
+import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,7 +37,7 @@ class PipelineEventConsumerTest {
     run.setTenantId(UUID.randomUUID());
     run.setConnectionId(connectionId);
     run.setPipelineType("FILE");
-    run.setStatus("INGESTING");
+    run.setStatus(PipelineRunStatus.INGESTING);
     run.setRecordsInput(100);
     pipelineRunRepository.save(run);
   }
@@ -56,7 +57,7 @@ class PipelineEventConsumerTest {
     PipelineRun updated =
         pipelineRunRepository.findByConnectionId(connectionId).stream().findFirst().orElseThrow();
 
-    assertThat(updated.getStatus()).isEqualTo("VALIDATED");
+    assertThat(updated.getStatus()).isEqualTo(PipelineRunStatus.VALIDATED);
     assertThat(updated.getRecordsOutput()).isEqualTo(95);
   }
 
@@ -76,6 +77,6 @@ class PipelineEventConsumerTest {
         pipelineRunRepository.findByConnectionId(connectionId).stream().findFirst().orElseThrow();
 
     // Status should remain INGESTING — invalid status was rejected
-    assertThat(unchanged.getStatus()).isEqualTo("INGESTING");
+    assertThat(unchanged.getStatus()).isEqualTo(PipelineRunStatus.INGESTING);
   }
 }

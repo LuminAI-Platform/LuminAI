@@ -1,6 +1,7 @@
 package com.luminai.connection.consumer;
 
 import com.luminai.connection.model.PipelineRun;
+import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.util.Map;
 import java.util.Set;
@@ -73,10 +74,13 @@ public class PipelineEventConsumer {
         return;
       }
 
-      String newStatus = rawStatus;
+      PipelineRunStatus newStatus = PipelineRunStatus.valueOf(rawStatus);
 
       pipelineRunRepository.findByConnectionId(connectionId).stream()
-          .filter(run -> "PENDING".equals(run.getStatus()) || "INGESTING".equals(run.getStatus()))
+          .filter(
+              run ->
+                  run.getStatus() == PipelineRunStatus.PENDING
+                      || run.getStatus() == PipelineRunStatus.INGESTING)
           .findFirst()
           .ifPresentOrElse(
               run -> {

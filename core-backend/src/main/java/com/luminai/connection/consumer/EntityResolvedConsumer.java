@@ -1,5 +1,6 @@
 package com.luminai.connection.consumer;
 
+import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.time.Instant;
 import java.util.Map;
@@ -24,7 +25,7 @@ public class EntityResolvedConsumer {
 
   private static final Logger log = LoggerFactory.getLogger(EntityResolvedConsumer.class);
 
-  private static final String COMPLETED_STATUS = "COMPLETED";
+  private static final PipelineRunStatus COMPLETED_STATUS = PipelineRunStatus.COMPLETED;
 
   private final PipelineRunRepository pipelineRunRepository;
 
@@ -70,7 +71,10 @@ public class EntityResolvedConsumer {
       }
 
       pipelineRunRepository.findByConnectionId(connectionId).stream()
-          .filter(run -> "VALIDATED".equals(run.getStatus()) || "CLEANED".equals(run.getStatus()))
+          .filter(
+              run ->
+                  run.getStatus() == PipelineRunStatus.VALIDATED
+                      || run.getStatus() == PipelineRunStatus.CLEANED)
           .findFirst()
           .ifPresentOrElse(
               run -> {
