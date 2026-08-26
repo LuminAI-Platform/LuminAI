@@ -15,6 +15,7 @@ import { SchemaMapPage } from "./pages/connections/SchemaMapPage";
 import { PipelinePage } from "./pages/connections/PipelinePage";
 import { OntologyPage } from "./pages/ontology/OntologyPage";
 import { ExplorerPage } from "./pages/explorer/ExplorerPage";
+import { EntityDetailPage } from "./pages/explorer/EntityDetailPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -317,6 +318,12 @@ const explorerRoute = createRoute({
   component: ExplorerPage,
 });
 
+const entityDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/explorer/entity/$entityId",
+  component: EntityDetailPage,
+});
+
 const connectionsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections",
@@ -359,6 +366,7 @@ const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     indexRoute,
     explorerRoute,
+    entityDetailRoute,
     connectionsRoute,
     schemaMapRoute,
     pipelineRoute,

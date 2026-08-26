@@ -154,7 +154,8 @@ export const EntityCard: React.FC<EntityCardProps> = ({
       {/* Action Footer */}
       <div className="flex justify-end pt-1">
         <Link
-          to={`/explorer`} // Will route to /explorer/entity/${id} in Task S3-13
+          to="/explorer/entity/$entityId"
+          params={{ entityId: id }}
           className="text-[11px] font-bold text-zinc-500 group-hover:text-blue-500 transition-colors flex items-center gap-1.5 cursor-pointer select-none"
         >
           <span>View Details</span>
