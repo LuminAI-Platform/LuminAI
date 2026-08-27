@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { DataPreviewTable } from "./DataPreviewTable";
 import type { ColumnConfig } from "./DataPreviewTable";
 import { apiFetch } from "../../../lib/api";
@@ -25,6 +25,19 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     columns: string[];
     rows: Record<string, unknown>[];
   }>({ columns: [], rows: [] });
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   // Step 2 configurations
   const [columnsConfig, setColumnsConfig] = useState<ColumnConfig[]>([]);
