@@ -13,8 +13,8 @@ import json
 import logging
 import os
 import uuid
-from typing import Literal
 from datetime import datetime, timezone
+from typing import Literal
 
 import polars as pl
 from sqlalchemy import create_engine, text
@@ -144,19 +144,24 @@ def persist_review_candidates(
         })
 
     # Try PostgreSQL first
+    pg_engine = None
     try:
-        engine = create_engine(db_url)
-        with engine.connect() as conn:
+        pg_engine = create_engine(db_url, pool_pre_ping=True)
+        with pg_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        with engine.begin() as conn:
+        with pg_engine.begin() as conn:
             conn.execute(text(create_table_sql))
             conn.execute(text(insert_sql), params)
         logger.info("Persisted %d ER review candidates to PostgreSQL er_candidates", len(params))
         return len(params)
     except Exception as exc:
         logger.warning("Could not persist to PostgreSQL (%s). Using SQLite fallback.", exc)
+    finally:
+        if pg_engine is not None:
+            pg_engine.dispose()
 
     # SQLite fallback
+    sqlite_engine = None
     try:
         os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
         sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
@@ -170,3 +175,6 @@ def persist_review_candidates(
     except Exception as exc:
         logger.error("Failed to persist ER review candidates to SQLite: %s", exc)
         return 0
+    finally:
+        if sqlite_engine is not None:
+            sqlite_engine.dispose()

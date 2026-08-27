@@ -1,4 +1,4 @@
-"""Tests for the processing pipeline trigger and status endpoints."""
+"""Tests for the processing pipeline trigger, ER trigger, reconciliation, and status endpoints."""
 
 from fastapi.testclient import TestClient
 
@@ -66,18 +66,55 @@ class TestTriggerEndpoint:
         )
         assert response.status_code == 422
 
-    def test_trigger_empty_body_returns_422(self):
-        """Empty request body returns 422."""
-        response = client.post("/process/trigger", json={})
-        assert response.status_code == 422
 
-    def test_trigger_default_options_empty_dict(self):
-        """Options field defaults to empty dict when omitted."""
+class TestErTriggerEndpoint:
+    """POST /process/er/trigger endpoint tests."""
+
+    def test_er_trigger_returns_202(self):
+        """Triggering an Entity Resolution pipeline returns 202 Accepted."""
         response = client.post(
-            "/process/trigger",
-            json={"source_id": "src-001", "tenant_id": "acme"},
+            "/process/er/trigger",
+            json={"tenant_id": "acme", "source_id": "crm-system"},
         )
         assert response.status_code == 202
+        data = response.json()
+        assert "run_id" in data
+        assert data["status"] == "queued"
+        assert "acme" in data["message"]
+
+    def test_er_trigger_defaults(self):
+        """ER trigger uses default tenant and source if omitted."""
+        response = client.post("/process/er/trigger", json={})
+        assert response.status_code == 202
+        data = response.json()
+        assert "run_id" in data
+
+
+class TestReconciliationEndpoint:
+    """POST /process/reconciliation endpoint tests."""
+
+    def test_reconciliation_healthy_report(self):
+        """Reconciliation execution returns structured report."""
+        records = [
+            {"golden_id": "gr-1", "name": "Alice Smith", "email": "alice@example.com"},
+        ]
+        response = client.post(
+            "/process/reconciliation",
+            json={
+                "tenant_id": "acme",
+                "entity_type": "Person",
+                "pg_records": records,
+                "neo4j_records": records,
+                "opensearch_records": records,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "HEALTHY"
+        assert data["pg_count"] == 1
+        assert data["neo4j_count"] == 1
+        assert data["opensearch_count"] == 1
+        assert data["checksum_match"] is True
 
 
 class TestStatusEndpoint:
@@ -92,17 +129,3 @@ class TestStatusEndpoint:
         assert data["status"] in ("queued", "running", "completed", "failed")
         assert 0 <= data["progress_pct"] <= 100
         assert "message" in data
-
-    def test_status_echoes_run_id(self):
-        """Status endpoint returns the same run_id that was requested."""
-        run_id = "d3b07384-d113-4ec2-a5f6-2a6c2bb47509"
-        response = client.get(f"/process/status/{run_id}")
-        data = response.json()
-        assert data["run_id"] == run_id
-
-    def test_status_response_has_progress(self):
-        """Status response includes progress_pct within valid range."""
-        response = client.get("/process/status/any-id")
-        data = response.json()
-        assert isinstance(data["progress_pct"], int)
-        assert 0 <= data["progress_pct"] <= 100

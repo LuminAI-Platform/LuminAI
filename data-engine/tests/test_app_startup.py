@@ -48,6 +48,14 @@ class TestRouterRegistration:
         )
         assert response.status_code == 202
 
+    def test_processing_er_trigger_route_exists(self):
+        """ER trigger endpoint is registered at /process/er/trigger."""
+        response = client.post(
+            "/process/er/trigger",
+            json={"source_id": "test", "tenant_id": "test"},
+        )
+        assert response.status_code == 202
+
     def test_processing_status_route_exists(self):
         """Processing status endpoint is registered at /process/status/{run_id}."""
         response = client.get("/process/status/test-id")
@@ -72,6 +80,14 @@ class TestRouterRegistration:
                 "interval": "1d",
                 "metric": "count",
             },
+        )
+        assert response.status_code == 200
+
+    def test_reconciliation_route_exists(self):
+        """Reconciliation endpoint is registered at /process/reconciliation."""
+        response = client.post(
+            "/process/reconciliation",
+            json={"tenant_id": "test", "entity_type": "Person"},
         )
         assert response.status_code == 200
 
@@ -108,6 +124,8 @@ class TestSwaggerDocs:
         response = client.get("/openapi.json")
         paths = response.json()["paths"]
         assert "/process/trigger" in paths
+        assert "/process/er/trigger" in paths
+        assert "/process/reconciliation" in paths
         assert "/process/status/{run_id}" in paths
 
     def test_openapi_paths_include_analytics(self):
@@ -116,6 +134,7 @@ class TestSwaggerDocs:
         paths = response.json()["paths"]
         assert "/analytics/query" in paths
         assert "/analytics/timeseries" in paths
+        assert "/analytics/reconciliation" in paths
 
 
 class TestCorsMiddleware:
@@ -139,7 +158,6 @@ class TestCorsMiddleware:
             headers={"Origin": "http://localhost:5173"},
         )
         assert response.status_code == 200
-        # With allow_origins=["*"], the header should be present
         assert "access-control-allow-origin" in response.headers
 
 
