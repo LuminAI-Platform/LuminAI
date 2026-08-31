@@ -23,6 +23,7 @@ public class TenantProvisioningService {
       List.of(
           "ontology_versions",
           "entity_types",
+          "relationship_types",
           "entities",
           "relationships",
           "source_records",
@@ -131,6 +132,30 @@ public class TenantProvisioningService {
         "ontology_versions",
         "id",
         "ON DELETE CASCADE"
+      },
+      {
+        "relationship_types",
+        "fk_rel_types_source",
+        "source_entity_type_id",
+        "entity_types",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "relationship_types",
+        "fk_rel_types_target",
+        "target_entity_type_id",
+        "entity_types",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "relationship_types",
+        "fk_rel_types_ontology",
+        "ontology_id",
+        "ontology_versions",
+        "id",
+        "ON DELETE SET NULL"
       },
       {
         "relationships",
