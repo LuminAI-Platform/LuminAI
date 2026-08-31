@@ -1,7 +1,7 @@
 package com.luminai.config;
 
 import java.time.Duration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
@@ -31,29 +31,34 @@ public class CacheConfig {
 
   @Bean
   @Primary
-  @ConditionalOnClass(RedisConnectionFactory.class)
-  public CacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
-    try {
-      RedisCacheConfiguration config =
-          RedisCacheConfiguration.defaultCacheConfig()
-              .entryTtl(Duration.ofSeconds(60))
-              .disableCachingNullValues()
-              .serializeKeysWith(
-                  RedisSerializationContext.SerializationPair.fromSerializer(
-                      new StringRedisSerializer()))
-              .serializeValuesWith(
-                  RedisSerializationContext.SerializationPair.fromSerializer(
-                      new GenericJackson2JsonRedisSerializer()));
+  public CacheManager cacheManager(
+      ObjectProvider<RedisConnectionFactory> connectionFactoryProvider) {
+    RedisConnectionFactory connectionFactory = connectionFactoryProvider.getIfAvailable();
+    if (connectionFactory != null) {
+      try {
+        RedisCacheConfiguration config =
+            RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofSeconds(60))
+                .disableCachingNullValues()
+                .serializeKeysWith(
+                    RedisSerializationContext.SerializationPair.fromSerializer(
+                        new StringRedisSerializer()))
+                .serializeValuesWith(
+                    RedisSerializationContext.SerializationPair.fromSerializer(
+                        new GenericJackson2JsonRedisSerializer()));
 
-      return RedisCacheManager.builder(connectionFactory)
-          .cacheDefaults(config)
-          .withCacheConfiguration(CACHE_EXPLORER_SEARCH, config.entryTtl(Duration.ofSeconds(60)))
-          .withCacheConfiguration(CACHE_EXPLORER_ENTITIES, config.entryTtl(Duration.ofSeconds(60)))
-          .withCacheConfiguration(CACHE_ONTOLOGY, config.entryTtl(Duration.ofMinutes(5)))
-          .build();
-    } catch (Exception ignored) {
-      return new ConcurrentMapCacheManager(
-          CACHE_EXPLORER_SEARCH, CACHE_EXPLORER_ENTITIES, CACHE_ONTOLOGY);
+        return RedisCacheManager.builder(connectionFactory)
+            .cacheDefaults(config)
+            .withCacheConfiguration(CACHE_EXPLORER_SEARCH, config.entryTtl(Duration.ofSeconds(60)))
+            .withCacheConfiguration(
+                CACHE_EXPLORER_ENTITIES, config.entryTtl(Duration.ofSeconds(60)))
+            .withCacheConfiguration(CACHE_ONTOLOGY, config.entryTtl(Duration.ofMinutes(5)))
+            .build();
+      } catch (Exception ignored) {
+        // Fall back to in-memory cache if Redis initialization fails
+      }
     }
+    return new ConcurrentMapCacheManager(
+        CACHE_EXPLORER_SEARCH, CACHE_EXPLORER_ENTITIES, CACHE_ONTOLOGY);
   }
 }
