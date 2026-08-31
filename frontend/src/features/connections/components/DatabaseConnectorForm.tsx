@@ -66,7 +66,6 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
     };
   }, [onClose]);
 
-
   // Update default port based on database type selection
   const handleDbTypeChange = (type: DBType) => {
     setDbType(type);
