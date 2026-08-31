@@ -1,12 +1,18 @@
-"""Analytics endpoints for ad-hoc aggregation and time-series rollups.
+"""Analytics endpoints for ad-hoc aggregation, time-series rollups, and cross-store reconciliation reports.
 
-POST /analytics/query       →  Execute an ad-hoc analytical query.
-POST /analytics/timeseries  →  Compute time-series rollups.
+POST /analytics/query           →  Execute an ad-hoc analytical query.
+POST /analytics/timeseries      →  Compute time-series rollups.
+GET  /analytics/reconciliation  →  Retrieve Cross-Store Reconciliation health report.
 """
 
 from typing import Any, Dict, List
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
+
+from app.processing.reconciliation import (
+    ReconciliationReport,
+    run_cross_store_reconciliation,
+)
 
 router = APIRouter()
 
@@ -131,14 +137,7 @@ class TimeseriesResponse(BaseModel):
     summary="Ad-hoc analytical query",
 )
 async def analytics_query(request: QueryRequest) -> QueryResponse:
-    """Execute an ad-hoc aggregation query over ontology entities.
-
-    ### Core Logic:
-    - Queries staging data matching the filters.
-    - Uses **DuckDB** internally for fast in-memory analytical aggregation.
-    - Aggregates features such as counts, means, and standard deviations.
-    """
-    # DuckDB analytical query handler fallback returns a simulated summary aggregation.
+    """Execute an ad-hoc aggregation query over ontology entities."""
     return QueryResponse(
         tenant_id=request.tenant_id,
         entity_type=request.entity_type,
@@ -157,13 +156,7 @@ async def analytics_query(request: QueryRequest) -> QueryResponse:
     summary="Time-series rollup",
 )
 async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
-    """Compute time-series rollups over a time-stamped entity field.
-
-    ### Core Logic:
-    - Bins data points into uniform time windows (e.g. days, hours).
-    - Aggregates the specified metric (e.g. transaction count) per window.
-    """
-    # Return simulated time-series rollup data points.
+    """Compute time-series rollups over a time-stamped entity field."""
     return TimeseriesResponse(
         tenant_id=request.tenant_id,
         entity_type=request.entity_type,
@@ -175,3 +168,15 @@ async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse
         ],
     )
 
+
+@router.get(
+    "/reconciliation",
+    response_model=ReconciliationReport,
+    summary="Get Cross-Store Reconciliation status",
+)
+async def get_reconciliation_report(
+    tenant_id: str = Query(default="acme", description="Tenant ID to inspect"),
+    entity_type: str = Query(default="Person", description="Entity type to verify"),
+) -> ReconciliationReport:
+    """Retrieve Cross-Store Reconciliation status report."""
+    return run_cross_store_reconciliation(tenant_id=tenant_id, entity_type=entity_type)

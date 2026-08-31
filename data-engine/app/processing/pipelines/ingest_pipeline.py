@@ -1,10 +1,9 @@
-"""Dagster asset definitions for the LuminAI ingest pipeline.
+"""Dagster asset definitions for the LuminAI data pipelines.
 
-These assets demonstrate the pipeline layout and verify that Polars 
-DataFrames can be created and manipulated within Dagster's execution context.
-
-Pipeline flow:
-  raw_data_placeholder  →  cleaned_data_placeholder
+Includes:
+  - Ingestion & cleaning pipeline assets
+  - Entity Resolution (ER) & Golden Record assets
+  - Automated recurring processing schedules
 """
 
 import polars as pl
@@ -14,8 +13,15 @@ from app.processing.pipelines.cleaning_pipeline import (
     cleaned_ingestion_data,
     deduplicated_ingestion_data,
     raw_ingestion_data as cleaning_raw,
-    validated_ingestion_data,
     staged_ingestion_data,
+    validated_ingestion_data,
+)
+from app.processing.pipelines.er_pipeline import (
+    er_blocked_pairs,
+    er_classified_pairs,
+    er_golden_records,
+    er_scored_pairs,
+    staged_records_for_er,
 )
 from app.processing.schedules import (
     daily_er_schedule,
@@ -33,13 +39,7 @@ from app.processing.schedules import (
     ),
 )
 def raw_data_placeholder(context: AssetExecutionContext) -> pl.DataFrame:
-    """
-    Load raw ingestion data.
-
-    Creates a synthetic Polars DataFrame to verify the Polars library 
-    is installed and constructs DataFrames correctly inside the
-    Dagster execution context.
-    """
+    """Load raw ingestion data."""
     context.log.info("🔵 raw_data_placeholder: generating synthetic raw dataset…")
 
     df = pl.DataFrame(
@@ -58,13 +58,7 @@ def raw_data_placeholder(context: AssetExecutionContext) -> pl.DataFrame:
         }
     )
 
-    context.log.info(
-        "🔵 raw_data_placeholder: loaded DataFrame — shape=%s, columns=%s",
-        df.shape,
-        df.columns,
-    )
-    context.log.info("🔵 raw_data_placeholder: preview:\n%s", df)
-
+    context.log.info("🔵 raw_data_placeholder: loaded DataFrame — shape=%s", df.shape)
     return df
 
 
@@ -73,8 +67,7 @@ def raw_data_placeholder(context: AssetExecutionContext) -> pl.DataFrame:
     group_name="ingest",
     description=(
         "Applies basic cleaning transforms to the raw DataFrame. "
-        "Demonstrates Polars chained expressions and asset dependency on "
-        "`raw_data_placeholder`."
+        "Demonstrates Polars chained expressions and asset dependency."
     ),
     deps=[raw_data_placeholder],
 )
@@ -82,18 +75,8 @@ def cleaned_data_placeholder(
     context: AssetExecutionContext,
     raw_data_placeholder: pl.DataFrame,
 ) -> pl.DataFrame:
-    """
-    Clean and normalise the raw ingestion DataFrame.
-
-    Operations applied:
-      - Lowercase the `name` field.
-      - Strip leading/trailing whitespace from strings.
-      - Drop exact duplicate rows.
-    """
-    context.log.info(
-        "🟢 cleaned_data_placeholder: received upstream DataFrame — rows=%d",
-        len(raw_data_placeholder),
-    )
+    """Clean and normalise the raw ingestion DataFrame."""
+    context.log.info("🟢 cleaned_data_placeholder: cleaning DataFrame…")
 
     cleaned = (
         raw_data_placeholder
@@ -105,14 +88,7 @@ def cleaned_data_placeholder(
         .sort("id")
     )
 
-    context.log.info(
-        "🟢 cleaned_data_placeholder: cleaning complete — "
-        "before=%d rows, after=%d rows (deduped by email)",
-        len(raw_data_placeholder),
-        len(cleaned),
-    )
-    context.log.info("🟢 cleaned_data_placeholder: result:\n%s", cleaned)
-
+    context.log.info("🟢 cleaned_data_placeholder: complete — rows=%d", len(cleaned))
     return cleaned
 
 
@@ -127,10 +103,15 @@ defs = Definitions(
         deduplicated_ingestion_data,
         validated_ingestion_data,
         staged_ingestion_data,
+        # Entity Resolution (ER) pipeline assets
+        staged_records_for_er,
+        er_blocked_pairs,
+        er_scored_pairs,
+        er_classified_pairs,
+        er_golden_records,
     ],
     schedules=[
         hourly_cleaning_schedule,
         daily_er_schedule,
     ],
 )
-

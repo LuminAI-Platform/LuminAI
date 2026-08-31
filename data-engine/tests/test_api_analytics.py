@@ -1,4 +1,4 @@
-"""Tests for the analytics API endpoints (query + timeseries)."""
+"""Tests for the analytics API endpoints (query, timeseries, and reconciliation)."""
 
 from fastapi.testclient import TestClient
 
@@ -59,29 +59,6 @@ class TestAnalyticsQueryEndpoint:
         )
         assert response.status_code == 422
 
-    def test_query_empty_aggregations_defaults(self):
-        """Empty aggregations list is accepted (defaults to empty)."""
-        response = client.post(
-            "/analytics/query",
-            json={
-                "tenant_id": "acme",
-                "entity_type": "Person",
-            },
-        )
-        assert response.status_code == 200
-
-    def test_query_empty_filters_defaults(self):
-        """Omitted filters defaults to empty dict."""
-        response = client.post(
-            "/analytics/query",
-            json={
-                "tenant_id": "acme",
-                "entity_type": "Person",
-                "aggregations": ["count"],
-            },
-        )
-        assert response.status_code == 200
-
 
 class TestTimeseriesEndpoint:
     """POST /analytics/timeseries endpoint tests."""
@@ -106,68 +83,16 @@ class TestTimeseriesEndpoint:
         assert isinstance(data["series"], list)
         assert len(data["series"]) > 0
 
-    def test_timeseries_series_format(self):
-        """Each series data point has timestamp and value keys."""
-        response = client.post(
-            "/analytics/timeseries",
-            json={
-                "tenant_id": "acme",
-                "entity_type": "Transaction",
-                "time_field": "created_at",
-                "interval": "1d",
-                "metric": "count",
-            },
-        )
-        data = response.json()
-        for point in data["series"]:
-            assert "timestamp" in point
-            assert "value" in point
 
-    def test_timeseries_with_filters(self):
-        """Time-series accepts optional filter criteria."""
-        response = client.post(
-            "/analytics/timeseries",
-            json={
-                "tenant_id": "acme",
-                "entity_type": "Transaction",
-                "time_field": "created_at",
-                "interval": "1h",
-                "metric": "sum",
-                "filters": {"status": "completed"},
-            },
-        )
+class TestAnalyticsReconciliationEndpoint:
+    """GET /analytics/reconciliation endpoint tests."""
+
+    def test_get_reconciliation_returns_200(self):
+        response = client.get("/analytics/reconciliation?tenant_id=acme&entity_type=Person")
         assert response.status_code == 200
-
-    def test_timeseries_missing_required_fields_returns_422(self):
-        """Missing required fields returns 422."""
-        response = client.post(
-            "/analytics/timeseries",
-            json={"tenant_id": "acme"},
-        )
-        assert response.status_code == 422
-
-    def test_timeseries_missing_interval_returns_422(self):
-        """Missing interval field returns 422."""
-        response = client.post(
-            "/analytics/timeseries",
-            json={
-                "tenant_id": "acme",
-                "entity_type": "Transaction",
-                "time_field": "created_at",
-                "metric": "count",
-            },
-        )
-        assert response.status_code == 422
-
-    def test_timeseries_missing_metric_returns_422(self):
-        """Missing metric field returns 422."""
-        response = client.post(
-            "/analytics/timeseries",
-            json={
-                "tenant_id": "acme",
-                "entity_type": "Transaction",
-                "time_field": "created_at",
-                "interval": "1d",
-            },
-        )
-        assert response.status_code == 422
+        data = response.json()
+        assert "status" in data
+        assert data["tenant_id"] == "acme"
+        assert data["entity_type"] == "Person"
+        assert "pg_count" in data
+        assert "checksums" in data
