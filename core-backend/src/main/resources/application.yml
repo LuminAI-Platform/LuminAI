@@ -16,6 +16,15 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    neo4j:
+      enabled: false
+    kafka:
+      enabled: false
+    redis:
+      enabled: false
 
 springdoc:
   api-docs:
