@@ -23,8 +23,9 @@
 
 > **Working Directory:** `core-backend/`  
 > **Stack:** Java 21 + Spring Boot 3.5  
+> **Sprint Status:** ✅ **100% Completed (20/20 SP)**
 
-### Task 1 · S3-01: EntityTypeService & OntologyController
+### Task 1 · S3-01: EntityTypeService & OntologyController (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -39,13 +40,13 @@ Build CRUD REST APIs for dynamic Ontology Entity Types with JSON schema property
 **Repo Files:**
 - `core-backend/src/main/java/com/luminai/ontology/model/EntityType.java`
 - `core-backend/src/main/java/com/luminai/ontology/dto/EntityTypeDto.java`
-- `core-backend/src/main/java/com/luminai/ontology/controller/EntityTypeController.java`
+- `core-backend/src/main/java/com/luminai/ontology/controller/OntologyController.java`
 - `core-backend/src/main/java/com/luminai/ontology/service/EntityTypeService.java`
 - `core-backend/src/main/java/com/luminai/ontology/repository/EntityTypeRepository.java`
 
 ---
 
-### Task 2 · S3-02: RelationshipTypeService
+### Task 2 · S3-02: RelationshipTypeService (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -60,11 +61,13 @@ Build CRUD REST APIs for directional Ontology Relationship Types connecting sour
 **Repo Files:**
 - `core-backend/src/main/java/com/luminai/ontology/model/RelationshipType.java`
 - `core-backend/src/main/java/com/luminai/ontology/dto/RelationshipTypeDto.java`
-- `core-backend/src/main/java/com/luminai/ontology/controller/RelationshipTypeController.java`
+- `core-backend/src/main/java/com/luminai/ontology/controller/OntologyController.java`
+- `core-backend/src/main/java/com/luminai/ontology/service/RelationshipTypeService.java`
+- `core-backend/src/main/java/com/luminai/ontology/repository/RelationshipTypeRepository.java`
 
 ---
 
-### Task 3 · S3-03: OntologyVersionService & Publishing
+### Task 3 · S3-03: OntologyVersionService & Publishing (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -78,7 +81,7 @@ Publish immutable ontology schema release snapshots and calculate schema diffs.
 
 ---
 
-### Task 4 · S3-04: Flyway Migration V6 — Ontology Tables
+### Task 4 · S3-04: Flyway Migration V6 — Ontology Tables (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -95,9 +98,10 @@ Create `V6__ontology_tables.sql` defining `entity_types`, `relationship_types`, 
 ## 👤 E2 — Backend Lead
 
 > **Working Directory:** `core-backend/`  
-> **Stack:** Java 21 + Spring Boot 3.5 + Spring Data Neo4j  
+> **Stack:** Java 21 + Spring Boot 3.5 + Spring Data Neo4j + OpenSearch + Redis  
+> **Sprint Status:** ✅ **100% Completed (29/29 SP)**
 
-### Task 5 · S3-05: GraphSyncConsumer (Neo4j Sync)
+### Task 5 · S3-05: GraphSyncConsumer (Neo4j Sync) (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -111,7 +115,7 @@ Create `V6__ontology_tables.sql` defining `entity_types`, `relationship_types`, 
 
 ---
 
-### Task 6 · S3-06: GraphController — Neighbourhood Query API
+### Task 6 · S3-06: GraphController — Neighbourhood Query API (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -125,7 +129,7 @@ REST API `/api/v1/graph/neighbourhood` for depth-N Cypher graph traversals.
 
 ---
 
-### Task 7 · S3-07: GraphController — Shortest-Path API
+### Task 7 · S3-07: GraphController — Shortest-Path API (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -139,12 +143,7 @@ Shortest path graph algorithm REST endpoint `/api/v1/graph/shortest-path`.
 
 ---
 
-## 👤 E3 — Backend Engineer 2
-
-> **Working Directory:** `core-backend/`  
-> **Stack:** Java 21 + Spring Boot 3.5 + OpenSearch + Redis  
-
-### Task 8 · S3-08: IndexSyncConsumer (OpenSearch Indexer)
+### Task 8 · S3-08: IndexSyncConsumer (OpenSearch Indexer) (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -158,7 +157,7 @@ Shortest path graph algorithm REST endpoint `/api/v1/graph/shortest-path`.
 
 ---
 
-### Task 9 · S3-09: ExplorerController — Search & Facets API
+### Task 9 · S3-09: ExplorerController — Search & Facets API (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -172,7 +171,7 @@ Full-text search, facet aggregations, and pagination endpoint `/api/v1/explorer/
 
 ---
 
-### Task 10 · S3-10: Redis Query Cache Integration
+### Task 10 · S3-10: Redis Query Cache Integration (✅ COMPLETED)
 
 | Field | Value |
 |---|---|
@@ -180,6 +179,15 @@ Full-text search, facet aggregations, and pagination endpoint `/api/v1/explorer/
 | **Priority** | 🟡 Medium |
 | **SP** | 3 |
 | **Branch** | `feature/S3-10-redis-search-cache` |
+
+**Description:**
+Configure Spring `@Cacheable` with Redis cache manager (60 s TTL) for frequent Explorer search queries and entity detail views.
+
+---
+
+## 👤 E3 — Backend Engineer 2
+
+> **Status:** Sprint 3 tasks reassigned to **E2 — Backend Lead** and ✅ **100% Completed**.
 
 ---
 
