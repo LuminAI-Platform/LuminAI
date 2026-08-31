@@ -56,6 +56,9 @@ public class KafkaConfig {
   @Value("${luminai.kafka.topic.replication-factor:1}")
   private short replicationFactor;
 
+  @Value("${spring.kafka.listener.auto-startup:true}")
+  private boolean autoStartup;
+
   @Value("${KAFKA_USERNAME:}")
   private String kafkaUsername;
 
@@ -230,6 +233,7 @@ public class KafkaConfig {
     factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
 
     factory.setConcurrency(3);
+    factory.setAutoStartup(autoStartup);
 
     // Micrometer observation for distributed tracing
     factory.getContainerProperties().setObservationEnabled(true);
