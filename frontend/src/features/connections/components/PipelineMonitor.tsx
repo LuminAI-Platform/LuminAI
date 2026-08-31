@@ -11,122 +11,6 @@ import {
 
 type FilterStatus = "ALL" | PipelineJobStatus;
 
-// ─── Mock seed data ───────────────────────────────────────────────────────────
-
-const MOCK_ERRORS: PipelineErrorEntry[] = [
-  {
-    timestamp: new Date(Date.now() - 45_000).toISOString(),
-    level: "ERROR",
-    message: "Null constraint violation on column 'user_id' — row skipped.",
-    record: "row#4821",
-  },
-  {
-    timestamp: new Date(Date.now() - 30_000).toISOString(),
-    level: "WARN",
-    message: "Date parse failed for value '31/13/2025', defaulting to null.",
-    record: "row#5103",
-  },
-  {
-    timestamp: new Date(Date.now() - 12_000).toISOString(),
-    level: "ERROR",
-    message: "Foreign key reference missing: orders.customer_id not found.",
-    record: "row#5881",
-  },
-];
-
-function makeMockJobs(): PipelineJob[] {
-  return [
-    {
-      id: "pipe-001",
-      connectorName: "Snowflake Prod",
-      connectorType: "Snowflake",
-      status: "RUNNING",
-      progress: 42,
-      recordsInput: 500_000,
-      recordsOutput: 210_000,
-      recordsFailed: 3,
-      throughput: 14_320,
-      startedAt: new Date(Date.now() - 88_000).toISOString(),
-      durationSeconds: 88,
-      errors: MOCK_ERRORS,
-    },
-    {
-      id: "pipe-002",
-      connectorName: "Postgres Analytics",
-      connectorType: "PostgreSQL",
-      status: "RUNNING",
-      progress: 71,
-      recordsInput: 120_000,
-      recordsOutput: 85_200,
-      recordsFailed: 0,
-      throughput: 9_850,
-      startedAt: new Date(Date.now() - 210_000).toISOString(),
-      durationSeconds: 210,
-      errors: [],
-    },
-    {
-      id: "pipe-003",
-      connectorName: "S3 Event Logs",
-      connectorType: "S3 / File",
-      status: "COMPLETED",
-      progress: 100,
-      recordsInput: 78_400,
-      recordsOutput: 78_390,
-      recordsFailed: 10,
-      throughput: 0,
-      startedAt: new Date(Date.now() - 620_000).toISOString(),
-      durationSeconds: 620,
-      errors: [
-        {
-          timestamp: new Date(Date.now() - 600_000).toISOString(),
-          level: "WARN",
-          message:
-            "Encoding mismatch detected on 10 rows — converted to UTF-8.",
-        },
-      ],
-    },
-    {
-      id: "pipe-004",
-      connectorName: "Kafka Stream Ingest",
-      connectorType: "Kafka",
-      status: "FAILED",
-      progress: 28,
-      recordsInput: 250_000,
-      recordsOutput: 70_000,
-      recordsFailed: 412,
-      throughput: 0,
-      startedAt: new Date(Date.now() - 3_400_000).toISOString(),
-      durationSeconds: 3400,
-      errors: [
-        {
-          timestamp: new Date(Date.now() - 3_390_000).toISOString(),
-          level: "ERROR",
-          message: "Broker connection lost: ECONNREFUSED kafka:9092",
-        },
-        {
-          timestamp: new Date(Date.now() - 3_380_000).toISOString(),
-          level: "ERROR",
-          message: "Pipeline aborted after 3 consecutive broker failures.",
-        },
-      ],
-    },
-    {
-      id: "pipe-005",
-      connectorName: "MySQL CRM Export",
-      connectorType: "MySQL",
-      status: "CLEANED",
-      progress: 100,
-      recordsInput: 34_200,
-      recordsOutput: 34_187,
-      recordsFailed: 13,
-      throughput: 0,
-      startedAt: new Date(Date.now() - 1_800_000).toISOString(),
-      durationSeconds: 1800,
-      errors: [],
-    },
-  ];
-}
-
 // ─── Normalise raw API payload to PipelineJob ─────────────────────────────────
 
 function normaliseJob(raw: Record<string, unknown>): PipelineJob {
@@ -348,7 +232,6 @@ export const PipelineMonitor: React.FC = () => {
 
   const sseRef = useRef<EventSource | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const useMockRef = useRef(false);
 
   // ── Ingest raw payload ──────────────────────────────────────────────────────
   const ingestPayload = useCallback((raw: unknown) => {
@@ -368,45 +251,22 @@ export const PipelineMonitor: React.FC = () => {
     }
   }, []);
 
-  // ── Polling fallback ────────────────────────────────────────────────────────
+  // ── Polling fetch ──────────────────────────────────────────────────────────
   const fetchOnce = useCallback(async () => {
-    if (useMockRef.current) return;
     try {
       const res = await apiFetch("/api/v1/pipelines/runs");
-      const data = await res.json();
-      ingestPayload(data);
-    } catch {
-      // If backend unavailable, switch to mock
-      useMockRef.current = true;
-      setJobs(makeMockJobs());
-      setLastUpdated(new Date());
+      if (res.ok) {
+        const data = await res.json();
+        ingestPayload(data);
+      }
+    } catch (err: unknown) {
+      setFetchError(
+        err instanceof Error ? err.message : "Failed to load pipeline runs",
+      );
     } finally {
       setIsLoading(false);
     }
   }, [ingestPayload]);
-
-  // ── Animate mock running jobs ───────────────────────────────────────────────
-  const advanceMock = useCallback(() => {
-    setJobs((prev) =>
-      prev.map((j) => {
-        if (j.status !== "RUNNING") return j;
-        const delta = Math.floor(Math.random() * 3_000 + 500);
-        const newOutput = Math.min(j.recordsInput, j.recordsOutput + delta);
-        const progress = (newOutput / j.recordsInput) * 100;
-        const status: PipelineJobStatus =
-          progress >= 100 ? "COMPLETED" : "RUNNING";
-        return {
-          ...j,
-          recordsOutput: newOutput,
-          progress,
-          status,
-          throughput: Math.floor(Math.random() * 5_000 + 8_000),
-          durationSeconds: j.durationSeconds + 3,
-        };
-      }),
-    );
-    setLastUpdated(new Date());
-  }, []);
 
   // ── Mount: try SSE first, fall back to polling ──────────────────────────────
   useEffect(() => {
@@ -467,15 +327,8 @@ export const PipelineMonitor: React.FC = () => {
 
     const startPolling = () => {
       setPolling(true);
-      // Initial fetch
       fetchOnce().then(() => {
-        // If backend was unavailable, mock is already set
-        if (useMockRef.current) {
-          // animate mock every 3s
-          pollRef.current = setInterval(advanceMock, 3000);
-        } else {
-          pollRef.current = setInterval(fetchOnce, 3000);
-        }
+        pollRef.current = setInterval(fetchOnce, 5000);
       });
     };
 
@@ -485,7 +338,7 @@ export const PipelineMonitor: React.FC = () => {
       sseRef.current?.close();
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [fetchOnce, ingestPayload, advanceMock]);
+  }, [fetchOnce, ingestPayload]);
 
   // ── Derived stats ───────────────────────────────────────────────────────────
   const running = jobs.filter((j) => j.status === "RUNNING");
