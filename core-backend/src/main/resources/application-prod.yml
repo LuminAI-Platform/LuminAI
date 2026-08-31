@@ -97,6 +97,7 @@ spring:
       ack-mode: manual_immediate
       concurrency: 3
       observation-enabled: true
+      auto-startup: ${KAFKA_AUTO_STARTUP:true}
     admin:
       auto-create: false
       properties:

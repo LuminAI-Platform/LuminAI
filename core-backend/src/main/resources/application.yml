@@ -2,7 +2,7 @@ spring:
   application:
     name: luminai-core
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
 server:
   port: 8080
