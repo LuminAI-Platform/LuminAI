@@ -29,8 +29,14 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import time
 from typing import Any, Dict, List
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import polars as pl
 from sqlalchemy import create_engine, text
@@ -61,7 +67,7 @@ from app.processing.reconciliation import run_cross_store_reconciliation
 
 def print_banner(text: str) -> None:
     print("\n" + "=" * 70)
-    print(f" 🚀 {text}")
+    print(f" [*] {text}")
     print("=" * 70)
 
 
@@ -242,7 +248,7 @@ def run_full_test_pipeline(
             pl.col("country").str.to_uppercase().alias("country")
         )
 
-    print(f"✓ Stripped whitespace and normalized casing across {raw_df.height} rows.")
+    print(f"[OK] Stripped whitespace and normalized casing across {raw_df.height} rows.")
 
     # -------------------------------------------------------------
     # Step 3: ER Candidate Blocking (Phonetic Metaphone + Country)
@@ -259,9 +265,9 @@ def run_full_test_pipeline(
     total_possible_pairs = raw_df.height * (raw_df.height - 1) // 2
     reduction_ratio = calculate_blocking_reduction_ratio(raw_df.height, candidate_pairs.height)
 
-    print(f"✓ Total possible O(N^2) pairs: {total_possible_pairs}")
-    print(f"✓ Candidate pairs selected by blocking: {candidate_pairs.height}")
-    print(f"✓ Search space reduction: {reduction_ratio:.2%} (Complexity reduced from O(N^2) to O(N))")
+    print(f"[OK] Total possible O(N^2) pairs: {total_possible_pairs}")
+    print(f"[OK] Candidate pairs selected by blocking: {candidate_pairs.height}")
+    print(f"[OK] Search space reduction: {reduction_ratio:.2%} (Complexity reduced from O(N^2) to O(N))")
 
     # -------------------------------------------------------------
     # Step 4: Pairwise Similarity Scoring (Jaro-Winkler & Levenshtein)
@@ -269,7 +275,7 @@ def run_full_test_pipeline(
     print_step(4, "Pairwise Attribute Scoring & Weighted Confidence Computation")
     if candidate_pairs.height > 0:
         scored_pairs = compare_candidate_pairs(candidate_pairs)
-        print("✓ Computed Jaro-Winkler (names) and Levenshtein (IDs/dates) similarities.")
+        print("[OK] Computed Jaro-Winkler (names) and Levenshtein (IDs/dates) similarities.")
         print("\nCandidate Pairs Evaluation:")
         display_cols = [c for c in ["id_a", "id_b", "name_a", "name_b", "confidence_score"] if c in scored_pairs.columns]
         print(scored_pairs.select(display_cols))
@@ -283,18 +289,18 @@ def run_full_test_pipeline(
     print_step(5, "Classification: Match (>=0.90), Review (0.70-0.89), Non-Match (<0.70)")
     matches_df, review_df, non_matches_df = classify_candidate_pairs(scored_pairs)
 
-    print(f"✓ Automatic Matches (S >= 0.90): {matches_df.height} pairs")
-    print(f"✓ Borderline Human Review (0.70 <= S < 0.90): {review_df.height} pairs")
-    print(f"✓ Discarded Non-Matches (S < 0.70): {non_matches_df.height} pairs")
+    print(f"[OK] Automatic Matches (S >= 0.90): {matches_df.height} pairs")
+    print(f"[OK] Borderline Human Review (0.70 <= S < 0.90): {review_df.height} pairs")
+    print(f"[OK] Discarded Non-Matches (S < 0.70): {non_matches_df.height} pairs")
 
     if review_df.height > 0:
-        print("\n⚠️ Borderline Pairs Flagged for Analyst Review in 'er_candidates' table:")
+        print("\n[REVIEW] Borderline Pairs Flagged for Analyst Review in 'er_candidates' table:")
         for r in review_df.iter_rows(named=True):
-            print(f"  • Pair [{r.get('id_a')} ↔ {r.get('id_b')}] — Confidence Score: {r.get('confidence_score'):.4f} ({r.get('name_a')} vs {r.get('name_b')})")
+            print(f"  - Pair [{r.get('id_a')} <-> {r.get('id_b')}] -- Confidence Score: {r.get('confidence_score'):.4f} ({r.get('name_a')} vs {r.get('name_b')})")
 
     if persist_db and review_df.height > 0:
         saved_reviews = persist_review_candidates(review_df, tenant_id=tenant_id)
-        print(f"✓ Successfully persisted {saved_reviews} review candidates to database.")
+        print(f"[OK] Successfully persisted {saved_reviews} review candidates to database.")
 
     # -------------------------------------------------------------
     # Step 6: Graph Clustering & Golden Record Merge
@@ -303,18 +309,18 @@ def run_full_test_pipeline(
     records_list = cleaned_df.to_dicts()
     clusters = cluster_record_dictionaries(matches_df, records_list, id_col="id")
 
-    print(f"✓ Resolved {len(clusters)} distinct entity clusters from {len(records_list)} input records.")
+    print(f"[OK] Resolved {len(clusters)} distinct entity clusters from {len(records_list)} input records.")
     for idx, c in enumerate(clusters, 1):
         ids = [r.get("id") for r in c]
         names = [r.get("name") for r in c]
-        print(f"  • Cluster #{idx} (Size: {len(c)}): IDs={ids} → Names={names}")
+        print(f"  - Cluster #{idx} (Size: {len(c)}): IDs={ids} -> Names={names}")
 
     golden_records_df = merge_clusters_to_golden_records(clusters, tenant_id=tenant_id)
-    print(f"\n✓ Synthesized {golden_records_df.height} Canonical Golden Records.")
+    print(f"\n[OK] Synthesized {golden_records_df.height} Canonical Golden Records.")
 
     if persist_db and golden_records_df.height > 0:
         saved_gr = persist_golden_records(golden_records_df, tenant_id=tenant_id)
-        print(f"✓ Successfully saved {saved_gr} Golden Records to PostgreSQL / SQLite database.")
+        print(f"[OK] Successfully saved {saved_gr} Golden Records to PostgreSQL / SQLite database.")
 
     # -------------------------------------------------------------
     # Step 7: Field-Level Provenance Tracking
@@ -336,15 +342,15 @@ def run_full_test_pipeline(
             prov_entries = track_field_provenance(g_rec, cluster, tenant_id=tenant_id)
             all_prov.extend(prov_entries)
 
-    print(f"✓ Generated {len(all_prov)} field-level provenance audit entries.")
+    print(f"[OK] Generated {len(all_prov)} field-level provenance audit entries.")
     if all_prov:
         print("Sample Field Provenance:")
         for p in all_prov[:3]:
-            print(f"  • Golden Entity [{p['golden_id']}] -> Property '{p['attribute_name']}': '{p['attribute_value']}' (contributed by source: {p['source_id']}, record: {p['source_record_id']})")
+            print(f"  - Golden Entity [{p['golden_id']}] -> Property '{p['attribute_name']}': '{p['attribute_value']}' (contributed by source: {p['source_id']}, record: {p['source_record_id']})")
 
     if persist_db and all_prov:
         saved_prov = persist_provenance_records(all_prov, tenant_id=tenant_id)
-        print(f"✓ Saved {saved_prov} field provenance records to database.")
+        print(f"[OK] Saved {saved_prov} field provenance records to database.")
 
     # -------------------------------------------------------------
     # Step 8: Cross-Store Reconciliation Verification
@@ -357,20 +363,20 @@ def run_full_test_pipeline(
         neo4j_records=golden_records_df.to_dicts(),
         opensearch_records=golden_records_df.to_dicts(),
     )
-    print(f"✓ Cross-Store Status: {rec_report.status}")
-    print(f"✓ PG Records: {rec_report.pg_count} | Neo4j Nodes: {rec_report.neo4j_count} | OpenSearch Docs: {rec_report.opensearch_count}")
-    print(f"✓ SHA-256 Checksum Match: {rec_report.checksum_match}")
+    print(f"[OK] Cross-Store Status: {rec_report.status}")
+    print(f"[OK] PG Records: {rec_report.pg_count} | Neo4j Nodes: {rec_report.neo4j_count} | OpenSearch Docs: {rec_report.opensearch_count}")
+    print(f"[OK] SHA-256 Checksum Match: {rec_report.checksum_match}")
 
     # -------------------------------------------------------------
     # Summary
     # -------------------------------------------------------------
     duration = time.time() - start_time
     print_banner(f"Execution Complete in {duration:.3f} seconds")
-    print(f"• Input Records Processed : {raw_df.height}")
-    print(f"• Deduplicated Golden Records: {golden_records_df.height}")
-    print(f"• Duplicates Merged       : {raw_df.height - golden_records_df.height}")
-    print(f"• Analyst Review Queue    : {review_df.height} candidates")
-    print(f"• Provenance Entries Logged: {len(all_prov)}")
+    print(f"- Input Records Processed : {raw_df.height}")
+    print(f"- Deduplicated Golden Records: {golden_records_df.height}")
+    print(f"- Duplicates Merged       : {raw_df.height - golden_records_df.height}")
+    print(f"- Analyst Review Queue    : {review_df.height} candidates")
+    print(f"- Provenance Entries Logged: {len(all_prov)}")
     print("=" * 70)
 
 

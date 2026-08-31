@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { X, Database, Clock, Tag, GitBranch, Info, RefreshCw } from "lucide-react";
+import {
+  X,
+  Database,
+  Clock,
+  Tag,
+  GitBranch,
+  Info,
+  RefreshCw,
+} from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 import type { ProvenanceLine } from "./EntityPropertyTable";
 
@@ -64,7 +72,9 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
     const fetchProvenance = async () => {
       setLoading(true);
       try {
-        const res = await apiFetch(`/api/v1/explorer/entities/${entityId}/provenance`);
+        const res = await apiFetch(
+          `/api/v1/explorer/entities/${entityId}/provenance`,
+        );
         if (res.ok) {
           const data: ProvenanceLine[] = await res.json();
           if (isMounted) {
@@ -144,7 +154,9 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
           {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 py-16 gap-3">
               <RefreshCw className="w-5 h-5 text-blue-400 animate-spin" />
-              <span className="text-xs text-zinc-500">Loading provenance...</span>
+              <span className="text-xs text-zinc-500">
+                Loading provenance...
+              </span>
             </div>
           ) : lines.length === 0 ? (
             /* Empty state */

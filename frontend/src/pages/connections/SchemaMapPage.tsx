@@ -413,12 +413,10 @@ export const SchemaMapPage: React.FC = () => {
     [],
   );
   const [showHistory, setShowHistory] = useState(false);
-  const [dynamicOntologyMap, setDynamicOntologyMap] = useState<
-    Record<string, OntologyProperty[]>
-  >(MOCK_ONTOLOGIES);
-  const [dynamicOntologyLabels, setDynamicOntologyLabels] = useState<
-    Record<string, string>
-  >(ONTOLOGY_LABELS);
+  const [dynamicOntologyMap, setDynamicOntologyMap] =
+    useState<Record<string, OntologyProperty[]>>(MOCK_ONTOLOGIES);
+  const [dynamicOntologyLabels, setDynamicOntologyLabels] =
+    useState<Record<string, string>>(ONTOLOGY_LABELS);
 
   // Fetch live ontology entity types from backend API GET /api/v1/ontology/entity-types
   useEffect(() => {
