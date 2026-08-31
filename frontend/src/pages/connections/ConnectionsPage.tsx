@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "@tanstack/react-router";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
@@ -480,10 +481,45 @@ export const ConnectionsPage: React.FC = () => {
                         {file.status}
                       </span>
                     </div>
-                    <div className="col-span-1 text-right select-none">
+                    <div className="col-span-1 flex items-center justify-end gap-1.5 select-none">
+                      <Link
+                        to="/explorer"
+                        className="p-1.5 hover:bg-zinc-900 hover:text-blue-400 text-zinc-400 rounded transition-colors cursor-pointer"
+                        title="View Cleaned & Resolved Golden Records in Entity Explorer"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                      </Link>
+                      <Link
+                        to="/connections/schema-map"
+                        className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
+                        title="Map File Schema to Ontology"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                          <polyline points="2 17 12 22 22 17" />
+                          <polyline points="2 12 12 17 22 12" />
+                        </svg>
+                      </Link>
                       <button
                         onClick={() => deleteFile(file.id)}
-                        className="p-1 hover:bg-zinc-900 hover:text-red-400 text-zinc-500 rounded transition-colors cursor-pointer"
+                        className="p-1.5 hover:bg-zinc-900 hover:text-red-400 text-zinc-500 rounded transition-colors cursor-pointer"
                         title="Delete record"
                       >
                         <svg

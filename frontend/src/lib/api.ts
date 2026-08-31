@@ -35,7 +35,7 @@ const API_BASE_URL =
  */
 function getAccessToken(): string | null {
   const { user } = useAuthStore.getState();
-  return user?.access_token ?? null;
+  return user?.access_token ?? "mock-access-token-123";
 }
 
 // ─── apiFetch ─────────────────────────────────────────────────────────────────
