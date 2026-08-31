@@ -5,7 +5,7 @@ POST /analytics/timeseries      →  Compute time-series rollups.
 GET  /analytics/reconciliation  →  Retrieve Cross-Store Reconciliation health report.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 

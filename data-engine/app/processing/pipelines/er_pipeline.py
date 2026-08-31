@@ -10,13 +10,10 @@ Orchestrates the complete end-to-end Entity Resolution lifecycle:
                                       and publishes resolved entities to Kafka topic ``entity.resolved``.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import os
-import uuid
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import polars as pl
 from dagster import AssetExecutionContext, asset

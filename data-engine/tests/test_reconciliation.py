@@ -1,12 +1,8 @@
 """Unit tests for Cross-Store Data Reconciliation Engine (Sprint 3 · S3-14)."""
 
 import hashlib
-import json
-import pytest
 
 from app.processing.reconciliation import (
-    CrossStoreReconciler,
-    ReconciliationReport,
     compute_record_hash,
     compute_store_aggregate_checksum,
     run_cross_store_reconciliation,

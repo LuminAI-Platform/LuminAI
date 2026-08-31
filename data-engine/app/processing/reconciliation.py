@@ -18,9 +18,7 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Tuple
-
-import polars as pl
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, text
 
@@ -429,6 +427,6 @@ def run_cross_store_reconciliation(
     reconciler = CrossStoreReconciler(tenant_id=tenant_id, entity_type=entity_type)
     return reconciler.reconcile(
         pg_override=pg_records,
-        neo4j_override=neo4j_override,
+        neo4j_override=neo4j_records,
         opensearch_override=opensearch_records,
     )
