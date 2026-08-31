@@ -8,7 +8,7 @@ import {
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
-import { apiFetch, getMockEntityById } from "../../lib/api";
+import { apiFetch } from "../../lib/api";
 import { EntityPropertyTable } from "../../features/explorer/components/EntityPropertyTable";
 import { ProvenanceInspector } from "../../features/explorer/components/ProvenanceInspector";
 import { EntityIcon } from "../../features/ontology/components/EntityTypeEditor";
@@ -39,105 +39,6 @@ const TYPE_CONFIG: Record<
 
 const DEFAULT_TYPE = { color: "#3b82f6", icon: "package", label: undefined };
 
-// ─── Mock provenance stubs for EntityPropertyTable rendering ──────────────────
-// ProvenanceInspector has the full detail; here we only need the confidence tier
-// so the table can render the badge.
-
-const MOCK_PROPERTY_PROVENANCE: Record<string, ProvenanceLine[]> = {
-  e1: [
-    {
-      propertyKey: "email",
-      sourceDataset: "users_gold_v2",
-      sourceField: "user_email",
-      ingestedAt: "2026-08-15T10:00:00Z",
-      confidence: "high",
-    },
-    {
-      propertyKey: "role",
-      sourceDataset: "hr_export_2026_q2",
-      sourceField: "job_title",
-      ingestedAt: "2026-08-14T08:30:00Z",
-      confidence: "high",
-    },
-    {
-      propertyKey: "status",
-      sourceDataset: "okta_directory_sync",
-      sourceField: "account_status",
-      ingestedAt: "2026-08-15T09:00:00Z",
-      confidence: "high",
-    },
-    {
-      propertyKey: "department",
-      sourceDataset: "hr_export_2026_q2",
-      sourceField: "cost_center_name",
-      ingestedAt: "2026-08-14T08:30:00Z",
-      confidence: "medium",
-    },
-  ],
-  e2: [
-    {
-      propertyKey: "domain",
-      sourceDataset: "clearbit_enrichment",
-      sourceField: "company.domain",
-      ingestedAt: "2026-08-12T09:00:00Z",
-      confidence: "high",
-    },
-    {
-      propertyKey: "industry",
-      sourceDataset: "clearbit_enrichment",
-      sourceField: "company.category.industry",
-      ingestedAt: "2026-08-12T09:00:00Z",
-      confidence: "medium",
-    },
-    {
-      propertyKey: "location",
-      sourceDataset: "clearbit_enrichment",
-      sourceField: "company.geo.city",
-      ingestedAt: "2026-08-12T09:00:00Z",
-      confidence: "medium",
-    },
-    {
-      propertyKey: "employees",
-      sourceDataset: "linkedin_enrichment",
-      sourceField: "employee_count",
-      ingestedAt: "2026-08-10T12:00:00Z",
-      confidence: "low",
-    },
-  ],
-  e3: [
-    {
-      propertyKey: "size",
-      sourceDataset: "s3_metadata_crawler",
-      sourceField: "object_size_bytes",
-      ingestedAt: "2026-08-19T23:40:00Z",
-      confidence: "high",
-    },
-    {
-      propertyKey: "rows",
-      sourceDataset: "s3_metadata_crawler",
-      sourceField: "row_count_estimate",
-      ingestedAt: "2026-08-19T23:40:00Z",
-      confidence: "medium",
-    },
-  ],
-  e9: [
-    {
-      propertyKey: "ip",
-      sourceDataset: "aws_ec2_inventory",
-      sourceField: "private_ip_address",
-      ingestedAt: "2026-08-01T04:20:00Z",
-      confidence: "high",
-    },
-    {
-      propertyKey: "status",
-      sourceDataset: "aws_cloudwatch_health",
-      sourceField: "instance_state",
-      ingestedAt: "2026-08-20T00:00:00Z",
-      confidence: "high",
-    },
-  ],
-};
-
 // ─── EntityDetailPage ─────────────────────────────────────────────────────────
 
 export const EntityDetailPage: React.FC = () => {
@@ -145,46 +46,59 @@ export const EntityDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [entity, setEntity] = useState<EntityDetail | null>(null);
+  const [provenance, setProvenance] = useState<ProvenanceLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeProvenanceKey, setActiveProvenanceKey] = useState<string | null>(
     null,
   );
 
-  // ── Fetch entity detail ────────────────────────────────────────────────────
+  // ── Fetch entity detail & provenance ───────────────────────────────────────
   useEffect(() => {
     if (!entityId) return;
 
-    const fetchEntity = async () => {
+    let isMounted = true;
+    const fetchEntityAndProvenance = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await apiFetch(`/api/v1/explorer/entities/${entityId}`);
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        const data: EntityDetail = await res.json();
-        setEntity(data);
-      } catch {
-        // Fall back to mock data
-        const mock = getMockEntityById(entityId);
-        if (mock) {
-          setEntity(mock);
+        const [entityRes, provRes] = await Promise.allSettled([
+          apiFetch(`/api/v1/explorer/entities/${entityId}`),
+          apiFetch(`/api/v1/explorer/entities/${entityId}/provenance`),
+        ]);
+
+        if (!isMounted) return;
+
+        if (entityRes.status === "fulfilled" && entityRes.value.ok) {
+          const entityData: EntityDetail = await entityRes.value.json();
+          setEntity(entityData);
         } else {
           setError(`Entity "${entityId}" could not be found.`);
         }
+
+        if (provRes.status === "fulfilled" && provRes.value.ok) {
+          const provData: ProvenanceLine[] = await provRes.value.json();
+          setProvenance(Array.isArray(provData) ? provData : []);
+        } else {
+          setProvenance([]);
+        }
+      } catch {
+        if (isMounted) setError(`Entity "${entityId}" could not be found.`);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
-    fetchEntity();
+    fetchEntityAndProvenance();
+    return () => {
+      isMounted = false;
+    };
   }, [entityId]);
 
   // ── Derived type config ────────────────────────────────────────────────────
   const typeConf = entity
     ? (TYPE_CONFIG[entity.entityType] ?? DEFAULT_TYPE)
     : DEFAULT_TYPE;
-
-  const provenance = MOCK_PROPERTY_PROVENANCE[entityId] ?? [];
 
   // ── Handle "Explore Graph" navigation ────────────────────────────────────
   const handleExploreGraph = () => {

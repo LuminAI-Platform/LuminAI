@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "generate:api": "openapi-generator-cli generate --generator-key luminai-spa",

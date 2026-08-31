@@ -84,14 +84,22 @@ export const OntologyPage: React.FC = () => {
     }
   }, []);
 
+  const loadVersions = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/v1/ontology/versions");
+      const data = (await res.json()) as unknown;
+      setVersions(Array.isArray(data) ? (data as OntologyVersion[]) : []);
+    } catch {
+      setError("Failed to load ontology versions.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleTabChange = (newTab: Tab) => {
     if (newTab === tab) return;
     setTab(newTab);
-    if (newTab === "entities" || newTab === "relationships") {
-      setLoading(true);
-    } else {
-      setLoading(false);
-    }
+    setLoading(true);
     setError(null);
   };
 
@@ -99,9 +107,10 @@ export const OntologyPage: React.FC = () => {
     const init = async () => {
       if (tab === "entities") await loadEntities();
       else if (tab === "relationships") await loadRelationships();
+      else if (tab === "versions") await loadVersions();
     };
     init();
-  }, [tab, loadEntities, loadRelationships]);
+  }, [tab, loadEntities, loadRelationships, loadVersions]);
 
   const deleteEntity = async (id: string) => {
     if (!confirm("Delete this entity type? This cannot be undone.")) return;

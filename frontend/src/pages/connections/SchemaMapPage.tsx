@@ -408,11 +408,88 @@ const ONTOLOGY_LABELS: Record<OntologyKey, string> = {
 export const SchemaMapPage: React.FC = () => {
   const [selectedSource, setSelectedSource] =
     useState<SourceKey>("snowflake_users");
-  const [selectedOntology, setSelectedOntology] = useState<OntologyKey>("User");
+  const [selectedOntology, setSelectedOntology] = useState<string>("User");
   const [savedMappings, setSavedMappings] = useState<SchemaMappingPayload[]>(
     [],
   );
   const [showHistory, setShowHistory] = useState(false);
+  const [dynamicOntologyMap, setDynamicOntologyMap] =
+    useState<Record<string, OntologyProperty[]>>(MOCK_ONTOLOGIES);
+  const [dynamicOntologyLabels, setDynamicOntologyLabels] =
+    useState<Record<string, string>>(ONTOLOGY_LABELS);
+
+  // Fetch live ontology entity types from backend API GET /api/v1/ontology/entity-types
+  useEffect(() => {
+    const fetchOntologyTypes = async () => {
+      try {
+        const res = await apiFetch("/api/v1/ontology/entity-types");
+        if (res.ok) {
+          const types = await res.json();
+          if (Array.isArray(types) && types.length > 0) {
+            const newMap: Record<string, OntologyProperty[]> = {
+              ...MOCK_ONTOLOGIES,
+            };
+            const newLabels: Record<string, string> = {
+              ...ONTOLOGY_LABELS,
+            };
+
+            types.forEach(
+              (t: {
+                name: string;
+                label?: string;
+                properties?: Array<{
+                  name: string;
+                  dataType?: string;
+                  required?: boolean;
+                  description?: string;
+                }>;
+              }) => {
+                newLabels[t.name] = t.label || t.name;
+                if (t.properties && Array.isArray(t.properties)) {
+                  newMap[t.name] = t.properties.map((p, idx) => ({
+                    id: p.name || `p_${idx}`,
+                    name: p.name,
+                    entityClass: t.name,
+                    expectedType: p.dataType || "string",
+                    required: Boolean(p.required),
+                    description: p.description || p.name,
+                  }));
+                } else if (!newMap[t.name]) {
+                  newMap[t.name] = [
+                    {
+                      id: "id",
+                      name: "id",
+                      entityClass: t.name,
+                      expectedType: "string",
+                      required: true,
+                      description: "Entity ID",
+                    },
+                    {
+                      id: "name",
+                      name: "name",
+                      entityClass: t.name,
+                      expectedType: "string",
+                      required: true,
+                      description: "Canonical name",
+                    },
+                  ];
+                }
+              },
+            );
+
+            setDynamicOntologyMap(newMap);
+            setDynamicOntologyLabels(newLabels);
+            if (types[0]?.name) {
+              setSelectedOntology(types[0].name);
+            }
+          }
+        }
+      } catch {
+        // Keep initial fallback map
+      }
+    };
+    fetchOntologyTypes();
+  }, []);
 
   // Fetch saved mapping history from backend API GET /api/v1/schema-mappings
   useEffect(() => {
@@ -470,7 +547,7 @@ export const SchemaMapPage: React.FC = () => {
   };
 
   const sourceData = MOCK_SOURCES[selectedSource];
-  const ontologyProps = MOCK_ONTOLOGIES[selectedOntology];
+  const ontologyProps = dynamicOntologyMap[selectedOntology] ?? [];
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -537,7 +614,7 @@ export const SchemaMapPage: React.FC = () => {
             Target Ontology Entity
           </p>
           <div className="flex gap-2 flex-wrap">
-            {(Object.keys(ONTOLOGY_LABELS) as OntologyKey[]).map((key) => (
+            {Object.keys(dynamicOntologyLabels).map((key) => (
               <button
                 key={key}
                 id={`ontology-select-${key}`}
@@ -548,7 +625,7 @@ export const SchemaMapPage: React.FC = () => {
                     : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                 }`}
               >
-                {ONTOLOGY_LABELS[key]}
+                {dynamicOntologyLabels[key]}
               </button>
             ))}
           </div>

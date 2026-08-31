@@ -1,5 +1,14 @@
-import React, { useEffect } from "react";
-import { X, Database, Clock, Tag, GitBranch, Info } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import {
+  X,
+  Database,
+  Clock,
+  Tag,
+  GitBranch,
+  Info,
+  RefreshCw,
+} from "lucide-react";
+import { apiFetch } from "../../../lib/api";
 import type { ProvenanceLine } from "./EntityPropertyTable";
 
 interface ProvenanceInspectorProps {
@@ -7,115 +16,6 @@ interface ProvenanceInspectorProps {
   propertyKey: string | null; // null = drawer closed
   onClose: () => void;
 }
-
-// ─── Mock Provenance Data ──────────────────────────────────────────────────────
-// Keyed by `${entityId}:${propertyKey}`.
-// TODO: Replace with apiFetch(`/api/v1/explorer/entities/${entityId}/provenance`)
-// when the backend endpoint is available.
-
-const MOCK_PROVENANCE: Record<string, ProvenanceLine[]> = {
-  // Alice Smith
-  "e1:email": [
-    {
-      propertyKey: "email",
-      sourceDataset: "users_gold_v2",
-      sourceField: "user_email",
-      ingestedAt: "2026-08-15T10:00:00Z",
-      confidence: "high",
-    },
-  ],
-  "e1:role": [
-    {
-      propertyKey: "role",
-      sourceDataset: "hr_export_2026_q2",
-      sourceField: "job_title",
-      ingestedAt: "2026-08-14T08:30:00Z",
-      confidence: "high",
-    },
-    {
-      propertyKey: "role",
-      sourceDataset: "okta_directory_sync",
-      sourceField: "title",
-      ingestedAt: "2026-08-15T09:00:00Z",
-      confidence: "medium",
-    },
-  ],
-  "e1:status": [
-    {
-      propertyKey: "status",
-      sourceDataset: "okta_directory_sync",
-      sourceField: "account_status",
-      ingestedAt: "2026-08-15T09:00:00Z",
-      confidence: "high",
-    },
-  ],
-  "e1:department": [
-    {
-      propertyKey: "department",
-      sourceDataset: "hr_export_2026_q2",
-      sourceField: "cost_center_name",
-      ingestedAt: "2026-08-14T08:30:00Z",
-      confidence: "medium",
-    },
-  ],
-  // LuminAI Technologies
-  "e2:domain": [
-    {
-      propertyKey: "domain",
-      sourceDataset: "clearbit_enrichment",
-      sourceField: "company.domain",
-      ingestedAt: "2026-08-12T09:00:00Z",
-      confidence: "high",
-    },
-  ],
-  "e2:industry": [
-    {
-      propertyKey: "industry",
-      sourceDataset: "clearbit_enrichment",
-      sourceField: "company.category.industry",
-      ingestedAt: "2026-08-12T09:00:00Z",
-      confidence: "medium",
-    },
-  ],
-  // users_gold_v2 Dataset
-  "e3:size": [
-    {
-      propertyKey: "size",
-      sourceDataset: "s3_metadata_crawler",
-      sourceField: "object_size_bytes",
-      ingestedAt: "2026-08-19T23:40:00Z",
-      confidence: "high",
-    },
-  ],
-  "e3:rows": [
-    {
-      propertyKey: "rows",
-      sourceDataset: "s3_metadata_crawler",
-      sourceField: "row_count_estimate",
-      ingestedAt: "2026-08-19T23:40:00Z",
-      confidence: "medium",
-    },
-  ],
-  // Prod Database Instance
-  "e9:ip": [
-    {
-      propertyKey: "ip",
-      sourceDataset: "aws_ec2_inventory",
-      sourceField: "private_ip_address",
-      ingestedAt: "2026-08-01T04:20:00Z",
-      confidence: "high",
-    },
-  ],
-  "e9:status": [
-    {
-      propertyKey: "status",
-      sourceDataset: "aws_cloudwatch_health",
-      sourceField: "instance_state",
-      ingestedAt: "2026-08-20T00:00:00Z",
-      confidence: "high",
-    },
-  ],
-};
 
 const CONFIDENCE_CONFIG = {
   high: {
@@ -151,6 +51,8 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
   onClose,
 }) => {
   const isOpen = propertyKey !== null;
+  const [provenanceLines, setProvenanceLines] = useState<ProvenanceLine[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Close on Escape key
   useEffect(() => {
@@ -162,12 +64,41 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  // Resolve mock provenance lines for this entity + property
-  // TODO: Replace MOCK_PROVENANCE lookup with:
-  //   apiFetch(`/api/v1/explorer/entities/${entityId}/provenance?property=${propertyKey}`)
+  // Fetch real provenance from backend
+  useEffect(() => {
+    if (!isOpen || !entityId) return;
+
+    let isMounted = true;
+    const fetchProvenance = async () => {
+      setLoading(true);
+      try {
+        const res = await apiFetch(
+          `/api/v1/explorer/entities/${entityId}/provenance`,
+        );
+        if (res.ok) {
+          const data: ProvenanceLine[] = await res.json();
+          if (isMounted) {
+            setProvenanceLines(Array.isArray(data) ? data : []);
+          }
+        } else {
+          if (isMounted) setProvenanceLines([]);
+        }
+      } catch {
+        if (isMounted) setProvenanceLines([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchProvenance();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, entityId]);
+
   const lines: ProvenanceLine[] = propertyKey
-    ? (MOCK_PROVENANCE[`${entityId}:${propertyKey}`] ?? [])
-    : [];
+    ? provenanceLines.filter((l) => l.propertyKey === propertyKey)
+    : provenanceLines;
 
   return (
     <>
@@ -220,7 +151,14 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
 
         {/* Drawer Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
-          {lines.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center flex-1 py-16 gap-3">
+              <RefreshCw className="w-5 h-5 text-blue-400 animate-spin" />
+              <span className="text-xs text-zinc-500">
+                Loading provenance...
+              </span>
+            </div>
+          ) : lines.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center flex-1 py-16 text-center">
               <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4">
