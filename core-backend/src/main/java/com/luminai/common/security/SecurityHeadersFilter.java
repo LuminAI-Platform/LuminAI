@@ -4,6 +4,7 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,16 @@ import org.springframework.stereotype.Component;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SecurityHeadersFilter implements Filter {
 
-  private static final String ALLOWED_ORIGIN = "http://localhost:5173";
+  private static final List<String> DEFAULT_ALLOWED_PATTERNS =
+      List.of(
+          "http://localhost:*",
+          "http://localhost",
+          "http://127.0.0.1:*",
+          "http://127.0.0.1",
+          "https://*.vercel.app",
+          "https://*.onrender.com",
+          "https://*.luminai.com",
+          "https://*.luminai.dev");
 
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {
@@ -44,8 +54,8 @@ public class SecurityHeadersFilter implements Filter {
     // CORS Origin Check & Header Injection
     String origin = req.getHeader("Origin");
     if (origin != null) {
-      if (ALLOWED_ORIGIN.equals(origin)) {
-        res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+      if (isAllowedOrigin(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "*");
         res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -67,6 +77,41 @@ public class SecurityHeadersFilter implements Filter {
     }
 
     chain.doFilter(request, response);
+  }
+
+  boolean isAllowedOrigin(String origin) {
+    if (origin == null || origin.isBlank()) {
+      return false;
+    }
+
+    String envOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+    if (envOrigins != null && !envOrigins.isBlank()) {
+      for (String allowed : envOrigins.split(",")) {
+        String trimmed = allowed.trim();
+        if (trimmed.equals("*") || matchesPattern(origin, trimmed)) {
+          return true;
+        }
+      }
+    }
+
+    for (String pattern : DEFAULT_ALLOWED_PATTERNS) {
+      if (matchesPattern(origin, pattern)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private boolean matchesPattern(String origin, String pattern) {
+    if (pattern.equalsIgnoreCase(origin)) {
+      return true;
+    }
+    if (pattern.contains("*")) {
+      String regex = "\\Q" + pattern.replace("*", "\\E.*\\Q") + "\\E";
+      return origin.matches("(?i)" + regex);
+    }
+    return false;
   }
 
   @Override

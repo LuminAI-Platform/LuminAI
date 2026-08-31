@@ -52,6 +52,19 @@ class SecurityHeadersFilterTest {
   }
 
   @Test
+  void testAllowedVercelCorsOrigin() throws Exception {
+    when(request.getHeader("Origin")).thenReturn("https://luminai-sand.vercel.app");
+
+    filter.doFilter(request, response, chain);
+
+    verify(response).setHeader("Access-Control-Allow-Origin", "https://luminai-sand.vercel.app");
+    verify(response)
+        .setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    verify(response).setHeader("Access-Control-Allow-Credentials", "true");
+    verify(chain).doFilter(request, response);
+  }
+
+  @Test
   void testForbiddenCorsOrigin() throws Exception {
     when(request.getHeader("Origin")).thenReturn("http://malicious.com");
     StringWriter out = new StringWriter();
