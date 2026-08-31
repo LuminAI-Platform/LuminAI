@@ -92,7 +92,10 @@ public class KafkaConfig {
         org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
         bootstrapServers);
     applySaslConfig(configs);
-    return new KafkaAdmin(configs);
+    KafkaAdmin admin = new KafkaAdmin(configs);
+    admin.setFatalIfBrokerNotAvailable(false);
+    admin.setAutoCreate(false);
+    return admin;
   }
 
   // ===========================================================
