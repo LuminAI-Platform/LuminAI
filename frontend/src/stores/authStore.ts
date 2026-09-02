@@ -96,7 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionStorage.removeItem(OIDC_SESSION_KEY);
 
       // if (!isMock) {
-        await userManager.signoutRedirect();
+      await userManager.signoutRedirect();
       // }
 
       set({ isLoading: false });
