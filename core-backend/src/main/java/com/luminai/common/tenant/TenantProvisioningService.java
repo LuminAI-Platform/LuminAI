@@ -30,7 +30,14 @@ public class TenantProvisioningService {
           "audit_log",
           "connectors",
           "sync_jobs",
-          "schema_mappings");
+          "schema_mappings",
+          "cleaning_rules",
+          "pipeline_runs",
+          "golden_records",
+          "golden_records_source_ids",
+          "golden_records_provenance",
+          "er_candidates",
+          "provenance");
 
   private final DataSource dataSource;
 
@@ -187,6 +194,70 @@ public class TenantProvisioningService {
         "fk_schema_mappings_connector",
         "connector_id",
         "connectors",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "cleaning_rules",
+        "fk_cleaning_rules_connector",
+        "connection_id",
+        "connectors",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "pipeline_runs",
+        "fk_pipeline_runs_connector",
+        "connection_id",
+        "connectors",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "er_candidates",
+        "fk_er_candidates_pipeline_run",
+        "pipeline_run_id",
+        "pipeline_runs",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "er_candidates",
+        "fk_er_candidates_golden_record",
+        "golden_record_id",
+        "golden_records",
+        "id",
+        "ON DELETE SET NULL"
+      },
+      {
+        "provenance",
+        "fk_provenance_golden_record",
+        "golden_record_id",
+        "golden_records",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "provenance",
+        "fk_provenance_source_connection",
+        "source_connection_id",
+        "connectors",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "golden_records_source_ids",
+        "fk_gr_source_ids_golden",
+        "golden_record_id",
+        "golden_records",
+        "id",
+        "ON DELETE CASCADE"
+      },
+      {
+        "golden_records_provenance",
+        "fk_gr_provenance_golden",
+        "golden_record_id",
+        "golden_records",
         "id",
         "ON DELETE CASCADE"
       },

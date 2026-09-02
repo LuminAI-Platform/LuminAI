@@ -23,10 +23,10 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(
-    name = "er_candidate",
+    name = "er_candidates",
     indexes = {
-      @Index(name = "idx_er_candidate_tenant_status", columnList = "tenant_id, status"),
-      @Index(name = "idx_er_candidate_tenant_golden", columnList = "tenant_id, golden_record_id")
+      @Index(name = "idx_er_candidates_tenant_status", columnList = "tenant_id, status"),
+      @Index(name = "idx_er_candidates_tenant_golden", columnList = "tenant_id, golden_record_id")
     })
 public class ErCandidate {
 
