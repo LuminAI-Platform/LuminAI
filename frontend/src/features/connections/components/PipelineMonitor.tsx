@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { apiFetch } from "../../../lib/api";
+import {
+  apiFetch,
+  getAccessToken,
+  ApiError,
+  API_BASE_URL,
+} from "../../../lib/api";
 import {
   PipelineJobCard,
   type PipelineJob,
@@ -260,6 +265,13 @@ export const PipelineMonitor: React.FC = () => {
         ingestPayload(data);
       }
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 401) {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+        setPolling(false);
+      }
       setFetchError(
         err instanceof Error ? err.message : "Failed to load pipeline runs",
       );
@@ -274,15 +286,8 @@ export const PipelineMonitor: React.FC = () => {
 
     const trySSE = () => {
       try {
-        const token =
-          document.cookie
-            .split("; ")
-            .find((r) => r.startsWith("access_token="))
-            ?.split("=")[1] ?? "";
-        const url = `${
-          (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-          "http://localhost:8080"
-        }/api/v1/pipelines/stream${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+        const token = getAccessToken() ?? "";
+        const url = `${API_BASE_URL}/api/v1/pipelines/stream${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 
         const es = new EventSource(url);
         sseRef.current = es;

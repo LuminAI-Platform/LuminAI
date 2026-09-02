@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, ApiError } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -328,6 +328,8 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
     if (errorsProp) setErrors(errorsProp);
   }, [errorsProp]);
 
+  const logIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Poll real backend execution logs if not in demo mode and not paused
   const fetchBackendLogs = useCallback(async () => {
     if (demo || paused) return;
@@ -357,7 +359,13 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
           });
         }
       }
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 401) {
+        if (logIntervalRef.current) {
+          clearInterval(logIntervalRef.current);
+          logIntervalRef.current = null;
+        }
+      }
       // Endpoint may not exist yet in dev backend; keep existing state gracefully
     }
   }, [demo, paused, maxLines]);
@@ -368,8 +376,10 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
       Promise.resolve().then(() => {
         fetchBackendLogs();
       });
-      const interval = setInterval(fetchBackendLogs, 3000);
-      return () => clearInterval(interval);
+      logIntervalRef.current = setInterval(fetchBackendLogs, 3000);
+      return () => {
+        if (logIntervalRef.current) clearInterval(logIntervalRef.current);
+      };
     }
   }, [demo, fetchBackendLogs]);
   // Auto-scroll
