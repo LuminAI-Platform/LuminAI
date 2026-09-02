@@ -3,7 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
 
 export const LoginPage: React.FC = () => {
-  const { login, loginMock, checkUser, isLoading, error } = useAuthStore();
+  // const { login, loginMock, checkUser, isLoading, error } = useAuthStore(); // Uncomment loginMock for sandbox dev
+  const { login, checkUser, isLoading, error } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,7 +19,6 @@ export const LoginPage: React.FC = () => {
     });
   }, [checkUser, navigate]);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const handleLogin = async () => {
     setIsConnecting(true);
@@ -29,9 +29,11 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  /* [SANDBOX/DEV] Uncomment handleMockLogin to enable sandbox mock login without Keycloak
   const handleMockLogin = async () => {
     setIsConnecting(true);
     try {
+      // @ts-expect-error loginMock optional in store
       await loginMock("admin@luminai.dev", "Admin User");
       const dest = sessionStorage.getItem("post_login_redirect") ?? "/";
       sessionStorage.removeItem("post_login_redirect");
@@ -40,12 +42,7 @@ export const LoginPage: React.FC = () => {
       setIsConnecting(false);
     }
   };
-
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
+  */
 
   return (
     <div className="flex min-h-screen w-screen bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden items-center justify-center p-6">
@@ -219,112 +216,18 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
 
+            {/* [SANDBOX/DEV] Uncomment button below to enable sandbox mock login button
             <button
               onClick={handleMockLogin}
               disabled={isLoading || isConnecting}
               className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-750 font-semibold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
               Bypass with Sandbox Credentials
             </button>
-
-            {/* SSO Configuration details */}
-            <div className="pt-6 border-t border-zinc-800/80">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-4">
-                Local Development Sandbox Credentials
-              </span>
-
-              <div className="space-y-3">
-                <div className="bg-zinc-950/60 border border-zinc-850 p-3 rounded-lg flex items-center justify-between text-xs group">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-zinc-500 font-medium">
-                      Username
-                    </span>
-                    <span className="font-mono text-zinc-300">
-                      admin@luminai.dev
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard("admin@luminai.dev", "user")}
-                    className="text-zinc-500 hover:text-zinc-300 p-1.5 hover:bg-zinc-900 rounded-md transition-all cursor-pointer"
-                  >
-                    {copiedField === "user" ? (
-                      <span className="text-[10px] text-emerald-500 font-semibold font-sans">
-                        Copied!
-                      </span>
-                    ) : (
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <rect
-                          x="9"
-                          y="9"
-                          width="13"
-                          height="13"
-                          rx="2"
-                          ry="2"
-                        />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-
-                <div className="bg-zinc-950/60 border border-zinc-850 p-3 rounded-lg flex items-center justify-between text-xs group">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-zinc-500 font-medium">
-                      Password
-                    </span>
-                    <span className="font-mono text-zinc-300">Admin1234!</span>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard("Admin1234!", "pass")}
-                    className="text-zinc-500 hover:text-zinc-300 p-1.5 hover:bg-zinc-900 rounded-md transition-all cursor-pointer"
-                  >
-                    {copiedField === "pass" ? (
-                      <span className="text-[10px] text-emerald-500 font-semibold font-sans">
-                        Copied!
-                      </span>
-                    ) : (
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <rect
-                          x="9"
-                          y="9"
-                          width="13"
-                          height="13"
-                          rx="2"
-                          ry="2"
-                        />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
+            */}
           </div>
         </div>
       </div>

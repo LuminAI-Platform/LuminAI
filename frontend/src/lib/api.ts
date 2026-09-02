@@ -20,7 +20,7 @@ import { useAuthStore } from "../stores/authStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const API_BASE_URL =
+export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
   (import.meta.env.VITE_API_URL as string | undefined) ??
   (import.meta.env.PROD
@@ -33,12 +33,14 @@ const API_BASE_URL =
  * Reads the current JWT access token from the Zustand auth store.
  * Returns `null` when the user is not authenticated.
  */
-function getAccessToken(): string | null {
+export function getAccessToken(): string | null {
   const { user } = useAuthStore.getState();
-  return user?.access_token ?? "mock-access-token-123";
+  return user?.access_token ?? null;
 }
 
 // ─── apiFetch ─────────────────────────────────────────────────────────────────
+
+let isHandlingUnauthorized = false;
 
 /**
  * Drop-in replacement for `fetch` that:
@@ -46,7 +48,8 @@ function getAccessToken(): string | null {
  *  2. Injects `Authorization: Bearer <token>` from the auth store.
  *  3. Sets `Content-Type: application/json` unless the caller overrides it or
  *     the body is FormData.
- *  4. Throws an `ApiError` for non-2xx responses.
+ *  4. Intercepts 401 responses to invalidate stale auth state and prevent retry loops.
+ *  5. Throws an `ApiError` for non-2xx responses.
  *
  * Signature matches the `fetchApi` slot of the generated
  * `ConfigurationParameters` interface so it can be passed directly.
@@ -81,6 +84,22 @@ export async function apiFetch(
   const response = await fetch(url, { ...resolvedInit, headers });
 
   if (!response.ok) {
+    if (response.status === 401 && !isHandlingUnauthorized) {
+      isHandlingUnauthorized = true;
+      try {
+        const { isAuthenticated, logout } = useAuthStore.getState();
+        if (isAuthenticated) {
+          console.warn(
+            "401 Unauthorized encountered. Resetting auth session to prevent infinite retry loops.",
+          );
+          await logout();
+        }
+      } catch (err) {
+        console.error("Failed to reset auth store state on 401:", err);
+      } finally {
+        isHandlingUnauthorized = false;
+      }
+    }
     throw new ApiError(response);
   }
 

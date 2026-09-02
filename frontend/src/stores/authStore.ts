@@ -8,7 +8,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: () => Promise<void>;
-  loginMock: (email: string, name: string) => Promise<void>;
+  // loginMock?: (email: string, name: string) => Promise<void>; // [SANDBOX/DEV] Uncomment to enable mock login
   logout: () => Promise<void>;
   handleCallback: () => Promise<User | null>;
   checkUser: () => Promise<User | null>;
@@ -46,12 +46,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  /* [SANDBOX/DEV] Uncomment loginMock below to enable mock login without Keycloak
   loginMock: async (email: string, name: string) => {
     try {
       set({ isLoading: true, error: null });
-
-      // Build a mock user shape that satisfies oidc-client-ts v3 User construction.
-      // We write it directly into sessionStorage so getUser() can find it on refresh.
       const expiresAt = Math.floor(Date.now() / 1000) + 3600;
       const mockUserData = {
         profile: {
@@ -73,9 +71,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expires_at: expiresAt,
         session_state: null,
       };
-
       sessionStorage.setItem(OIDC_SESSION_KEY, JSON.stringify(mockUserData));
-
       set({
         user: mockUserData as unknown as User,
         isAuthenticated: true,
@@ -86,22 +82,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ error: errorMsg, isLoading: false });
     }
   },
+  */
 
   logout: async () => {
     try {
       set({ isLoading: true, error: null });
 
-      const sessionData = sessionStorage.getItem(OIDC_SESSION_KEY);
-      const isMock = sessionData?.includes("mock-access-token-123");
+      // const sessionData = sessionStorage.getItem(OIDC_SESSION_KEY);
+      // const isMock = sessionData?.includes("mock-access-token-123");
 
       // Clear store state and sessionStorage unconditionally
       set({ user: null, isAuthenticated: false });
       sessionStorage.removeItem(OIDC_SESSION_KEY);
 
-      if (!isMock) {
-        // signoutRedirect navigates browser away to Keycloak logout endpoint
+      // if (!isMock) {
         await userManager.signoutRedirect();
-      }
+      // }
 
       set({ isLoading: false });
     } catch (err) {

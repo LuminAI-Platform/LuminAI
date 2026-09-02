@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, ApiError } from "../../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -290,6 +290,8 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
     if (jobProp) setJob(jobProp);
   }, [jobProp]);
 
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Poll backend status API /api/v1/sync-jobs when not in demo mode
   const fetchSyncJobs = useCallback(async () => {
     if (demo) return;
@@ -358,7 +360,13 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
           }
         }
       }
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 401) {
+        if (syncIntervalRef.current) {
+          clearInterval(syncIntervalRef.current);
+          syncIntervalRef.current = null;
+        }
+      }
       // Endpoint may not exist yet in dev backend; keep existing state gracefully
     }
   }, [demo]);
@@ -369,8 +377,10 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
       Promise.resolve().then(() => {
         fetchSyncJobs();
       });
-      const interval = setInterval(fetchSyncJobs, 3000);
-      return () => clearInterval(interval);
+      syncIntervalRef.current = setInterval(fetchSyncJobs, 3000);
+      return () => {
+        if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      };
     }
   }, [demo, fetchSyncJobs]);
 
