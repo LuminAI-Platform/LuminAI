@@ -65,6 +65,19 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", ex.getMessage()));
   }
 
+  @ExceptionHandler(IllegalStateException.class)
+  public ResponseEntity<ApiError> handleIllegalState(IllegalStateException ex) {
+    log.warn("Illegal state: {}", ex.getMessage());
+    return ResponseEntity.badRequest().body(ApiError.of(400, "Bad Request", ex.getMessage()));
+  }
+
+  @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+  public ResponseEntity<ApiError> handleHttpMessageNotReadable(
+      org.springframework.http.converter.HttpMessageNotReadableException ex) {
+    return ResponseEntity.badRequest()
+        .body(ApiError.of(400, "Bad Request", "Required request body is missing or malformed"));
+  }
+
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
     return ResponseEntity.status(HttpStatus.FORBIDDEN)

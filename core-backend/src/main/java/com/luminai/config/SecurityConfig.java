@@ -100,7 +100,7 @@ public class SecurityConfig {
             .claim("sub", "sandbox-admin-id")
             .claim("preferred_username", "admin")
             .claim("email", "admin@luminai.dev")
-            .claim("tenant_id", "acme")
+            .claim("tenant_id", "00000000-0000-0000-0000-000000000001")
             .claim("realm_access", Map.of("roles", List.of("admin", "user", "TENANT_ADMIN")))
             .issuedAt(Instant.now())
             .expiresAt(Instant.now().plusSeconds(86400))

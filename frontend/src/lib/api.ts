@@ -87,12 +87,12 @@ export async function apiFetch(
     if (response.status === 401 && !isHandlingUnauthorized) {
       isHandlingUnauthorized = true;
       try {
-        const { isAuthenticated, logout } = useAuthStore.getState();
+        const { isAuthenticated, clearAuthSession } = useAuthStore.getState();
         if (isAuthenticated) {
           console.warn(
-            "401 Unauthorized encountered. Resetting auth session to prevent infinite retry loops.",
+            "401 Unauthorized encountered. Clearing local session without window redirect.",
           );
-          await logout();
+          clearAuthSession();
         }
       } catch (err) {
         console.error("Failed to reset auth store state on 401:", err);

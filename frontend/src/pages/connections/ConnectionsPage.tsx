@@ -13,6 +13,8 @@ interface IngestedFile {
   recordsCount: number;
   status: "Synced" | "Failed" | "Syncing";
   createdAt: string;
+  columns?: string[];
+  sampleRows?: Record<string, unknown>[];
 }
 
 interface DatabaseConnector {
@@ -27,6 +29,7 @@ interface DatabaseConnector {
 export const ConnectionsPage: React.FC = () => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [previewingFile, setPreviewingFile] = useState<IngestedFile | null>(null);
   const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>(() => {
     const stored = localStorage.getItem("local_ingested_files");
     if (stored) {
@@ -165,12 +168,139 @@ export const ConnectionsPage: React.FC = () => {
           recordsCount: newFileObj.recordsCount,
           status: "Synced",
           createdAt: new Date().toLocaleString(),
+          columns: newFileObj.columns,
+          sampleRows: newFileObj.sampleRows,
         });
         localStorage.setItem("local_ingested_files", JSON.stringify(files));
         localStorage.removeItem("most_recent_ingested_file");
       }
     }
     loadFiles();
+  };
+
+  const getPreviewData = (
+    file: IngestedFile,
+  ): { columns: string[]; rows: Record<string, unknown>[] } => {
+    if (file.columns && file.sampleRows && file.sampleRows.length > 0) {
+      return { columns: file.columns, rows: file.sampleRows };
+    }
+    if (file.name.toLowerCase().includes("user")) {
+      const columns = [
+        "user_id",
+        "email_address",
+        "full_name",
+        "account_status",
+        "monthly_spend",
+        "country_code",
+      ];
+      const rows = [
+        {
+          user_id: "usr_8f2k91",
+          email_address: "alice@corp.io",
+          full_name: "Alice Mensah",
+          account_status: "active",
+          monthly_spend: "$1,250.00",
+          country_code: "GH",
+        },
+        {
+          user_id: "usr_9k3x12",
+          email_address: "kwame.b@innov.com",
+          full_name: "Kwame Boateng",
+          account_status: "active",
+          monthly_spend: "$3,400.50",
+          country_code: "GH",
+        },
+        {
+          user_id: "usr_2m8p45",
+          email_address: "sarah.j@apex.org",
+          full_name: "Sarah Jenkins",
+          account_status: "pending",
+          monthly_spend: "$890.00",
+          country_code: "US",
+        },
+        {
+          user_id: "usr_5v1n77",
+          email_address: "elena.r@fin.eu",
+          full_name: "Elena Rostova",
+          account_status: "active",
+          monthly_spend: "$4,120.00",
+          country_code: "DE",
+        },
+      ];
+      return { columns, rows };
+    }
+    if (
+      file.name.toLowerCase().includes("sale") ||
+      file.name.toLowerCase().includes("transaction")
+    ) {
+      const columns = [
+        "transaction_id",
+        "user_id",
+        "amount",
+        "currency",
+        "payment_method",
+        "timestamp",
+        "status",
+      ];
+      const rows = [
+        {
+          transaction_id: "txn_91a0c4",
+          user_id: "usr_8f2k91",
+          amount: "$450.00",
+          currency: "USD",
+          payment_method: "Credit Card",
+          timestamp: "2024-03-01 14:22:10",
+          status: "completed",
+        },
+        {
+          transaction_id: "txn_82b1d3",
+          user_id: "usr_9k3x12",
+          amount: "$1,200.00",
+          currency: "USD",
+          payment_method: "Wire Transfer",
+          timestamp: "2024-03-01 15:40:02",
+          status: "completed",
+        },
+        {
+          transaction_id: "txn_73c2e2",
+          user_id: "usr_2m8p45",
+          amount: "$89.50",
+          currency: "USD",
+          payment_method: "Debit Card",
+          timestamp: "2024-03-02 09:12:45",
+          status: "refunded",
+        },
+      ];
+      return { columns, rows };
+    }
+    const columns = ["record_id", "name", "category", "value", "created_at", "status"];
+    const rows = [
+      {
+        record_id: "rec_001",
+        name: "Sample Item Alpha",
+        category: "Standard",
+        value: "100",
+        created_at: "2024-02-15",
+        status: "synced",
+      },
+      {
+        record_id: "rec_002",
+        name: "Sample Item Beta",
+        category: "Enterprise",
+        value: "250",
+        created_at: "2024-02-18",
+        status: "synced",
+      },
+      {
+        record_id: "rec_003",
+        name: "Sample Item Gamma",
+        category: "Standard",
+        value: "75",
+        created_at: "2024-02-20",
+        status: "synced",
+      },
+    ];
+    return { columns, rows };
   };
 
   // Setup the callback inside the wizard to save file info
@@ -452,7 +582,11 @@ export const ConnectionsPage: React.FC = () => {
                     key={file.id}
                     className="grid grid-cols-12 p-4 text-xs items-center hover:bg-zinc-900/10"
                   >
-                    <div className="col-span-4 font-semibold text-zinc-200 flex items-center gap-2">
+                    <button
+                      onClick={() => setPreviewingFile(file)}
+                      className="col-span-4 font-semibold text-zinc-200 flex items-center gap-2 hover:text-emerald-400 text-left transition-colors cursor-pointer group"
+                      title="Click to preview file data"
+                    >
                       <svg
                         width="14"
                         height="14"
@@ -460,13 +594,15 @@ export const ConnectionsPage: React.FC = () => {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
-                        className="text-zinc-400"
+                        className="text-zinc-400 group-hover:text-emerald-400 transition-colors"
                       >
                         <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
                         <path d="M14 2v4a2 2 0 0 0 2 2h4" />
                       </svg>
-                      {file.name}
-                    </div>
+                      <span className="underline decoration-zinc-700 underline-offset-2 group-hover:decoration-emerald-400">
+                        {file.name}
+                      </span>
+                    </button>
                     <div className="col-span-2 font-mono text-zinc-400">
                       {file.size}
                     </div>
@@ -482,6 +618,23 @@ export const ConnectionsPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1.5 select-none">
+                      <button
+                        onClick={() => setPreviewingFile(file)}
+                        className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
+                        title="Preview File Records"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </button>
                       <Link
                         to="/explorer"
                         className="p-1.5 hover:bg-zinc-900 hover:text-blue-400 text-zinc-400 rounded transition-colors cursor-pointer"
@@ -567,6 +720,167 @@ export const ConnectionsPage: React.FC = () => {
             loadConnectors();
           }}
         />
+      )}
+
+      {/* File Data Preview Modal */}
+      {previewingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-zinc-800 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
+                    {previewingFile.name}
+                    <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-normal">
+                      {previewingFile.size} · {previewingFile.recordsCount.toLocaleString()} records
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Uploaded on {previewingFile.createdAt} · Status:{" "}
+                    <span className="text-emerald-400 font-medium">
+                      {previewingFile.status}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewingFile(null)}
+                className="text-zinc-400 hover:text-zinc-200 p-2 hover:bg-zinc-900 rounded-lg transition-colors cursor-pointer"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content / Data Table */}
+            <div className="p-5 overflow-auto flex-1">
+              {(() => {
+                const { columns, rows } = getPreviewData(previewingFile);
+                return (
+                  <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-300 font-mono">
+                            <th className="p-3 border-r border-zinc-800 w-12 text-center text-zinc-500">
+                              #
+                            </th>
+                            {columns.map((col) => (
+                              <th
+                                key={col}
+                                className="p-3 border-r border-zinc-800 font-semibold whitespace-nowrap"
+                              >
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-900 font-mono">
+                          {rows.map((row, idx) => (
+                            <tr
+                              key={idx}
+                              className="hover:bg-zinc-900/30 transition-colors"
+                            >
+                              <td className="p-3 border-r border-zinc-900 text-center text-zinc-500 bg-zinc-950/50">
+                                {idx + 1}
+                              </td>
+                              {columns.map((col) => {
+                                const val = (row as Record<string, unknown>)[col];
+                                return (
+                                  <td
+                                    key={col}
+                                    className="p-3 border-r border-zinc-900 text-zinc-300 whitespace-nowrap"
+                                  >
+                                    {val !== undefined && val !== null ? (
+                                      String(val)
+                                    ) : (
+                                      <span className="text-zinc-600 italic">
+                                        null
+                                      </span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-zinc-800 bg-zinc-900/20 flex items-center justify-between shrink-0">
+              <div className="text-xs text-zinc-500">
+                Previewing sample records parsed from dataset.
+              </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/connections/schema-map"
+                  className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => setPreviewingFile(null)}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                  Map Schema to Ontology
+                </Link>
+                <Link
+                  to="/explorer"
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => setPreviewingFile(null)}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  Search in Entity Explorer
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

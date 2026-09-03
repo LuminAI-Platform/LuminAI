@@ -10,6 +10,7 @@ interface AuthState {
   login: () => Promise<void>;
   // loginMock?: (email: string, name: string) => Promise<void>; // [SANDBOX/DEV] Uncomment to enable mock login
   logout: () => Promise<void>;
+  clearAuthSession: () => void;
   handleCallback: () => Promise<User | null>;
   checkUser: () => Promise<User | null>;
   clearError: () => void;
@@ -105,6 +106,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         err instanceof Error ? err.message : "Failed to sign out";
       set({ error: errorMsg, isLoading: false });
     }
+  },
+
+  clearAuthSession: () => {
+    set({ user: null, isAuthenticated: false, isLoading: false, error: null });
+    sessionStorage.removeItem(OIDC_SESSION_KEY);
   },
 
   handleCallback: async () => {
