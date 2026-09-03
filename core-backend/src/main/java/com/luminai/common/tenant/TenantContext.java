@@ -19,7 +19,7 @@ public final class TenantContext {
   public static final String SCHEMA_PREFIX = "tenant_";
 
   /** Fallback schema used for system-level or unauthenticated operations. */
-  public static final String DEFAULT_TENANT = "public";
+  public static final String DEFAULT_TENANT = "default";
 
   private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
 
