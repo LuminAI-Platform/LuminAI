@@ -21,7 +21,10 @@ public final class TenantContext {
   /** Fallback tenant identifier. */
   public static final String DEFAULT_TENANT = "default";
 
-  /** Fallback schema name — fully qualified so PostgreSQL does not treat it as the 'default' keyword. */
+  /**
+   * Fallback schema name — fully qualified so PostgreSQL does not treat it as the 'default'
+   * keyword.
+   */
   public static final String DEFAULT_SCHEMA = "tenant_default";
 
   private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();

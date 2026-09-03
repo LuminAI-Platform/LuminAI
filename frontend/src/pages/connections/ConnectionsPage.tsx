@@ -29,7 +29,9 @@ interface DatabaseConnector {
 export const ConnectionsPage: React.FC = () => {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
-  const [previewingFile, setPreviewingFile] = useState<IngestedFile | null>(null);
+  const [previewingFile, setPreviewingFile] = useState<IngestedFile | null>(
+    null,
+  );
   const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>(() => {
     const stored = localStorage.getItem("local_ingested_files");
     if (stored) {
@@ -273,7 +275,14 @@ export const ConnectionsPage: React.FC = () => {
       ];
       return { columns, rows };
     }
-    const columns = ["record_id", "name", "category", "value", "created_at", "status"];
+    const columns = [
+      "record_id",
+      "name",
+      "category",
+      "value",
+      "created_at",
+      "status",
+    ];
     const rows = [
       {
         record_id: "rec_001",
@@ -746,7 +755,8 @@ export const ConnectionsPage: React.FC = () => {
                   <h3 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
                     {previewingFile.name}
                     <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-normal">
-                      {previewingFile.size} · {previewingFile.recordsCount.toLocaleString()} records
+                      {previewingFile.size} ·{" "}
+                      {previewingFile.recordsCount.toLocaleString()} records
                     </span>
                   </h3>
                   <p className="text-xs text-zinc-400 mt-0.5">
@@ -808,7 +818,9 @@ export const ConnectionsPage: React.FC = () => {
                                 {idx + 1}
                               </td>
                               {columns.map((col) => {
-                                const val = (row as Record<string, unknown>)[col];
+                                const val = (row as Record<string, unknown>)[
+                                  col
+                                ];
                                 return (
                                   <td
                                     key={col}
