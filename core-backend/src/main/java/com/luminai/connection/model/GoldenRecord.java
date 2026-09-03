@@ -23,8 +23,8 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(
-    name = "golden_record",
-    indexes = {@Index(name = "idx_golden_record_tenant", columnList = "tenant_id")})
+    name = "golden_records",
+    indexes = {@Index(name = "idx_golden_records_tenant", columnList = "tenant_id")})
 public class GoldenRecord {
 
   @Id
@@ -33,7 +33,7 @@ public class GoldenRecord {
 
   @ElementCollection
   @CollectionTable(
-      name = "golden_record_source_ids",
+      name = "golden_records_source_ids",
       joinColumns = @JoinColumn(name = "golden_record_id"))
   @Column(name = "source_record_id")
   private Set<UUID> sourceRecordIds = new LinkedHashSet<>();
@@ -44,7 +44,7 @@ public class GoldenRecord {
 
   @ElementCollection
   @CollectionTable(
-      name = "golden_record_provenance",
+      name = "golden_records_provenance",
       joinColumns = @JoinColumn(name = "golden_record_id"))
   private List<ProvenanceEntry> provenance = new ArrayList<>();
 
