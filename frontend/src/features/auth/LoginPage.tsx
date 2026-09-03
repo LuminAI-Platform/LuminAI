@@ -117,19 +117,6 @@ export const LoginPage: React.FC = () => {
               <span className="text-lg font-bold text-emerald-500">14 ms</span>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 text-zinc-500 text-xs">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse mr-1" />
-            <span>Keycloak Authorization Server active: </span>
-            <a
-              href="http://localhost:8180"
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              localhost:8180
-            </a>
-          </div>
         </div>
 
         {/* Right Column: Interactive Login Container */}
