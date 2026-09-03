@@ -18,8 +18,14 @@ public final class TenantContext {
   /** Schema prefix applied to every tenant identifier. */
   public static final String SCHEMA_PREFIX = "tenant_";
 
-  /** Fallback schema used for system-level or unauthenticated operations. */
+  /** Fallback tenant identifier. */
   public static final String DEFAULT_TENANT = "default";
+
+  /**
+   * Fallback schema name — fully qualified so PostgreSQL does not treat it as the 'default'
+   * keyword.
+   */
+  public static final String DEFAULT_SCHEMA = "tenant_default";
 
   private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
 
@@ -42,7 +48,7 @@ public final class TenantContext {
   // Returns the fully-qualified schema name for the current tenant
   public static String getCurrentSchema() {
     String tenantId = CURRENT_TENANT.get();
-    return (tenantId != null) ? SCHEMA_PREFIX + tenantId : DEFAULT_TENANT;
+    return (tenantId != null && !tenantId.isBlank()) ? SCHEMA_PREFIX + tenantId : DEFAULT_SCHEMA;
   }
 
   // Returns {@code true} if a tenant has been set on this thread

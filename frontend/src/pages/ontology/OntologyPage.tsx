@@ -139,8 +139,13 @@ export const OntologyPage: React.FC = () => {
   const publishVersion = async () => {
     setPublishing(true);
     try {
+      const nextVer = `v${versions.length + 1}.0.0`;
       const res = await apiFetch("/api/v1/ontology/versions", {
         method: "POST",
+        body: JSON.stringify({
+          version: nextVer,
+          changelog: `Published ontology schema release ${nextVer}`,
+        }),
       });
       const v = (await res.json()) as OntologyVersion;
       setVersions((prev) => [v, ...prev]);
