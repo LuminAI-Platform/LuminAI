@@ -5,191 +5,129 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * Resolves the tenant for every authenticated request and populates {@link TenantContext} for the
+ * duration of that request.
+ **/
 @Component
-@Order(1)
+@Order(SecurityProperties.DEFAULT_FILTER_ORDER + 1)
 public class TenantFilter extends OncePerRequestFilter {
 
-  private static final Logger log = LoggerFactory.getLogger(TenantFilter.class);
+    private static final Logger log = LoggerFactory.getLogger(TenantFilter.class);
 
-  private static final String BEARER_PREFIX = "Bearer ";
-  private static final String TENANT_CLAIM = "\"tenant_id\"";
+    /**
+     * Paths that do not require tenant resolution (health checks, public auth endpoints, etc.).
+     * Requests to these paths pass through without setting tenant context.
+     */
+    private static final String[] BYPASS_PATHS = {
+            "/actuator/health",
+            "/actuator/info",
+            "/v3/api-docs",
+            "/swagger-ui",
+            "/swagger-ui.html",
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
+            "/api/v1/public/"
+    };
 
-  /**
-   * Paths that do not require tenant resolution (health checks, public auth endpoints, etc.).
-   * Requests to these paths pass through without setting tenant context.
-   */
-  private static final String[] BYPASS_PATHS = {
-    "/actuator/health",
-    "/actuator/info",
-    "/v3/api-docs",
-    "/swagger-ui",
-    "/swagger-ui.html",
-    "/api/v1/auth/login",
-    "/api/v1/auth/refresh",
-    "/api/v1/public/"
-  };
+    private final TenantResolutionService tenantResolutionService;
 
-  @Override
-  protected boolean shouldNotFilter(HttpServletRequest request) {
-    String path = request.getRequestURI();
-    for (String bypassPath : BYPASS_PATHS) {
-      if (path.startsWith(bypassPath)) {
-        log.trace("Bypassing tenant filter for path: {}", path);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  @Override
-  protected void doFilterInternal(
-      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-      throws ServletException, IOException {
-
-    try {
-      String tenantId = resolveTenantId(request);
-
-      if (tenantId == null || tenantId.isBlank()) {
-        log.warn(
-            "Missing or unresolvable tenant_id for request: {} {}",
-            request.getMethod(),
-            request.getRequestURI());
-        sendError(response, HttpStatus.UNAUTHORIZED, "Missing tenant_id claim in token");
-        return;
-      }
-
-      TenantContext.setTenantId(tenantId);
-      log.debug(
-          "Tenant context set to '{}' for {} {}",
-          tenantId,
-          request.getMethod(),
-          request.getRequestURI());
-
-      filterChain.doFilter(request, response);
-
-    } finally {
-      // CRITICAL: Always clear tenant context after the request completes.
-      // Application servers reuse threads — without this, the next request
-      // served by this thread would inherit the previous request's tenant.
-      TenantContext.clear();
-    }
-  }
-
-  /**
-   * Extracts the {@code tenant_id} claim from the {@code Authorization: Bearer <token>} header or
-   * {@code X-Tenant-ID} header.
-   *
-   * @param request the incoming HTTP request.
-   * @return the tenant ID string.
-   */
-  private String resolveTenantId(HttpServletRequest request) {
-    String xTenant = request.getHeader("X-Tenant-ID");
-    if (StringUtils.hasText(xTenant)) {
-      return xTenant.trim();
+    public TenantFilter(TenantResolutionService tenantResolutionService) {
+        this.tenantResolutionService = tenantResolutionService;
     }
 
-    String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-    if (StringUtils.hasText(authHeader) && authHeader.startsWith(BEARER_PREFIX)) {
-      String token = authHeader.substring(BEARER_PREFIX.length()).trim();
-      if (token.startsWith("mock-")
-          || token.contains("sandbox")
-          || "mock-access-token-123".equals(token)) {
-        return TenantContext.DEFAULT_TENANT;
-      }
-      String extracted = extractClaimFromJwt(token, TENANT_CLAIM);
-      if (extracted != null && !extracted.isBlank()) {
-        return extracted;
-      }
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        for (String bypassPath : BYPASS_PATHS) {
+            if (path.startsWith(bypassPath)) {
+                log.trace("Bypassing tenant filter for path: {}", path);
+                return true;
+            }
+        }
+        return false;
     }
 
-    // Default tenant fallback for sandbox, development, or unauthenticated health/preview
-    return TenantContext.DEFAULT_TENANT;
-  }
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
-  /**
-   * Lightweight JWT payload decoder — Base64-decodes the second segment of the token and extracts
-   * the given claim key without a full JWT library dependency.
-   */
-  private String extractClaimFromJwt(String jwt, String claimKey) {
-    try {
-      String[] parts = jwt.split("\\.");
-      if (parts.length < 2) {
-        log.warn("Malformed JWT — expected at least 2 segments, got {}", parts.length);
-        return null;
-      }
+        try {
+            Optional<Jwt> jwt = currentJwt();
+            if (jwt.isEmpty()) {
+                // Spring Security already rejects unauthenticated requests to protected paths before this
+                // filter runs, so reaching here with no JWT principal indicates a misconfiguration rather
+                // than a normal auth failure. Fail closed either way.
+                log.warn(
+                        "Tenant resolution reached with no authenticated JWT principal for {} {}",
+                        request.getMethod(),
+                        request.getRequestURI());
+                sendError(response, HttpStatus.UNAUTHORIZED, "Authentication required");
+                return;
+            }
 
-      // Base64url decode the payload (second segment)
-      byte[] payloadBytes = Base64.getUrlDecoder().decode(padBase64(parts[1]));
-      String payload = new String(payloadBytes, StandardCharsets.UTF_8);
-      log.trace("JWT payload decoded: {}", payload);
+            String keycloakId = jwt.get().getSubject();
+            Optional<TenantResolutionService.ResolvedTenant> resolved =
+                    tenantResolutionService.resolveForKeycloakUser(keycloakId);
 
-      return extractJsonStringValue(payload, claimKey);
+            if (resolved.isEmpty()) {
+                log.warn(
+                        "No active tenant found for authenticated user (sub={}) on {} {}",
+                        keycloakId,
+                        request.getMethod(),
+                        request.getRequestURI());
+                sendError(response, HttpStatus.FORBIDDEN, "User is not associated with an active tenant");
+                return;
+            }
 
-    } catch (IllegalArgumentException e) {
-      log.warn("Failed to Base64-decode JWT payload: {}", e.getMessage());
-      return null;
-    } catch (Exception e) {
-      log.error("Unexpected error parsing JWT payload", e);
-      return null;
-    }
-  }
+            TenantContext.setTenant(resolved.get().tenantId(), resolved.get().slug());
+            log.debug(
+                    "Tenant context resolved to slug='{}' (id={}) for {} {}",
+                    resolved.get().slug(),
+                    resolved.get().tenantId(),
+                    request.getMethod(),
+                    request.getRequestURI());
 
-  /**
-   * Extracts a JSON string value for the given key from a raw JSON payload string. Handles standard
-   * {@code "key": "value"} patterns without a full JSON parser.
-   */
-  private String extractJsonStringValue(String json, String claimKey) {
-    int keyIndex = json.indexOf(claimKey);
-    if (keyIndex == -1) {
-      return null;
-    }
+            filterChain.doFilter(request, response);
 
-    // Move past the key and the colon separator
-    int colonIndex = json.indexOf(':', keyIndex + claimKey.length());
-    if (colonIndex == -1) {
-      return null;
-    }
-
-    // Find the opening quote of the value
-    int valueStart = json.indexOf('"', colonIndex + 1);
-    if (valueStart == -1) {
-      return null;
+        } finally {
+            // CRITICAL: Always clear tenant context after the request completes.
+            // Application servers reuse threads — without this, the next request
+            // served by this thread would inherit the previous request's tenant.
+            TenantContext.clear();
+        }
     }
 
-    // Find the closing quote, skipping escaped quotes
-    int valueEnd = json.indexOf('"', valueStart + 1);
-    if (valueEnd == -1) {
-      return null;
+    /** Reads the authenticated {@link Jwt} principal set by Spring Security's resource server. */
+    private Optional<Jwt> currentJwt() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof Jwt jwt) {
+            return Optional.of(jwt);
+        }
+        return Optional.empty();
     }
 
-    return json.substring(valueStart + 1, valueEnd);
-  }
-
-  /** Pads a Base64url string to a multiple of 4 characters, as required by the decoder. */
-  private String padBase64(String base64) {
-    int remainder = base64.length() % 4;
-    if (remainder == 0) return base64;
-    return base64 + "=".repeat(4 - remainder);
-  }
-
-  /** Writes a JSON error response and sets the appropriate HTTP status. */
-  private void sendError(HttpServletResponse response, HttpStatus status, String message)
-      throws IOException {
-    response.setStatus(status.value());
-    response.setContentType("application/json;charset=UTF-8");
-    response
-        .getWriter()
-        .write(String.format("{\"error\":\"%s\",\"status\":%d}", message, status.value()));
-  }
+    /** Writes a JSON error response and sets the appropriate HTTP status. */
+    private void sendError(HttpServletResponse response, HttpStatus status, String message)
+            throws IOException {
+        response.setStatus(status.value());
+        response.setContentType("application/json;charset=UTF-8");
+        response
+                .getWriter()
+                .write(String.format("{\"error\":\"%s\",\"status\":%d}", message, status.value()));
+    }
 }
