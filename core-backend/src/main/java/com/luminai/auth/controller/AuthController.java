@@ -1,4 +1,4 @@
-package com.luminai.auth;
+package com.luminai.auth.controller;
 
 import com.luminai.common.tenant.TenantContext;
 import java.util.Map;

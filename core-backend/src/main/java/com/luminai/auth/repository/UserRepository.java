@@ -1,5 +1,6 @@
 package com.luminai.auth.repository;
 
+import com.luminai.auth.model.Tenant;
 import com.luminai.auth.model.User;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,5 +17,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * tenant.
      */
     Optional<User> findByKeycloakId(String keycloakId);
+
+    /** Used by provisioning to avoid creating a second user with the same email in one tenant. */
+    boolean existsByTenantAndEmailIgnoreCase(Tenant tenant, String email);
 }
 
