@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.exception.ConflictException;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
-import com.luminai.common.tenant.TenantContext;
 import com.luminai.ontology.dto.OntologyVersionDto;
 import com.luminai.ontology.model.EntityType;
 import com.luminai.ontology.model.OntologyVersion;
@@ -28,8 +27,6 @@ public class OntologyVersionService {
 
   private static final Logger log = LoggerFactory.getLogger(OntologyVersionService.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final UUID DEFAULT_SYSTEM_TENANT =
-      UUID.fromString("00000000-0000-0000-0000-000000000001");
 
   private final OntologyVersionRepository repository;
   private final EntityTypeRepository entityTypeRepository;
@@ -37,10 +34,10 @@ public class OntologyVersionService {
   private final JwtClaimsExtractor claimsExtractor;
 
   public OntologyVersionService(
-      OntologyVersionRepository repository,
-      EntityTypeRepository entityTypeRepository,
-      RelationshipTypeRepository relationshipTypeRepository,
-      JwtClaimsExtractor claimsExtractor) {
+          OntologyVersionRepository repository,
+          EntityTypeRepository entityTypeRepository,
+          RelationshipTypeRepository relationshipTypeRepository,
+          JwtClaimsExtractor claimsExtractor) {
     this.repository = repository;
     this.entityTypeRepository = entityTypeRepository;
     this.relationshipTypeRepository = relationshipTypeRepository;
@@ -52,8 +49,8 @@ public class OntologyVersionService {
   public List<OntologyVersionDto.Response> getAll() {
     UUID tenantId = getCurrentTenantId();
     return repository.findAllByTenantIdOrderByCreatedAtDesc(tenantId).stream()
-        .map(OntologyVersionDto.Response::from)
-        .toList();
+            .map(OntologyVersionDto.Response::from)
+            .toList();
   }
 
   /** Retrieves a specific ontology version by ID. */
@@ -61,9 +58,9 @@ public class OntologyVersionService {
   public OntologyVersionDto.Response getById(UUID id) {
     UUID tenantId = getCurrentTenantId();
     OntologyVersion version =
-        repository
-            .findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
+            repository
+                    .findByIdAndTenantId(id, tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
     return OntologyVersionDto.Response.from(version);
   }
 
@@ -79,7 +76,7 @@ public class OntologyVersionService {
 
     List<EntityType> entityTypes = entityTypeRepository.findAllByTenantIdOrderByNameAsc(tenantId);
     List<RelationshipType> relTypes =
-        relationshipTypeRepository.findAllByTenantIdOrderByNameAsc(tenantId);
+            relationshipTypeRepository.findAllByTenantIdOrderByNameAsc(tenantId);
 
     // Build immutable schema snapshot
     Map<String, Object> snapshot = new LinkedHashMap<>();
@@ -126,12 +123,12 @@ public class OntologyVersionService {
     }
 
     OntologyVersion newVersion =
-        new OntologyVersion(
-            tenantId,
-            versionTag,
-            OntologyVersion.Status.PUBLISHED,
-            request.changelog(),
-            currentUserId);
+            new OntologyVersion(
+                    tenantId,
+                    versionTag,
+                    OntologyVersion.Status.PUBLISHED,
+                    request.changelog(),
+                    currentUserId);
     newVersion.setSchemaSnapshot(snapshotJson);
     newVersion.setPublishedAt(Instant.now());
 
@@ -148,10 +145,10 @@ public class OntologyVersionService {
     }
 
     log.info(
-        "Published ontology version '{}' (id={}) for tenant {}",
-        saved.getVersion(),
-        saved.getId(),
-        tenantId);
+            "Published ontology version '{}' (id={}) for tenant {}",
+            saved.getVersion(),
+            saved.getId(),
+            tenantId);
     return OntologyVersionDto.Response.from(saved);
   }
 
@@ -160,9 +157,9 @@ public class OntologyVersionService {
   public OntologyVersionDto.DiffResponse getVersionDiff(UUID id) {
     UUID tenantId = getCurrentTenantId();
     OntologyVersion current =
-        repository
-            .findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
+            repository
+                    .findByIdAndTenantId(id, tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
 
     List<OntologyVersion> allVersions = repository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
 
@@ -176,15 +173,15 @@ public class OntologyVersionService {
 
     Set<String> currentEntities = extractEntityNames(current.getSchemaSnapshot());
     Set<String> previousEntities =
-        previous != null
-            ? extractEntityNames(previous.getSchemaSnapshot())
-            : Collections.emptySet();
+            previous != null
+                    ? extractEntityNames(previous.getSchemaSnapshot())
+                    : Collections.emptySet();
 
     Set<String> currentRels = extractRelationshipNames(current.getSchemaSnapshot());
     Set<String> previousRels =
-        previous != null
-            ? extractRelationshipNames(previous.getSchemaSnapshot())
-            : Collections.emptySet();
+            previous != null
+                    ? extractRelationshipNames(previous.getSchemaSnapshot())
+                    : Collections.emptySet();
 
     List<String> addedEntities = new ArrayList<>();
     List<String> removedEntities = new ArrayList<>();
@@ -213,13 +210,13 @@ public class OntologyVersionService {
     }
 
     return new OntologyVersionDto.DiffResponse(
-        current.getVersion(),
-        previous != null ? previous.getVersion() : "none",
-        addedEntities,
-        Collections.emptyList(),
-        removedEntities,
-        addedRels,
-        removedRels);
+            current.getVersion(),
+            previous != null ? previous.getVersion() : "none",
+            addedEntities,
+            Collections.emptyList(),
+            removedEntities,
+            addedRels,
+            removedRels);
   }
 
   @SuppressWarnings("unchecked")
@@ -230,9 +227,9 @@ public class OntologyVersionService {
     }
     try {
       Map<String, Object> map =
-          OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
+              OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
       List<Map<String, Object>> entityTypes =
-          (List<Map<String, Object>>) map.getOrDefault("entityTypes", Collections.emptyList());
+              (List<Map<String, Object>>) map.getOrDefault("entityTypes", Collections.emptyList());
       for (Map<String, Object> et : entityTypes) {
         Object name = et.get("name");
         if (name != null) {
@@ -252,10 +249,10 @@ public class OntologyVersionService {
     }
     try {
       Map<String, Object> map =
-          OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
+              OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
       List<Map<String, Object>> relTypes =
-          (List<Map<String, Object>>)
-              map.getOrDefault("relationshipTypes", Collections.emptyList());
+              (List<Map<String, Object>>)
+                      map.getOrDefault("relationshipTypes", Collections.emptyList());
       for (Map<String, Object> rt : relTypes) {
         Object name = rt.get("name");
         if (name != null) {
@@ -267,24 +264,9 @@ public class OntologyVersionService {
     return names;
   }
 
+
+  //Returns the tenant resolved for the current request
   public UUID getCurrentTenantId() {
-    try {
-      String tenantIdStr = claimsExtractor.getCurrentTenantId();
-      if (tenantIdStr != null && !tenantIdStr.isBlank()) {
-        return UUID.fromString(tenantIdStr);
-      }
-    } catch (Exception ignored) {
-      // Fall through to ThreadLocal or default tenant
-    }
-
-    if (TenantContext.hasTenant()) {
-      try {
-        return UUID.fromString(TenantContext.getTenantId());
-      } catch (Exception ignored) {
-        // Fall through
-      }
-    }
-
-    return DEFAULT_SYSTEM_TENANT;
+    return UUID.fromString(claimsExtractor.getCurrentTenantId());
   }
 }

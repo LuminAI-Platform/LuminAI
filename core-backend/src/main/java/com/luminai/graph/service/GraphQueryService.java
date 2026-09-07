@@ -17,38 +17,38 @@ public class GraphQueryService {
   }
 
   public GraphQueryResponseDto getNeighbourhood(
-      String entityId, int depth, String relationshipType) {
+          String entityId, int depth, String relationshipType) {
     if (depth < 1 || depth > 4) {
       throw new IllegalArgumentException("depth must be between 1 and 4");
     }
-    String tenantId = TenantContext.getTenantId();
+    String tenantId = TenantContext.getTenantSlug();
     if (tenantId == null || tenantId.isBlank()) {
       throw new IllegalStateException("No tenant context is available for graph query");
     }
     if (relationshipType != null
-        && !Neo4jGraphRepository.isSafeRelationshipType(relationshipType)) {
+            && !Neo4jGraphRepository.isSafeRelationshipType(relationshipType)) {
       throw new IllegalArgumentException(
-          "relationshipType must be a valid Neo4j relationship type");
+              "relationshipType must be a valid Neo4j relationship type");
     }
 
     return graphRepository
-        .findNeighbourhood(tenantId, entityId, depth, relationshipType)
-        .orElseThrow(() -> new ResourceNotFoundException("Entity", "id", entityId));
+            .findNeighbourhood(tenantId, entityId, depth, relationshipType)
+            .orElseThrow(() -> new ResourceNotFoundException("Entity", "id", entityId));
   }
 
   /** Returns the ordered shortest path in the current tenant's Entity graph. */
   public GraphQueryResponseDto getShortestPath(String sourceId, String targetId) {
     String tenantId = currentTenantId();
     return graphRepository
-        .findShortestPath(tenantId, sourceId, targetId)
-        .orElseThrow(
-            () ->
-                new ResourceNotFoundException(
-                    "Graph path", "sourceId/targetId", sourceId + " -> " + targetId));
+            .findShortestPath(tenantId, sourceId, targetId)
+            .orElseThrow(
+                    () ->
+                            new ResourceNotFoundException(
+                                    "Graph path", "sourceId/targetId", sourceId + " -> " + targetId));
   }
 
   private String currentTenantId() {
-    String tenantId = TenantContext.getTenantId();
+    String tenantId = TenantContext.getTenantSlug();
     if (tenantId == null || tenantId.isBlank()) {
       throw new IllegalStateException("No tenant context is available for graph query");
     }

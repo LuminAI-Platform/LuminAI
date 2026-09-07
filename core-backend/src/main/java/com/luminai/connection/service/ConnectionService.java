@@ -1,7 +1,7 @@
 package com.luminai.connection.service;
 
 import com.luminai.common.exception.ResourceNotFoundException;
-import com.luminai.common.security.JwtClaimsExtractor;
+import com.luminai.common.tenant.TenantContext;
 import com.luminai.connection.dto.ConnectionDto;
 import com.luminai.connection.model.Connection;
 import com.luminai.connection.repository.ConnectionRepository;
@@ -15,8 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Service layer for Connection CRUD operations.
  *
- * <p>Tenant isolation is enforced on every operation by extracting the tenant ID from the
- * authenticated JWT context.
+ * <p>Tenant isolation is enforced on every operation by scoping to the tenant resolved onto {@link
+ * TenantContext} for the current request (see {@link com.luminai.common.tenant.TenantFilter} and
+ * {@link com.luminai.common.tenant.TenantResolutionService}) — not by trusting any claim on the
+ * JWT itself.
  */
 @Service
 public class ConnectionService {
@@ -24,11 +26,9 @@ public class ConnectionService {
   private static final Logger log = LoggerFactory.getLogger(ConnectionService.class);
 
   private final ConnectionRepository repository;
-  private final JwtClaimsExtractor claimsExtractor;
 
-  public ConnectionService(ConnectionRepository repository, JwtClaimsExtractor claimsExtractor) {
+  public ConnectionService(ConnectionRepository repository) {
     this.repository = repository;
-    this.claimsExtractor = claimsExtractor;
   }
 
   /** Create a new connection registry entry for the authenticated tenant. */
@@ -37,17 +37,17 @@ public class ConnectionService {
     UUID tenantId = getCurrentTenantId();
 
     Connection connection =
-        new Connection(
-            tenantId,
-            request.name(),
-            request.type(),
-            request.config(),
-            request.credentialsRef(),
-            null);
+            new Connection(
+                    tenantId,
+                    request.name(),
+                    request.type(),
+                    request.config(),
+                    request.credentialsRef(),
+                    null);
 
     Connection saved = repository.save(connection);
     log.info(
-        "Created connection '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
+            "Created connection '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
 
     return ConnectionDto.Response.from(saved);
   }
@@ -58,9 +58,9 @@ public class ConnectionService {
     UUID tenantId = getCurrentTenantId();
 
     Connection connection =
-        repository
-            .findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ResourceNotFoundException("Connection", id));
+            repository
+                    .findByIdAndTenantId(id, tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Connection", id));
 
     return ConnectionDto.Response.from(connection);
   }
@@ -71,8 +71,8 @@ public class ConnectionService {
     UUID tenantId = getCurrentTenantId();
 
     return repository.findAllByTenantId(tenantId).stream()
-        .map(ConnectionDto.Response::from)
-        .toList();
+            .map(ConnectionDto.Response::from)
+            .toList();
   }
 
   /** Update an existing connection entry (partial update). */
@@ -81,9 +81,9 @@ public class ConnectionService {
     UUID tenantId = getCurrentTenantId();
 
     Connection connection =
-        repository
-            .findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ResourceNotFoundException("Connection", id));
+            repository
+                    .findByIdAndTenantId(id, tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Connection", id));
 
     if (request.name() != null) {
       connection.setName(request.name());
@@ -100,10 +100,10 @@ public class ConnectionService {
 
     Connection updated = repository.save(connection);
     log.info(
-        "Updated connection '{}' (id={}) for tenant {}",
-        updated.getName(),
-        updated.getId(),
-        tenantId);
+            "Updated connection '{}' (id={}) for tenant {}",
+            updated.getName(),
+            updated.getId(),
+            tenantId);
 
     return ConnectionDto.Response.from(updated);
   }
@@ -121,6 +121,12 @@ public class ConnectionService {
   }
 
   private UUID getCurrentTenantId() {
-    return UUID.fromString(claimsExtractor.getCurrentTenantId());
+    UUID tenantId = TenantContext.getTenantUuid();
+    if (tenantId == null) {
+      throw new IllegalStateException(
+              "No tenant has been resolved for the current request. TenantFilter should have "
+                      + "resolved and set one for every authenticated application request.");
+    }
+    return tenantId;
   }
 }

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class MultiTenantConnectionProvider
-    extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl<String> {
+        extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl<String> {
 
   private static final Logger log = LoggerFactory.getLogger(MultiTenantConnectionProvider.class);
 
@@ -49,12 +49,12 @@ public class MultiTenantConnectionProvider
 
     Connection connection = dataSource.getConnection();
 
-    log.info("getAnyConnection() -> {}", TenantContext.DEFAULT_TENANT);
+    log.info("getAnyConnection() -> {}", TenantContext.DEFAULT_SCHEMA);
 
-    setSearchPath(connection, TenantContext.DEFAULT_TENANT);
+    setSearchPath(connection, TenantContext.DEFAULT_SCHEMA);
 
     try (var stmt = connection.createStatement();
-        var rs = stmt.executeQuery("SHOW search_path")) {
+         var rs = stmt.executeQuery("SHOW search_path")) {
       rs.next();
       log.info("search_path = {}", rs.getString(1));
     }
@@ -90,7 +90,7 @@ public class MultiTenantConnectionProvider
 
   @Override
   public void releaseConnection(String tenantIdentifier, Connection connection)
-      throws SQLException {
+          throws SQLException {
 
     try {
       resetSearchPath(connection);
@@ -122,16 +122,16 @@ public class MultiTenantConnectionProvider
   private void resetSearchPath(Connection connection) throws SQLException {
 
     try (var stmt = connection.createStatement()) {
-      stmt.execute("SET search_path = " + TenantContext.DEFAULT_TENANT);
+      stmt.execute("SET search_path = " + TenantContext.DEFAULT_SCHEMA);
     }
 
-    log.info("search_path reset to '{}'", TenantContext.DEFAULT_TENANT);
+    log.info("search_path reset to '{}'", TenantContext.DEFAULT_SCHEMA);
   }
 
   private String sanitize(String schema) {
 
-    if (schema == null || schema.isBlank()) {
-      schema = TenantContext.DEFAULT_TENANT;
+    if (schema == null || schema.isBlank() || "default".equalsIgnoreCase(schema)) {
+      schema = TenantContext.DEFAULT_SCHEMA;
     }
 
     if (!schema.matches(SAFE_SCHEMA_PATTERN)) {

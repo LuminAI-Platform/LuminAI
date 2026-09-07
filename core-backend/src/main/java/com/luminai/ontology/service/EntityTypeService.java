@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.exception.ConflictException;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
-import com.luminai.common.tenant.TenantContext;
 import com.luminai.ontology.dto.EntityTypeDto;
 import com.luminai.ontology.model.EntityType;
 import com.luminai.ontology.repository.EntityTypeRepository;
@@ -25,8 +24,6 @@ public class EntityTypeService {
 
   private static final Logger log = LoggerFactory.getLogger(EntityTypeService.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final UUID DEFAULT_SYSTEM_TENANT =
-      UUID.fromString("00000000-0000-0000-0000-000000000001");
 
   private final EntityTypeRepository repository;
   private final JwtClaimsExtractor claimsExtractor;
@@ -41,8 +38,8 @@ public class EntityTypeService {
   public List<EntityTypeDto.Response> getAll() {
     UUID tenantId = getCurrentTenantId();
     return repository.findAllByTenantIdOrderByNameAsc(tenantId).stream()
-        .map(EntityTypeDto.Response::from)
-        .toList();
+            .map(EntityTypeDto.Response::from)
+            .toList();
   }
 
   /** Retrieves a specific entity type by ID. */
@@ -50,9 +47,9 @@ public class EntityTypeService {
   public EntityTypeDto.Response getById(UUID id) {
     UUID tenantId = getCurrentTenantId();
     EntityType entityType =
-        repository
-            .findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
+            repository
+                    .findByIdAndTenantId(id, tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
     return EntityTypeDto.Response.from(entityType);
   }
 
@@ -63,25 +60,25 @@ public class EntityTypeService {
 
     if (repository.existsByNameIgnoreCaseAndTenantId(request.name(), tenantId)) {
       throw new ConflictException(
-          "Entity type with name '" + request.name() + "' already exists for this tenant");
+              "Entity type with name '" + request.name() + "' already exists for this tenant");
     }
 
     String schemaJson = resolvePropertiesSchema(request.properties(), request.propertiesSchema());
 
     EntityType entityType =
-        new EntityType(
-            tenantId,
-            null, // draft version
-            request.name().trim(),
-            request.label(),
-            request.color(),
-            request.icon(),
-            request.description(),
-            schemaJson);
+            new EntityType(
+                    tenantId,
+                    null, // draft version
+                    request.name().trim(),
+                    request.label(),
+                    request.color(),
+                    request.icon(),
+                    request.description(),
+                    schemaJson);
 
     EntityType saved = repository.save(entityType);
     log.info(
-        "Created entity type '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
+            "Created entity type '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
     return EntityTypeDto.Response.from(saved);
   }
 
@@ -91,16 +88,16 @@ public class EntityTypeService {
     UUID tenantId = getCurrentTenantId();
 
     EntityType entityType =
-        repository
-            .findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
+            repository
+                    .findByIdAndTenantId(id, tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
 
     if (request.name() != null
-        && !request.name().isBlank()
-        && !request.name().equalsIgnoreCase(entityType.getName())) {
+            && !request.name().isBlank()
+            && !request.name().equalsIgnoreCase(entityType.getName())) {
       if (repository.existsByNameIgnoreCaseAndTenantId(request.name().trim(), tenantId)) {
         throw new ConflictException(
-            "Entity type with name '" + request.name() + "' already exists for this tenant");
+                "Entity type with name '" + request.name() + "' already exists for this tenant");
       }
       entityType.setName(request.name().trim());
     }
@@ -125,10 +122,10 @@ public class EntityTypeService {
 
     EntityType updated = repository.save(entityType);
     log.info(
-        "Updated entity type '{}' (id={}) for tenant {}",
-        updated.getName(),
-        updated.getId(),
-        tenantId);
+            "Updated entity type '{}' (id={}) for tenant {}",
+            updated.getName(),
+            updated.getId(),
+            tenantId);
     return EntityTypeDto.Response.from(updated);
   }
 
@@ -145,7 +142,7 @@ public class EntityTypeService {
 
   /** Resolves properties schema from explicit map or structured property list. */
   private String resolvePropertiesSchema(
-      List<EntityTypeDto.PropertyDefinition> properties, Map<String, Object> propertiesSchema) {
+          List<EntityTypeDto.PropertyDefinition> properties, Map<String, Object> propertiesSchema) {
     if (propertiesSchema != null && !propertiesSchema.isEmpty()) {
       try {
         return OBJECT_MAPPER.writeValueAsString(propertiesSchema);
@@ -195,24 +192,8 @@ public class EntityTypeService {
     return "{}";
   }
 
+   //Returns the tenant resolved for the current request
   public UUID getCurrentTenantId() {
-    try {
-      String tenantIdStr = claimsExtractor.getCurrentTenantId();
-      if (tenantIdStr != null && !tenantIdStr.isBlank()) {
-        return UUID.fromString(tenantIdStr);
-      }
-    } catch (Exception ignored) {
-      // Fall through to ThreadLocal or default tenant
-    }
-
-    if (TenantContext.hasTenant()) {
-      try {
-        return UUID.fromString(TenantContext.getTenantId());
-      } catch (Exception ignored) {
-        // Fall through
-      }
-    }
-
-    return DEFAULT_SYSTEM_TENANT;
+    return UUID.fromString(claimsExtractor.getCurrentTenantId());
   }
 }
