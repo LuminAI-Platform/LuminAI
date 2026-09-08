@@ -164,3 +164,9 @@ luminai:
     topic:
       partitions: 3
       replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
+  keycloak:
+    base-url: ${KEYCLOAK_BASE_URL}
+    realm: ${KEYCLOAK_REALM}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
+    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+

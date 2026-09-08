@@ -1,7 +1,7 @@
 package com.luminai.connection.service;
 
 import com.luminai.common.exception.ResourceNotFoundException;
-import com.luminai.common.security.JwtClaimsExtractor;
+import com.luminai.common.tenant.TenantContext;
 import com.luminai.connection.dto.ConnectionDto;
 import com.luminai.connection.model.Connection;
 import com.luminai.connection.repository.ConnectionRepository;
@@ -15,8 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Service layer for Connection CRUD operations.
  *
- * <p>Tenant isolation is enforced on every operation by extracting the tenant ID from the
- * authenticated JWT context.
+ * <p>Tenant isolation is enforced on every operation by scoping to the tenant resolved onto {@link
+ * TenantContext} for the current request (see {@link com.luminai.common.tenant.TenantFilter} and
+ * {@link com.luminai.common.tenant.TenantResolutionService}) — not by trusting any claim on the JWT
+ * itself.
  */
 @Service
 public class ConnectionService {
@@ -24,11 +26,9 @@ public class ConnectionService {
   private static final Logger log = LoggerFactory.getLogger(ConnectionService.class);
 
   private final ConnectionRepository repository;
-  private final JwtClaimsExtractor claimsExtractor;
 
-  public ConnectionService(ConnectionRepository repository, JwtClaimsExtractor claimsExtractor) {
+  public ConnectionService(ConnectionRepository repository) {
     this.repository = repository;
-    this.claimsExtractor = claimsExtractor;
   }
 
   /** Create a new connection registry entry for the authenticated tenant. */
@@ -121,6 +121,12 @@ public class ConnectionService {
   }
 
   private UUID getCurrentTenantId() {
-    return UUID.fromString(claimsExtractor.getCurrentTenantId());
+    UUID tenantId = TenantContext.getTenantUuid();
+    if (tenantId == null) {
+      throw new IllegalStateException(
+          "No tenant has been resolved for the current request. TenantFilter should have "
+              + "resolved and set one for every authenticated application request.");
+    }
+    return tenantId;
   }
 }

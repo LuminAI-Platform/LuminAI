@@ -21,7 +21,7 @@ public class GraphQueryService {
     if (depth < 1 || depth > 4) {
       throw new IllegalArgumentException("depth must be between 1 and 4");
     }
-    String tenantId = TenantContext.getTenantId();
+    String tenantId = TenantContext.getTenantSlug();
     if (tenantId == null || tenantId.isBlank()) {
       throw new IllegalStateException("No tenant context is available for graph query");
     }
@@ -48,7 +48,7 @@ public class GraphQueryService {
   }
 
   private String currentTenantId() {
-    String tenantId = TenantContext.getTenantId();
+    String tenantId = TenantContext.getTenantSlug();
     if (tenantId == null || tenantId.isBlank()) {
       throw new IllegalStateException("No tenant context is available for graph query");
     }

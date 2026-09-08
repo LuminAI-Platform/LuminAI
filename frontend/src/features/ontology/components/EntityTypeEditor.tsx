@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { apiFetch } from "../../../lib/api";
 import { PropertySchemaForm } from "./PropertySchemaForm";
 import type { PropertySchema } from "./PropertySchemaForm";
@@ -250,6 +250,19 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   const set = (k: keyof EntityType, v: unknown) =>
     setForm((f) => ({ ...f, [k]: v }));

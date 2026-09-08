@@ -94,13 +94,16 @@ public class SecurityConfig {
           || token.contains("sandbox")
           || "mock-access-token-123".equals(token)
           || delegate == null) {
+        // Sandbox/dev tokens still go through the exact same tenant-resolution path as a real
+        // Keycloak token — see TenantFilter / TenantResolutionService. This "sub" must have a
+        // matching row in public.users (seeded by a Flyway migration) or requests will be
+        // rejected with 403, same as any other user with no tenant mapping.
         return Jwt.withTokenValue(token != null ? token : "sandbox-token")
             .header("alg", "none")
             .header("typ", "JWT")
             .claim("sub", "sandbox-admin-id")
             .claim("preferred_username", "admin")
             .claim("email", "admin@luminai.dev")
-            .claim("tenant_id", "00000000-0000-0000-0000-000000000001")
             .claim("realm_access", Map.of("roles", List.of("admin", "user", "TENANT_ADMIN")))
             .issuedAt(Instant.now())
             .expiresAt(Instant.now().plusSeconds(86400))

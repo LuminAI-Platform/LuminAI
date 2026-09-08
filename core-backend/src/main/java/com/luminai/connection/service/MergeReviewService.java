@@ -232,12 +232,12 @@ public class MergeReviewService {
   }
 
   /**
-   * Publishes an entity.updated event for the current tenant. {@link TenantContext#getTenantId()}
+   * Publishes an entity.updated event for the current tenant. {@link TenantContext#getTenantSlug()}
    * is read here (not for query filtering — see class Javadoc) purely so consumers on the shared
    * topic know which tenant's data changed.
    */
   private void publishEntityUpdated(UUID entityId, String changeType) {
-    String tenantId = TenantContext.getTenantId();
+    String tenantId = TenantContext.getTenantSlug();
     kafkaTemplate.send(
         KafkaConfig.TOPIC_ENTITY_UPDATED,
         entityId.toString(),

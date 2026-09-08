@@ -9,13 +9,17 @@ import org.springframework.stereotype.Component;
 
 /**
  * Utility component to extract common claims from the current JWT in the Spring Security context.
- * Inject this wherever you need the authenticated user's identity or tenant without passing the JWT
- * manually.
+ * Inject this wherever you need the authenticated user's identity without passing the JWT manually.
+ *
+ * <p><strong>Tenant resolution is not done here.</strong> The JWT is never asked for a {@code
+ * tenant_id} claim — Keycloak identifies the user, and {@code TenantFilter} (via {@code
+ * TenantResolutionService}) is solely responsible for resolving that user's tenant from {@code
+ * public.users} / {@code public.tenants} and populating {@link TenantContext}. {@link
+ * #getCurrentTenantId()} below just reads that already-resolved value.
  */
 @Component
 public class JwtClaimsExtractor {
 
-  public static final String DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
   public static final String DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
   public Optional<Jwt> getCurrentJwt() {
@@ -33,34 +37,23 @@ public class JwtClaimsExtractor {
         .orElse(DEFAULT_USER_ID);
   }
 
+  /**
+   * Returns the current request's tenant ID ({@code public.tenants.id}), as resolved by {@code
+   * TenantFilter} for the authenticated user. There is no fallback: if a service calls this outside
+   * of a request that {@code TenantFilter} has processed (or tenant resolution failed and the
+   * request should have already been rejected), that is a bug, and this throws rather than silently
+   * attributing the call to some default tenant.
+   *
+   * @throws IllegalStateException if no tenant has been resolved for the current thread.
+   */
   public String getCurrentTenantId() {
-    // 1. Extract from JWT tenant_id claim if present and valid UUID
-    Optional<String> fromJwt =
-        getCurrentJwt()
-            .map(jwt -> jwt.getClaimAsString("tenant_id"))
-            .filter(t -> t != null && !t.isBlank());
-    if (fromJwt.isPresent()) {
-      try {
-        UUID.fromString(fromJwt.get());
-        return fromJwt.get();
-      } catch (IllegalArgumentException ignored) {
-        // Non-UUID claim string like "acme" or "default" — fallback below
-      }
+    UUID tenantId = TenantContext.getTenantUuid();
+    if (tenantId == null) {
+      throw new IllegalStateException(
+          "No tenant has been resolved for the current request. TenantFilter should have "
+              + "resolved and set a tenant, or rejected the request, before reaching this point.");
     }
-
-    // 2. Fall back to current TenantContext if set to a valid UUID
-    String contextTenant = TenantContext.getTenantId();
-    if (contextTenant != null && !contextTenant.isBlank()) {
-      try {
-        UUID.fromString(contextTenant);
-        return contextTenant;
-      } catch (IllegalArgumentException ignored) {
-        // "default" or "public" or non-UUID slug
-      }
-    }
-
-    // 3. Fallback to default system tenant UUID
-    return DEFAULT_TENANT_ID;
+    return tenantId.toString();
   }
 
   public String getCurrentEmail() {

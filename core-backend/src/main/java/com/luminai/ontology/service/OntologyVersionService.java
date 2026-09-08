@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.exception.ConflictException;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
-import com.luminai.common.tenant.TenantContext;
 import com.luminai.ontology.dto.OntologyVersionDto;
 import com.luminai.ontology.model.EntityType;
 import com.luminai.ontology.model.OntologyVersion;
@@ -28,8 +27,6 @@ public class OntologyVersionService {
 
   private static final Logger log = LoggerFactory.getLogger(OntologyVersionService.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final UUID DEFAULT_SYSTEM_TENANT =
-      UUID.fromString("00000000-0000-0000-0000-000000000001");
 
   private final OntologyVersionRepository repository;
   private final EntityTypeRepository entityTypeRepository;
@@ -267,24 +264,8 @@ public class OntologyVersionService {
     return names;
   }
 
+  // Returns the tenant resolved for the current request
   public UUID getCurrentTenantId() {
-    try {
-      String tenantIdStr = claimsExtractor.getCurrentTenantId();
-      if (tenantIdStr != null && !tenantIdStr.isBlank()) {
-        return UUID.fromString(tenantIdStr);
-      }
-    } catch (Exception ignored) {
-      // Fall through to ThreadLocal or default tenant
-    }
-
-    if (TenantContext.hasTenant()) {
-      try {
-        return UUID.fromString(TenantContext.getTenantId());
-      } catch (Exception ignored) {
-        // Fall through
-      }
-    }
-
-    return DEFAULT_SYSTEM_TENANT;
+    return UUID.fromString(claimsExtractor.getCurrentTenantId());
   }
 }
