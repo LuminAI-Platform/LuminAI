@@ -489,6 +489,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
                 : `${Math.round(file.size / 1024)} KB`,
             recordsCount: parsedData.rows.length,
+            columns: parsedData.columns,
+            sampleRows: parsedData.rows.slice(0, 50),
           }),
         );
       }

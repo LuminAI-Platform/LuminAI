@@ -155,7 +155,7 @@ const ParticleMeshCanvas: React.FC = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none z-0 opacity-90"
+      className="fixed inset-0 pointer-events-none z-0 opacity-90"
     />
   );
 };
@@ -203,16 +203,16 @@ export const LoginPage: React.FC = () => {
   */
 
   return (
-    <div className="min-h-screen w-screen bg-[#07090e] text-zinc-100 font-sans relative overflow-hidden flex flex-col justify-between p-6 md:p-10 select-none">
+    <div className="min-h-screen h-screen w-screen bg-[#07090e] text-zinc-100 font-sans relative overflow-y-auto overflow-x-hidden flex flex-col p-6 md:p-10 select-none">
       {/* Animated Particle Mesh & Connected Node Lattice Background */}
       <ParticleMeshCanvas />
 
       {/* Background Subtle Ambient Glows */}
-      <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none" />
+      <div className="fixed top-[-20%] left-[-10%] w-[700px] h-[700px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none z-0" />
+      <div className="fixed bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none z-0" />
 
       {/* Main Container */}
-      <div className="w-full max-w-[1240px] mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10 items-stretch">
+      <div className="w-full max-w-[1240px] mx-auto my-auto py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10 items-stretch">
         {/* Left Column: Visual branding and system details */}
         <div className="lg:col-span-7 bg-[#0c0f1d]/90 border border-zinc-800/80 rounded-2xl p-7 lg:p-9 flex flex-col justify-between gap-8 backdrop-blur-md shadow-2xl shadow-black/80 relative overflow-hidden">
           {/* Top Blue Glowing Border Line */}
@@ -372,7 +372,7 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Right Column: Keycloak SSO Card */}
-        <div className="lg:col-span-5 bg-[#0c0f1d]/90 border border-zinc-800/80 rounded-2xl p-7 lg:p-9 flex flex-col justify-between backdrop-blur-md shadow-2xl shadow-black/80 min-h-[460px]">
+        <div className="lg:col-span-5 bg-[#0c0f1d]/90 border border-zinc-800/80 rounded-2xl p-7 lg:p-9 flex flex-col justify-between backdrop-blur-md shadow-2xl shadow-black/80 min-h-[460px] relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-blue-600/10 via-blue-500/90 to-blue-600/10 pointer-events-none" />
 
           {/* Top Lock Badge */}
@@ -500,7 +500,7 @@ export const LoginPage: React.FC = () => {
       </div>
 
       {/* Bottom Footer Links */}
-      <div className="w-full max-w-[1240px] mx-auto mt-4 pt-2 flex items-center gap-6 text-xs text-zinc-600 font-mono">
+      <div className="w-full max-w-[1240px] mx-auto mt-4 pt-2 pb-4 flex items-center gap-6 text-xs text-zinc-600 font-mono">
         <a href="#" className="hover:text-zinc-400 transition-colors">
           Security Policy
         </a>

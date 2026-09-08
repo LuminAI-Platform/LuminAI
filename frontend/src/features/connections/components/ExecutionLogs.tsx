@@ -30,102 +30,20 @@ export interface ExecutionError {
 }
 
 interface ExecutionLogsProps {
-  /** Controlled log entries — omit to use demo simulation */
+  /** Controlled log entries — omit to use live backend polling */
   entries?: LogEntry[];
-  /** Controlled error blocks — omit to use demo simulation */
+  /** Controlled error blocks */
   errors?: ExecutionError[];
-  /** Enable auto-scrolling demo simulation */
-  demo?: boolean;
   /** Max displayed log lines */
   maxLines?: number;
   /** Panel title */
   title?: string;
 }
 
-// ─── Static seed data for demo ────────────────────────────────────────────────
-
-const LIVE_LOG_POOL: Omit<LogEntry, "id" | "ts">[] = [
-  {
-    level: "INFO",
-    source: "DataEngine",
-    message: "Batch #%n committed — 12,480 records flushed.",
-  },
-  {
-    level: "INFO",
-    source: "Kafka",
-    message: "Offset committed for partition 2 → #%n.",
-  },
-  {
-    level: "DEBUG",
-    source: "Polars",
-    message: "Lazy plan evaluated. Predicate pushdown applied.",
-  },
-  {
-    level: "INFO",
-    source: "LakeWriter",
-    message: "Delta table snapshot created at txn #%n.",
-  },
-  {
-    level: "SUCCESS",
-    source: "Sync",
-    message: "Checkpoint saved. ETA updated to ~%n seconds.",
-  },
-  {
-    level: "WARN",
-    source: "Parser",
-    message: "Nullable field 'email' missing in %n rows. Coercing to NULL.",
-  },
-  {
-    level: "INFO",
-    source: "Compressor",
-    message: "Snappy codec: %n KB → %n KB (ratio 3.2×).",
-  },
-  {
-    level: "DEBUG",
-    source: "MemPool",
-    message: "GC cycle #%n — freed 140 MB spill buffers.",
-  },
-  {
-    level: "INFO",
-    source: "Orchestrator",
-    message: "Sub-task executor reported healthy at tick #%n.",
-  },
-  {
-    level: "ERROR",
-    source: "NetLayer",
-    message: "Transient connection reset to replica-3. Retrying (1/3).",
-  },
-  {
-    level: "SUCCESS",
-    source: "NetLayer",
-    message: "Reconnected to replica-3 after 240ms backoff.",
-  },
-  {
-    level: "INFO",
-    source: "Validator",
-    message: "Constraint checks passed for batch #%n.",
-  },
-  {
-    level: "WARN",
-    source: "Throttle",
-    message: "Rate limiter engaged — sleeping 200ms (quota: 15K rec/s).",
-  },
-  {
-    level: "DEBUG",
-    source: "QueryPlanner",
-    message: "CTE rewrite saved %n full-table scans.",
-  },
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-let _idCounter = 1000;
-const uid = () => `log-${_idCounter++}`;
-
-const randomN = () => Math.floor(Math.random() * 9_000 + 1_000);
-
-const interpolate = (tpl: string): string =>
-  tpl.replace(/%n/g, () => String(randomN()));
+//let _idCounter = 1000;
+//const uid = () => `log-${_idCounter++}`;
 
 const formatTs = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -304,7 +222,6 @@ const ErrorBlock: React.FC<ErrorBlockProps> = ({ error, onDismiss }) => {
 export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
   entries: entriesProp,
   errors: errorsProp,
-  demo = false,
   maxLines = 200,
   title = "Execution Logs",
 }) => {
@@ -330,32 +247,85 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
   const logIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Poll real backend execution logs if not in demo mode and not paused
+  // Poll /api/v1/pipelines/runs and derive log entries from run data
   const fetchBackendLogs = useCallback(async () => {
-    if (demo || paused) return;
+    if (paused) return;
     try {
-      const res = await apiFetch("/api/v1/sync-jobs/logs");
+      const res = await apiFetch(
+        "/api/v1/pipelines/runs?size=10&sort=startedAt,desc",
+      );
       if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const fetchedLogs: LogEntry[] = data.map(
-            (item: Record<string, unknown>, idx: number) => ({
-              id: String(item.id || `backend-log-${idx}`),
-              ts: item.timestamp
-                ? new Date(String(item.timestamp))
-                : new Date(),
-              level: (item.level as LogLevel) || "INFO",
-              source: String(item.source || "Backend"),
-              message: String(item.message || ""),
-            }),
-          );
+        const page = await res.json();
+        const items: Record<string, unknown>[] = Array.isArray(page)
+          ? page
+          : Array.isArray(page?.content)
+            ? page.content
+            : [];
+
+        if (items.length > 0) {
+          const derived: LogEntry[] = [];
+          items.forEach((run, i) => {
+            const source = String(
+              run.pipelineType ?? run.connectorName ?? "PipelineEngine",
+            );
+            const startedAt = run.startedAt
+              ? new Date(String(run.startedAt))
+              : new Date();
+            const runId = String(run.id ?? `run-${i}`);
+            const status = String(run.status ?? "PENDING").toUpperCase();
+
+            derived.push({
+              id: `be-${runId}-start`,
+              ts: startedAt,
+              level: "INFO",
+              source,
+              message: `Pipeline run ${runId.slice(0, 8)} initiated — type: ${source}.`,
+            });
+
+            const output = Number(run.recordsOutput ?? 0);
+            if (output > 0) {
+              derived.push({
+                id: `be-${runId}-out`,
+                ts: new Date(startedAt.getTime() + 30_000),
+                level: "SUCCESS",
+                source,
+                message: `Batch committed — ${output.toLocaleString()} records output. Throughput: ${Number(run.throughput ?? 0).toFixed(1)} rec/s.`,
+              });
+            }
+
+            const failed = Number(run.recordsFailed ?? 0);
+            if (failed > 0 || run.errorMessage) {
+              derived.push({
+                id: `be-${runId}-err`,
+                ts: new Date(startedAt.getTime() + 60_000),
+                level: "WARN",
+                source,
+                message: run.errorMessage
+                  ? String(run.errorMessage)
+                  : `${failed} records failed validation. Coercing to NULL.`,
+              });
+            }
+
+            if (status === "COMPLETED" || status === "FAILED") {
+              derived.push({
+                id: `be-${runId}-done`,
+                ts: run.completedAt
+                  ? new Date(String(run.completedAt))
+                  : new Date(),
+                level: status === "COMPLETED" ? "SUCCESS" : "ERROR",
+                source,
+                message: `Run ${runId.slice(0, 8)} ${status.toLowerCase()}. Duration: ${Number(run.durationSeconds ?? 0)}s.`,
+              });
+            }
+          });
+
           setLogs((prev) => {
             const existingIds = new Set(prev.map((l) => l.id));
-            const newEntries = fetchedLogs.filter(
-              (l) => !existingIds.has(l.id),
-            );
+            const newEntries = derived.filter((l) => !existingIds.has(l.id));
             if (newEntries.length === 0) return prev;
-            return [...prev, ...newEntries].slice(-maxLines);
+            return [...prev, ...newEntries]
+              .sort((a, b) => a.ts.getTime() - b.ts.getTime())
+              .slice(-maxLines);
           });
         }
       }
@@ -366,22 +336,18 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
           logIntervalRef.current = null;
         }
       }
-      // Endpoint may not exist yet in dev backend; keep existing state gracefully
     }
-  }, [demo, paused, maxLines]);
+  }, [paused, maxLines]);
 
   useEffect(() => {
-    if (!demo) {
-      // Defers initial synchronous state mutation out of the render stack frame
-      Promise.resolve().then(() => {
-        fetchBackendLogs();
-      });
-      logIntervalRef.current = setInterval(fetchBackendLogs, 3000);
-      return () => {
-        if (logIntervalRef.current) clearInterval(logIntervalRef.current);
-      };
-    }
-  }, [demo, fetchBackendLogs]);
+    Promise.resolve().then(() => {
+      fetchBackendLogs();
+    });
+    logIntervalRef.current = setInterval(fetchBackendLogs, 6000);
+    return () => {
+      if (logIntervalRef.current) clearInterval(logIntervalRef.current);
+    };
+  }, [fetchBackendLogs]);
   // Auto-scroll
   useEffect(() => {
     if (isFollowing && !isUserScrollingRef.current && scrollRef.current) {
@@ -397,27 +363,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
     setIsFollowing(atBottom);
   };
 
-  // Demo live log generation
-  const emitLog = useCallback(() => {
-    if (!demo || paused) return;
-    const template =
-      LIVE_LOG_POOL[Math.floor(Math.random() * LIVE_LOG_POOL.length)];
-    const entry: LogEntry = {
-      id: uid(),
-      ts: new Date(),
-      level: template.level,
-      source: template.source,
-      message: interpolate(template.message),
-    };
-    setLogs((prev) => [...prev, entry].slice(-maxLines));
-  }, [demo, paused, maxLines]);
-
-  useEffect(() => {
-    const interval = setInterval(emitLog, 900 + Math.random() * 600);
-    return () => clearInterval(interval);
-  }, [emitLog]);
-
-  // Dismiss error
   const dismissError = (id: string) =>
     setErrors((prev) => prev.filter((e) => e.id !== id));
 

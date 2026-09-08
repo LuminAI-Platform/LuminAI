@@ -29,8 +29,6 @@ export interface SyncJob {
 
 interface SyncJobDetailsProps {
   job?: SyncJob;
-  /** When true the component drives its own mock data for demo/dev purposes */
-  demo?: boolean;
   onPause?: (jobId: string) => void;
   onResume?: (jobId: string) => void;
   onCancel?: (jobId: string) => void;
@@ -272,7 +270,6 @@ const datasetStatusColor = (s: SyncJobStatus) => {
 
 export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
   job: jobProp,
-  demo = false,
   onPause,
   onResume,
   onCancel,
@@ -292,71 +289,82 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
 
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Poll backend status API /api/v1/sync-jobs when not in demo mode
+  // Poll /api/v1/pipelines/runs — the real backend source for sync job data
   const fetchSyncJobs = useCallback(async () => {
-    if (demo) return;
     try {
-      const res = await apiFetch("/api/v1/sync-jobs");
+      const res = await apiFetch(
+        "/api/v1/pipelines/runs?size=10&sort=startedAt,desc",
+      );
       if (res.ok) {
-        const data = await res.json();
-        if (data) {
-          const rawJob = Array.isArray(data) ? data[0] : data;
-          if (rawJob) {
-            setJob((prev) => ({
-              id: String(rawJob.id || prev?.id || `job-${Date.now()}`),
-              name: String(rawJob.name || prev?.name || "Pipeline Sync"),
-              connection: String(
-                rawJob.connection || prev?.connection || "Database",
-              ),
-              connectionType:
-                rawJob.connectionType || prev?.connectionType || "postgresql",
-              status:
-                (rawJob.status?.toLowerCase() as SyncJobStatus) ||
-                prev?.status ||
-                "running",
-              startedAt: rawJob.startedAt
-                ? new Date(rawJob.startedAt)
-                : prev?.startedAt || new Date(),
-              estimatedEnd: rawJob.estimatedEnd
-                ? new Date(rawJob.estimatedEnd)
-                : prev?.estimatedEnd,
-              datasets:
-                Array.isArray(rawJob.datasets) && rawJob.datasets.length > 0
-                  ? rawJob.datasets.map(
-                      (ds: Record<string, unknown>, i: number) => ({
-                        id: String(ds.id || `ds-${i}`),
-                        name: String(ds.name || `dataset-${i}`),
-                        source: String(ds.source || "default"),
-                        totalRecords: Number(
-                          ds.totalRecords ?? ds.rowsTotal ?? 1000,
-                        ),
-                        syncedRecords: Number(
-                          ds.syncedRecords ?? ds.rowsProcessed ?? 0,
-                        ),
-                        failedRecords: Number(
-                          ds.failedRecords ?? ds.rowsFailed ?? 0,
-                        ),
-                        status: (ds.status
-                          ? String(ds.status).toLowerCase()
-                          : "running") as SyncJobStatus,
-                        startedAt: ds.startedAt
-                          ? new Date(String(ds.startedAt))
-                          : new Date(),
-                      }),
-                    )
-                  : prev?.datasets || [],
-            }));
-            if (typeof rawJob.currentSpeed === "number") {
-              const speed = rawJob.currentSpeed;
-              setCurrentSpeed(speed);
-              setSpeedHistory((h) => {
-                const next = [...h, speed].slice(-24);
-                setAvgSpeed(
-                  Math.floor(next.reduce((a, b) => a + b, 0) / next.length),
-                );
-                return next;
-              });
-            }
+        const page = await res.json();
+        // Spring Page wrapper: { content: PipelineRunDto[] }
+        const items: Record<string, unknown>[] = Array.isArray(page)
+          ? page
+          : Array.isArray(page?.content)
+            ? page.content
+            : [];
+        if (items.length > 0) {
+          // Map the first (most recent) run as the active job
+          const raw = items[0];
+          const statusRaw = String(raw.status ?? "RUNNING").toLowerCase();
+          const mappedStatus = (
+            ["running", "paused", "completed", "failed"].includes(statusRaw)
+              ? statusRaw
+              : "running"
+          ) as SyncJobStatus;
+
+          // Map each pipeline run as a dataset entry in the breakdown
+          const datasets: SyncDataset[] = items.map(
+            (item: Record<string, unknown>, i: number) => {
+              const dsStatus = String(item.status ?? "RUNNING").toLowerCase();
+              return {
+                id: String(item.id ?? `ds-${i}`),
+                name: String(
+                  item.pipelineType ?? item.connectorName ?? `dataset-${i}`,
+                ),
+                source: String(item.connectorType ?? "database"),
+                totalRecords: Number(item.recordsInput ?? 1000),
+                syncedRecords: Number(item.recordsOutput ?? 0),
+                failedRecords: Number(item.recordsFailed ?? 0),
+                status: (["running", "paused", "completed", "failed"].includes(
+                  dsStatus,
+                )
+                  ? dsStatus
+                  : "running") as SyncJobStatus,
+                startedAt: item.startedAt
+                  ? new Date(String(item.startedAt))
+                  : new Date(),
+              };
+            },
+          );
+
+          const throughput =
+            typeof raw.throughput === "number" ? Math.round(raw.throughput) : 0;
+
+          setJob({
+            id: String(raw.id ?? `job-${Date.now()}`),
+            name: `Sync: ${String(raw.connectorName ?? "Pipeline")}`,
+            connection: String(raw.connectorName ?? "Data Connector"),
+            connectionType: String(raw.connectorType ?? "postgresql")
+              .toLowerCase()
+              .replace(/\s+/g, "") as SyncJob["connectionType"],
+            status: mappedStatus,
+            startedAt: raw.startedAt
+              ? new Date(String(raw.startedAt))
+              : new Date(),
+            estimatedEnd: undefined,
+            datasets,
+          });
+
+          if (throughput > 0) {
+            setCurrentSpeed(throughput);
+            setSpeedHistory((h) => {
+              const next = [...h, throughput].slice(-24);
+              setAvgSpeed(
+                Math.floor(next.reduce((a, b) => a + b, 0) / next.length),
+              );
+              return next;
+            });
           }
         }
       }
@@ -367,77 +375,27 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
           syncIntervalRef.current = null;
         }
       }
-      // Endpoint may not exist yet in dev backend; keep existing state gracefully
     }
-  }, [demo]);
+  }, []);
 
   useEffect(() => {
-    if (!demo) {
-      // Defers initial synchronous state mutation out of the render stack frame
-      Promise.resolve().then(() => {
-        fetchSyncJobs();
-      });
-      syncIntervalRef.current = setInterval(fetchSyncJobs, 3000);
-      return () => {
-        if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      };
-    }
-  }, [demo, fetchSyncJobs]);
+    Promise.resolve().then(() => {
+      fetchSyncJobs();
+    });
+    syncIntervalRef.current = setInterval(fetchSyncJobs, 5000);
+    return () => {
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+    };
+  }, [fetchSyncJobs]);
 
-  // Live simulation tick — only when demo mode is true and status is "running"
+  // Tick timer: keeps duration display live
   const advance = useCallback(() => {
-    if (!demo) return;
-
-    setJob((prev) => {
-      if (!prev || prev.status !== "running") return prev;
-
-      const batchBase = 12_000 + Math.random() * 6_000;
-      let remaining = 0;
-
-      const nextDatasets = prev.datasets.map((ds) => {
-        if (ds.status !== "running") return ds;
-
-        const dsSpeed = batchBase * (0.6 + Math.random() * 0.8);
-        const batch = Math.floor(dsSpeed / 10); // per-tick increment
-        const fails = Math.random() < 0.03 ? Math.floor(Math.random() * 3) : 0;
-        const synced = Math.min(
-          ds.totalRecords,
-          ds.syncedRecords + batch - fails,
-        );
-        const status: SyncJobStatus =
-          synced >= ds.totalRecords ? "completed" : "running";
-
-        if (status === "running") remaining++;
-        return {
-          ...ds,
-          syncedRecords: synced,
-          failedRecords: ds.failedRecords + fails,
-          status,
-        };
-      });
-
-      return {
-        ...prev,
-        status: remaining === 0 ? "completed" : "running",
-        datasets: nextDatasets,
-      };
-    });
-
-    // Speed spike
-    const speed = Math.floor(12_000 + Math.random() * 8_000);
-    setCurrentSpeed(speed);
-    setSpeedHistory((h) => {
-      const next = [...h, speed].slice(-24);
-      setAvgSpeed(Math.floor(next.reduce((a, b) => a + b, 0) / next.length));
-      return next;
-    });
-
     tickRef.current++;
     setTick(tickRef.current);
-  }, [demo]);
+  }, []);
 
   useEffect(() => {
-    const id = setInterval(advance, 750);
+    const id = setInterval(advance, 1000);
     return () => clearInterval(id);
   }, [advance]);
 
