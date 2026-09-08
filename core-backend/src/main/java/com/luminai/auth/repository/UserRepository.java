@@ -11,14 +11,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    /**
-     * Finds the LuminAI user linked to a given Keycloak identity ({@code sub} claim). This is the
-     * entry point for tenant resolution: Keycloak identifies the user, this lookup identifies their
-     * tenant.
-     */
-    Optional<User> findByKeycloakId(String keycloakId);
+  /**
+   * Finds the LuminAI user linked to a given Keycloak identity ({@code sub} claim). This is the
+   * entry point for tenant resolution: Keycloak identifies the user, this lookup identifies their
+   * tenant.
+   */
+  Optional<User> findByKeycloakId(String keycloakId);
 
-    /** Used by provisioning to avoid creating a second user with the same email in one tenant. */
-    boolean existsByTenantAndEmailIgnoreCase(Tenant tenant, String email);
+  /** Used by provisioning to avoid creating a second user with the same email in one tenant. */
+  boolean existsByTenantAndEmailIgnoreCase(Tenant tenant, String email);
 }
-

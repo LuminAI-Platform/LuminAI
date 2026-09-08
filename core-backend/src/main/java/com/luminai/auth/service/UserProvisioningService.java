@@ -21,86 +21,80 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>This is an internal, staff-triggered operation (see {@code InternalUserAdminController}) — it
  * assumes payment/contracting already happened out-of-band, and that the target tenant already
  * exists. It is the write-side counterpart to tenant resolution: where {@code
- * TenantResolutionService} reads the {@code users -> tenants} relationship to find out who
- * someone is, this service is what creates that relationship in the first place.
+ * TenantResolutionService} reads the {@code users -> tenants} relationship to find out who someone
+ * is, this service is what creates that relationship in the first place.
  */
 @Service
 public class UserProvisioningService {
 
-    private static final Logger log = LoggerFactory.getLogger(UserProvisioningService.class);
+  private static final Logger log = LoggerFactory.getLogger(UserProvisioningService.class);
 
-    private final TenantRepository tenantRepository;
-    private final UserRepository userRepository;
-    private final KeycloakAdminClient keycloakAdminClient;
+  private final TenantRepository tenantRepository;
+  private final UserRepository userRepository;
+  private final KeycloakAdminClient keycloakAdminClient;
 
-    public UserProvisioningService(
-            TenantRepository tenantRepository,
-            UserRepository userRepository,
-            KeycloakAdminClient keycloakAdminClient) {
-        this.tenantRepository = tenantRepository;
-        this.userRepository = userRepository;
-        this.keycloakAdminClient = keycloakAdminClient;
+  public UserProvisioningService(
+      TenantRepository tenantRepository,
+      UserRepository userRepository,
+      KeycloakAdminClient keycloakAdminClient) {
+    this.tenantRepository = tenantRepository;
+    this.userRepository = userRepository;
+    this.keycloakAdminClient = keycloakAdminClient;
+  }
+
+  /**
+   * Creates the Keycloak account and the {@code public.users} row for a new user of an existing
+   * tenant, and triggers Keycloak's "set your password" email.
+   *
+   * @throws ResourceNotFoundException if no active tenant matches {@code request.tenantSlug()}.
+   * @throws ConflictException if a user with this email already exists for the tenant, or if
+   *     Keycloak already has an account with this email/username.
+   */
+  @Transactional
+  public CreateUserResponse provisionUser(CreateUserRequest request) {
+    Tenant tenant =
+        tenantRepository
+            .findBySlug(request.tenantSlug())
+            .filter(Tenant::isActive)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Active tenant", "slug", request.tenantSlug()));
+
+    if (userRepository.existsByTenantAndEmailIgnoreCase(tenant, request.email())) {
+      throw new ConflictException(
+          "A user with email '"
+              + request.email()
+              + "' already exists for tenant '"
+              + request.tenantSlug()
+              + "'");
     }
 
-    /**
-     * Creates the Keycloak account and the {@code public.users} row for a new user of an existing
-     * tenant, and triggers Keycloak's "set your password" email.
-     *
-     * @throws ResourceNotFoundException if no active tenant matches {@code request.tenantSlug()}.
-     * @throws ConflictException if a user with this email already exists for the tenant, or if
-     *     Keycloak already has an account with this email/username.
-     */
-    @Transactional
-    public CreateUserResponse provisionUser(CreateUserRequest request) {
-        Tenant tenant =
-                tenantRepository
-                        .findBySlug(request.tenantSlug())
-                        .filter(Tenant::isActive)
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "Active tenant", "slug", request.tenantSlug()));
+    // Keycloak is the source of truth for the identity; create it there first so we never
+    // persist a public.users row that doesn't have a corresponding, real Keycloak account.
+    String keycloakId = keycloakAdminClient.createUser(request.email(), request.fullName());
 
-        if (userRepository.existsByTenantAndEmailIgnoreCase(tenant, request.email())) {
-            throw new ConflictException(
-                    "A user with email '" + request.email() + "' already exists for tenant '"
-                            + request.tenantSlug()
-                            + "'");
-        }
+    User user =
+        new User(
+            null, keycloakId, request.email(), request.fullName(), tenant, request.role(), true);
+    User saved = userRepository.save(user);
 
-        // Keycloak is the source of truth for the identity; create it there first so we never
-        // persist a public.users row that doesn't have a corresponding, real Keycloak account.
-        String keycloakId = keycloakAdminClient.createUser(request.email(), request.fullName());
+    log.info(
+        "Provisioned user '{}' (keycloak_id={}) for tenant '{}' with role '{}'",
+        saved.getEmail(),
+        saved.getKeycloakId(),
+        tenant.getSlug(),
+        saved.getRole());
 
-        User user =
-                new User(
-                        null,
-                        keycloakId,
-                        request.email(),
-                        request.fullName(),
-                        tenant,
-                        request.role(),
-                        true);
-        User saved = userRepository.save(user);
+    // Best-effort: the account already exists and is usable even if this fails (see
+    // KeycloakAdminClient#sendSetPasswordEmail for why this doesn't roll back the transaction).
+    keycloakAdminClient.sendSetPasswordEmail(keycloakId);
 
-        log.info(
-                "Provisioned user '{}' (keycloak_id={}) for tenant '{}' with role '{}'",
-                saved.getEmail(),
-                saved.getKeycloakId(),
-                tenant.getSlug(),
-                saved.getRole());
-
-        // Best-effort: the account already exists and is usable even if this fails (see
-        // KeycloakAdminClient#sendSetPasswordEmail for why this doesn't roll back the transaction).
-        keycloakAdminClient.sendSetPasswordEmail(keycloakId);
-
-        return new CreateUserResponse(
-                saved.getId(),
-                tenant.getId(),
-                tenant.getSlug(),
-                saved.getKeycloakId(),
-                saved.getEmail(),
-                saved.getRole(),
-                "User created. They will receive an email to set their password and sign in.");
-    }
+    return new CreateUserResponse(
+        saved.getId(),
+        tenant.getId(),
+        tenant.getSlug(),
+        saved.getKeycloakId(),
+        saved.getEmail(),
+        saved.getRole(),
+        "User created. They will receive an email to set their password and sign in.");
+  }
 }

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class MultiTenantConnectionProvider
-        extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl<String> {
+    extends AbstractDataSourceBasedMultiTenantConnectionProviderImpl<String> {
 
   private static final Logger log = LoggerFactory.getLogger(MultiTenantConnectionProvider.class);
 
@@ -54,7 +54,7 @@ public class MultiTenantConnectionProvider
     setSearchPath(connection, TenantContext.DEFAULT_SCHEMA);
 
     try (var stmt = connection.createStatement();
-         var rs = stmt.executeQuery("SHOW search_path")) {
+        var rs = stmt.executeQuery("SHOW search_path")) {
       rs.next();
       log.info("search_path = {}", rs.getString(1));
     }
@@ -90,7 +90,7 @@ public class MultiTenantConnectionProvider
 
   @Override
   public void releaseConnection(String tenantIdentifier, Connection connection)
-          throws SQLException {
+      throws SQLException {
 
     try {
       resetSearchPath(connection);

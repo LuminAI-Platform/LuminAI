@@ -10,6 +10,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface TenantRepository extends JpaRepository<Tenant, UUID> {
 
-    /** Finds a tenant by its URL-safe slug (schema suffix). */
-    Optional<Tenant> findBySlug(String slug);
+  /** Finds a tenant by its URL-safe slug (schema suffix). */
+  Optional<Tenant> findBySlug(String slug);
 }

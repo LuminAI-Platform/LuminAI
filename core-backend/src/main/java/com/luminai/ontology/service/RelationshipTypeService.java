@@ -33,9 +33,9 @@ public class RelationshipTypeService {
   private final JwtClaimsExtractor claimsExtractor;
 
   public RelationshipTypeService(
-          RelationshipTypeRepository repository,
-          EntityTypeRepository entityTypeRepository,
-          JwtClaimsExtractor claimsExtractor) {
+      RelationshipTypeRepository repository,
+      EntityTypeRepository entityTypeRepository,
+      JwtClaimsExtractor claimsExtractor) {
     this.repository = repository;
     this.entityTypeRepository = entityTypeRepository;
     this.claimsExtractor = claimsExtractor;
@@ -46,8 +46,8 @@ public class RelationshipTypeService {
   public List<RelationshipTypeDto.Response> getAll() {
     UUID tenantId = getCurrentTenantId();
     return repository.findAllByTenantIdOrderByNameAsc(tenantId).stream()
-            .map(RelationshipTypeDto.Response::from)
-            .toList();
+        .map(RelationshipTypeDto.Response::from)
+        .toList();
   }
 
   /** Retrieves a relationship type by ID. */
@@ -55,9 +55,9 @@ public class RelationshipTypeService {
   public RelationshipTypeDto.Response getById(UUID id) {
     UUID tenantId = getCurrentTenantId();
     RelationshipType relType =
-            repository
-                    .findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("RelationshipType", id));
+        repository
+            .findByIdAndTenantId(id, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("RelationshipType", id));
     return RelationshipTypeDto.Response.from(relType);
   }
 
@@ -68,41 +68,41 @@ public class RelationshipTypeService {
 
     if (repository.existsByNameIgnoreCaseAndTenantId(request.name(), tenantId)) {
       throw new ConflictException(
-              "Relationship type with name '" + request.name() + "' already exists for this tenant");
+          "Relationship type with name '" + request.name() + "' already exists for this tenant");
     }
 
     // Validate that source and target entity types exist for this tenant
     entityTypeRepository
-            .findByIdAndTenantId(request.sourceEntityTypeId(), tenantId)
-            .orElseThrow(
-                    () -> new ResourceNotFoundException("Source EntityType", request.sourceEntityTypeId()));
+        .findByIdAndTenantId(request.sourceEntityTypeId(), tenantId)
+        .orElseThrow(
+            () -> new ResourceNotFoundException("Source EntityType", request.sourceEntityTypeId()));
 
     entityTypeRepository
-            .findByIdAndTenantId(request.targetEntityTypeId(), tenantId)
-            .orElseThrow(
-                    () -> new ResourceNotFoundException("Target EntityType", request.targetEntityTypeId()));
+        .findByIdAndTenantId(request.targetEntityTypeId(), tenantId)
+        .orElseThrow(
+            () -> new ResourceNotFoundException("Target EntityType", request.targetEntityTypeId()));
 
     String schemaJson = serializePropertiesSchema(request.propertiesSchema());
 
     RelationshipType relationshipType =
-            new RelationshipType(
-                    tenantId,
-                    null,
-                    request.name().trim(),
-                    request.description(),
-                    request.sourceEntityTypeId(),
-                    request.targetEntityTypeId(),
-                    request.cardinality() != null
-                            ? request.cardinality()
-                            : RelationshipType.Cardinality.MANY_TO_MANY,
-                    schemaJson);
+        new RelationshipType(
+            tenantId,
+            null,
+            request.name().trim(),
+            request.description(),
+            request.sourceEntityTypeId(),
+            request.targetEntityTypeId(),
+            request.cardinality() != null
+                ? request.cardinality()
+                : RelationshipType.Cardinality.MANY_TO_MANY,
+            schemaJson);
 
     RelationshipType saved = repository.save(relationshipType);
     log.info(
-            "Created relationship type '{}' (id={}) for tenant {}",
-            saved.getName(),
-            saved.getId(),
-            tenantId);
+        "Created relationship type '{}' (id={}) for tenant {}",
+        saved.getName(),
+        saved.getId(),
+        tenantId);
     return RelationshipTypeDto.Response.from(saved);
   }
 
@@ -112,16 +112,16 @@ public class RelationshipTypeService {
     UUID tenantId = getCurrentTenantId();
 
     RelationshipType relType =
-            repository
-                    .findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("RelationshipType", id));
+        repository
+            .findByIdAndTenantId(id, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("RelationshipType", id));
 
     if (request.name() != null
-            && !request.name().isBlank()
-            && !request.name().equalsIgnoreCase(relType.getName())) {
+        && !request.name().isBlank()
+        && !request.name().equalsIgnoreCase(relType.getName())) {
       if (repository.existsByNameIgnoreCaseAndTenantId(request.name().trim(), tenantId)) {
         throw new ConflictException(
-                "Relationship type with name '" + request.name() + "' already exists for this tenant");
+            "Relationship type with name '" + request.name() + "' already exists for this tenant");
       }
       relType.setName(request.name().trim());
     }
@@ -132,19 +132,19 @@ public class RelationshipTypeService {
 
     if (request.sourceEntityTypeId() != null) {
       entityTypeRepository
-              .findByIdAndTenantId(request.sourceEntityTypeId(), tenantId)
-              .orElseThrow(
-                      () ->
-                              new ResourceNotFoundException("Source EntityType", request.sourceEntityTypeId()));
+          .findByIdAndTenantId(request.sourceEntityTypeId(), tenantId)
+          .orElseThrow(
+              () ->
+                  new ResourceNotFoundException("Source EntityType", request.sourceEntityTypeId()));
       relType.setSourceEntityTypeId(request.sourceEntityTypeId());
     }
 
     if (request.targetEntityTypeId() != null) {
       entityTypeRepository
-              .findByIdAndTenantId(request.targetEntityTypeId(), tenantId)
-              .orElseThrow(
-                      () ->
-                              new ResourceNotFoundException("Target EntityType", request.targetEntityTypeId()));
+          .findByIdAndTenantId(request.targetEntityTypeId(), tenantId)
+          .orElseThrow(
+              () ->
+                  new ResourceNotFoundException("Target EntityType", request.targetEntityTypeId()));
       relType.setTargetEntityTypeId(request.targetEntityTypeId());
     }
 
@@ -158,10 +158,10 @@ public class RelationshipTypeService {
 
     RelationshipType updated = repository.save(relType);
     log.info(
-            "Updated relationship type '{}' (id={}) for tenant {}",
-            updated.getName(),
-            updated.getId(),
-            tenantId);
+        "Updated relationship type '{}' (id={}) for tenant {}",
+        updated.getName(),
+        updated.getId(),
+        tenantId);
     return RelationshipTypeDto.Response.from(updated);
   }
 
@@ -187,9 +187,7 @@ public class RelationshipTypeService {
     return "{}";
   }
 
-  /**
-   * Returns the tenant resolved for the current request
-   */
+  /** Returns the tenant resolved for the current request */
   public UUID getCurrentTenantId() {
     return UUID.fromString(claimsExtractor.getCurrentTenantId());
   }

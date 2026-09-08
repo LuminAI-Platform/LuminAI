@@ -34,10 +34,10 @@ public class OntologyVersionService {
   private final JwtClaimsExtractor claimsExtractor;
 
   public OntologyVersionService(
-          OntologyVersionRepository repository,
-          EntityTypeRepository entityTypeRepository,
-          RelationshipTypeRepository relationshipTypeRepository,
-          JwtClaimsExtractor claimsExtractor) {
+      OntologyVersionRepository repository,
+      EntityTypeRepository entityTypeRepository,
+      RelationshipTypeRepository relationshipTypeRepository,
+      JwtClaimsExtractor claimsExtractor) {
     this.repository = repository;
     this.entityTypeRepository = entityTypeRepository;
     this.relationshipTypeRepository = relationshipTypeRepository;
@@ -49,8 +49,8 @@ public class OntologyVersionService {
   public List<OntologyVersionDto.Response> getAll() {
     UUID tenantId = getCurrentTenantId();
     return repository.findAllByTenantIdOrderByCreatedAtDesc(tenantId).stream()
-            .map(OntologyVersionDto.Response::from)
-            .toList();
+        .map(OntologyVersionDto.Response::from)
+        .toList();
   }
 
   /** Retrieves a specific ontology version by ID. */
@@ -58,9 +58,9 @@ public class OntologyVersionService {
   public OntologyVersionDto.Response getById(UUID id) {
     UUID tenantId = getCurrentTenantId();
     OntologyVersion version =
-            repository
-                    .findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
+        repository
+            .findByIdAndTenantId(id, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
     return OntologyVersionDto.Response.from(version);
   }
 
@@ -76,7 +76,7 @@ public class OntologyVersionService {
 
     List<EntityType> entityTypes = entityTypeRepository.findAllByTenantIdOrderByNameAsc(tenantId);
     List<RelationshipType> relTypes =
-            relationshipTypeRepository.findAllByTenantIdOrderByNameAsc(tenantId);
+        relationshipTypeRepository.findAllByTenantIdOrderByNameAsc(tenantId);
 
     // Build immutable schema snapshot
     Map<String, Object> snapshot = new LinkedHashMap<>();
@@ -123,12 +123,12 @@ public class OntologyVersionService {
     }
 
     OntologyVersion newVersion =
-            new OntologyVersion(
-                    tenantId,
-                    versionTag,
-                    OntologyVersion.Status.PUBLISHED,
-                    request.changelog(),
-                    currentUserId);
+        new OntologyVersion(
+            tenantId,
+            versionTag,
+            OntologyVersion.Status.PUBLISHED,
+            request.changelog(),
+            currentUserId);
     newVersion.setSchemaSnapshot(snapshotJson);
     newVersion.setPublishedAt(Instant.now());
 
@@ -145,10 +145,10 @@ public class OntologyVersionService {
     }
 
     log.info(
-            "Published ontology version '{}' (id={}) for tenant {}",
-            saved.getVersion(),
-            saved.getId(),
-            tenantId);
+        "Published ontology version '{}' (id={}) for tenant {}",
+        saved.getVersion(),
+        saved.getId(),
+        tenantId);
     return OntologyVersionDto.Response.from(saved);
   }
 
@@ -157,9 +157,9 @@ public class OntologyVersionService {
   public OntologyVersionDto.DiffResponse getVersionDiff(UUID id) {
     UUID tenantId = getCurrentTenantId();
     OntologyVersion current =
-            repository
-                    .findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
+        repository
+            .findByIdAndTenantId(id, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("OntologyVersion", id));
 
     List<OntologyVersion> allVersions = repository.findAllByTenantIdOrderByCreatedAtDesc(tenantId);
 
@@ -173,15 +173,15 @@ public class OntologyVersionService {
 
     Set<String> currentEntities = extractEntityNames(current.getSchemaSnapshot());
     Set<String> previousEntities =
-            previous != null
-                    ? extractEntityNames(previous.getSchemaSnapshot())
-                    : Collections.emptySet();
+        previous != null
+            ? extractEntityNames(previous.getSchemaSnapshot())
+            : Collections.emptySet();
 
     Set<String> currentRels = extractRelationshipNames(current.getSchemaSnapshot());
     Set<String> previousRels =
-            previous != null
-                    ? extractRelationshipNames(previous.getSchemaSnapshot())
-                    : Collections.emptySet();
+        previous != null
+            ? extractRelationshipNames(previous.getSchemaSnapshot())
+            : Collections.emptySet();
 
     List<String> addedEntities = new ArrayList<>();
     List<String> removedEntities = new ArrayList<>();
@@ -210,13 +210,13 @@ public class OntologyVersionService {
     }
 
     return new OntologyVersionDto.DiffResponse(
-            current.getVersion(),
-            previous != null ? previous.getVersion() : "none",
-            addedEntities,
-            Collections.emptyList(),
-            removedEntities,
-            addedRels,
-            removedRels);
+        current.getVersion(),
+        previous != null ? previous.getVersion() : "none",
+        addedEntities,
+        Collections.emptyList(),
+        removedEntities,
+        addedRels,
+        removedRels);
   }
 
   @SuppressWarnings("unchecked")
@@ -227,9 +227,9 @@ public class OntologyVersionService {
     }
     try {
       Map<String, Object> map =
-              OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
+          OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
       List<Map<String, Object>> entityTypes =
-              (List<Map<String, Object>>) map.getOrDefault("entityTypes", Collections.emptyList());
+          (List<Map<String, Object>>) map.getOrDefault("entityTypes", Collections.emptyList());
       for (Map<String, Object> et : entityTypes) {
         Object name = et.get("name");
         if (name != null) {
@@ -249,10 +249,10 @@ public class OntologyVersionService {
     }
     try {
       Map<String, Object> map =
-              OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
+          OBJECT_MAPPER.readValue(snapshotJson, new TypeReference<Map<String, Object>>() {});
       List<Map<String, Object>> relTypes =
-              (List<Map<String, Object>>)
-                      map.getOrDefault("relationshipTypes", Collections.emptyList());
+          (List<Map<String, Object>>)
+              map.getOrDefault("relationshipTypes", Collections.emptyList());
       for (Map<String, Object> rt : relTypes) {
         Object name = rt.get("name");
         if (name != null) {
@@ -264,8 +264,7 @@ public class OntologyVersionService {
     return names;
   }
 
-
-  //Returns the tenant resolved for the current request
+  // Returns the tenant resolved for the current request
   public UUID getCurrentTenantId() {
     return UUID.fromString(claimsExtractor.getCurrentTenantId());
   }
