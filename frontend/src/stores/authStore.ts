@@ -24,6 +24,20 @@ const CLIENT_ID =
 
 const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
 
+export function hasRealmRole(user: User | null, role: string): boolean {
+  const realmAccess = user?.profile?.realm_access;
+  if (!realmAccess || typeof realmAccess !== "object") {
+    return false;
+  }
+
+  const roles = (realmAccess as { roles?: unknown }).roles;
+  return Array.isArray(roles) && roles.includes(role);
+}
+
+export function isPlatformAdmin(user: User | null): boolean {
+  return hasRealmRole(user, "PLATFORM_ADMIN");
+}
+
 // Module-level flag: prevents concurrent checkUser() calls (e.g. React StrictMode
 // double-invokes effects, which would otherwise race two getUser() promises).
 let checkUserInFlight = false;

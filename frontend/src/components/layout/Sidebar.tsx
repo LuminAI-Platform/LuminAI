@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { useAuthStore } from "../../stores/authStore";
+import { isPlatformAdmin, useAuthStore } from "../../stores/authStore";
 import { SidebarTooltip, TooltipProvider } from "../ui/Tooltip";
 
 interface SidebarProps {
@@ -126,6 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setMobileOpen,
 }) => {
   const { user, logout } = useAuthStore();
+  const showAdminNavigation = isPlatformAdmin(user);
 
   return (
     <TooltipProvider>
@@ -216,6 +217,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </Link>
             </SidebarTooltip>
           ))}
+          {showAdminNavigation && (
+            <SidebarTooltip label="User registration" enabled={collapsed}>
+              <Link
+                to="/admin/users"
+                className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-zinc-400 transition-all duration-150 hover:border-zinc-850 hover:bg-zinc-800/50 hover:text-zinc-100"
+                activeProps={{
+                  className:
+                    "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+                }}
+                onClick={() => setMobileOpen(false)}
+              >
+                <svg
+                  className="shrink-0"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
+                <span
+                  className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"}`}
+                >
+                  User registration
+                </span>
+              </Link>
+            </SidebarTooltip>
+          )}
         </nav>
 
         {/* Footer section */}
