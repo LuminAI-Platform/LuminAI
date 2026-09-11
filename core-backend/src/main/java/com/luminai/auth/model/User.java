@@ -46,9 +46,9 @@ public class User {
   @Column(name = "full_name")
   private String fullName;
 
-  @ManyToOne(fetch = FetchType.EAGER, optional = false)
-  @JoinColumn(name = "tenant_id", nullable = false)
-  private Tenant tenant;
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "tenant_id", nullable = true)
+    private Tenant tenant;
 
   @Column(nullable = false, length = 50)
   private String role = "VIEWER";
