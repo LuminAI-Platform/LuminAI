@@ -31,7 +31,11 @@ async function getApiErrorMessage(error: unknown): Promise<string> {
     }
 
     if (error.status === 400) {
-      return body.message ?? body.detail ?? "Please check the tenant slug, email, and role.";
+      return (
+        body.message ??
+        body.detail ??
+        "Please check the tenant slug, email, and role."
+      );
     }
     if (error.status === 409) {
       return "That email is already registered for this tenant.";
