@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 package com.luminai.common.tenant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,3 +102,6 @@ class TenantResolutionServiceTest {
     verify(userRepository).findByKeycloakId("some-sub");
   }
 }
+=======
+
+>>>>>>> aeb41a136da5ae815c3e24f727b0426857bee451

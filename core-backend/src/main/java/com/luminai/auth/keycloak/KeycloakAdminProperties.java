@@ -3,9 +3,9 @@ package com.luminai.auth.keycloak;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration for the confidential Keycloak client LuminAI uses to provision users via
- * Keycloak's Admin REST API. This is a service-account client with the realm-management
- * {@code manage-users} role — distinct from the public client end users authenticate through.
+ * Configuration for the confidential Keycloak client LuminAI uses to provision users via Keycloak's
+ * Admin REST API. This is a service-account client with the realm-management {@code manage-users}
+ * role — distinct from the public client end users authenticate through.
  *
  * <pre>
  * luminai:
@@ -18,4 +18,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "luminai.keycloak")
 public record KeycloakAdminProperties(
-        String baseUrl, String realm, String adminClientId, String adminClientSecret) {}
+    String baseUrl, String realm, String adminClientId, String adminClientSecret) {}

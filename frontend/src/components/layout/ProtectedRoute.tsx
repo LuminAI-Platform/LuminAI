@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useAuthStore } from "../../stores/authStore";
+import { isPlatformAdmin, useAuthStore } from "../../stores/authStore";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -81,4 +81,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Render children when authenticated; null while navigate() fires
   return isAuthenticated ? <>{children}</> : null;
+};
+
+export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const { user, isAuthenticated, isLoading } = useAuthStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user && !isPlatformAdmin(user)) {
+      navigate({ to: "/", replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate, user]);
+
+  if (isLoading || !isAuthenticated || !isPlatformAdmin(user)) {
+    return null;
+  }
+
+  return <>{children}</>;
 };

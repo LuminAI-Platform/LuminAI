@@ -40,36 +40,36 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable()) // Stateless JWT — no CSRF needed
-            .sessionManagement(
-                    session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(
-                    auth ->
-                            auth.requestMatchers(
-                                            "/actuator/health",
-                                            "/actuator/info",
-                                            "/v3/api-docs/**",
-                                            "/swagger-ui/**",
-                                            "/swagger-ui.html")
-                                    .permitAll()
-                                    .anyRequest()
-                                    .authenticated())
-            .oauth2ResourceServer(
-                    oauth2 ->
-                            oauth2.jwt(
-                                    jwt ->
-                                            jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
-                                                    .decoder(jwtDecoder())))
-            .headers(
-                    headers ->
-                            headers
-                                    .contentSecurityPolicy(
-                                            csp ->
-                                                    csp.policyDirectives(
-                                                            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-                                                                    + "img-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:*; "
-                                                                    + "frame-ancestors 'none';"))
-                                    .frameOptions(frame -> frame.deny()));
+        .csrf(csrf -> csrf.disable()) // Stateless JWT — no CSRF needed
+        .sessionManagement(
+            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers(
+                        "/actuator/health",
+                        "/actuator/info",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+        .oauth2ResourceServer(
+            oauth2 ->
+                oauth2.jwt(
+                    jwt ->
+                        jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
+                            .decoder(jwtDecoder())))
+        .headers(
+            headers ->
+                headers
+                    .contentSecurityPolicy(
+                        csp ->
+                            csp.policyDirectives(
+                                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                                    + "img-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:*; "
+                                    + "frame-ancestors 'none';"))
+                    .frameOptions(frame -> frame.deny()));
 
     return http.build();
   }
@@ -90,24 +90,24 @@ public class SecurityConfig {
 
     return token -> {
       if (token == null
-              || token.startsWith("mock-")
-              || token.contains("sandbox")
-              || "mock-access-token-123".equals(token)
-              || delegate == null) {
+          || token.startsWith("mock-")
+          || token.contains("sandbox")
+          || "mock-access-token-123".equals(token)
+          || delegate == null) {
         // Sandbox/dev tokens still go through the exact same tenant-resolution path as a real
         // Keycloak token — see TenantFilter / TenantResolutionService. This "sub" must have a
         // matching row in public.users (seeded by a Flyway migration) or requests will be
         // rejected with 403, same as any other user with no tenant mapping.
         return Jwt.withTokenValue(token != null ? token : "sandbox-token")
-                .header("alg", "none")
-                .header("typ", "JWT")
-                .claim("sub", "sandbox-admin-id")
-                .claim("preferred_username", "admin")
-                .claim("email", "admin@luminai.dev")
-                .claim("realm_access", Map.of("roles", List.of("admin", "user", "TENANT_ADMIN")))
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(86400))
-                .build();
+            .header("alg", "none")
+            .header("typ", "JWT")
+            .claim("sub", "sandbox-admin-id")
+            .claim("preferred_username", "admin")
+            .claim("email", "admin@luminai.dev")
+            .claim("realm_access", Map.of("roles", List.of("admin", "user", "TENANT_ADMIN")))
+            .issuedAt(Instant.now())
+            .expiresAt(Instant.now().plusSeconds(86400))
+            .build();
       }
 
       return delegate.decode(token);
@@ -130,7 +130,7 @@ public class SecurityConfig {
       config.setAllowedOriginPatterns(List.of(envOrigins.split(",")));
     } else {
       config.setAllowedOriginPatterns(
-              List.of("http://localhost:*", "https://*.vercel.app", "https://*.onrender.com"));
+          List.of("http://localhost:*", "https://*.vercel.app", "https://*.onrender.com"));
     }
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));

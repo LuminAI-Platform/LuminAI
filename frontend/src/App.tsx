@@ -7,7 +7,7 @@ import {
   Link,
 } from "@tanstack/react-router";
 import { AppShell } from "./components/layout/AppShell";
-import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import { AdminRoute, ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
 import { ConnectionsPage } from "./pages/connections/ConnectionsPage";
@@ -16,6 +16,8 @@ import { PipelinePage } from "./pages/connections/PipelinePage";
 import { OntologyPage } from "./pages/ontology/OntologyPage";
 import { ExplorerPage } from "./pages/explorer/ExplorerPage";
 import { EntityDetailPage } from "./pages/explorer/EntityDetailPage";
+import { UserRegistrationPage } from "./features/admin/UserRegistrationPage";
+import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -312,6 +314,12 @@ const callbackRoute = createRoute({
   component: CallbackPage,
 });
 
+const sandboxRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sandbox",
+  component: SandboxLoginPage,
+});
+
 const explorerRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer",
@@ -360,9 +368,20 @@ const settingsRoute = createRoute({
   component: SettingsView,
 });
 
+const adminUsersRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/admin/users",
+  component: () => (
+    <AdminRoute>
+      <UserRegistrationPage />
+    </AdminRoute>
+  ),
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   callbackRoute,
+  ...(import.meta.env.DEV ? [sandboxRoute] : []),
   shellRoute.addChildren([
     indexRoute,
     explorerRoute,
@@ -373,6 +392,7 @@ const routeTree = rootRoute.addChildren([
     ontologyRoute,
     graphRoute,
     settingsRoute,
+    adminUsersRoute,
   ]),
 ]);
 

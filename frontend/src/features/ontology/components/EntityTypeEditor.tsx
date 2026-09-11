@@ -263,7 +263,6 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose]);
-  
 
   const set = (k: keyof EntityType, v: unknown) =>
     setForm((f) => ({ ...f, [k]: v }));

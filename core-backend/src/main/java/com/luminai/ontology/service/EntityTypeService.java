@@ -38,8 +38,8 @@ public class EntityTypeService {
   public List<EntityTypeDto.Response> getAll() {
     UUID tenantId = getCurrentTenantId();
     return repository.findAllByTenantIdOrderByNameAsc(tenantId).stream()
-            .map(EntityTypeDto.Response::from)
-            .toList();
+        .map(EntityTypeDto.Response::from)
+        .toList();
   }
 
   /** Retrieves a specific entity type by ID. */
@@ -47,9 +47,9 @@ public class EntityTypeService {
   public EntityTypeDto.Response getById(UUID id) {
     UUID tenantId = getCurrentTenantId();
     EntityType entityType =
-            repository
-                    .findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
+        repository
+            .findByIdAndTenantId(id, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
     return EntityTypeDto.Response.from(entityType);
   }
 
@@ -60,25 +60,25 @@ public class EntityTypeService {
 
     if (repository.existsByNameIgnoreCaseAndTenantId(request.name(), tenantId)) {
       throw new ConflictException(
-              "Entity type with name '" + request.name() + "' already exists for this tenant");
+          "Entity type with name '" + request.name() + "' already exists for this tenant");
     }
 
     String schemaJson = resolvePropertiesSchema(request.properties(), request.propertiesSchema());
 
     EntityType entityType =
-            new EntityType(
-                    tenantId,
-                    null, // draft version
-                    request.name().trim(),
-                    request.label(),
-                    request.color(),
-                    request.icon(),
-                    request.description(),
-                    schemaJson);
+        new EntityType(
+            tenantId,
+            null, // draft version
+            request.name().trim(),
+            request.label(),
+            request.color(),
+            request.icon(),
+            request.description(),
+            schemaJson);
 
     EntityType saved = repository.save(entityType);
     log.info(
-            "Created entity type '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
+        "Created entity type '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
     return EntityTypeDto.Response.from(saved);
   }
 
@@ -88,16 +88,16 @@ public class EntityTypeService {
     UUID tenantId = getCurrentTenantId();
 
     EntityType entityType =
-            repository
-                    .findByIdAndTenantId(id, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
+        repository
+            .findByIdAndTenantId(id, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("EntityType", id));
 
     if (request.name() != null
-            && !request.name().isBlank()
-            && !request.name().equalsIgnoreCase(entityType.getName())) {
+        && !request.name().isBlank()
+        && !request.name().equalsIgnoreCase(entityType.getName())) {
       if (repository.existsByNameIgnoreCaseAndTenantId(request.name().trim(), tenantId)) {
         throw new ConflictException(
-                "Entity type with name '" + request.name() + "' already exists for this tenant");
+            "Entity type with name '" + request.name() + "' already exists for this tenant");
       }
       entityType.setName(request.name().trim());
     }
@@ -122,10 +122,10 @@ public class EntityTypeService {
 
     EntityType updated = repository.save(entityType);
     log.info(
-            "Updated entity type '{}' (id={}) for tenant {}",
-            updated.getName(),
-            updated.getId(),
-            tenantId);
+        "Updated entity type '{}' (id={}) for tenant {}",
+        updated.getName(),
+        updated.getId(),
+        tenantId);
     return EntityTypeDto.Response.from(updated);
   }
 
@@ -142,7 +142,7 @@ public class EntityTypeService {
 
   /** Resolves properties schema from explicit map or structured property list. */
   private String resolvePropertiesSchema(
-          List<EntityTypeDto.PropertyDefinition> properties, Map<String, Object> propertiesSchema) {
+      List<EntityTypeDto.PropertyDefinition> properties, Map<String, Object> propertiesSchema) {
     if (propertiesSchema != null && !propertiesSchema.isEmpty()) {
       try {
         return OBJECT_MAPPER.writeValueAsString(propertiesSchema);
@@ -192,7 +192,7 @@ public class EntityTypeService {
     return "{}";
   }
 
-   //Returns the tenant resolved for the current request
+  // Returns the tenant resolved for the current request
   public UUID getCurrentTenantId() {
     return UUID.fromString(claimsExtractor.getCurrentTenantId());
   }

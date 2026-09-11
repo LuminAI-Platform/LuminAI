@@ -1,5 +1,5 @@
 -- =====================================================================
--- LuminAI — V8: Seed Sandbox/Dev Admin User
+-- LuminAI — V9: Seed Sandbox/Dev Admin User
 -- =====================================================================
 -- Tenant resolution now always goes through:
 --     JWT.sub -> public.users.keycloak_id -> public.users.tenant_id

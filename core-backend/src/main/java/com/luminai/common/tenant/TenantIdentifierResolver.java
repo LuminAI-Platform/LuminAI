@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class TenantIdentifierResolver
-        implements CurrentTenantIdentifierResolver<String>, HibernatePropertiesCustomizer {
+    implements CurrentTenantIdentifierResolver<String>, HibernatePropertiesCustomizer {
 
   private static final Logger log = LoggerFactory.getLogger(TenantIdentifierResolver.class);
 

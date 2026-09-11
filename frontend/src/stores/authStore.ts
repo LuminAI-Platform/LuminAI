@@ -8,7 +8,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: () => Promise<void>;
-  // loginMock?: (email: string, name: string) => Promise<void>; // [SANDBOX/DEV] Uncomment to enable mock login
+  loginMock: (email: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   clearAuthSession: () => void;
   handleCallback: () => Promise<User | null>;
@@ -23,6 +23,20 @@ const CLIENT_ID =
   (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ?? "luminai-spa";
 
 const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
+
+export function hasRealmRole(user: User | null, role: string): boolean {
+  const realmAccess = user?.profile?.realm_access;
+  if (!realmAccess || typeof realmAccess !== "object") {
+    return false;
+  }
+
+  const roles = (realmAccess as { roles?: unknown }).roles;
+  return Array.isArray(roles) && roles.includes(role);
+}
+
+export function isPlatformAdmin(user: User | null): boolean {
+  return hasRealmRole(user, "PLATFORM_ADMIN");
+}
 
 // Module-level flag: prevents concurrent checkUser() calls (e.g. React StrictMode
 // double-invokes effects, which would otherwise race two getUser() promises).
@@ -47,7 +61,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  /* [SANDBOX/DEV] Uncomment loginMock below to enable mock login without Keycloak
   loginMock: async (email: string, name: string) => {
     try {
       set({ isLoading: true, error: null });
@@ -63,6 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           preferred_username: name.toLowerCase().replace(" ", "."),
           email: email,
           email_verified: true,
+          realm_access: { roles: ["admin", "user", "PLATFORM_ADMIN"] },
         },
         access_token: "mock-access-token-123",
         refresh_token: "mock-refresh-token-123",
@@ -83,22 +97,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ error: errorMsg, isLoading: false });
     }
   },
-  */
 
   logout: async () => {
     try {
       set({ isLoading: true, error: null });
 
-      // const sessionData = sessionStorage.getItem(OIDC_SESSION_KEY);
-      // const isMock = sessionData?.includes("mock-access-token-123");
+      const sessionData = sessionStorage.getItem(OIDC_SESSION_KEY);
+      const isMock = sessionData?.includes("mock-access-token-123") ?? false;
 
       // Clear store state and sessionStorage unconditionally
       set({ user: null, isAuthenticated: false });
       sessionStorage.removeItem(OIDC_SESSION_KEY);
 
-      // if (!isMock) {
-      await userManager.signoutRedirect();
-      // }
+      if (!isMock) {
+        await userManager.signoutRedirect();
+      }
 
       set({ isLoading: false });
     } catch (err) {

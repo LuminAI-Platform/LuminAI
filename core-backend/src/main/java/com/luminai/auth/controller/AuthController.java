@@ -19,11 +19,11 @@ public class AuthController {
   @GetMapping("/me")
   public Map<String, Object> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
     return Map.of(
-            "userId", jwt.getSubject(),
-            "email", jwt.getClaimAsString("email"),
-            "name", jwt.getClaimAsString("preferred_username"),
-            "tenantId", TenantContext.getTenantUuid().toString(),
-            "tenantSlug", TenantContext.getTenantSlug(),
-            "roles", jwt.getClaimAsMap("realm_access"));
+        "userId", jwt.getSubject(),
+        "email", jwt.getClaimAsString("email"),
+        "name", jwt.getClaimAsString("preferred_username"),
+        "tenantId", TenantContext.getTenantUuid().toString(),
+        "tenantSlug", TenantContext.getTenantSlug(),
+        "roles", jwt.getClaimAsMap("realm_access"));
   }
 }

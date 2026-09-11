@@ -44,9 +44,9 @@ public class MergeReviewService {
   private final KafkaTemplate<String, Object> kafkaTemplate;
 
   public MergeReviewService(
-          ErCandidateRepository candidateRepository,
-          GoldenRecordRepository goldenRecordRepository,
-          KafkaTemplate<String, Object> kafkaTemplate) {
+      ErCandidateRepository candidateRepository,
+      GoldenRecordRepository goldenRecordRepository,
+      KafkaTemplate<String, Object> kafkaTemplate) {
     this.candidateRepository = candidateRepository;
     this.goldenRecordRepository = goldenRecordRepository;
     this.kafkaTemplate = kafkaTemplate;
@@ -55,11 +55,11 @@ public class MergeReviewService {
   /** Lists candidates for the current tenant's schema, optionally filtered by status. */
   @Transactional(readOnly = true)
   public Page<MergeReviewDto.CandidateResponse> listCandidates(
-          CandidateStatus status, Pageable pageable) {
+      CandidateStatus status, Pageable pageable) {
     Page<ErCandidate> page =
-            status != null
-                    ? candidateRepository.findByStatus(status, pageable)
-                    : candidateRepository.findAll(pageable);
+        status != null
+            ? candidateRepository.findByStatus(status, pageable)
+            : candidateRepository.findAll(pageable);
     return page.map(this::toSummaryResponse);
   }
 
@@ -84,10 +84,10 @@ public class MergeReviewService {
     mergeNonConflictingProperties(goldenRecord, candidate);
     goldenRecord.getSourceRecordIds().add(candidate.getRecordBId());
     goldenRecord
-            .getProvenance()
-            .add(
-                    new ProvenanceEntry(
-                            candidate.getRecordBId(), null, candidate.getId(), Instant.now(), "MERGE_ACCEPT"));
+        .getProvenance()
+        .add(
+            new ProvenanceEntry(
+                candidate.getRecordBId(), null, candidate.getId(), Instant.now(), "MERGE_ACCEPT"));
 
     candidate.setStatus(CandidateStatus.ACCEPTED);
     candidate.setReviewedAt(Instant.now());
@@ -122,27 +122,27 @@ public class MergeReviewService {
    */
   @Transactional
   public MergeReviewDto.SplitResponse splitGoldenRecord(
-          UUID goldenRecordId, UUID sourceRecordIdToExtract) {
+      UUID goldenRecordId, UUID sourceRecordIdToExtract) {
     GoldenRecord original = loadGoldenRecord(goldenRecordId);
 
     if (!original.getSourceRecordIds().contains(sourceRecordIdToExtract)) {
       throw new ConflictException(
-              "Source record "
-                      + sourceRecordIdToExtract
-                      + " is not part of Golden Record "
-                      + goldenRecordId);
+          "Source record "
+              + sourceRecordIdToExtract
+              + " is not part of Golden Record "
+              + goldenRecordId);
     }
     if (original.getSourceRecordIds().size() <= 1) {
       throw new ConflictException(
-              "Cannot split Golden Record " + goldenRecordId + ": it has only one source record");
+          "Cannot split Golden Record " + goldenRecordId + ": it has only one source record");
     }
 
     original.getSourceRecordIds().remove(sourceRecordIdToExtract);
     original
-            .getProvenance()
-            .add(
-                    new ProvenanceEntry(
-                            sourceRecordIdToExtract, null, null, Instant.now(), "SPLIT_REMOVE"));
+        .getProvenance()
+        .add(
+            new ProvenanceEntry(
+                sourceRecordIdToExtract, null, null, Instant.now(), "SPLIT_REMOVE"));
 
     GoldenRecord extracted = GoldenRecord.newStandalone();
     extracted.getSourceRecordIds().add(sourceRecordIdToExtract);
@@ -152,10 +152,10 @@ public class MergeReviewService {
     // that instead of copying the cluster's current values.
     extracted.getProperties().putAll(original.getProperties());
     extracted
-            .getProvenance()
-            .add(
-                    new ProvenanceEntry(
-                            sourceRecordIdToExtract, null, null, Instant.now(), "SPLIT_CREATE"));
+        .getProvenance()
+        .add(
+            new ProvenanceEntry(
+                sourceRecordIdToExtract, null, null, Instant.now(), "SPLIT_CREATE"));
 
     goldenRecordRepository.save(original);
     GoldenRecord savedExtracted = goldenRecordRepository.save(extracted);
@@ -164,7 +164,7 @@ public class MergeReviewService {
     publishEntityUpdated(savedExtracted.getId(), "GOLDEN_RECORD_CREATED_FROM_SPLIT");
 
     return new MergeReviewDto.SplitResponse(
-            toGoldenRecordResponse(original), toGoldenRecordResponse(savedExtracted));
+        toGoldenRecordResponse(original), toGoldenRecordResponse(savedExtracted));
   }
 
   // -----------------------------------------------------------------------------------------
@@ -173,20 +173,20 @@ public class MergeReviewService {
 
   private ErCandidate loadCandidate(UUID candidateId) {
     return candidateRepository
-            .findById(candidateId)
-            .orElseThrow(() -> new ResourceNotFoundException("ErCandidate", candidateId));
+        .findById(candidateId)
+        .orElseThrow(() -> new ResourceNotFoundException("ErCandidate", candidateId));
   }
 
   private GoldenRecord loadGoldenRecord(UUID goldenRecordId) {
     return goldenRecordRepository
-            .findById(goldenRecordId)
-            .orElseThrow(() -> new ResourceNotFoundException("GoldenRecord", goldenRecordId));
+        .findById(goldenRecordId)
+        .orElseThrow(() -> new ResourceNotFoundException("GoldenRecord", goldenRecordId));
   }
 
   private void ensurePending(ErCandidate candidate) {
     if (candidate.getStatus() != CandidateStatus.PENDING) {
       throw new ConflictException(
-              "Candidate " + candidate.getId() + " is already " + candidate.getStatus());
+          "Candidate " + candidate.getId() + " is already " + candidate.getStatus());
     }
   }
 
@@ -214,14 +214,14 @@ public class MergeReviewService {
       if (noConflict) {
         target.put(field, incomingValue);
         goldenRecord
-                .getProvenance()
-                .add(
-                        new ProvenanceEntry(
-                                candidate.getRecordBId(),
-                                field,
-                                candidate.getId(),
-                                Instant.now(),
-                                "FIELD_MERGE"));
+            .getProvenance()
+            .add(
+                new ProvenanceEntry(
+                    candidate.getRecordBId(),
+                    field,
+                    candidate.getId(),
+                    Instant.now(),
+                    "FIELD_MERGE"));
       }
       // Conflicting fields are intentionally left as-is; no destructive overwrite on disagreement.
     }
@@ -239,44 +239,44 @@ public class MergeReviewService {
   private void publishEntityUpdated(UUID entityId, String changeType) {
     String tenantId = TenantContext.getTenantSlug();
     kafkaTemplate.send(
-            KafkaConfig.TOPIC_ENTITY_UPDATED,
-            entityId.toString(),
-            new EntityUpdatedEvent(tenantId, entityId, changeType, Instant.now()));
+        KafkaConfig.TOPIC_ENTITY_UPDATED,
+        entityId.toString(),
+        new EntityUpdatedEvent(tenantId, entityId, changeType, Instant.now()));
   }
 
   private MergeReviewDto.CandidateResponse toSummaryResponse(ErCandidate candidate) {
     return new MergeReviewDto.CandidateResponse(
-            candidate.getId(),
-            candidate.getGoldenRecordId(),
-            new MergeReviewDto.RecordSnapshot(candidate.getRecordAId(), candidate.getRecordASnapshot()),
-            new MergeReviewDto.RecordSnapshot(candidate.getRecordBId(), candidate.getRecordBSnapshot()),
-            candidate.getSimilarityScore(),
-            candidate.getMatchRationale(),
-            null, // comparisonDetails omitted in list view to keep pages light
-            candidate.getStatus(),
-            candidate.getReviewedAt(),
-            candidate.getReviewedBy());
+        candidate.getId(),
+        candidate.getGoldenRecordId(),
+        new MergeReviewDto.RecordSnapshot(candidate.getRecordAId(), candidate.getRecordASnapshot()),
+        new MergeReviewDto.RecordSnapshot(candidate.getRecordBId(), candidate.getRecordBSnapshot()),
+        candidate.getSimilarityScore(),
+        candidate.getMatchRationale(),
+        null, // comparisonDetails omitted in list view to keep pages light
+        candidate.getStatus(),
+        candidate.getReviewedAt(),
+        candidate.getReviewedBy());
   }
 
   private MergeReviewDto.CandidateResponse toDetailResponse(ErCandidate candidate) {
     return new MergeReviewDto.CandidateResponse(
-            candidate.getId(),
-            candidate.getGoldenRecordId(),
-            new MergeReviewDto.RecordSnapshot(candidate.getRecordAId(), candidate.getRecordASnapshot()),
-            new MergeReviewDto.RecordSnapshot(candidate.getRecordBId(), candidate.getRecordBSnapshot()),
-            candidate.getSimilarityScore(),
-            candidate.getMatchRationale(),
-            candidate.getComparisonDetails(),
-            candidate.getStatus(),
-            candidate.getReviewedAt(),
-            candidate.getReviewedBy());
+        candidate.getId(),
+        candidate.getGoldenRecordId(),
+        new MergeReviewDto.RecordSnapshot(candidate.getRecordAId(), candidate.getRecordASnapshot()),
+        new MergeReviewDto.RecordSnapshot(candidate.getRecordBId(), candidate.getRecordBSnapshot()),
+        candidate.getSimilarityScore(),
+        candidate.getMatchRationale(),
+        candidate.getComparisonDetails(),
+        candidate.getStatus(),
+        candidate.getReviewedAt(),
+        candidate.getReviewedBy());
   }
 
   private MergeReviewDto.GoldenRecordResponse toGoldenRecordResponse(GoldenRecord goldenRecord) {
     return new MergeReviewDto.GoldenRecordResponse(
-            goldenRecord.getId(),
-            goldenRecord.getSourceRecordIds(),
-            goldenRecord.getProperties(),
-            goldenRecord.getVersion());
+        goldenRecord.getId(),
+        goldenRecord.getSourceRecordIds(),
+        goldenRecord.getProperties(),
+        goldenRecord.getVersion());
   }
 }
