@@ -2,6 +2,12 @@ import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../../lib/api";
 
 interface CreateUserResponse {
+  userId: string;
+  tenantId: string;
+  tenantSlug: string;
+  keycloakId: string;
+  email: string;
+  role: string;
   message: string;
 }
 
@@ -10,26 +16,35 @@ const inputClassName =
 
 async function getApiErrorMessage(error: unknown): Promise<string> {
   if (error instanceof ApiError) {
+    if (error.isForbidden) {
+      return "You do not have permission to provision users.";
+    }
+    if (error.status === 502) {
+      return "Could not reach Keycloak to create the account. Try again shortly, or contact engineering if this persists.";
+    }
+
+    let body: { message?: string; detail?: string } = {};
     try {
-      const body = (await error.response.clone().json()) as {
-        message?: string;
-        detail?: string;
-      };
-      if (body.message || body.detail) {
-        return body.message ?? body.detail ?? "Request failed.";
-      }
+      body = (await error.response.clone().json()) as typeof body;
     } catch {
       // Some gateway errors do not return JSON.
     }
 
-    if (error.isForbidden) {
-      return "You do not have permission to provision users.";
+    if (error.status === 400) {
+      return (
+        body.message ??
+        body.detail ??
+        "Please check the tenant slug, email, and role."
+      );
     }
     if (error.status === 409) {
       return "That email is already registered for this tenant.";
     }
     if (error.status === 404) {
       return "No active tenant was found with that slug.";
+    }
+    if (body.message || body.detail) {
+      return body.message ?? body.detail ?? "Request failed.";
     }
   }
 
@@ -101,10 +116,10 @@ export function UserRegistrationPage() {
               </span>
               <input
                 required
-                pattern="[a-z0-9-]+"
+                pattern="[a-z0-9][a-z0-9_-]*[a-z0-9]"
                 value={tenantSlug}
                 onChange={(event) => setTenantSlug(event.target.value)}
-                placeholder="acme-corp"
+                placeholder="acme-corp or acme_corp"
                 className={inputClassName}
               />
               <span className="mt-1.5 block text-xs text-zinc-500">
@@ -148,8 +163,7 @@ export function UserRegistrationPage() {
                 className={inputClassName}
               >
                 <option value="VIEWER">Viewer</option>
-                <option value="EDITOR">Editor</option>
-                <option value="TENANT_ADMIN">Tenant admin</option>
+                <option value="ADMIN">Admin</option>
               </select>
             </label>
           </div>
