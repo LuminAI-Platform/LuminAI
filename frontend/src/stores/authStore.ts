@@ -8,7 +8,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: () => Promise<void>;
-  loginMock: (email: string, name: string) => Promise<void>;
+  loginMock: (email: string, name: string, roles?: string[]) => Promise<void>;
   logout: () => Promise<void>;
   clearAuthSession: () => void;
   handleCallback: () => Promise<User | null>;
@@ -25,7 +25,37 @@ const CLIENT_ID =
 const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
 
 export function hasRealmRole(user: User | null, role: string): boolean {
-  const realmAccess = user?.profile?.realm_access;
+  if (!user) {
+    return false;
+  }
+
+  let realmAccess = user.profile?.realm_access;
+
+  // Keycloak by default places realm_access in the access_token, not id_token.
+  // oidc-client-ts user.profile represents the id_token.
+  // If realm_access is missing from profile, decode the access_token.
+  if (!realmAccess && user.access_token) {
+    try {
+      const payloadBase64Url = user.access_token.split(".")[1];
+      if (payloadBase64Url) {
+        const payloadBase64 = payloadBase64Url
+          .replace(/-/g, "+")
+          .replace(/_/g, "/");
+        const jsonPayload = decodeURIComponent(
+          window
+            .atob(payloadBase64)
+            .split("")
+            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .join(""),
+        );
+        const decoded = JSON.parse(jsonPayload);
+        realmAccess = decoded.realm_access;
+      }
+    } catch (e) {
+      console.error("Failed to decode access token", e);
+    }
+  }
+
   if (!realmAccess || typeof realmAccess !== "object") {
     return false;
   }
@@ -61,7 +91,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  loginMock: async (email: string, name: string) => {
+  loginMock: async (email: string, name: string, roles?: string[]) => {
     try {
       set({ isLoading: true, error: null });
       const expiresAt = Math.floor(Date.now() / 1000) + 3600;
@@ -76,7 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           preferred_username: name.toLowerCase().replace(" ", "."),
           email: email,
           email_verified: true,
-          realm_access: { roles: ["admin", "user", "PLATFORM_ADMIN"] },
+          realm_access: { roles: roles ?? ["admin", "user", "PLATFORM_ADMIN"] },
         },
         access_token: "mock-access-token-123",
         refresh_token: "mock-refresh-token-123",
