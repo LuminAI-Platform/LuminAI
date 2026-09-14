@@ -38,13 +38,15 @@ export function hasRealmRole(user: User | null, role: string): boolean {
     try {
       const payloadBase64Url = user.access_token.split(".")[1];
       if (payloadBase64Url) {
-        const payloadBase64 = payloadBase64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const payloadBase64 = payloadBase64Url
+          .replace(/-/g, "+")
+          .replace(/_/g, "/");
         const jsonPayload = decodeURIComponent(
           window
             .atob(payloadBase64)
             .split("")
             .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-            .join("")
+            .join(""),
         );
         const decoded = JSON.parse(jsonPayload);
         realmAccess = decoded.realm_access;
