@@ -2,11 +2,35 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
 
+const SANDBOX_ROLES = [
+  {
+    value: "admin",
+    label: "Admin (PLATFORM_ADMIN)",
+    roles: ["admin", "user", "PLATFORM_ADMIN"],
+  },
+  { value: "viewer", label: "Viewer (no admin)", roles: ["user"] },
+] as const;
+
+/**
+ * Validates that a redirect path is a safe, same-origin relative path.
+ * Rejects protocol-relative URLs (//evil.com), absolute URLs, and empty values.
+ */
+function getSafeRedirectPath(): string {
+  const raw = sessionStorage.getItem("post_login_redirect");
+  sessionStorage.removeItem("post_login_redirect");
+
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
+    return "/";
+  }
+  return raw;
+}
+
 export function SandboxLoginPage() {
   const { loginMock, isLoading, error } = useAuthStore();
   const navigate = useNavigate();
   const [email, setEmail] = useState("admin@luminai.dev");
   const [name, setName] = useState("Admin User");
+  const [selectedRole, setSelectedRole] = useState<string>("admin");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -14,9 +38,10 @@ export function SandboxLoginPage() {
     setIsSubmitting(true);
 
     try {
-      await loginMock(email, name);
-      const destination = sessionStorage.getItem("post_login_redirect") ?? "/";
-      sessionStorage.removeItem("post_login_redirect");
+      const roleConfig =
+        SANDBOX_ROLES.find((r) => r.value === selectedRole) ?? SANDBOX_ROLES[0];
+      await loginMock(email, name, roleConfig.roles as unknown as string[]);
+      const destination = getSafeRedirectPath();
       navigate({ to: destination as "/", replace: true });
     } finally {
       setIsSubmitting(false);
@@ -68,6 +93,26 @@ export function SandboxLoginPage() {
               onChange={(event) => setEmail(event.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-amber-400"
             />
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold text-zinc-300">
+              Role preset
+            </span>
+            <select
+              value={selectedRole}
+              onChange={(event) => setSelectedRole(event.target.value)}
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-amber-400"
+            >
+              {SANDBOX_ROLES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1.5 block text-xs text-zinc-500">
+              Choose a role to test different permission levels.
+            </span>
           </label>
         </div>
 
