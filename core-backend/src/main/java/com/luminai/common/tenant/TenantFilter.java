@@ -39,7 +39,8 @@ public class TenantFilter extends OncePerRequestFilter {
     "/swagger-ui.html",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
-    "/api/v1/public/"
+    "/api/v1/public/",
+    "/api/v1/internal/"
   };
 
   private final TenantResolutionService tenantResolutionService;
