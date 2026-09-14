@@ -8,7 +8,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: () => Promise<void>;
-  loginMock: (email: string, name: string) => Promise<void>;
+  loginMock: (email: string, name: string, roles?: string[]) => Promise<void>;
   logout: () => Promise<void>;
   clearAuthSession: () => void;
   handleCallback: () => Promise<User | null>;
@@ -91,7 +91,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  loginMock: async (email: string, name: string) => {
+  loginMock: async (email: string, name: string, roles?: string[]) => {
     try {
       set({ isLoading: true, error: null });
       const expiresAt = Math.floor(Date.now() / 1000) + 3600;
@@ -106,7 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           preferred_username: name.toLowerCase().replace(" ", "."),
           email: email,
           email_verified: true,
-          realm_access: { roles: ["admin", "user", "PLATFORM_ADMIN"] },
+          realm_access: { roles: roles ?? ["admin", "user", "PLATFORM_ADMIN"] },
         },
         access_token: "mock-access-token-123",
         refresh_token: "mock-refresh-token-123",
