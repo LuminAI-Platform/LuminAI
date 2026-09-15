@@ -253,6 +253,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </Link>
             </SidebarTooltip>
           )}
+          {showAdminNavigation && (
+            <SidebarTooltip label="Tenant registration" enabled={collapsed}>
+              <Link
+                to="/admin/tenants"
+                className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-zinc-400 transition-all duration-150 hover:border-zinc-850 hover:bg-zinc-800/50 hover:text-zinc-100"
+                activeProps={{
+                  className:
+                    "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+                }}
+                onClick={() => setMobileOpen(false)}
+              >
+                <svg
+                  className="shrink-0"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="4" y="4" width="16" height="16" rx="2" ry="2" />
+                  <rect x="9" y="9" width="6" height="6" />
+                  <line x1="9" y1="1" x2="9" y2="4" />
+                  <line x1="15" y1="1" x2="15" y2="4" />
+                  <line x1="9" y1="20" x2="9" y2="23" />
+                  <line x1="15" y1="20" x2="15" y2="23" />
+                  <line x1="20" y1="9" x2="23" y2="9" />
+                  <line x1="20" y1="14" x2="23" y2="14" />
+                  <line x1="1" y1="9" x2="4" y2="9" />
+                  <line x1="1" y1="14" x2="4" y2="14" />
+                </svg>
+                <span
+                  className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"}`}
+                >
+                  Tenant registration
+                </span>
+              </Link>
+            </SidebarTooltip>
+          )}
         </nav>
 
         {/* Footer section */}

@@ -17,6 +17,7 @@ import { OntologyPage } from "./pages/ontology/OntologyPage";
 import { ExplorerPage } from "./pages/explorer/ExplorerPage";
 import { EntityDetailPage } from "./pages/explorer/EntityDetailPage";
 import { UserRegistrationPage } from "./features/admin/UserRegistrationPage";
+import { TenantRegistrationPage } from "./features/admin/TenantRegistrationPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 
 // 1. Root Route
@@ -378,6 +379,16 @@ const adminUsersRoute = createRoute({
   ),
 });
 
+const adminTenantsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/admin/tenants",
+  component: () => (
+    <AdminRoute>
+      <TenantRegistrationPage />
+    </AdminRoute>
+  ),
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   callbackRoute,
@@ -393,6 +404,7 @@ const routeTree = rootRoute.addChildren([
     graphRoute,
     settingsRoute,
     adminUsersRoute,
+    adminTenantsRoute,
   ]),
 ]);
 
