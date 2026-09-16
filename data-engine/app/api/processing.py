@@ -16,6 +16,7 @@ from app.processing.reconciliation import (
     ReconciliationReport,
     run_cross_store_reconciliation,
 )
+from app.processing.run_tracker import get_run_tracker
 from app.processing.trigger import DagsterTrigger
 
 router = APIRouter()
@@ -130,6 +131,34 @@ class StatusResponse(BaseModel):
         description="Human-readable execution log or milestone summary.",
         examples=["Pipeline is running (processing assets via Dagster framework)."],
     )
+    current_step: Optional[str] = Field(
+        default=None,
+        description="Name of the currently running or last completed asset/step.",
+    )
+    steps_completed: List[str] = Field(
+        default_factory=list,
+        description="List of step names successfully completed so far.",
+    )
+    total_steps: Optional[int] = Field(
+        default=None,
+        description="Total expected pipeline steps.",
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error details if the pipeline run failed.",
+    )
+    started_at: Optional[str] = Field(
+        default=None,
+        description="ISO-8601 timestamp when pipeline execution started.",
+    )
+    completed_at: Optional[str] = Field(
+        default=None,
+        description="ISO-8601 timestamp when pipeline execution ended.",
+    )
+    dagster_run_id: Optional[str] = Field(
+        default=None,
+        description="Underlying Dagster orchestrator run ID.",
+    )
 
 
 # Endpoints
@@ -146,12 +175,23 @@ async def trigger_pipeline(
 ) -> TriggerResponse:
     """Queue a data cleaning pipeline for a given source connector."""
     run_id = str(uuid.uuid4())
+    tracker = get_run_tracker()
+    tracker.init_run(
+        run_id=run_id,
+        pipeline_name="cleaning_pipeline",
+        tenant_id=request.tenant_id,
+        source_id=request.source_id,
+        total_steps=5,
+        message=f"Cleaning pipeline queued for source '{request.source_id}' (tenant: {request.tenant_id}).",
+    )
+
     trigger = DagsterTrigger()
     background_tasks.add_task(
         trigger.trigger_cleaning_pipeline,
         request.tenant_id,
         request.source_id,
         {"run_id": run_id, **request.options},
+        run_id=run_id,
     )
 
     return TriggerResponse(
@@ -173,11 +213,22 @@ async def trigger_er_pipeline(
 ) -> TriggerResponse:
     """Queue an Entity Resolution pipeline run (Blocking -> Scored -> Classified -> Golden Records)."""
     run_id = str(uuid.uuid4())
+    tracker = get_run_tracker()
+    tracker.init_run(
+        run_id=run_id,
+        pipeline_name="er_pipeline",
+        tenant_id=request.tenant_id,
+        source_id=request.source_id,
+        total_steps=5,
+        message=f"Entity Resolution pipeline queued for tenant '{request.tenant_id}'.",
+    )
+
     trigger = DagsterTrigger()
     background_tasks.add_task(
         trigger.trigger_er_pipeline,
         request.tenant_id,
         request.source_id,
+        run_id=run_id,
     )
 
     return TriggerResponse(
@@ -213,9 +264,19 @@ async def execute_reconciliation(
 )
 async def get_pipeline_status(run_id: str) -> StatusResponse:
     """Retrieve the current progress and status of an active pipeline run."""
+    tracker = get_run_tracker()
+    rec = tracker.get_status(run_id)
     return StatusResponse(
-        run_id=run_id,
-        status="running",
-        progress_pct=100,
-        message="Pipeline execution completed successfully via Dagster framework.",
+        run_id=rec.run_id,
+        status=rec.status,
+        progress_pct=rec.progress_pct,
+        message=rec.message,
+        current_step=rec.current_step,
+        steps_completed=rec.steps_completed,
+        total_steps=rec.total_steps,
+        error=rec.error,
+        started_at=rec.started_at,
+        completed_at=rec.completed_at,
+        dagster_run_id=rec.dagster_run_id,
     )
+

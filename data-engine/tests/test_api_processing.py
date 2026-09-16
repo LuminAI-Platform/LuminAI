@@ -129,3 +129,38 @@ class TestStatusEndpoint:
         assert data["status"] in ("queued", "running", "completed", "failed")
         assert 0 <= data["progress_pct"] <= 100
         assert "message" in data
+
+    def test_trigger_and_poll_status_lifecycle(self):
+        """Triggering a cleaning pipeline records run in tracker and returns tracked status."""
+        trigger_resp = client.post(
+            "/process/trigger",
+            json={"source_id": "connector-live", "tenant_id": "acme"},
+        )
+        assert trigger_resp.status_code == 202
+        run_id = trigger_resp.json()["run_id"]
+
+        # Poll status
+        status_resp = client.get(f"/process/status/{run_id}")
+        assert status_resp.status_code == 200
+        status_data = status_resp.json()
+        assert status_data["run_id"] == run_id
+        assert status_data["status"] in ("queued", "running", "completed")
+        assert 0 <= status_data["progress_pct"] <= 100
+        assert "cleaning" in status_data["message"].lower()
+
+    def test_er_trigger_and_poll_status(self):
+        """Triggering an ER pipeline records run in tracker and returns tracked status."""
+        trigger_resp = client.post(
+            "/process/er/trigger",
+            json={"source_id": "crm-er", "tenant_id": "acme"},
+        )
+        assert trigger_resp.status_code == 202
+        run_id = trigger_resp.json()["run_id"]
+
+        status_resp = client.get(f"/process/status/{run_id}")
+        assert status_resp.status_code == 200
+        status_data = status_resp.json()
+        assert status_data["run_id"] == run_id
+        assert status_data["status"] in ("queued", "running", "completed")
+        assert "entity resolution" in status_data["message"].lower()
+

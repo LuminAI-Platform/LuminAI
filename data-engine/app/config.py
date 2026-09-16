@@ -64,6 +64,18 @@ class Settings(BaseSettings):
     minio_secret_key: str = "minioadmin"
     minio_secure: bool = False
 
+    # Dagster Orchestrator Configuration
+    dagster_host: str = "localhost"
+    dagster_port: int = 3001
+    dagster_graphql_url: str | None = None
+
+    @property
+    def resolved_dagster_graphql_url(self) -> str:
+        if self.dagster_graphql_url:
+            return self.dagster_graphql_url
+        return f"http://{self.dagster_host}:{self.dagster_port}/graphql"
+
+
 
 @lru_cache
 def get_settings() -> Settings:
