@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     app_frontend_url: str = "https://luminai-sand.vercel.app"
     debug: bool = False
 
+    # Logging Configuration
+    log_level: str = "INFO"
+    log_format: str = "json"  # "json" for Kubernetes ELK/Loki, "console" for dev
+
     # CORS Configuration
     cors_origins: list[str] = [
         "https://luminai-sand.vercel.app",

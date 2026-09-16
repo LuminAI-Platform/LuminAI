@@ -16,15 +16,28 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import analytics, health, processing
 from app.config import get_settings
 from app.kafka.consumers import IngestRawConsumer
+from app.logging import (
+    StructuredLoggingMiddleware,
+    configure_logging,
+    get_logger,
+)
 from app.processing.trigger import DagsterTrigger
 from app.security import get_current_identity
+
+logger = get_logger("data-engine.app")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup / shutdown hooks."""
     settings = get_settings()
-    print(f"[*] {settings.app_name} v{settings.app_version} starting up...")
+    logger.info(
+        "Application starting up",
+        app_name=settings.app_name,
+        version=settings.app_version,
+        host=settings.app_host,
+        port=settings.app_port,
+    )
 
     # Start Kafka consumer if enabled
     consumer = None
@@ -36,21 +49,26 @@ async def lifespan(app: FastAPI):
         consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
 
         await consumer.start()
-        print(f"[Kafka] Kafka consumer started on topic '{settings.kafka_topic_ingest_raw}'")
+        logger.info(
+            "Kafka consumer started",
+            topic=settings.kafka_topic_ingest_raw,
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+        )
     else:
-        print("[Kafka] Kafka disabled (set KAFKA_ENABLED=true to enable)")
+        logger.info("Kafka consumer disabled (set KAFKA_ENABLED=true to enable)")
 
     yield
 
     # Clean up and shutdown resources
     if consumer is not None:
         await consumer.stop()
-        print("[Kafka] Kafka consumer stopped")
-    print("[*] Data Engine shutting down...")
+        logger.info("Kafka consumer stopped")
+    logger.info("Data Engine shutting down")
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(log_level=settings.log_level, log_format=settings.log_format)
 
     app = FastAPI(
         title=settings.app_name,
@@ -68,6 +86,9 @@ def create_app() -> FastAPI:
         },
         lifespan=lifespan,
     )
+
+    # Configure Structured Logging middleware
+    app.add_middleware(StructuredLoggingMiddleware)
 
     # Configure CORS middleware
     app.add_middleware(

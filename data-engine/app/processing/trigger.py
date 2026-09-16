@@ -17,6 +17,7 @@ from typing import Any, Optional
 
 from dagster import materialize
 
+from app.logging import bind_context
 from app.processing.pipelines import cleaning_pipeline, er_pipeline
 from app.processing.reconciliation import run_cross_store_reconciliation
 from app.processing.run_tracker import get_run_tracker
@@ -28,8 +29,8 @@ class DagsterTrigger:
     """
     Triggers Dagster pipeline materializations programmatically.
 
-    Used as the ``on_batch_complete`` callback from
-    :class:`~app.kafka.consumers.IngestRawConsumer`.
+    Exposes methods to queue or execute cleaning, entity resolution,
+    and reconciliation asset definitions.
     """
 
     def trigger_cleaning_pipeline(
@@ -53,6 +54,7 @@ class DagsterTrigger:
             The Dagster run ID if successful, or ``None`` on failure.
         """
         active_run_id = run_id or batch_metadata.get("run_id") or str(uuid.uuid4())
+        bind_context(tenant_id=str(tenant_id), source_id=str(source_id), run_id=active_run_id)
         tracker = get_run_tracker()
         tracker.start_run(
             active_run_id,
@@ -166,6 +168,7 @@ class DagsterTrigger:
     ) -> str | None:
         """Launch an Entity Resolution pipeline run for the given tenant."""
         active_run_id = run_id or str(uuid.uuid4())
+        bind_context(tenant_id=str(tenant_id), source_id=str(source_id), run_id=active_run_id)
         tracker = get_run_tracker()
         tracker.start_run(
             active_run_id,
