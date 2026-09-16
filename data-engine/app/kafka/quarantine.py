@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 import sqlite3
 import threading
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, List, Literal, Optional, Tuple
 import uuid
 
 from pydantic import BaseModel, Field

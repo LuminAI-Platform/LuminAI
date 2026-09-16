@@ -1,6 +1,5 @@
 """Tests for DatabaseManager connection pooling, session factories, and Dagster resource integration."""
 
-import os
 import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -10,11 +9,7 @@ from app.config import Settings
 from app.db import (
     DatabaseManager,
     DatabaseResource,
-    get_db,
     get_db_manager,
-    get_engine,
-    get_session,
-    get_sqlite_engine,
 )
 
 
@@ -127,8 +122,8 @@ class TestDatabaseManager:
         """dispose_all safely cleans up engines and allows subsequent re-initialization."""
         db_path = str(tmp_path / "dispose_test.db")
         manager = DatabaseManager()
-        sqlite_engine = manager.get_sqlite_engine(db_path)
-        pg_engine = manager.get_engine()
+        _ = manager.get_sqlite_engine(db_path)
+        _ = manager.get_engine()
 
         assert manager._pg_engine is not None
         assert len(manager._sqlite_engines) == 1

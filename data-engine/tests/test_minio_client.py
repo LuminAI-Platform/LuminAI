@@ -1,14 +1,13 @@
 """Tests for MinIO/S3 Raw Storage Client."""
 
 import io
-import os
 import shutil
 import tempfile
 import polars as pl
 import pytest
 from dagster import build_asset_context
 
-from app.processing.minio_client import MinioRawStorageClient, get_minio_client
+from app.processing.minio_client import MinioRawStorageClient
 from app.processing.pipelines.cleaning_pipeline import raw_ingestion_data
 
 

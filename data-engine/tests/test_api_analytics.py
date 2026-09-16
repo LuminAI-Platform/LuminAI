@@ -1,7 +1,7 @@
 """Tests for the analytics API endpoints (query, timeseries, and reconciliation)."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 import polars as pl

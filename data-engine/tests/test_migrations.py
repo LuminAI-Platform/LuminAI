@@ -1,16 +1,10 @@
 """Tests for Alembic database migration system and declarative models."""
 
-import os
-import pytest
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.pool import StaticPool
 
 from app.db.models import (
     Base,
-    ERCandidate,
-    GoldenRecord,
-    ProvenanceRecord,
-    StagingRecord,
 )
 from app.db.migrations import (
     ensure_tables_exist,

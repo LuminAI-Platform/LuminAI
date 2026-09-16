@@ -11,7 +11,6 @@ Covers:
   - POST /process/quarantine/discard
 """
 
-import json
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -21,8 +20,6 @@ from app.kafka.consumers import IngestRawConsumer
 from app.kafka.producers import DeadLetterProducer, IngestRawProducer
 from app.kafka.quarantine import (
     QuarantineManager,
-    QuarantinedMessage,
-    get_quarantine_manager,
 )
 from app.main import app
 

@@ -1,7 +1,7 @@
 """Unit tests for DuckDBAnalyticsEngine."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 import polars as pl
 import pytest
 
@@ -11,7 +11,6 @@ from app.processing.analytics_engine import DuckDBAnalyticsEngine
 @pytest.fixture
 def sample_golden_df() -> pl.DataFrame:
     """Sample Polars DataFrame simulating golden_records table."""
-    now = datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc)
     return pl.DataFrame([
         {
             "golden_id": "gr-1",

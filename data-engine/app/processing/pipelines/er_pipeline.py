@@ -20,7 +20,6 @@ import polars as pl
 from dagster import AssetExecutionContext, asset
 from sqlalchemy import text
 
-from app.config import get_settings
 from app.kafka.producers import EntityResolvedProducer
 from app.processing.er.blocking import generate_candidate_pairs
 from app.processing.er.classification import (

@@ -11,17 +11,13 @@ Covers:
 import io
 import json
 import logging
-from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-import pytest
 
 from app.logging import (
-    StructuredLoggingMiddleware,
     bind_context,
     clear_context,
     configure_logging,
-    get_context,
     get_logger,
 )
 from app.main import app

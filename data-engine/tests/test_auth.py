@@ -28,7 +28,6 @@ from app.security import (
     KeycloakTokenValidator,
     extract_roles_from_claims,
     get_keycloak_validator,
-    require_role,
 )
 
 client = TestClient(app)

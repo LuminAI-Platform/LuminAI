@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.processing.run_tracker import PipelineRunTracker, RunRecord
+from app.processing.run_tracker import PipelineRunTracker
 
 
 @pytest.fixture

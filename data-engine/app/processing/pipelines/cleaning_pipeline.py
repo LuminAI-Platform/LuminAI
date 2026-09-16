@@ -455,15 +455,6 @@ def staged_ingestion_data(
     Write validated data to Parquet storage and a database staging table.
     Also notifies Kafka topic ingest.valid.
     """
-    import json
-    import os
-    import uuid
-    from sqlalchemy import text
-    from app.config import get_settings
-    from app.kafka.producers import IngestValidProducer
-
-    settings = get_settings()
-
     # Fetch run tags or use defaults for local/manual testing
     run_tags = _extract_run_tags(context)
     tenant_id = run_tags.get("tenant_id", "acme")

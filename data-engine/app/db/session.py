@@ -10,9 +10,9 @@ import os
 import threading
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import Any, Dict, Generator, Optional
+from typing import Dict, Generator, Optional
 
-from sqlalchemy import Connection, Engine, create_engine, text
+from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 

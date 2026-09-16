@@ -476,6 +476,7 @@ name = "data-engine"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "alembic" },
     { name = "confluent-kafka" },
     { name = "dagster" },
     { name = "dagster-webserver" },
@@ -490,6 +491,7 @@ dependencies = [
     { name = "pyjwt", extra = ["crypto"] },
     { name = "recordlinkage" },
     { name = "sqlalchemy" },
+    { name = "structlog" },
     { name = "uvicorn" },
 ]
 
@@ -502,6 +504,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "alembic", specifier = ">=1.13.0" },
     { name = "confluent-kafka", specifier = ">=2.14.0" },
     { name = "dagster", specifier = ">=1.13.3" },
     { name = "dagster-webserver", specifier = ">=1.13.3" },
@@ -516,6 +519,7 @@ requires-dist = [
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
     { name = "recordlinkage", specifier = ">=0.16" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
+    { name = "structlog", specifier = ">=25.1.0" },
     { name = "uvicorn", specifier = ">=0.46.0" },
 ]
 

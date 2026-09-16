@@ -7,7 +7,6 @@ with transparent fallback to local SQLite storage or in-memory Polars DataFrames
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re

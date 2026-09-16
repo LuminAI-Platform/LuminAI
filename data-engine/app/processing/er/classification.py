@@ -19,7 +19,6 @@ from typing import Literal
 import polars as pl
 from sqlalchemy import text
 
-from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
