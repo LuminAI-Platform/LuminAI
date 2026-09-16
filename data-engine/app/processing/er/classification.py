@@ -135,7 +135,7 @@ def persist_review_candidates(
 
         params.append({
             "id": str(uuid.uuid4()),
-            "tenant_id": tenant_id,
+            "tenant_id": str(row.get("tenant_id") or tenant_id),
             "record_id_a": id_a,
             "record_id_b": id_b,
             "confidence_score": score,

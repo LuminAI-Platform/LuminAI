@@ -95,3 +95,30 @@ class TestERPipelineExecution:
             ]
         )
         assert result.success is True
+
+    def test_er_pipeline_dynamic_tenant_id(self):
+        """Verify that dynamic tenant_id in run tags propagates to staged records and golden records."""
+        custom_tenant = "tenant-enterprise-42"
+        context = build_asset_context(run_tags={"tenant_id": custom_tenant})
+
+        # 1. Check staged records tag scoping
+        staged = er_pipeline.staged_records_for_er(context)
+        assert isinstance(staged, pl.DataFrame)
+        assert "tenant_id" in staged.columns
+        for t in staged["tenant_id"].to_list():
+            assert t == custom_tenant
+
+        # 2. Check golden records dynamic tenant
+        matches_df = pl.DataFrame([{"id_a": "rec-1", "id_b": "rec-2"}])
+        staged_df = pl.DataFrame(
+            [
+                {"id": "rec-1", "tenant_id": custom_tenant, "name": "Alice", "country": "UK", "email": "alice@example.com"},
+                {"id": "rec-2", "tenant_id": custom_tenant, "name": "Alice Smith", "country": "UK", "email": "alice@example.com"},
+            ]
+        )
+        golden_records = er_pipeline.er_golden_records(context, matches_df, staged_df)
+        assert isinstance(golden_records, pl.DataFrame)
+        assert "tenant_id" in golden_records.columns
+        for t in golden_records["tenant_id"].to_list():
+            assert t == custom_tenant
+

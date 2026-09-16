@@ -76,9 +76,16 @@ def merge_cluster_to_golden_record(
         else:
             canonical_attributes[key] = None
 
+    resolved_tenant_id = tenant_id
+    if resolved_tenant_id == "acme":
+        for r in cluster_records:
+            if r.get("tenant_id") and str(r.get("tenant_id")) != "acme":
+                resolved_tenant_id = str(r.get("tenant_id"))
+                break
+
     golden_record = {
         "golden_id": golden_id,
-        "tenant_id": tenant_id,
+        "tenant_id": resolved_tenant_id,
         "cluster_size": len(cluster_records),
         "source_record_ids": source_ids,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -156,7 +163,7 @@ def persist_golden_records(
 
         params.append({
             "golden_id": gid,
-            "tenant_id": tenant_id,
+            "tenant_id": str(row.get("tenant_id") or tenant_id),
             "cluster_size": c_size,
             "source_record_ids": s_ids,
             "attributes": json.dumps(attr_dict),

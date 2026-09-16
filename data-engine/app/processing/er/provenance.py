@@ -30,6 +30,16 @@ def track_field_provenance(
     golden_id = str(golden_record.get("golden_id", ""))
     exclude_keys = {"golden_id", "tenant_id", "cluster_size", "source_record_ids", "created_at"}
 
+    resolved_tenant_id = tenant_id
+    if resolved_tenant_id == "acme":
+        if golden_record.get("tenant_id") and str(golden_record.get("tenant_id")) != "acme":
+            resolved_tenant_id = str(golden_record.get("tenant_id"))
+        else:
+            for rec in cluster_records:
+                if rec.get("tenant_id") and str(rec.get("tenant_id")) != "acme":
+                    resolved_tenant_id = str(rec.get("tenant_id"))
+                    break
+
     provenance_entries: list[dict[str, Any]] = []
 
     for attr, val in golden_record.items():
@@ -55,7 +65,7 @@ def track_field_provenance(
         provenance_entries.append({
             "id": str(uuid.uuid4()),
             "golden_id": golden_id,
-            "tenant_id": tenant_id,
+            "tenant_id": resolved_tenant_id,
             "attribute_name": attr,
             "attribute_value": str_val,
             "source_record_id": source_rec_id,
@@ -112,7 +122,7 @@ def persist_provenance_records(
         params.append({
             "id": str(r.get("id", uuid.uuid4())),
             "golden_id": str(r.get("golden_id", "")),
-            "tenant_id": tenant_id,
+            "tenant_id": str(r.get("tenant_id") or tenant_id),
             "attribute_name": str(r.get("attribute_name", "")),
             "attribute_value": str(r.get("attribute_value", "")),
             "source_record_id": str(r.get("source_record_id", "unknown")),
