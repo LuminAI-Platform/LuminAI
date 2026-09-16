@@ -202,6 +202,68 @@ class DuckDBAnalyticsEngine:
         :return: (result_dict, total_matching_row_count)
         """
         filters = filters or {}
+        if not aggregations:
+            aggregations = ["count"]
+
+        # 1. Build and validate aggregation expressions
+        is_golden = "golden" in table_name.lower()
+        json_col = "attributes" if is_golden else "data"
+        known_cols = GOLDEN_COLUMNS if is_golden else STAGING_COLUMNS
+
+        select_exprs = ["COUNT(*) as count"]
+        res_keys = ["count"]
+
+        for agg in aggregations:
+            agg_clean = agg.strip()
+            if agg_clean.lower() in {"count", "count(*)"}:
+                if "count" not in res_keys:
+                    select_exprs.append("COUNT(*) as count")
+                    res_keys.append("count")
+                continue
+
+            if ":" not in agg_clean:
+                raise ValueError(
+                    f"Unsupported aggregation format: '{agg_clean}'. Expected 'operation:field' e.g. 'avg:age'"
+                )
+
+            op, field = agg_clean.split(":", 1)
+            op = op.lower().strip()
+            field = field.strip()
+
+            if not IDENTIFIER_RE.match(field):
+                raise ValueError(f"Invalid field name '{field}' in aggregation '{agg_clean}'.")
+
+            if op not in {"avg", "sum", "min", "max", "distinct", "count_distinct"}:
+                raise ValueError(
+                    f"Unsupported aggregation operation '{op}'. Supported: avg, sum, min, max, count, distinct."
+                )
+
+            target_ref = (
+                field
+                if field in known_cols
+                else (
+                    f"json_extract_string({json_col}, '$.{field}')"
+                    if op in {"distinct", "count_distinct"}
+                    else f"json_extract({json_col}, '$.{field}')"
+                )
+            )
+
+            if op == "avg":
+                select_exprs.append(f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}")
+                res_keys.append(f"avg_{field}")
+            elif op == "sum":
+                select_exprs.append(f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}")
+                res_keys.append(f"sum_{field}")
+            elif op == "min":
+                select_exprs.append(f"MIN(TRY_CAST({target_ref} AS DOUBLE)) as min_{field}")
+                res_keys.append(f"min_{field}")
+            elif op == "max":
+                select_exprs.append(f"MAX(TRY_CAST({target_ref} AS DOUBLE)) as max_{field}")
+                res_keys.append(f"max_{field}")
+            elif op in {"distinct", "count_distinct"}:
+                select_exprs.append(f"COUNT(DISTINCT {target_ref}) as distinct_{field}")
+                res_keys.append(f"distinct_{field}")
+
         df = self.load_table_dataframe(table_name, tenant_id)
 
         # Create isolated in-memory DuckDB connection
@@ -217,82 +279,20 @@ class DuckDBAnalyticsEngine:
                 filters=filters,
             )
 
-            # 1. Calculate matching row count
+            # 2. Calculate matching row count
             count_query = f"SELECT COUNT(*) as row_count FROM source_table {where_clause}"
             count_res = con.execute(count_query, params).fetchone()
             row_count = int(count_res[0]) if count_res else 0
 
             if row_count == 0:
                 # If no matching rows, return zero/empty aggregation payload
-                empty_result: Dict[str, Any] = {"count": 0}
-                for agg in aggregations:
-                    agg_lower = agg.lower().strip()
-                    if agg_lower in {"count", "count(*)"}:
-                        empty_result["count"] = 0
-                    elif ":" in agg_lower:
-                        op, field = agg_lower.split(":", 1)
-                        empty_result[f"{op}_{field}"] = 0 if op in {"sum", "count"} else None
+                empty_result: Dict[str, Any] = {}
+                for key in res_keys:
+                    if key == "count" or key.startswith("sum_") or key.startswith("distinct_"):
+                        empty_result[key] = 0
+                    else:
+                        empty_result[key] = None
                 return empty_result, 0
-
-            # 2. Build aggregation expressions
-            is_golden = "golden" in table_name.lower()
-            json_col = "attributes" if is_golden else "data"
-            known_cols = GOLDEN_COLUMNS if is_golden else STAGING_COLUMNS
-
-            select_exprs = ["COUNT(*) as count"]
-            res_keys = ["count"]
-
-            if not aggregations:
-                aggregations = ["count"]
-
-            for agg in aggregations:
-                agg_clean = agg.strip()
-                if agg_clean.lower() in {"count", "count(*)"}:
-                    if "count" not in res_keys:
-                        select_exprs.append("COUNT(*) as count")
-                        res_keys.append("count")
-                    continue
-
-                if ":" not in agg_clean:
-                    raise ValueError(
-                        f"Unsupported aggregation format: '{agg_clean}'. Expected 'operation:field' e.g. 'avg:age'"
-                    )
-
-                op, field = agg_clean.split(":", 1)
-                op = op.lower().strip()
-                field = field.strip()
-
-                if not IDENTIFIER_RE.match(field):
-                    raise ValueError(f"Invalid field name '{field}' in aggregation '{agg_clean}'.")
-
-                target_ref = (
-                    field
-                    if field in known_cols
-                    else (
-                        f"json_extract_string({json_col}, '$.{field}')"
-                        if op in {"distinct", "count_distinct"}
-                        else f"json_extract({json_col}, '$.{field}')"
-                    )
-                )
-
-
-                if op == "avg":
-                    select_exprs.append(f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}")
-                    res_keys.append(f"avg_{field}")
-                elif op == "sum":
-                    select_exprs.append(f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}")
-                    res_keys.append(f"sum_{field}")
-                elif op == "min":
-                    select_exprs.append(f"MIN(TRY_CAST({target_ref} AS DOUBLE)) as min_{field}")
-                    res_keys.append(f"min_{field}")
-                elif op == "max":
-                    select_exprs.append(f"MAX(TRY_CAST({target_ref} AS DOUBLE)) as max_{field}")
-                    res_keys.append(f"max_{field}")
-                elif op in {"distinct", "count_distinct"}:
-                    select_exprs.append(f"COUNT(DISTINCT {target_ref}) as distinct_{field}")
-                    res_keys.append(f"distinct_{field}")
-                else:
-                    raise ValueError(f"Unsupported aggregation operation '{op}'. Supported: avg, sum, min, max, count, distinct.")
 
             agg_sql = f"SELECT {', '.join(select_exprs)} FROM source_table {where_clause}"
             agg_row = con.execute(agg_sql, params).fetchone()
