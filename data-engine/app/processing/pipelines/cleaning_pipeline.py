@@ -501,19 +501,9 @@ def staged_ingestion_data(
         context.log.warning("⚠️ Could not write to MinIO (is it running?): %s. Using local fallback.", e)
 
     # Step 2: Write to PostgreSQL / SQLite Database Staging
-    from app.db import get_engine, get_sqlite_engine
+    from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
     engine = get_engine()
 
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS staging_records (
-        id VARCHAR(36) PRIMARY KEY,
-        tenant_id VARCHAR(255),
-        source_id VARCHAR(255),
-        raw_id VARCHAR(255),
-        data TEXT,
-        staged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """
     insert_sql = """
     INSERT INTO staging_records (id, tenant_id, source_id, raw_id, data, staged_at)
     VALUES (:id, :tenant_id, :source_id, :raw_id, :data, :staged_at);
@@ -526,8 +516,8 @@ def staged_ingestion_data(
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         
+        ensure_tables_exist(engine)
         with engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             params = []
             for row in validated_ingestion_data.iter_rows(named=True):
                 params.append({
@@ -551,8 +541,8 @@ def staged_ingestion_data(
             os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
             sqlite_db_path = os.path.join("storage", "sqlite", "staging.db")
             sqlite_engine = get_sqlite_engine(sqlite_db_path)
+            ensure_tables_exist(sqlite_engine)
             with sqlite_engine.begin() as conn:
-                conn.execute(text(create_table_sql))
                 params = []
                 for row in validated_ingestion_data.iter_rows(named=True):
                     params.append({

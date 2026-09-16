@@ -8,7 +8,19 @@ from app.db.session import (
     get_session,
     get_sqlite_engine,
 )
-from app.db.resource import DatabaseResource
+from app.db.models import (
+    Base,
+    ERCandidate,
+    GoldenRecord,
+    ProvenanceRecord,
+    StagingRecord,
+)
+from app.db.migrations import (
+    ensure_tables_exist,
+    get_alembic_config,
+    run_downgrade,
+    run_migrations,
+)
 
 __all__ = [
     "DatabaseManager",
@@ -18,4 +30,13 @@ __all__ = [
     "get_engine",
     "get_session",
     "get_sqlite_engine",
+    "Base",
+    "StagingRecord",
+    "GoldenRecord",
+    "ERCandidate",
+    "ProvenanceRecord",
+    "run_migrations",
+    "run_downgrade",
+    "ensure_tables_exist",
+    "get_alembic_config",
 ]

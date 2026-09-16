@@ -39,6 +39,15 @@ async def lifespan(app: FastAPI):
         port=settings.app_port,
     )
 
+    # Run database schema migration/table verification if enabled
+    if settings.auto_migrate:
+        try:
+            from app.db import ensure_tables_exist
+            ensure_tables_exist()
+            logger.info("Database schema verified")
+        except Exception as exc:
+            logger.warning("Database migration check encountered error (DB may be offline): %s", exc)
+
     # Start Kafka consumer if enabled
     consumer = None
     if settings.kafka_enabled:

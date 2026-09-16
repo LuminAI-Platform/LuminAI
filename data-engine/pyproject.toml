@@ -21,6 +21,7 @@ dependencies = [
     "jellyfish>=1.2.1",
     "pyjwt[crypto]>=2.8.0",
     "structlog>=25.1.0",
+    "alembic>=1.13.0",
 ]
 
 [dependency-groups]

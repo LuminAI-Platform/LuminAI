@@ -125,18 +125,7 @@ def persist_golden_records(
     if golden_records_df.height == 0:
         return 0
 
-    from app.db import get_engine, get_sqlite_engine
-
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS golden_records (
-        golden_id VARCHAR(255) PRIMARY KEY,
-        tenant_id VARCHAR(255),
-        cluster_size INT,
-        source_record_ids TEXT,
-        attributes TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """
+    from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
 
     insert_sql = """
     INSERT INTO golden_records (golden_id, tenant_id, cluster_size, source_record_ids, attributes, created_at)
@@ -170,8 +159,8 @@ def persist_golden_records(
         pg_engine = get_engine()
         with pg_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+        ensure_tables_exist(pg_engine)
         with pg_engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             conn.execute(text(insert_sql), params)
         logger.info("Persisted %d Golden Records to PostgreSQL golden_records table", len(params))
         return len(params)
@@ -183,9 +172,9 @@ def persist_golden_records(
         os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
         sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
         sqlite_engine = get_sqlite_engine(sqlite_path)
+        ensure_tables_exist(sqlite_engine)
 
         with sqlite_engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             conn.execute(text(insert_sql), params)
         logger.info("Persisted %d Golden Records to SQLite golden_records table at %s", len(params), sqlite_path)
         return len(params)
