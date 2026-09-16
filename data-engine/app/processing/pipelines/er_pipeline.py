@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 
 import polars as pl
 from dagster import AssetExecutionContext, asset
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.kafka.producers import EntityResolvedProducer
@@ -76,11 +76,7 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     tags = _extract_run_tags(context)
     tenant_id = tags.get("tenant_id")
 
-    settings = get_settings()
-    db_url = (
-        f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    )
+    from app.db import get_engine, get_sqlite_engine
 
     if tenant_id:
         query = text(
@@ -96,7 +92,7 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
 
     # Attempt to load from PostgreSQL first
     try:
-        engine = create_engine(db_url)
+        engine = get_engine()
         with engine.connect() as conn:
             res = conn.execute(query, query_params)
             for row in res:
@@ -106,7 +102,6 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
                 data_dict["source_id"] = str(row.source_id)
                 data_dict["tenant_id"] = str(row.tenant_id)
                 records.append(data_dict)
-        engine.dispose()
         if records:
             context.log.info("Loaded %d staged records from PostgreSQL (tenant: %s)", len(records), tenant_id or "all")
             return pl.DataFrame(records)
@@ -117,7 +112,7 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     sqlite_path = os.path.join("storage", "sqlite", "staging.db")
     if os.path.exists(sqlite_path):
         try:
-            sqlite_engine = create_engine(f"sqlite:///{sqlite_path}")
+            sqlite_engine = get_sqlite_engine(sqlite_path)
             with sqlite_engine.connect() as conn:
                 res = conn.execute(query, query_params)
                 for row in res:
@@ -127,7 +122,6 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
                     data_dict["source_id"] = str(row.source_id)
                     data_dict["tenant_id"] = str(row.tenant_id)
                     records.append(data_dict)
-            sqlite_engine.dispose()
             if records:
                 context.log.info("Loaded %d staged records from SQLite staging (tenant: %s)", len(records), tenant_id or "all")
                 return pl.DataFrame(records)

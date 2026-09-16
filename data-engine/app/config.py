@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     postgres_user: str = "luminai"
     postgres_password: str = "luminai"
     postgres_db: str = "luminai"
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout: float = 30.0
+    db_pool_recycle: int = 1800
+    db_pool_pre_ping: bool = True
 
     @property
     def postgres_dsn(self) -> str:
@@ -80,6 +85,18 @@ class Settings(BaseSettings):
             return self.database_url
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
+
+    @property
+    def postgres_driver_dsn(self) -> str:
+        """Connection DSN with explicit pg8000 driver."""
+        if self.database_url:
+            if self.database_url.startswith("postgresql://"):
+                return self.database_url.replace("postgresql://", "postgresql+pg8000://", 1)
+            return self.database_url
+        return (
+            f"postgresql+pg8000://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 

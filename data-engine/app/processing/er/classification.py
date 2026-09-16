@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 import polars as pl
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.config import get_settings
 
@@ -100,12 +100,7 @@ def persist_review_candidates(
     if review_df.height == 0:
         return 0
 
-    settings = get_settings()
-
-    db_url = (
-        f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    )
+    from app.db import get_engine, get_sqlite_engine
 
     create_table_sql = """
     CREATE TABLE IF NOT EXISTS er_candidates (
@@ -144,9 +139,8 @@ def persist_review_candidates(
         })
 
     # Try PostgreSQL first
-    pg_engine = None
     try:
-        pg_engine = create_engine(db_url, pool_pre_ping=True)
+        pg_engine = get_engine()
         with pg_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         with pg_engine.begin() as conn:
@@ -156,16 +150,12 @@ def persist_review_candidates(
         return len(params)
     except Exception as exc:
         logger.warning("Could not persist to PostgreSQL (%s). Using SQLite fallback.", exc)
-    finally:
-        if pg_engine is not None:
-            pg_engine.dispose()
 
     # SQLite fallback
-    sqlite_engine = None
     try:
         os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
         sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
-        sqlite_engine = create_engine(f"sqlite:///{sqlite_path}")
+        sqlite_engine = get_sqlite_engine(sqlite_path)
 
         with sqlite_engine.begin() as conn:
             conn.execute(text(create_table_sql))
@@ -175,6 +165,3 @@ def persist_review_candidates(
     except Exception as exc:
         logger.error("Failed to persist ER review candidates to SQLite: %s", exc)
         return 0
-    finally:
-        if sqlite_engine is not None:
-            sqlite_engine.dispose()

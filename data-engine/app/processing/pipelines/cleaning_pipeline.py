@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 import polars as pl
 from dagster import AssetExecutionContext, asset
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.kafka.producers import IngestValidProducer
@@ -458,7 +458,7 @@ def staged_ingestion_data(
     import json
     import os
     import uuid
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import text
     from app.config import get_settings
     from app.kafka.producers import IngestValidProducer
 
@@ -501,8 +501,8 @@ def staged_ingestion_data(
         context.log.warning("⚠️ Could not write to MinIO (is it running?): %s. Using local fallback.", e)
 
     # Step 2: Write to PostgreSQL / SQLite Database Staging
-    db_url = f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    engine = create_engine(db_url)
+    from app.db import get_engine, get_sqlite_engine
+    engine = get_engine()
 
     create_table_sql = """
     CREATE TABLE IF NOT EXISTS staging_records (
@@ -550,7 +550,7 @@ def staged_ingestion_data(
         try:
             os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
             sqlite_db_path = os.path.join("storage", "sqlite", "staging.db")
-            sqlite_engine = create_engine(f"sqlite:///{sqlite_db_path}")
+            sqlite_engine = get_sqlite_engine(sqlite_db_path)
             with sqlite_engine.begin() as conn:
                 conn.execute(text(create_table_sql))
                 params = []

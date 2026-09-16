@@ -63,6 +63,10 @@ async def lifespan(app: FastAPI):
     if consumer is not None:
         await consumer.stop()
         logger.info("Kafka consumer stopped")
+
+    from app.db import get_db_manager
+    get_db_manager().dispose_all()
+    logger.info("Database connection pools disposed")
     logger.info("Data Engine shutting down")
 
 

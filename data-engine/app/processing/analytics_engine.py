@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import duckdb
 import polars as pl
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.config import get_settings
 
@@ -63,12 +63,9 @@ class DuckDBAnalyticsEngine:
         self.override_df = override_df
 
     def _get_pg_engine(self):
-        """Create SQLAlchemy engine for PostgreSQL."""
-        db_url = (
-            f"postgresql+pg8000://{self.settings.postgres_user}:{self.settings.postgres_password}"
-            f"@{self.settings.postgres_host}:{self.settings.postgres_port}/{self.settings.postgres_db}"
-        )
-        return create_engine(db_url, pool_pre_ping=True)
+        """Return pooled SQLAlchemy engine for PostgreSQL."""
+        from app.db import get_engine
+        return get_engine()
 
     def load_table_dataframe(self, table_name: str, tenant_id: str) -> pl.DataFrame:
         """Load records for the requested tenant from PostgreSQL or SQLite fallback."""
@@ -86,7 +83,6 @@ class DuckDBAnalyticsEngine:
                 result = conn.execute(query, {"tenant_id": tenant_id})
                 for row in result.mappings():
                     records.append(dict(row))
-            engine.dispose()
             if records:
                 logger.debug("Loaded %d rows for tenant %s from PostgreSQL %s", len(records), tenant_id, target_table)
                 return pl.DataFrame(records)
@@ -94,6 +90,7 @@ class DuckDBAnalyticsEngine:
             logger.debug("PostgreSQL query failed (%s). Checking SQLite fallback.", exc)
 
         # 2. Try SQLite Fallback
+        from app.db import get_sqlite_engine
         sqlite_candidates = (
             [
                 os.path.join("storage", "sqlite", "er_staging.db"),
@@ -109,13 +106,12 @@ class DuckDBAnalyticsEngine:
         for sqlite_path in sqlite_candidates:
             if os.path.exists(sqlite_path):
                 try:
-                    sqlite_engine = create_engine(f"sqlite:///{sqlite_path}")
+                    sqlite_engine = get_sqlite_engine(sqlite_path)
                     with sqlite_engine.connect() as conn:
                         query = text(f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id")
                         result = conn.execute(query, {"tenant_id": tenant_id})
                         for row in result.mappings():
                             records.append(dict(row))
-                    sqlite_engine.dispose()
                     if records:
                         logger.debug("Loaded %d rows for tenant %s from SQLite %s", len(records), tenant_id, sqlite_path)
                         return pl.DataFrame(records)
