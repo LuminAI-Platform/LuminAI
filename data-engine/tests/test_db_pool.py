@@ -180,6 +180,5 @@ class TestDagsterResourceIntegration:
         """ingest_pipeline.defs registers the 'db' DatabaseResource."""
         from app.processing.pipelines.ingest_pipeline import defs
 
-        resources = defs.get_repository_def().get_top_level_resources()
-        assert "db" in resources
-        assert isinstance(resources["db"], DatabaseResource)
+        assert "db" in defs.resources
+        assert isinstance(defs.resources["db"], DatabaseResource)

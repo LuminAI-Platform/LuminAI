@@ -8,6 +8,7 @@ from app.db.session import (
     get_session,
     get_sqlite_engine,
 )
+from app.db.resource import DatabaseResource
 from app.db.models import (
     Base,
     ERCandidate,
