@@ -10,13 +10,14 @@ Responsibilities:
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import analytics, health, processing
 from app.config import get_settings
 from app.kafka.consumers import IngestRawConsumer
 from app.processing.trigger import DagsterTrigger
+from app.security import get_current_identity
 
 
 @asynccontextmanager
@@ -78,9 +79,22 @@ def create_app() -> FastAPI:
     )
 
     # Register API routers
+    # Public endpoints (no auth required)
     app.include_router(health.router)
-    app.include_router(processing.router, prefix="/process", tags=["Processing"])
-    app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+
+    # Protected endpoints (require API key or Keycloak JWT)
+    app.include_router(
+        processing.router,
+        prefix="/process",
+        tags=["Processing"],
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        analytics.router,
+        prefix="/analytics",
+        tags=["Analytics"],
+        dependencies=[Depends(get_current_identity)],
+    )
 
     return app
 

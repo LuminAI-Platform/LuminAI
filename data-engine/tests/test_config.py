@@ -44,3 +44,48 @@ def test_database_url_override():
     settings = Settings(database_url="postgresql://user:pass@render-db:5432/luminai")
     assert settings.postgres_dsn == "postgresql://user:pass@render-db:5432/luminai"
 
+
+def test_security_defaults():
+    """Security settings have expected defaults for dev/test mode."""
+    settings = get_settings()
+    assert settings.auth_enabled is False
+    assert settings.api_key == "luminai-internal-secret-key"
+    assert settings.keycloak_realm == "luminai"
+    assert settings.keycloak_client_id == "luminai-spa"
+
+
+def test_keycloak_urls():
+    """Keycloak JWKS and Issuer URLs are generated properly."""
+    settings = Settings(
+        keycloak_url="https://auth.luminai.com/",
+        keycloak_realm="luminai",
+    )
+    assert settings.keycloak_jwks_url == "https://auth.luminai.com/realms/luminai/protocol/openid-connect/certs"
+    assert settings.keycloak_issuer == "https://auth.luminai.com/realms/luminai"
+
+
+def test_cors_origins_defaults():
+    """CORS origins default to production and development URLs without wildcards."""
+    get_settings.cache_clear()
+    settings = get_settings()
+    assert "*" not in settings.cors_origins
+    assert "https://luminai-sand.vercel.app" in settings.cors_origins
+    assert "https://luminai-api.onrender.com" in settings.cors_origins
+    assert "https://luminai-data.onrender.com" in settings.cors_origins
+    assert "http://localhost:5173" in settings.cors_origins
+
+    # Direct class defaults without .env file override
+    clean_settings = Settings(_env_file=None)
+    assert "*" not in clean_settings.cors_origins
+    assert "https://luminai-sand.vercel.app" in clean_settings.cors_origins
+    assert "https://luminai-api.onrender.com" in clean_settings.cors_origins
+    assert "https://luminai-data.onrender.com" in clean_settings.cors_origins
+
+
+def test_cors_origins_normalization():
+    """CORS origins strip trailing slashes and parse comma-separated strings."""
+    settings = Settings(
+        cors_origins="https://app.example.com/, http://localhost:3000/"
+    )
+    assert settings.cors_origins == ["https://app.example.com", "http://localhost:3000"]
+
