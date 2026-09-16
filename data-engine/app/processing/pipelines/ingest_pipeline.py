@@ -23,6 +23,7 @@ from app.processing.pipelines.er_pipeline import (
     er_scored_pairs,
     staged_records_for_er,
 )
+from app.db import DatabaseResource
 from app.processing.schedules import (
     daily_er_schedule,
     hourly_cleaning_schedule,
@@ -114,4 +115,7 @@ defs = Definitions(
         hourly_cleaning_schedule,
         daily_er_schedule,
     ],
+    resources={
+        "db": DatabaseResource(),
+    },
 )

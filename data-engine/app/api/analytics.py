@@ -6,9 +6,10 @@ GET  /analytics/reconciliation  →  Retrieve Cross-Store Reconciliation health 
 """
 
 from typing import Any, Dict, List
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.processing.analytics_engine import DuckDBAnalyticsEngine
 from app.processing.reconciliation import (
     ReconciliationReport,
     run_cross_store_reconciliation,
@@ -31,6 +32,11 @@ class QueryRequest(BaseModel):
         ...,
         description="The ontology entity type to aggregate over.",
         examples=["Person"],
+    )
+    table: str = Field(
+        default="golden_records",
+        description="Target database table to aggregate ('golden_records' or 'staging_records').",
+        examples=["golden_records"],
     )
     aggregations: List[str] = Field(
         default_factory=list,
@@ -81,6 +87,11 @@ class TimeseriesRequest(BaseModel):
         ...,
         description="The ontology entity type to query over.",
         examples=["Transaction"],
+    )
+    table: str = Field(
+        default="golden_records",
+        description="Target database table to rollup ('golden_records' or 'staging_records').",
+        examples=["golden_records"],
     )
     time_field: str = Field(
         ...,
@@ -137,17 +148,24 @@ class TimeseriesResponse(BaseModel):
     summary="Ad-hoc analytical query",
 )
 async def analytics_query(request: QueryRequest) -> QueryResponse:
-    """Execute an ad-hoc aggregation query over ontology entities."""
-    return QueryResponse(
-        tenant_id=request.tenant_id,
-        entity_type=request.entity_type,
-        result={
-            "count": 1234,
-            "avg_age": 38.7,
-            "note": "DuckDB integration active.",
-        },
-        row_count=1234,
-    )
+    """Execute an ad-hoc aggregation query over ontology entities using DuckDB."""
+    engine = DuckDBAnalyticsEngine()
+    try:
+        result, row_count = engine.execute_query(
+            tenant_id=request.tenant_id,
+            entity_type=request.entity_type,
+            aggregations=request.aggregations,
+            filters=request.filters,
+            table_name=request.table,
+        )
+        return QueryResponse(
+            tenant_id=request.tenant_id,
+            entity_type=request.entity_type,
+            result=result,
+            row_count=row_count,
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
 
 
 @router.post(
@@ -156,17 +174,27 @@ async def analytics_query(request: QueryRequest) -> QueryResponse:
     summary="Time-series rollup",
 )
 async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
-    """Compute time-series rollups over a time-stamped entity field."""
-    return TimeseriesResponse(
-        tenant_id=request.tenant_id,
-        entity_type=request.entity_type,
-        interval=request.interval,
-        series=[
-            {"timestamp": "2024-01-01T00:00:00Z", "value": 42},
-            {"timestamp": "2024-01-02T00:00:00Z", "value": 57},
-            {"timestamp": "2024-01-03T00:00:00Z", "value": 63},
-        ],
-    )
+    """Compute time-series rollups over a time-stamped entity field using DuckDB."""
+    engine = DuckDBAnalyticsEngine()
+    try:
+        series = engine.execute_timeseries(
+            tenant_id=request.tenant_id,
+            entity_type=request.entity_type,
+            time_field=request.time_field,
+            interval=request.interval,
+            metric=request.metric,
+            filters=request.filters,
+            table_name=request.table,
+        )
+        return TimeseriesResponse(
+            tenant_id=request.tenant_id,
+            entity_type=request.entity_type,
+            interval=request.interval,
+            series=series,
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
 
 
 @router.get(

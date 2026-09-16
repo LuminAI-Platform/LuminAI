@@ -17,9 +17,8 @@ from datetime import datetime, timezone
 from typing import Literal
 
 import polars as pl
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -100,25 +99,7 @@ def persist_review_candidates(
     if review_df.height == 0:
         return 0
 
-    settings = get_settings()
-
-    db_url = (
-        f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    )
-
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS er_candidates (
-        id VARCHAR(36) PRIMARY KEY,
-        tenant_id VARCHAR(255),
-        record_id_a VARCHAR(255),
-        record_id_b VARCHAR(255),
-        confidence_score FLOAT,
-        payload TEXT,
-        status VARCHAR(50) DEFAULT 'PENDING',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """
+    from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
 
     insert_sql = """
     INSERT INTO er_candidates (id, tenant_id, record_id_a, record_id_b, confidence_score, payload, status, created_at)
@@ -135,7 +116,7 @@ def persist_review_candidates(
 
         params.append({
             "id": str(uuid.uuid4()),
-            "tenant_id": tenant_id,
+            "tenant_id": str(row.get("tenant_id") or tenant_id),
             "record_id_a": id_a,
             "record_id_b": id_b,
             "confidence_score": score,
@@ -144,37 +125,29 @@ def persist_review_candidates(
         })
 
     # Try PostgreSQL first
-    pg_engine = None
     try:
-        pg_engine = create_engine(db_url, pool_pre_ping=True)
+        pg_engine = get_engine()
         with pg_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+        ensure_tables_exist(pg_engine)
         with pg_engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             conn.execute(text(insert_sql), params)
         logger.info("Persisted %d ER review candidates to PostgreSQL er_candidates", len(params))
         return len(params)
     except Exception as exc:
         logger.warning("Could not persist to PostgreSQL (%s). Using SQLite fallback.", exc)
-    finally:
-        if pg_engine is not None:
-            pg_engine.dispose()
 
     # SQLite fallback
-    sqlite_engine = None
     try:
         os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
         sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
-        sqlite_engine = create_engine(f"sqlite:///{sqlite_path}")
+        sqlite_engine = get_sqlite_engine(sqlite_path)
+        ensure_tables_exist(sqlite_engine)
 
         with sqlite_engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             conn.execute(text(insert_sql), params)
         logger.info("Persisted %d ER review candidates to SQLite er_candidates at %s", len(params), sqlite_path)
         return len(params)
     except Exception as exc:
         logger.error("Failed to persist ER review candidates to SQLite: %s", exc)
         return 0
-    finally:
-        if sqlite_engine is not None:
-            sqlite_engine.dispose()

@@ -12,12 +12,22 @@ Pipeline flow:
   raw_ingestion_data → cleaned_ingestion_data → validated_ingestion_data
 """
 
+import io
+import json
 import logging
+import os
 import re
+import uuid
+import warnings
 from datetime import datetime, timezone
 
 import polars as pl
 from dagster import AssetExecutionContext, asset
+from sqlalchemy import text
+
+from app.config import get_settings
+from app.kafka.producers import IngestValidProducer
+from app.processing.minio_client import get_minio_client
 
 logger = logging.getLogger(__name__)
 
@@ -45,26 +55,28 @@ DATE_FORMATS = [
 ]
 
 
-@asset(
-    name="raw_ingestion_data",
-    group_name="cleaning",
-    description=(
-        "Reads raw ingestion data from the staging area. "
-        "In production, this reads from MinIO/S3 raw zone. "
-        "Generates synthetic data for pipeline testing."
-    ),
-)
-def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
-    """
-    Load raw records from the ingestion staging area.
+def _extract_run_tags(context: AssetExecutionContext) -> dict[str, str]:
+    """Safely extract tags from AssetExecutionContext across invocation styles."""
+    try:
+        if getattr(context, "has_run", False) and context.run:
+            return dict(context.run.tags or {})
+    except Exception:
+        pass
 
-    Generates a realistic synthetic dataset that exercises
-    all cleaning rules (nulls, mixed case, duplicates, bad dates, etc.).
-    """
-    context.log.info("📥 raw_ingestion_data: loading raw records from staging…")
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            if hasattr(context, "run_tags") and context.run_tags:
+                return dict(context.run_tags)
+    except Exception:
+        pass
 
-    # Synthetic dataset that exercises all cleaning rules
-    df = pl.DataFrame(
+    return {}
+
+
+def _generate_synthetic_raw_data() -> pl.DataFrame:
+    """Generate realistic synthetic dataset for testing when raw files are not provided."""
+    return pl.DataFrame(
         {
             "id": [
                 "rec-001", "rec-002", "rec-003", "rec-004", "rec-005",
@@ -97,6 +109,68 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
             ],
         }
     )
+
+
+@asset(
+    name="raw_ingestion_data",
+    group_name="cleaning",
+    description=(
+        "Reads raw ingestion data from MinIO/S3 object storage staging area. "
+        "Loads uploaded CSV, Parquet, JSON, or Excel files scoping by tenant/source. "
+        "Generates realistic synthetic data when offline or in unit tests."
+    ),
+)
+def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
+    """
+    Load raw records from the ingestion staging area.
+
+    If an object key or file path is passed in execution run tags (e.g. from
+    Kafka ingest.raw event via DagsterTrigger), fetches and parses the actual
+    dataset from MinIO/S3 object storage (with local disk fallback).
+
+    Otherwise, falls back to generating a realistic synthetic dataset that
+    exercises all cleaning rules (nulls, mixed case, duplicates, bad dates, etc.).
+    """
+    context.log.info("📥 raw_ingestion_data: loading raw records from staging…")
+
+    tags = _extract_run_tags(context)
+    object_key = (
+        tags.get("object_key")
+        or tags.get("file_path")
+        or tags.get("s3_key")
+        or tags.get("source_path")
+        or tags.get("filePath")
+        or tags.get("key")
+    )
+    bucket = tags.get("bucket") or tags.get("s3_bucket") or get_settings().minio_bucket_raw
+
+    if object_key:
+        context.log.info(
+            "📥 raw_ingestion_data: retrieving raw data from s3://%s/%s",
+            bucket,
+            object_key,
+        )
+        try:
+            client = get_minio_client()
+            df = client.load_dataframe(bucket=bucket, object_key=object_key)
+            context.log.info(
+                "📥 raw_ingestion_data: successfully loaded %d rows, %d cols from s3://%s/%s",
+                df.height,
+                df.width,
+                bucket,
+                object_key,
+            )
+            return df
+        except Exception as exc:
+            context.log.warning(
+                "⚠️ Failed to load raw data from MinIO (s3://%s/%s): %s. Falling back to synthetic dataset.",
+                bucket,
+                object_key,
+                exc,
+            )
+
+    context.log.info("📥 raw_ingestion_data: using synthetic dataset for cleaning pipeline.")
+    df = _generate_synthetic_raw_data()
 
     context.log.info(
         "📥 raw_ingestion_data: loaded %d rows, %d columns — %s",
@@ -381,35 +455,11 @@ def staged_ingestion_data(
     Write validated data to Parquet storage and a database staging table.
     Also notifies Kafka topic ingest.valid.
     """
-    import json
-    import os
-    import uuid
-    from sqlalchemy import create_engine, text
-    from app.config import get_settings
-    from app.kafka.producers import IngestValidProducer
-
-    settings = get_settings()
-
     # Fetch run tags or use defaults for local/manual testing
-    run_tags = {}
-    has_run = False
-    try:
-        # For direct invocation/tests, context.run raises DagsterInvalidPropertyError
-        if context.run:
-            run_tags = context.run.tags
-            has_run = True
-    except Exception:
-        pass
-
+    run_tags = _extract_run_tags(context)
     tenant_id = run_tags.get("tenant_id", "acme")
     source_id = run_tags.get("source_id", "default-source")
-
-    if has_run and hasattr(context.run, "run_id"):
-        batch_id = run_tags.get("dagster/run_id", context.run.run_id)
-    else:
-        batch_id = str(uuid.uuid4())
-    if not batch_id:
-        batch_id = str(uuid.uuid4())
+    batch_id = run_tags.get("dagster/run_id") or run_tags.get("luminai_run_id") or str(uuid.uuid4())
 
     context.log.info("💾 staged_ingestion_data: starting staging for tenant=%s, source=%s, batch=%s", tenant_id, source_id, batch_id)
 
@@ -421,42 +471,30 @@ def staged_ingestion_data(
     validated_ingestion_data.write_parquet(local_file_path)
     context.log.info("💾 Saved Parquet locally to %s", local_file_path)
 
-    endpoint = settings.minio_endpoint
-    if not endpoint.startswith("http://") and not endpoint.startswith("https://"):
-        protocol = "https" if settings.minio_secure else "http"
-        endpoint_url = f"{protocol}://{endpoint}"
-    else:
-        endpoint_url = endpoint
-
-    minio_url = f"s3://{tenant_id}-staging/{source_id}/{batch_id}.parquet"
-    s3_options = {
-        "key": settings.minio_access_key,
-        "secret": settings.minio_secret_key,
-        "client_kwargs": {"endpoint_url": endpoint_url},
-    }
-
+    staging_bucket = f"{tenant_id}-staging"
+    staging_object_key = f"{source_id}/{batch_id}.parquet"
     staging_path = local_file_path
+
     try:
-        validated_ingestion_data.write_parquet(minio_url, storage_options=s3_options)
-        staging_path = minio_url
-        context.log.info("💾 Successfully uploaded Parquet to MinIO at %s", minio_url)
+        buf = io.BytesIO()
+        validated_ingestion_data.write_parquet(buf)
+        parquet_bytes = buf.getvalue()
+        minio_client = get_minio_client()
+        minio_client.put_object_bytes(
+            bucket=staging_bucket,
+            object_key=staging_object_key,
+            data=parquet_bytes,
+            content_type="application/vnd.apache.parquet",
+        )
+        staging_path = f"s3://{staging_bucket}/{staging_object_key}"
+        context.log.info("💾 Successfully uploaded Parquet to MinIO at %s", staging_path)
     except Exception as e:
         context.log.warning("⚠️ Could not write to MinIO (is it running?): %s. Using local fallback.", e)
 
     # Step 2: Write to PostgreSQL / SQLite Database Staging
-    db_url = f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    engine = create_engine(db_url)
+    from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
+    engine = get_engine()
 
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS staging_records (
-        id VARCHAR(36) PRIMARY KEY,
-        tenant_id VARCHAR(255),
-        source_id VARCHAR(255),
-        raw_id VARCHAR(255),
-        data TEXT,
-        staged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """
     insert_sql = """
     INSERT INTO staging_records (id, tenant_id, source_id, raw_id, data, staged_at)
     VALUES (:id, :tenant_id, :source_id, :raw_id, :data, :staged_at);
@@ -469,8 +507,8 @@ def staged_ingestion_data(
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         
+        ensure_tables_exist(engine)
         with engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             params = []
             for row in validated_ingestion_data.iter_rows(named=True):
                 params.append({
@@ -493,9 +531,9 @@ def staged_ingestion_data(
         try:
             os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
             sqlite_db_path = os.path.join("storage", "sqlite", "staging.db")
-            sqlite_engine = create_engine(f"sqlite:///{sqlite_db_path}")
+            sqlite_engine = get_sqlite_engine(sqlite_db_path)
+            ensure_tables_exist(sqlite_engine)
             with sqlite_engine.begin() as conn:
-                conn.execute(text(create_table_sql))
                 params = []
                 for row in validated_ingestion_data.iter_rows(named=True):
                     params.append({

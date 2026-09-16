@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.config import get_settings
 
@@ -132,10 +132,7 @@ class CrossStoreReconciler:
         if override_records is not None:
             return self._normalize_records(override_records)
 
-        db_url = (
-            f"postgresql+pg8000://{self.settings.postgres_user}:{self.settings.postgres_password}"
-            f"@{self.settings.postgres_host}:{self.settings.postgres_port}/{self.settings.postgres_db}"
-        )
+        from app.db import get_engine, get_sqlite_engine
 
         query = text(
             """
@@ -150,7 +147,7 @@ class CrossStoreReconciler:
 
         # Try PostgreSQL first
         try:
-            engine = create_engine(db_url, pool_pre_ping=True)
+            engine = get_engine()
             with engine.connect() as conn:
                 result = conn.execute(query, {"tenant_id": self.tenant_id})
                 for row in result:
@@ -167,7 +164,6 @@ class CrossStoreReconciler:
                             raw_data=attrs,
                         )
                     )
-            engine.dispose()
             logger.info("Fetched %d records from PostgreSQL for tenant %s", len(records), self.tenant_id)
             return records
         except Exception as exc:
@@ -177,7 +173,7 @@ class CrossStoreReconciler:
         sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
         if os.path.exists(sqlite_path):
             try:
-                sqlite_engine = create_engine(f"sqlite:///{sqlite_path}")
+                sqlite_engine = get_sqlite_engine(sqlite_path)
                 with sqlite_engine.connect() as conn:
                     result = conn.execute(query, {"tenant_id": self.tenant_id})
                     for row in result:
@@ -194,7 +190,6 @@ class CrossStoreReconciler:
                                 raw_data=attrs,
                             )
                         )
-                sqlite_engine.dispose()
                 logger.info("Fetched %d records from SQLite for tenant %s", len(records), self.tenant_id)
                 return records
             except Exception as sqle:

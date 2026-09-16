@@ -13,13 +13,13 @@ Orchestrates the complete end-to-end Entity Resolution lifecycle:
 import json
 import logging
 import os
+import warnings
 from typing import Any, Dict, List
 
 import polars as pl
 from dagster import AssetExecutionContext, asset
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.config import get_settings
 from app.kafka.producers import EntityResolvedProducer
 from app.processing.er.blocking import generate_candidate_pairs
 from app.processing.er.classification import (
@@ -40,6 +40,25 @@ from app.processing.er.provenance import (
 logger = logging.getLogger(__name__)
 
 
+def _extract_run_tags(context: AssetExecutionContext) -> dict[str, str]:
+    """Safely extract tags from AssetExecutionContext across invocation styles."""
+    try:
+        if getattr(context, "has_run", False) and context.run:
+            return dict(context.run.tags or {})
+    except Exception:
+        pass
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            if hasattr(context, "run_tags") and context.run_tags:
+                return dict(context.run_tags)
+    except Exception:
+        pass
+
+    return {}
+
+
 @asset(
     name="staged_records_for_er",
     group_name="entity_resolution",
@@ -53,20 +72,28 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     """
     context.log.info("🔍 staged_records_for_er: fetching staged records for ER…")
 
-    settings = get_settings()
-    db_url = (
-        f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    )
+    tags = _extract_run_tags(context)
+    tenant_id = tags.get("tenant_id")
 
-    query = text("SELECT id, tenant_id, source_id, raw_id, data FROM staging_records LIMIT 5000;")
+    from app.db import get_engine, get_sqlite_engine
+
+    if tenant_id:
+        query = text(
+            "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
+            "WHERE tenant_id = :tenant_id LIMIT 5000;"
+        )
+        query_params = {"tenant_id": tenant_id}
+    else:
+        query = text("SELECT id, tenant_id, source_id, raw_id, data FROM staging_records LIMIT 5000;")
+        query_params = {}
+
     records: List[Dict[str, Any]] = []
 
     # Attempt to load from PostgreSQL first
     try:
-        engine = create_engine(db_url)
+        engine = get_engine()
         with engine.connect() as conn:
-            res = conn.execute(query)
+            res = conn.execute(query, query_params)
             for row in res:
                 data_dict = json.loads(row.data) if isinstance(row.data, str) else dict(row.data)
                 data_dict["id"] = str(row.id)
@@ -74,9 +101,8 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
                 data_dict["source_id"] = str(row.source_id)
                 data_dict["tenant_id"] = str(row.tenant_id)
                 records.append(data_dict)
-        engine.dispose()
         if records:
-            context.log.info("Loaded %d staged records from PostgreSQL", len(records))
+            context.log.info("Loaded %d staged records from PostgreSQL (tenant: %s)", len(records), tenant_id or "all")
             return pl.DataFrame(records)
     except Exception as exc:
         context.log.debug("PostgreSQL staging unavailable (%s). Checking SQLite or synthetic fallback.", exc)
@@ -85,9 +111,9 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     sqlite_path = os.path.join("storage", "sqlite", "staging.db")
     if os.path.exists(sqlite_path):
         try:
-            sqlite_engine = create_engine(f"sqlite:///{sqlite_path}")
+            sqlite_engine = get_sqlite_engine(sqlite_path)
             with sqlite_engine.connect() as conn:
-                res = conn.execute(query)
+                res = conn.execute(query, query_params)
                 for row in res:
                     data_dict = json.loads(row.data) if isinstance(row.data, str) else dict(row.data)
                     data_dict["id"] = str(row.id)
@@ -95,9 +121,8 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
                     data_dict["source_id"] = str(row.source_id)
                     data_dict["tenant_id"] = str(row.tenant_id)
                     records.append(data_dict)
-            sqlite_engine.dispose()
             if records:
-                context.log.info("Loaded %d staged records from SQLite staging", len(records))
+                context.log.info("Loaded %d staged records from SQLite staging (tenant: %s)", len(records), tenant_id or "all")
                 return pl.DataFrame(records)
         except Exception as sqle:
             context.log.debug("SQLite staging error: %s", sqle)
@@ -164,7 +189,11 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
         },
     ]
 
-    context.log.info("staged_records_for_er: loaded %d records for ER analysis", len(synthetic_records))
+    active_tenant = tenant_id or "acme"
+    for r in synthetic_records:
+        r["tenant_id"] = active_tenant
+
+    context.log.info("staged_records_for_er: loaded %d records for ER analysis (tenant: %s)", len(synthetic_records), active_tenant)
     return pl.DataFrame(synthetic_records)
 
 
@@ -206,7 +235,7 @@ def er_scored_pairs(
     er_blocked_pairs: pl.DataFrame,
 ) -> pl.DataFrame:
     """Compute weighted similarity scores for candidate pairs."""
-    context.log.info("📊 er_scored_pairs: evaluating similarity scores for %d pairs…", er_blocked_pairs.height)
+    context.log.info("📊 er_scored_pairs: evaluating similarity for %d candidate pairs…", er_blocked_pairs.height)
     scored = compare_candidate_pairs(er_blocked_pairs)
     context.log.info("📊 Pairwise comparison complete — avg confidence=%.4f", scored["confidence_score"].mean() if scored.height > 0 else 0.0)
     return scored
@@ -223,7 +252,10 @@ def er_classified_pairs(
     er_scored_pairs: pl.DataFrame,
 ) -> pl.DataFrame:
     """Classify candidate pairs and persist review candidates to database."""
-    context.log.info("⚖️ er_classified_pairs: classifying %d pairs…", er_scored_pairs.height)
+    tags = _extract_run_tags(context)
+    tenant_id = tags.get("tenant_id") or "acme"
+
+    context.log.info("⚖️ er_classified_pairs: classifying %d pairs (tenant: %s)…", er_scored_pairs.height, tenant_id)
     matches_df, review_df, non_matches_df = classify_candidate_pairs(er_scored_pairs)
 
     context.log.info(
@@ -234,8 +266,8 @@ def er_classified_pairs(
     )
 
     if review_df.height > 0:
-        persisted = persist_review_candidates(review_df, tenant_id="acme")
-        context.log.info("⚖️ Persisted %d review candidates to er_candidates table", persisted)
+        persisted = persist_review_candidates(review_df, tenant_id=tenant_id)
+        context.log.info("⚖️ Persisted %d review candidates to er_candidates table (tenant: %s)", persisted, tenant_id)
 
     return matches_df
 
@@ -252,7 +284,10 @@ def er_golden_records(
     staged_records_for_er: pl.DataFrame,
 ) -> pl.DataFrame:
     """Synthesize canonical Golden Records, persist them, and publish to Kafka."""
-    context.log.info("👑 er_golden_records: clustering matches and synthesizing Golden Records…")
+    tags = _extract_run_tags(context)
+    tenant_id = tags.get("tenant_id") or "acme"
+
+    context.log.info("👑 er_golden_records: clustering matches and synthesizing Golden Records (tenant: %s)…", tenant_id)
 
     records_list = staged_records_for_er.to_dicts()
     clusters = cluster_record_dictionaries(er_classified_pairs, records_list, id_col="id")
@@ -264,11 +299,11 @@ def er_golden_records(
     )
 
     # Synthesize Golden Records
-    golden_records_df = merge_clusters_to_golden_records(clusters, tenant_id="acme")
+    golden_records_df = merge_clusters_to_golden_records(clusters, tenant_id=tenant_id)
 
     # Persist Golden Records to DB
-    persisted_gr = persist_golden_records(golden_records_df, tenant_id="acme")
-    context.log.info("👑 Successfully persisted %d Golden Records to database", persisted_gr)
+    persisted_gr = persist_golden_records(golden_records_df, tenant_id=tenant_id)
+    context.log.info("👑 Successfully persisted %d Golden Records to database (tenant: %s)", persisted_gr, tenant_id)
 
     # Track and persist field-level provenance
     all_provenance_entries: List[Dict[str, Any]] = []
@@ -289,13 +324,13 @@ def er_golden_records(
         )
 
         if golden_rec:
-            prov_entries = track_field_provenance(golden_rec, cluster_records, tenant_id="acme")
+            prov_entries = track_field_provenance(golden_rec, cluster_records, tenant_id=tenant_id)
             all_provenance_entries.extend(prov_entries)
 
             # Publish entity.resolved Kafka event
             try:
                 producer.publish_resolved_entity(
-                    tenant_id="acme",
+                    tenant_id=tenant_id,
                     golden_id=str(golden_rec.get("golden_id")),
                     entity_type="Person",
                     payload=golden_rec,
@@ -304,8 +339,8 @@ def er_golden_records(
                 context.log.warning("Could not publish entity.resolved Kafka event: %s", exc)
 
     if all_provenance_entries:
-        persisted_prov = persist_provenance_records(all_provenance_entries, tenant_id="acme")
-        context.log.info("👑 Successfully persisted %d field provenance records", persisted_prov)
+        persisted_prov = persist_provenance_records(all_provenance_entries, tenant_id=tenant_id)
+        context.log.info("👑 Successfully persisted %d field provenance records (tenant: %s)", persisted_prov, tenant_id)
 
     context.log.info("✅ er_golden_records: pipeline finished with %d canonical Golden Records", golden_records_df.height)
     return golden_records_df

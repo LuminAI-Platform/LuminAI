@@ -10,20 +10,43 @@ Responsibilities:
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import analytics, health, processing
 from app.config import get_settings
 from app.kafka.consumers import IngestRawConsumer
+from app.logging import (
+    StructuredLoggingMiddleware,
+    configure_logging,
+    get_logger,
+)
 from app.processing.trigger import DagsterTrigger
+from app.security import get_current_identity
+
+logger = get_logger("data-engine.app")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup / shutdown hooks."""
     settings = get_settings()
-    print(f"[*] {settings.app_name} v{settings.app_version} starting up...")
+    logger.info(
+        "Application starting up",
+        app_name=settings.app_name,
+        version=settings.app_version,
+        host=settings.app_host,
+        port=settings.app_port,
+    )
+
+    # Run database schema migration/table verification if enabled
+    if settings.auto_migrate:
+        try:
+            from app.db import ensure_tables_exist
+            ensure_tables_exist()
+            logger.info("Database schema verified")
+        except Exception as exc:
+            logger.warning("Database migration check encountered error (DB may be offline): %s", exc)
 
     # Start Kafka consumer if enabled
     consumer = None
@@ -35,21 +58,30 @@ async def lifespan(app: FastAPI):
         consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
 
         await consumer.start()
-        print(f"[Kafka] Kafka consumer started on topic '{settings.kafka_topic_ingest_raw}'")
+        logger.info(
+            "Kafka consumer started",
+            topic=settings.kafka_topic_ingest_raw,
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+        )
     else:
-        print("[Kafka] Kafka disabled (set KAFKA_ENABLED=true to enable)")
+        logger.info("Kafka consumer disabled (set KAFKA_ENABLED=true to enable)")
 
     yield
 
     # Clean up and shutdown resources
     if consumer is not None:
         await consumer.stop()
-        print("[Kafka] Kafka consumer stopped")
-    print("[*] Data Engine shutting down...")
+        logger.info("Kafka consumer stopped")
+
+    from app.db import get_db_manager
+    get_db_manager().dispose_all()
+    logger.info("Database connection pools disposed")
+    logger.info("Data Engine shutting down")
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(log_level=settings.log_level, log_format=settings.log_format)
 
     app = FastAPI(
         title=settings.app_name,
@@ -68,6 +100,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Configure Structured Logging middleware
+    app.add_middleware(StructuredLoggingMiddleware)
+
     # Configure CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -78,9 +113,22 @@ def create_app() -> FastAPI:
     )
 
     # Register API routers
+    # Public endpoints (no auth required)
     app.include_router(health.router)
-    app.include_router(processing.router, prefix="/process", tags=["Processing"])
-    app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+
+    # Protected endpoints (require API key or Keycloak JWT)
+    app.include_router(
+        processing.router,
+        prefix="/process",
+        tags=["Processing"],
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        analytics.router,
+        prefix="/analytics",
+        tags=["Analytics"],
+        dependencies=[Depends(get_current_identity)],
+    )
 
     return app
 

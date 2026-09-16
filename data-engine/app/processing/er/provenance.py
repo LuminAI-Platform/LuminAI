@@ -14,9 +14,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 import polars as pl
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,16 @@ def track_field_provenance(
     """Build field-level provenance entries for attributes of a Golden Record."""
     golden_id = str(golden_record.get("golden_id", ""))
     exclude_keys = {"golden_id", "tenant_id", "cluster_size", "source_record_ids", "created_at"}
+
+    resolved_tenant_id = tenant_id
+    if resolved_tenant_id == "acme":
+        if golden_record.get("tenant_id") and str(golden_record.get("tenant_id")) != "acme":
+            resolved_tenant_id = str(golden_record.get("tenant_id"))
+        else:
+            for rec in cluster_records:
+                if rec.get("tenant_id") and str(rec.get("tenant_id")) != "acme":
+                    resolved_tenant_id = str(rec.get("tenant_id"))
+                    break
 
     provenance_entries: list[dict[str, Any]] = []
 
@@ -55,7 +64,7 @@ def track_field_provenance(
         provenance_entries.append({
             "id": str(uuid.uuid4()),
             "golden_id": golden_id,
-            "tenant_id": tenant_id,
+            "tenant_id": resolved_tenant_id,
             "attribute_name": attr,
             "attribute_value": str_val,
             "source_record_id": source_rec_id,
@@ -80,26 +89,7 @@ def persist_provenance_records(
     if not rows:
         return 0
 
-    settings = get_settings()
-
-    db_url = (
-        f"postgresql+pg8000://{settings.postgres_user}:{settings.postgres_password}"
-        f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-    )
-
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS provenance (
-        id VARCHAR(36) PRIMARY KEY,
-        golden_id VARCHAR(255),
-        tenant_id VARCHAR(255),
-        attribute_name VARCHAR(255),
-        attribute_value TEXT,
-        source_record_id VARCHAR(255),
-        source_id VARCHAR(255),
-        confidence_score FLOAT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """
+    from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
 
     insert_sql = """
     INSERT INTO provenance (id, golden_id, tenant_id, attribute_name, attribute_value, source_record_id, source_id, confidence_score, created_at)
@@ -112,7 +102,7 @@ def persist_provenance_records(
         params.append({
             "id": str(r.get("id", uuid.uuid4())),
             "golden_id": str(r.get("golden_id", "")),
-            "tenant_id": tenant_id,
+            "tenant_id": str(r.get("tenant_id") or tenant_id),
             "attribute_name": str(r.get("attribute_name", "")),
             "attribute_value": str(r.get("attribute_value", "")),
             "source_record_id": str(r.get("source_record_id", "unknown")),
@@ -122,37 +112,29 @@ def persist_provenance_records(
         })
 
     # Try PostgreSQL first
-    pg_engine = None
     try:
-        pg_engine = create_engine(db_url, pool_pre_ping=True)
+        pg_engine = get_engine()
         with pg_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+        ensure_tables_exist(pg_engine)
         with pg_engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             conn.execute(text(insert_sql), params)
         logger.info("Persisted %d field-level provenance records to PostgreSQL", len(params))
         return len(params)
     except Exception as exc:
         logger.warning("Could not persist provenance to PostgreSQL (%s). Using SQLite fallback.", exc)
-    finally:
-        if pg_engine is not None:
-            pg_engine.dispose()
 
     # SQLite fallback
-    sqlite_engine = None
     try:
         os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
         sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
-        sqlite_engine = create_engine(f"sqlite:///{sqlite_path}")
+        sqlite_engine = get_sqlite_engine(sqlite_path)
+        ensure_tables_exist(sqlite_engine)
 
         with sqlite_engine.begin() as conn:
-            conn.execute(text(create_table_sql))
             conn.execute(text(insert_sql), params)
         logger.info("Persisted %d field-level provenance records to SQLite at %s", len(params), sqlite_path)
         return len(params)
     except Exception as exc:
         logger.error("Failed to persist provenance records to SQLite: %s", exc)
         return 0
-    finally:
-        if sqlite_engine is not None:
-            sqlite_engine.dispose()

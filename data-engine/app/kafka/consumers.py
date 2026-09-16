@@ -16,6 +16,7 @@ from typing import Any
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
 from app.config import get_settings
+from app.kafka.quarantine import get_quarantine_manager
 
 logger = logging.getLogger(__name__)
 
@@ -148,26 +149,50 @@ class IngestRawConsumer:
                     continue
 
                 # Deserialize message
+                key: str | None = None
+                raw_value = "{}"
                 try:
                     key = msg.key().decode("utf-8") if msg.key() else None
-                    raw_value = msg.value().decode("utf-8") if msg.value() else "{}"
+                    raw_value = msg.value().decode("utf-8", errors="replace") if msg.value() else "{}"
                     value = json.loads(raw_value)
-                except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                except Exception as exc:
                     logger.warning(
                         "Failed to deserialize message at offset %d: %s",
                         msg.offset(),
                         exc,
                     )
+                    try:
+                        quarantine_manager = get_quarantine_manager()
+                        quarantine_manager.record_failure(
+                            topic=self.topic,
+                            key=key,
+                            raw_payload=raw_value,
+                            error=f"DeserializationError: {str(exc)}",
+                        )
+                    except Exception as q_exc:
+                        logger.error("Failed to quarantine deserialization failure: %s", q_exc)
                     continue
 
                 # Dispatch to handler
                 try:
                     self.handle(key, value)
-                except Exception:
+                except Exception as exc:
                     logger.exception(
                         "Unhandled error processing message at offset %d",
                         msg.offset(),
                     )
+                    try:
+                        quarantine_manager = get_quarantine_manager()
+                        quarantine_manager.record_failure(
+                            topic=self.topic,
+                            key=key,
+                            raw_payload=raw_value,
+                            error=f"ProcessingError: {str(exc)}",
+                            tenant_id=value.get("tenant_id") or "unknown",
+                            source_id=value.get("source_id") or "unknown",
+                        )
+                    except Exception as q_exc:
+                        logger.error("Failed to quarantine processing failure: %s", q_exc)
         finally:
             logger.info("Consumer shutting down — closing connection…")
             self._consumer.close()
