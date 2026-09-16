@@ -185,3 +185,133 @@ class EntityResolvedProducer:
     def flush(self, timeout: float = 1.0) -> None:
         if self._producer is not None:
             self._producer.flush(timeout)
+
+
+class DeadLetterProducer:
+    """Publishes poison-pill or failed ingestion events to ``ingest.dead_letter``."""
+
+    def __init__(self) -> None:
+        settings = get_settings()
+        self.topic = settings.kafka_topic_ingest_dead_letter
+        self.bootstrap_servers = settings.kafka_bootstrap_servers
+        self.enabled = settings.kafka_enabled
+        self._producer: Producer | None = None
+
+        if self.enabled:
+            try:
+                conf = {
+                    "bootstrap.servers": self.bootstrap_servers,
+                    "client.id": "data-engine-dlq-producer",
+                }
+                self._producer = Producer(conf)
+                logger.info("DeadLetterProducer started — topic='%s'", self.topic)
+            except Exception as e:
+                logger.error("❌ Failed to create DeadLetterProducer: %s", e)
+                self._producer = None
+        else:
+            logger.info("DeadLetterProducer initialised in dry-run mode. Would publish to '%s'", self.topic)
+
+    def _delivery_report(self, err: Any, msg: Any) -> None:
+        if err is not None:
+            logger.error("❌ Dead-letter delivery failed: %s", err)
+        else:
+            logger.info("💀 Dead-letter delivered to %s [%d] at offset %d", msg.topic(), msg.partition(), msg.offset())
+
+    def publish_dead_letter(
+        self,
+        tenant_id: str,
+        error: str,
+        original_topic: str,
+        original_key: str | None,
+        original_payload: str,
+        source_id: str = "unknown",
+    ) -> None:
+        """Publish a failed message envelope to the DLQ topic."""
+        key = f"{tenant_id}:{source_id}" if original_key is None else original_key
+        event_body = {
+            "tenant_id": tenant_id,
+            "source_id": source_id,
+            "error": error,
+            "original_topic": original_topic,
+            "original_key": original_key,
+            "payload": original_payload,
+        }
+        value_bytes = json.dumps(event_body).encode("utf-8")
+
+        if self._producer is not None:
+            try:
+                self._producer.produce(
+                    topic=self.topic,
+                    key=key.encode("utf-8") if key else None,
+                    value=value_bytes,
+                    callback=self._delivery_report,
+                )
+                self._producer.poll(0)
+                logger.info("💀 Published dead-letter event to '%s' with key '%s'", self.topic, key)
+            except Exception as e:
+                logger.error("❌ Error producing dead-letter event to '%s': %s", self.topic, e)
+        else:
+            logger.info("[DRY-RUN] Would publish dead letter to %s — key=%s error=%s", self.topic, key, error)
+
+    def flush(self, timeout: float = 1.0) -> None:
+        if self._producer is not None:
+            self._producer.flush(timeout)
+
+
+class IngestRawProducer:
+    """Publishes or replays ingestion payloads back into the ``ingest.raw`` topic."""
+
+    def __init__(self) -> None:
+        settings = get_settings()
+        self.topic = settings.kafka_topic_ingest_raw
+        self.bootstrap_servers = settings.kafka_bootstrap_servers
+        self.enabled = settings.kafka_enabled
+        self._producer: Producer | None = None
+
+        if self.enabled:
+            try:
+                conf = {
+                    "bootstrap.servers": self.bootstrap_servers,
+                    "client.id": "data-engine-raw-replay-producer",
+                }
+                self._producer = Producer(conf)
+                logger.info("IngestRawProducer started — topic='%s'", self.topic)
+            except Exception as e:
+                logger.error("❌ Failed to create IngestRawProducer: %s", e)
+                self._producer = None
+        else:
+            logger.info("IngestRawProducer initialised in dry-run mode. Would publish to '%s'", self.topic)
+
+    def _delivery_report(self, err: Any, msg: Any) -> None:
+        if err is not None:
+            logger.error("❌ IngestRaw replay delivery failed: %s", err)
+        else:
+            logger.info("🔁 IngestRaw replayed to %s [%d] at offset %d", msg.topic(), msg.partition(), msg.offset())
+
+    def publish_raw(self, key: str | None, payload: dict[str, Any] | str) -> None:
+        """Publish a message payload to ``ingest.raw``."""
+        if isinstance(payload, dict):
+            value_bytes = json.dumps(payload).encode("utf-8")
+        else:
+            value_bytes = payload.encode("utf-8")
+
+        key_bytes = key.encode("utf-8") if key else None
+
+        if self._producer is not None:
+            try:
+                self._producer.produce(
+                    topic=self.topic,
+                    key=key_bytes,
+                    value=value_bytes,
+                    callback=self._delivery_report,
+                )
+                self._producer.poll(0)
+                logger.info("🔁 Published raw message to '%s' with key '%s'", self.topic, key)
+            except Exception as e:
+                logger.error("❌ Error producing raw message to '%s': %s", self.topic, e)
+        else:
+            logger.info("[DRY-RUN] Would replay raw message to %s — key=%s", self.topic, key)
+
+    def flush(self, timeout: float = 1.0) -> None:
+        if self._producer is not None:
+            self._producer.flush(timeout)

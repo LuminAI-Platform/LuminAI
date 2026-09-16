@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel, Field
 
+from app.kafka.quarantine import get_quarantine_manager
 from app.processing.reconciliation import (
     ReconciliationReport,
     run_cross_store_reconciliation,
@@ -278,5 +279,162 @@ async def get_pipeline_status(run_id: str) -> StatusResponse:
         started_at=rec.started_at,
         completed_at=rec.completed_at,
         dagster_run_id=rec.dagster_run_id,
+    )
+
+
+# --- Dead-Letter Queue (DLQ) & Quarantine Models & Endpoints ---
+
+class QuarantineListRequest(BaseModel):
+    """Filter parameters for querying quarantined messages."""
+
+    tenant_id: Optional[str] = Field(default=None, description="Filter by tenant ID.")
+    status: Optional[str] = Field(
+        default="quarantined",
+        description="Filter by message status: quarantined, replayed, discarded, all.",
+    )
+    limit: int = Field(default=50, ge=1, le=500, description="Max messages to return.")
+    offset: int = Field(default=0, ge=0, description="Pagination offset.")
+
+
+class QuarantinedMessageSchema(BaseModel):
+    """Quarantined message record representation."""
+
+    message_id: str
+    tenant_id: str
+    source_id: str
+    topic: str
+    message_key: Optional[str] = None
+    raw_payload: str
+    error_reason: str
+    quarantined_at: str
+    retry_count: int
+    status: str
+    last_replayed_at: Optional[str] = None
+
+
+class QuarantineListResponse(BaseModel):
+    """Response schema for listing quarantined messages."""
+
+    total: int
+    limit: int
+    offset: int
+    items: List[QuarantinedMessageSchema]
+
+
+class QuarantineReplayRequest(BaseModel):
+    """Request payload to replay selected quarantined messages."""
+
+    message_ids: List[str] = Field(
+        ...,
+        min_length=1,
+        description="List of quarantined message UUIDs to replay back to ingest.raw.",
+    )
+
+
+class QuarantineDiscardRequest(BaseModel):
+    """Request payload to discard selected quarantined messages."""
+
+    message_ids: List[str] = Field(
+        ...,
+        min_length=1,
+        description="List of quarantined message UUIDs to discard.",
+    )
+
+
+class QuarantineActionResponse(BaseModel):
+    """Response schema summarizing quarantine actions."""
+
+    action: str
+    processed_count: int
+    message_ids: List[str]
+    message: str
+
+
+@router.post(
+    "/quarantine",
+    response_model=QuarantineListResponse,
+    summary="List quarantined messages with filters",
+)
+async def list_quarantine_post(
+    request: QuarantineListRequest = QuarantineListRequest(),
+) -> QuarantineListResponse:
+    """Query and filter quarantined messages from the Dead-Letter Queue."""
+    manager = get_quarantine_manager()
+    items, total = manager.list_messages(
+        tenant_id=request.tenant_id,
+        status=request.status,
+        limit=request.limit,
+        offset=request.offset,
+    )
+    return QuarantineListResponse(
+        total=total,
+        limit=request.limit,
+        offset=request.offset,
+        items=[QuarantinedMessageSchema(**msg.model_dump()) for msg in items],
+    )
+
+
+@router.get(
+    "/quarantine",
+    response_model=QuarantineListResponse,
+    summary="List quarantined messages (GET convenience)",
+)
+async def list_quarantine_get(
+    tenant_id: Optional[str] = None,
+    status: Optional[str] = "quarantined",
+    limit: int = 50,
+    offset: int = 0,
+) -> QuarantineListResponse:
+    """Retrieve quarantined messages via query parameters."""
+    manager = get_quarantine_manager()
+    items, total = manager.list_messages(
+        tenant_id=tenant_id,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+    return QuarantineListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=[QuarantinedMessageSchema(**msg.model_dump()) for msg in items],
+    )
+
+
+@router.post(
+    "/quarantine/replay",
+    response_model=QuarantineActionResponse,
+    summary="Replay quarantined messages back to ingest.raw",
+)
+async def replay_quarantined_messages(
+    request: QuarantineReplayRequest,
+) -> QuarantineActionResponse:
+    """Re-publish quarantined messages back into the ingest.raw stream for reprocessing."""
+    manager = get_quarantine_manager()
+    replayed = manager.replay_messages(request.message_ids)
+    return QuarantineActionResponse(
+        action="replay",
+        processed_count=len(replayed),
+        message_ids=[m.message_id for m in replayed],
+        message=f"Successfully replayed {len(replayed)} messages to ingest.raw.",
+    )
+
+
+@router.post(
+    "/quarantine/discard",
+    response_model=QuarantineActionResponse,
+    summary="Discard quarantined messages",
+)
+async def discard_quarantined_messages(
+    request: QuarantineDiscardRequest,
+) -> QuarantineActionResponse:
+    """Discard quarantined messages without reprocessing."""
+    manager = get_quarantine_manager()
+    discarded = manager.discard_messages(request.message_ids)
+    return QuarantineActionResponse(
+        action="discard",
+        processed_count=len(discarded),
+        message_ids=[m.message_id for m in discarded],
+        message=f"Successfully discarded {len(discarded)} quarantined messages.",
     )
 
