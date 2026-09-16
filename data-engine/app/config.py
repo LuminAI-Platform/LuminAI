@@ -63,6 +63,17 @@ class Settings(BaseSettings):
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_secure: bool = False
+    minio_bucket_raw: str = "luminai-raw"
+    minio_region: str = "us-east-1"
+
+    @property
+    def minio_url(self) -> str:
+        proto = "https" if self.minio_secure else "http"
+        endpoint = self.minio_endpoint
+        if endpoint.startswith("http://") or endpoint.startswith("https://"):
+            return endpoint
+        return f"{proto}://{endpoint}"
+
 
     # Dagster Orchestrator Configuration
     dagster_host: str = "localhost"

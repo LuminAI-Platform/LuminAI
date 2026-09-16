@@ -67,6 +67,31 @@ class DagsterTrigger:
             active_run_id,
         )
 
+        object_key = (
+            batch_metadata.get("object_key")
+            or batch_metadata.get("s3_key")
+            or batch_metadata.get("file_path")
+            or batch_metadata.get("source_path")
+            or batch_metadata.get("filePath")
+            or batch_metadata.get("key")
+        )
+        bucket = (
+            batch_metadata.get("bucket")
+            or batch_metadata.get("s3_bucket")
+            or batch_metadata.get("bucket_name")
+        )
+
+        tags: dict[str, str] = {
+            "tenant_id": str(tenant_id),
+            "source_id": str(source_id),
+            "trigger": "kafka_batch_complete",
+            "luminai_run_id": str(active_run_id),
+        }
+        if object_key:
+            tags["object_key"] = str(object_key)
+        if bucket:
+            tags["bucket"] = str(bucket)
+
         try:
             # In-process materialization
             result = materialize(
@@ -80,12 +105,7 @@ class DagsterTrigger:
                 run_config={
                     "resources": {},
                 },
-                tags={
-                    "tenant_id": tenant_id,
-                    "source_id": source_id,
-                    "trigger": "kafka_batch_complete",
-                    "luminai_run_id": active_run_id,
-                },
+                tags=tags,
             )
 
             dagster_run_id = str(result.run_id) if hasattr(result, "run_id") else active_run_id
