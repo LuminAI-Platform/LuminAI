@@ -17,6 +17,7 @@ from confluent_kafka import Consumer, KafkaError, KafkaException
 
 from app.config import get_settings
 from app.kafka.quarantine import get_quarantine_manager
+from app.telemetry import luminai_kafka_messages_consumed_total, trace_span
 
 logger = logging.getLogger(__name__)
 
@@ -91,30 +92,45 @@ class IngestRawConsumer:
             or 0
         )
 
-        logger.info(
-            "Received ingest.raw — tenant=%s, source=%s, rows=%d",
-            tenant_id,
-            source_id,
-            row_count,
-        )
+        with trace_span(
+            "kafka.consume",
+            attributes={
+                "messaging.system": "kafka",
+                "messaging.destination": self.topic,
+                "messaging.message_id": key or "",
+                "tenant.id": str(tenant_id),
+                "source.id": str(source_id),
+                "records.count": int(row_count),
+                "batch.complete": bool(value.get("batch_complete", False)),
+            },
+        ):
+            luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="success").inc()
 
-        # Check for batch-complete signal
-        if value.get("batch_complete", False):
             logger.info(
-                "Batch complete signal received — tenant=%s, source=%s",
+                "Received ingest.raw — tenant=%s, source=%s, rows=%d",
                 tenant_id,
                 source_id,
+                row_count,
             )
-            if self.on_batch_complete is not None:
-                try:
-                    self.on_batch_complete(tenant_id, source_id, value)
-                except Exception:
-                    logger.exception(
-                        "Error in on_batch_complete callback — "
-                        "tenant=%s, source=%s",
-                        tenant_id,
-                        source_id,
-                    )
+
+            # Check for batch-complete signal
+            if value.get("batch_complete", False):
+                logger.info(
+                    "Batch complete signal received — tenant=%s, source=%s",
+                    tenant_id,
+                    source_id,
+                )
+                if self.on_batch_complete is not None:
+                    try:
+                        self.on_batch_complete(tenant_id, source_id, value)
+                    except Exception:
+                        logger.exception(
+                            "Error in on_batch_complete callback — "
+                            "tenant=%s, source=%s",
+                            tenant_id,
+                            source_id,
+                        )
+
 
     def _poll_loop(self) -> None:
         """
@@ -156,6 +172,7 @@ class IngestRawConsumer:
                     raw_value = msg.value().decode("utf-8", errors="replace") if msg.value() else "{}"
                     value = json.loads(raw_value)
                 except Exception as exc:
+                    luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="malformed").inc()
                     logger.warning(
                         "Failed to deserialize message at offset %d: %s",
                         msg.offset(),
@@ -177,6 +194,7 @@ class IngestRawConsumer:
                 try:
                     self.handle(key, value)
                 except Exception as exc:
+                    luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="error").inc()
                     logger.exception(
                         "Unhandled error processing message at offset %d",
                         msg.offset(),

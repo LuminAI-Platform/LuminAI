@@ -83,4 +83,19 @@ def ensure_tables_exist(engine: Optional[Engine] = None) -> None:
     """
     target_engine = engine or get_db_manager().get_engine()
     Base.metadata.create_all(bind=target_engine)
+
+    # Align pre-existing golden_records table columns if needed
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(target_engine)
+        if "golden_records" in inspector.get_table_names():
+            columns = {col["name"] for col in inspector.get_columns("golden_records")}
+            with target_engine.begin() as conn:
+                if "version" not in columns:
+                    conn.execute(text("ALTER TABLE golden_records ADD COLUMN version INTEGER DEFAULT 1 NOT NULL"))
+                if "updated_at" not in columns:
+                    conn.execute(text("ALTER TABLE golden_records ADD COLUMN updated_at DATETIME"))
+    except Exception as exc:
+        logger.debug("Schema alignment notice: %s", exc)
+
     logger.debug("Ensured database tables exist", engine=str(target_engine.url))

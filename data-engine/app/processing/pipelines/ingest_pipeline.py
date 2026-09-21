@@ -24,6 +24,12 @@ from app.processing.pipelines.er_pipeline import (
     staged_records_for_er,
 )
 from app.db import DatabaseResource
+from app.processing.checks import (
+    cleaning_max_null_percentage_check,
+    cleaning_min_row_count_check,
+    cleaning_value_range_check,
+    er_referential_integrity_check,
+)
 from app.processing.schedules import (
     daily_er_schedule,
     hourly_cleaning_schedule,
@@ -110,6 +116,12 @@ defs = Definitions(
         er_scored_pairs,
         er_classified_pairs,
         er_golden_records,
+    ],
+    asset_checks=[
+        cleaning_min_row_count_check,
+        cleaning_max_null_percentage_check,
+        cleaning_value_range_check,
+        er_referential_integrity_check,
     ],
     schedules=[
         hourly_cleaning_schedule,

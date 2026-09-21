@@ -28,6 +28,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.kafka.producers import IngestValidProducer
 from app.processing.minio_client import get_minio_client
+from app.telemetry import record_records_processed, trace_span
 
 logger = logging.getLogger(__name__)
 
@@ -207,85 +208,103 @@ def cleaned_ingestion_data(
       5. Parse timestamp strings into ISO format
       6. Remove duplicate rows (by email)
     """
+    run_tags = _extract_run_tags(context)
+    tenant_id = run_tags.get("tenant_id", "acme")
     initial_rows = raw_ingestion_data.height
     context.log.info("🧹 cleaned_ingestion_data: starting — %d input rows", initial_rows)
 
-    # Step 1: Strip whitespace from all string columns
-    string_cols = [
-        col for col, dtype in zip(
-            raw_ingestion_data.columns, raw_ingestion_data.dtypes
-        )
-        if dtype == pl.Utf8 or dtype == pl.String
-    ]
-
-    strip_exprs = [
-        pl.col(col).str.strip_chars().alias(col) for col in string_cols
-    ]
-    df = raw_ingestion_data.with_columns(strip_exprs) if strip_exprs else raw_ingestion_data
-    context.log.info("🧹 Step 1: Stripped whitespace from %d string columns", len(string_cols))
-
-    # Step 2: Casing normalization
-    if "email" in df.columns:
-        df = df.with_columns(pl.col("email").str.to_lowercase().alias("email"))
-    if "name" in df.columns:
-        df = df.with_columns(pl.col("name").str.to_titlecase().alias("name"))
-    context.log.info("🧹 Step 2: Normalized casing (email to lowercase, name to title case)")
-
-    # Step 3: Substitute nulls
-    null_fill_exprs = []
-    for col_name, dtype in zip(df.columns, df.dtypes):
-        if dtype in (pl.Utf8, pl.String):
-            null_fill_exprs.append(pl.col(col_name).fill_null("").alias(col_name))
-        elif dtype in (pl.Int64, pl.Int32, pl.Int16, pl.Int8):
-            null_fill_exprs.append(pl.col(col_name).fill_null(0).alias(col_name))
-        elif dtype in (pl.Float64, pl.Float32):
-            null_fill_exprs.append(pl.col(col_name).fill_null(0.0).alias(col_name))
-
-    if null_fill_exprs:
-        df = df.with_columns(null_fill_exprs)
-
-    null_count = raw_ingestion_data.null_count().sum_horizontal()[0]
-    context.log.info("🧹 Step 3: Filled %d null values", null_count)
-
-    # Step 4: Normalize country codes to uppercase
-    if "country" in df.columns:
-        df = df.with_columns(pl.col("country").str.to_uppercase().alias("country"))
-    context.log.info("🧹 Step 4: Normalized country codes to uppercase")
-
-    # Step 5: Parse timestamps
-    if "joined_at" in df.columns:
-        df = df.with_columns(
-            pl.col("joined_at").map_elements(
-                _parse_date_string, return_dtype=pl.Utf8
-            ).alias("joined_at")
-        )
-    context.log.info("🧹 Step 5: Parsed timestamp strings")
-
-    # Step 6: Currency parsing
-    if "salary" in df.columns:
-        df = df.with_columns(
-            pl.col("salary")
-            .map_elements(
-                _parse_currency_string,
-                return_dtype=pl.Struct([
-                    pl.Field("amount", pl.Float64),
-                    pl.Field("currency", pl.String)
-                ])
+    with trace_span(
+        "pipeline.clean",
+        attributes={
+            "tenant.id": str(tenant_id),
+            "input.rows": int(initial_rows),
+        },
+    ):
+        # Step 1: Strip whitespace from all string columns
+        string_cols = [
+            col for col, dtype in zip(
+                raw_ingestion_data.columns, raw_ingestion_data.dtypes
             )
-            .alias("salary_parsed")
-        ).with_columns(
-            pl.col("salary_parsed").struct.field("amount").alias("salary_amount"),
-            pl.col("salary_parsed").struct.field("currency").alias("salary_currency"),
-        ).drop(["salary_parsed", "salary"])
-    context.log.info("🧹 Step 6: Normalized currency (salary to salary_amount and salary_currency)")
+            if dtype == pl.Utf8 or dtype == pl.String
+        ]
 
-    context.log.info(
-        "✅ cleaned_ingestion_data: complete — %d → %d rows",
-        initial_rows,
-        df.height,
-    )
+        strip_exprs = [
+            pl.col(col).str.strip_chars().alias(col) for col in string_cols
+        ]
+        df = raw_ingestion_data.with_columns(strip_exprs) if strip_exprs else raw_ingestion_data
+        context.log.info("🧹 Step 1: Stripped whitespace from %d string columns", len(string_cols))
 
-    return df
+        # Step 2: Casing normalization
+        if "email" in df.columns:
+            df = df.with_columns(pl.col("email").str.to_lowercase().alias("email"))
+        if "name" in df.columns:
+            df = df.with_columns(pl.col("name").str.to_titlecase().alias("name"))
+        context.log.info("🧹 Step 2: Normalized casing (email to lowercase, name to title case)")
+
+        # Step 3: Substitute nulls
+        null_fill_exprs = []
+        for col_name, dtype in zip(df.columns, df.dtypes):
+            if dtype in (pl.Utf8, pl.String):
+                null_fill_exprs.append(pl.col(col_name).fill_null("").alias(col_name))
+            elif dtype in (pl.Int64, pl.Int32, pl.Int16, pl.Int8):
+                null_fill_exprs.append(pl.col(col_name).fill_null(0).alias(col_name))
+            elif dtype in (pl.Float64, pl.Float32):
+                null_fill_exprs.append(pl.col(col_name).fill_null(0.0).alias(col_name))
+
+        if null_fill_exprs:
+            df = df.with_columns(null_fill_exprs)
+
+        null_count = raw_ingestion_data.null_count().sum_horizontal()[0]
+        context.log.info("🧹 Step 3: Filled %d null values", null_count)
+
+        # Step 4: Normalize country codes to uppercase
+        if "country" in df.columns:
+            df = df.with_columns(pl.col("country").str.to_uppercase().alias("country"))
+        context.log.info("🧹 Step 4: Normalized country codes to uppercase")
+
+        # Step 5: Parse timestamps
+        if "joined_at" in df.columns:
+            df = df.with_columns(
+                pl.col("joined_at").map_elements(
+                    _parse_date_string, return_dtype=pl.Utf8
+                ).alias("joined_at")
+            )
+        context.log.info("🧹 Step 5: Parsed timestamp strings")
+
+        # Step 6: Currency parsing
+        if "salary" in df.columns:
+            df = df.with_columns(
+                pl.col("salary")
+                .map_elements(
+                    _parse_currency_string,
+                    return_dtype=pl.Struct([
+                        pl.Field("amount", pl.Float64),
+                        pl.Field("currency", pl.String)
+                    ])
+                )
+                .alias("salary_parsed")
+            ).with_columns(
+                pl.col("salary_parsed").struct.field("amount").alias("salary_amount"),
+                pl.col("salary_parsed").struct.field("currency").alias("salary_currency"),
+            ).drop(["salary_parsed", "salary"])
+        context.log.info("🧹 Step 6: Normalized currency (salary to salary_amount and salary_currency)")
+
+        record_records_processed(
+            tenant_id=tenant_id,
+            stage="clean",
+            count=df.height,
+            status="success",
+            entity_type="Person",
+        )
+
+        context.log.info(
+            "✅ cleaned_ingestion_data: complete — %d → %d rows",
+            initial_rows,
+            df.height,
+        )
+
+        return df
+
 
 
 @asset(
@@ -463,77 +482,69 @@ def staged_ingestion_data(
 
     context.log.info("💾 staged_ingestion_data: starting staging for tenant=%s, source=%s, batch=%s", tenant_id, source_id, batch_id)
 
-    # Step 1: Write to Local Parquet + MinIO Staging
-    # Always save locally first (serves as a local cache/fallback)
-    local_staging_dir = os.path.join("storage", "minio", "staging", tenant_id, source_id)
-    os.makedirs(local_staging_dir, exist_ok=True)
-    local_file_path = os.path.join(local_staging_dir, f"{batch_id}.parquet")
-    validated_ingestion_data.write_parquet(local_file_path)
-    context.log.info("💾 Saved Parquet locally to %s", local_file_path)
-
-    staging_bucket = f"{tenant_id}-staging"
-    staging_object_key = f"{source_id}/{batch_id}.parquet"
-    staging_path = local_file_path
-
-    try:
-        buf = io.BytesIO()
-        validated_ingestion_data.write_parquet(buf)
-        parquet_bytes = buf.getvalue()
-        minio_client = get_minio_client()
-        minio_client.put_object_bytes(
-            bucket=staging_bucket,
-            object_key=staging_object_key,
-            data=parquet_bytes,
-            content_type="application/vnd.apache.parquet",
+    with trace_span(
+        "pipeline.stage",
+        attributes={
+            "tenant.id": str(tenant_id),
+            "source.id": str(source_id),
+            "batch.id": str(batch_id),
+            "records.staged_count": int(validated_ingestion_data.height),
+        },
+    ):
+        record_records_processed(
+            tenant_id=tenant_id,
+            stage="stage",
+            count=validated_ingestion_data.height,
+            status="success",
+            entity_type="Person",
         )
-        staging_path = f"s3://{staging_bucket}/{staging_object_key}"
-        context.log.info("💾 Successfully uploaded Parquet to MinIO at %s", staging_path)
-    except Exception as e:
-        context.log.warning("⚠️ Could not write to MinIO (is it running?): %s. Using local fallback.", e)
 
-    # Step 2: Write to PostgreSQL / SQLite Database Staging
-    from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
-    engine = get_engine()
+        # Step 1: Write to Local Parquet + MinIO Staging
+        # Always save locally first (serves as a local cache/fallback)
+        local_staging_dir = os.path.join("storage", "minio", "staging", tenant_id, source_id)
+        os.makedirs(local_staging_dir, exist_ok=True)
+        local_file_path = os.path.join(local_staging_dir, f"{batch_id}.parquet")
+        validated_ingestion_data.write_parquet(local_file_path)
+        context.log.info("💾 Saved Parquet locally to %s", local_file_path)
 
-    insert_sql = """
-    INSERT INTO staging_records (id, tenant_id, source_id, raw_id, data, staged_at)
-    VALUES (:id, :tenant_id, :source_id, :raw_id, :data, :staged_at);
-    """
+        staging_bucket = f"{tenant_id}-staging"
+        staging_object_key = f"{source_id}/{batch_id}.parquet"
+        staging_path = local_file_path
 
-    db_success = False
-    # Try PostgreSQL first
-    try:
-        # Check connection before running queries
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        
-        ensure_tables_exist(engine)
-        with engine.begin() as conn:
-            params = []
-            for row in validated_ingestion_data.iter_rows(named=True):
-                params.append({
-                    "id": str(uuid.uuid4()),
-                    "tenant_id": tenant_id,
-                    "source_id": source_id,
-                    "raw_id": str(row.get("id", "")),
-                    "data": json.dumps(row),
-                    "staged_at": datetime.now(timezone.utc)
-                })
-            if params:
-                conn.execute(text(insert_sql), params)
-        context.log.info("💾 Successfully wrote %d records to PostgreSQL staging_records table", len(params))
-        db_success = True
-    except Exception as e:
-        context.log.warning("⚠️ Could not write to PostgreSQL (is it running?): %s. Falling back to SQLite.", e)
-
-    # SQLite fallback
-    if not db_success:
         try:
-            os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
-            sqlite_db_path = os.path.join("storage", "sqlite", "staging.db")
-            sqlite_engine = get_sqlite_engine(sqlite_db_path)
-            ensure_tables_exist(sqlite_engine)
-            with sqlite_engine.begin() as conn:
+            buf = io.BytesIO()
+            validated_ingestion_data.write_parquet(buf)
+            parquet_bytes = buf.getvalue()
+            minio_client = get_minio_client()
+            minio_client.put_object_bytes(
+                bucket=staging_bucket,
+                object_key=staging_object_key,
+                data=parquet_bytes,
+                content_type="application/vnd.apache.parquet",
+            )
+            staging_path = f"s3://{staging_bucket}/{staging_object_key}"
+            context.log.info("💾 Successfully uploaded Parquet to MinIO at %s", staging_path)
+        except Exception as e:
+            context.log.warning("⚠️ Could not write to MinIO (is it running?): %s. Using local fallback.", e)
+
+        # Step 2: Write to PostgreSQL / SQLite Database Staging
+        from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
+        engine = get_engine()
+
+        insert_sql = """
+        INSERT INTO staging_records (id, tenant_id, source_id, raw_id, data, staged_at)
+        VALUES (:id, :tenant_id, :source_id, :raw_id, :data, :staged_at);
+        """
+
+        db_success = False
+        # Try PostgreSQL first
+        try:
+            # Check connection before running queries
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            
+            ensure_tables_exist(engine)
+            with engine.begin() as conn:
                 params = []
                 for row in validated_ingestion_data.iter_rows(named=True):
                     params.append({
@@ -546,33 +557,59 @@ def staged_ingestion_data(
                     })
                 if params:
                     conn.execute(text(insert_sql), params)
-            context.log.info("💾 Successfully wrote %d records to SQLite staging_records table at %s", len(params), sqlite_db_path)
-        except Exception as sqle:
-            context.log.error("❌ Failed to write to SQLite fallback: %s", sqle)
+            context.log.info("💾 Successfully wrote %d records to PostgreSQL staging_records table", len(params))
+            db_success = True
+        except Exception as e:
+            context.log.warning("⚠️ Could not write to PostgreSQL (is it running?): %s. Falling back to SQLite.", e)
 
-    # Step 3: Publish ingest.valid Kafka Event
-    try:
-        producer = IngestValidProducer()
-        producer.publish(
-            tenant_id=tenant_id,
-            entity_type="Person",
-            payload={
-                "tenant_id": tenant_id,
-                "tenantId": tenant_id,
-                "source_id": source_id,
-                "connectionId": source_id,
-                "batch_id": batch_id,
-                "status": "VALIDATED",
-                "staging_path": staging_path,
-                "record_count": validated_ingestion_data.height,
-                "recordsOutput": validated_ingestion_data.height,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
-        )
-    except Exception as ke:
-        context.log.error("❌ Failed to publish Kafka ingest.valid event: %s", ke)
+        # SQLite fallback
+        if not db_success:
+            try:
+                os.makedirs(os.path.join("storage", "sqlite"), exist_ok=True)
+                sqlite_db_path = os.path.join("storage", "sqlite", "staging.db")
+                sqlite_engine = get_sqlite_engine(sqlite_db_path)
+                ensure_tables_exist(sqlite_engine)
+                with sqlite_engine.begin() as conn:
+                    params = []
+                    for row in validated_ingestion_data.iter_rows(named=True):
+                        params.append({
+                            "id": str(uuid.uuid4()),
+                            "tenant_id": tenant_id,
+                            "source_id": source_id,
+                            "raw_id": str(row.get("id", "")),
+                            "data": json.dumps(row),
+                            "staged_at": datetime.now(timezone.utc)
+                        })
+                    if params:
+                        conn.execute(text(insert_sql), params)
+                context.log.info("💾 Successfully wrote %d records to SQLite staging_records table at %s", len(params), sqlite_db_path)
+            except Exception as sqle:
+                context.log.error("❌ Failed to write to SQLite fallback: %s", sqle)
 
-    return validated_ingestion_data
+        # Step 3: Publish ingest.valid Kafka Event
+        try:
+            producer = IngestValidProducer()
+            producer.publish(
+                tenant_id=tenant_id,
+                entity_type="Person",
+                payload={
+                    "tenant_id": tenant_id,
+                    "tenantId": tenant_id,
+                    "source_id": source_id,
+                    "connectionId": source_id,
+                    "batch_id": batch_id,
+                    "status": "VALIDATED",
+                    "staging_path": staging_path,
+                    "record_count": validated_ingestion_data.height,
+                    "recordsOutput": validated_ingestion_data.height,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        except Exception as ke:
+            context.log.error("❌ Failed to publish Kafka ingest.valid event: %s", ke)
+
+        return validated_ingestion_data
+
 
 
 # Helpers

@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import analytics, health, processing
+from app.api import analytics, health, metrics, processing
 from app.config import get_settings
 from app.kafka.consumers import IngestRawConsumer
 from app.logging import (
@@ -22,7 +22,9 @@ from app.logging import (
     get_logger,
 )
 from app.processing.trigger import DagsterTrigger
+from app.rate_limit import RateLimitMiddleware
 from app.security import get_current_identity
+from app.telemetry import init_telemetry, shutdown_telemetry
 
 logger = get_logger("data-engine.app")
 
@@ -31,6 +33,7 @@ logger = get_logger("data-engine.app")
 async def lifespan(app: FastAPI):
     """Application startup / shutdown hooks."""
     settings = get_settings()
+    init_telemetry()
     logger.info(
         "Application starting up",
         app_name=settings.app_name,
@@ -38,6 +41,7 @@ async def lifespan(app: FastAPI):
         host=settings.app_host,
         port=settings.app_port,
     )
+
 
     # Run database schema migration/table verification if enabled
     if settings.auto_migrate:
@@ -76,6 +80,8 @@ async def lifespan(app: FastAPI):
     from app.db import get_db_manager
     get_db_manager().dispose_all()
     logger.info("Database connection pools disposed")
+    shutdown_telemetry()
+    logger.info("OpenTelemetry TracerProvider shut down")
     logger.info("Data Engine shutting down")
 
 
@@ -100,6 +106,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Configure Rate Limiting middleware
+    app.add_middleware(RateLimitMiddleware)
+
     # Configure Structured Logging middleware
     app.add_middleware(StructuredLoggingMiddleware)
 
@@ -115,6 +124,8 @@ def create_app() -> FastAPI:
     # Register API routers
     # Public endpoints (no auth required)
     app.include_router(health.router)
+    app.include_router(metrics.router)
+
 
     # Protected endpoints (require API key or Keycloak JWT)
     app.include_router(

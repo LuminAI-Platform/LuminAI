@@ -32,6 +32,19 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"  # "json" for Kubernetes ELK/Loki, "console" for dev
 
+    # Observability & Telemetry Configuration
+    metrics_enabled: bool = True
+    otel_enabled: bool = True
+    otel_service_name: str = "luminai-data-engine"
+    otel_exporter_otlp_endpoint: str | None = None
+    otel_sample_rate: float = 1.0
+
+    # Rate Limiting Configuration
+    rate_limit_enabled: bool = True
+    rate_limit_default_per_minute: int = 120
+    rate_limit_pipeline_per_minute: int = 30
+
+
     # CORS Configuration
     cors_origins: list[str] = [
         "https://luminai-sand.vercel.app",
@@ -64,6 +77,9 @@ class Settings(BaseSettings):
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
     kafka_topic_entity_resolved: str = "entity.resolved"
+    kafka_producer_max_retries: int = 3
+    kafka_producer_initial_backoff: float = 0.5
+    kafka_producer_backoff_multiplier: float = 2.0
 
     # Database & Redis Configuration
     database_url: str | None = None

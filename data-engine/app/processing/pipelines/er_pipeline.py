@@ -36,6 +36,7 @@ from app.processing.er.provenance import (
     persist_provenance_records,
     track_field_provenance,
 )
+from app.telemetry import record_er_metrics, trace_span
 
 logger = logging.getLogger(__name__)
 
@@ -208,20 +209,31 @@ def er_blocked_pairs(
     staged_records_for_er: pl.DataFrame,
 ) -> pl.DataFrame:
     """Generate candidate record pairs sharing blocking keys."""
+    tags = _extract_run_tags(context)
+    tenant_id = tags.get("tenant_id") or "acme"
     context.log.info("🧱 er_blocked_pairs: generating candidate pairs…")
-    candidate_pairs = generate_candidate_pairs(
-        staged_records_for_er,
-        id_col="id",
-        name_col="name",
-        country_col="country",
-        entity_type_col="entity_type",
-    )
-    context.log.info(
-        "🧱 Blocking reduced search space — %d candidate pairs generated from %d records",
-        candidate_pairs.height,
-        staged_records_for_er.height,
-    )
-    return candidate_pairs
+
+    with trace_span(
+        "er.blocking",
+        attributes={
+            "tenant.id": str(tenant_id),
+            "records.input": int(staged_records_for_er.height),
+        },
+    ):
+        candidate_pairs = generate_candidate_pairs(
+            staged_records_for_er,
+            id_col="id",
+            name_col="name",
+            country_col="country",
+            entity_type_col="entity_type",
+        )
+        record_er_metrics(tenant_id=tenant_id, candidate_pairs_count=candidate_pairs.height)
+        context.log.info(
+            "🧱 Blocking reduced search space — %d candidate pairs generated from %d records",
+            candidate_pairs.height,
+            staged_records_for_er.height,
+        )
+        return candidate_pairs
 
 
 @asset(
@@ -256,20 +268,35 @@ def er_classified_pairs(
     tenant_id = tags.get("tenant_id") or "acme"
 
     context.log.info("⚖️ er_classified_pairs: classifying %d pairs (tenant: %s)…", er_scored_pairs.height, tenant_id)
-    matches_df, review_df, non_matches_df = classify_candidate_pairs(er_scored_pairs)
 
-    context.log.info(
-        "⚖️ Classification decisions — matches=%d, review=%d, non_matches=%d",
-        matches_df.height,
-        review_df.height,
-        non_matches_df.height,
-    )
+    with trace_span(
+        "er.classification",
+        attributes={
+            "tenant.id": str(tenant_id),
+            "pairs.input": int(er_scored_pairs.height),
+        },
+    ):
+        matches_df, review_df, non_matches_df = classify_candidate_pairs(er_scored_pairs)
 
-    if review_df.height > 0:
-        persisted = persist_review_candidates(review_df, tenant_id=tenant_id)
-        context.log.info("⚖️ Persisted %d review candidates to er_candidates table (tenant: %s)", persisted, tenant_id)
+        record_er_metrics(
+            tenant_id=tenant_id,
+            matches_count=matches_df.height,
+            review_count=review_df.height,
+            non_matches_count=non_matches_df.height,
+        )
 
-    return matches_df
+        context.log.info(
+            "⚖️ Classification decisions — matches=%d, review=%d, non_matches=%d",
+            matches_df.height,
+            review_df.height,
+            non_matches_df.height,
+        )
+
+        if review_df.height > 0:
+            persisted = persist_review_candidates(review_df, tenant_id=tenant_id)
+            context.log.info("⚖️ Persisted %d review candidates to er_candidates table (tenant: %s)", persisted, tenant_id)
+
+        return matches_df
 
 
 @asset(
@@ -289,58 +316,73 @@ def er_golden_records(
 
     context.log.info("👑 er_golden_records: clustering matches and synthesizing Golden Records (tenant: %s)…", tenant_id)
 
-    records_list = staged_records_for_er.to_dicts()
-    clusters = cluster_record_dictionaries(er_classified_pairs, records_list, id_col="id")
+    with trace_span(
+        "er.golden_records",
+        attributes={
+            "tenant.id": str(tenant_id),
+            "records.input": int(staged_records_for_er.height),
+        },
+    ):
+        records_list = staged_records_for_er.to_dicts()
+        clusters = cluster_record_dictionaries(er_classified_pairs, records_list, id_col="id")
 
-    context.log.info(
-        "👑 Graph clustering resolved %d distinct clusters from %d input records",
-        len(clusters),
-        len(records_list),
-    )
-
-    # Synthesize Golden Records
-    golden_records_df = merge_clusters_to_golden_records(clusters, tenant_id=tenant_id)
-
-    # Persist Golden Records to DB
-    persisted_gr = persist_golden_records(golden_records_df, tenant_id=tenant_id)
-    context.log.info("👑 Successfully persisted %d Golden Records to database (tenant: %s)", persisted_gr, tenant_id)
-
-    # Track and persist field-level provenance
-    all_provenance_entries: List[Dict[str, Any]] = []
-    producer = EntityResolvedProducer()
-
-    for cluster in clusters:
-        cluster_records = cluster
-        if not cluster_records:
-            continue
-
-        golden_rec = next(
-            (
-                gr
-                for gr in golden_records_df.to_dicts()
-                if any(str(r.get("id")) in gr.get("source_record_ids", []) for r in cluster_records)
-            ),
-            None,
+        context.log.info(
+            "👑 Graph clustering resolved %d distinct clusters from %d input records",
+            len(clusters),
+            len(records_list),
         )
 
-        if golden_rec:
-            prov_entries = track_field_provenance(golden_rec, cluster_records, tenant_id=tenant_id)
-            all_provenance_entries.extend(prov_entries)
+        # Synthesize Golden Records
+        golden_records_df = merge_clusters_to_golden_records(clusters, tenant_id=tenant_id)
 
-            # Publish entity.resolved Kafka event
-            try:
-                producer.publish_resolved_entity(
-                    tenant_id=tenant_id,
-                    golden_id=str(golden_rec.get("golden_id")),
-                    entity_type="Person",
-                    payload=golden_rec,
-                )
-            except Exception as exc:
-                context.log.warning("Could not publish entity.resolved Kafka event: %s", exc)
+        # Persist Golden Records to DB
+        persisted_gr = persist_golden_records(golden_records_df, tenant_id=tenant_id)
+        context.log.info("👑 Successfully persisted %d Golden Records to database (tenant: %s)", persisted_gr, tenant_id)
 
-    if all_provenance_entries:
-        persisted_prov = persist_provenance_records(all_provenance_entries, tenant_id=tenant_id)
-        context.log.info("👑 Successfully persisted %d field provenance records (tenant: %s)", persisted_prov, tenant_id)
+        record_er_metrics(
+            tenant_id=tenant_id,
+            clusters_count=len(clusters),
+            golden_records_count=persisted_gr,
+            entity_type="Person",
+        )
 
-    context.log.info("✅ er_golden_records: pipeline finished with %d canonical Golden Records", golden_records_df.height)
-    return golden_records_df
+        # Track and persist field-level provenance
+        all_provenance_entries: List[Dict[str, Any]] = []
+        producer = EntityResolvedProducer()
+
+        for cluster in clusters:
+            cluster_records = cluster
+            if not cluster_records:
+                continue
+
+            golden_rec = next(
+                (
+                    gr
+                    for gr in golden_records_df.to_dicts()
+                    if any(str(r.get("id")) in gr.get("source_record_ids", []) for r in cluster_records)
+                ),
+                None,
+            )
+
+            if golden_rec:
+                prov_entries = track_field_provenance(golden_rec, cluster_records, tenant_id=tenant_id)
+                all_provenance_entries.extend(prov_entries)
+
+                # Publish entity.resolved Kafka event
+                try:
+                    producer.publish_resolved_entity(
+                        tenant_id=tenant_id,
+                        golden_id=str(golden_rec.get("golden_id")),
+                        entity_type="Person",
+                        payload=golden_rec,
+                    )
+                except Exception as exc:
+                    context.log.warning("Could not publish entity.resolved Kafka event: %s", exc)
+
+        if all_provenance_entries:
+            persisted_prov = persist_provenance_records(all_provenance_entries, tenant_id=tenant_id)
+            context.log.info("👑 Successfully persisted %d field provenance records (tenant: %s)", persisted_prov, tenant_id)
+
+        context.log.info("✅ er_golden_records: pipeline finished with %d canonical Golden Records", golden_records_df.height)
+        return golden_records_df
+
