@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
     kafka_topic_entity_resolved: str = "entity.resolved"
+    kafka_producer_max_retries: int = 3
+    kafka_producer_initial_backoff: float = 0.5
+    kafka_producer_backoff_multiplier: float = 2.0
 
     # Database & Redis Configuration
     database_url: str | None = None
