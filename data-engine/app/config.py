@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"  # "json" for Kubernetes ELK/Loki, "console" for dev
 
+    # Observability & Telemetry Configuration
+    metrics_enabled: bool = True
+    otel_enabled: bool = True
+    otel_service_name: str = "luminai-data-engine"
+    otel_exporter_otlp_endpoint: str | None = None
+    otel_sample_rate: float = 1.0
+
+
     # CORS Configuration
     cors_origins: list[str] = [
         "https://luminai-sand.vercel.app",

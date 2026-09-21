@@ -23,6 +23,7 @@ from typing import Any, Callable
 from confluent_kafka import Producer
 
 from app.config import get_settings
+from app.telemetry import luminai_kafka_messages_produced_total, trace_span
 
 logger = logging.getLogger(__name__)
 
@@ -46,45 +47,58 @@ def _produce_with_exponential_backoff(
     Returns:
         tuple[bool, Exception | None]: (True, None) on success, or (False, last_exception).
     """
+    key_str = key.decode("utf-8", errors="replace") if key else None
     attempt = 0
     backoff = initial_backoff
     last_exc: Exception | None = None
 
-    while attempt < max_retries:
-        attempt += 1
-        try:
-            producer.produce(
-                topic=topic,
-                key=key,
-                value=value,
-                callback=callback,
-            )
-            producer.poll(0)
-            logger.info(
-                "📡 Successfully produced message to topic '%s' (attempt %d/%d)",
-                topic,
-                attempt,
-                max_retries,
-            )
-            return True, None
-        except Exception as exc:
-            last_exc = exc
-            logger.warning(
-                "⚠️ Produce attempt %d/%d failed for topic '%s' (key=%s): %s",
-                attempt,
-                max_retries,
-                topic,
-                key.decode("utf-8", errors="replace") if key else None,
-                exc,
-            )
-            if attempt < max_retries:
-                # If local queue is full, poll to drain queue
-                if isinstance(exc, BufferError):
-                    producer.poll(0.2)
-                sleep_fn(backoff)
-                backoff *= backoff_multiplier
+    with trace_span(
+        "kafka.produce",
+        attributes={
+            "messaging.system": "kafka",
+            "messaging.destination": topic,
+            "messaging.message_id": key_str or "",
+        },
+    ):
+        while attempt < max_retries:
+            attempt += 1
+            try:
+                producer.produce(
+                    topic=topic,
+                    key=key,
+                    value=value,
+                    callback=callback,
+                )
+                producer.poll(0)
+                luminai_kafka_messages_produced_total.labels(topic=topic, status="success").inc()
+                logger.info(
+                    "📡 Successfully produced message to topic '%s' (attempt %d/%d)",
+                    topic,
+                    attempt,
+                    max_retries,
+                )
+                return True, None
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "⚠️ Produce attempt %d/%d failed for topic '%s' (key=%s): %s",
+                    attempt,
+                    max_retries,
+                    topic,
+                    key_str,
+                    exc,
+                )
+                if attempt < max_retries:
+                    luminai_kafka_messages_produced_total.labels(topic=topic, status="retry").inc()
+                    # If local queue is full, poll to drain queue
+                    if isinstance(exc, BufferError):
+                        producer.poll(0.2)
+                    sleep_fn(backoff)
+                    backoff *= backoff_multiplier
 
-    return False, last_exc
+        luminai_kafka_messages_produced_total.labels(topic=topic, status="failed").inc()
+        return False, last_exc
+
 
 
 def _extract_retry_settings(
