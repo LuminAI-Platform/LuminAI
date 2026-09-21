@@ -22,6 +22,7 @@ from app.logging import (
     get_logger,
 )
 from app.processing.trigger import DagsterTrigger
+from app.rate_limit import RateLimitMiddleware
 from app.security import get_current_identity
 from app.telemetry import init_telemetry, shutdown_telemetry
 
@@ -104,6 +105,9 @@ def create_app() -> FastAPI:
         },
         lifespan=lifespan,
     )
+
+    # Configure Rate Limiting middleware
+    app.add_middleware(RateLimitMiddleware)
 
     # Configure Structured Logging middleware
     app.add_middleware(StructuredLoggingMiddleware)

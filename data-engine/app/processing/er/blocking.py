@@ -14,6 +14,8 @@ from typing import Any
 import jellyfish
 import polars as pl
 
+from app.processing.er.semantic import canonicalize_name
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,16 +26,17 @@ def generate_blocking_key(
 ) -> str:
     """Generate a blocking key for a single record.
 
-    Format: ``{Metaphone(Name)}_{Country}_{EntityType}``
+    Format: ``{Metaphone(CanonicalName)}_{Country}_{EntityType}``
 
-    Handles edge cases like null values, special characters, whitespace, and numbers.
+    Handles edge cases like null values, special characters, whitespace, nicknames, and numbers.
     """
-    # Clean and normalize name
+    # Clean, canonicalize nicknames, and normalize name
     if not name or not isinstance(name, str):
         meta_code = "EMPTY"
     else:
-        # Strip non-alphabetic characters except spaces for phonetic processing
-        cleaned_name = re.sub(r"[^a-zA-Z\s]", "", name).strip()
+        # First canonicalize any known nicknames (e.g. Bob -> Robert)
+        canonical = canonicalize_name(name)
+        cleaned_name = re.sub(r"[^a-zA-Z\s]", "", canonical or name).strip()
         if not cleaned_name:
             meta_code = "EMPTY"
         else:
@@ -43,6 +46,7 @@ def generate_blocking_key(
                     meta_code = "EMPTY"
             except Exception:
                 meta_code = "EMPTY"
+
 
     # Normalize country
     if not country or not isinstance(country, str) or not country.strip():

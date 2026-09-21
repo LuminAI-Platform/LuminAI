@@ -9,7 +9,7 @@ GET  /process/status/{run_id}  →  Poll the status of a queued run.
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.kafka.quarantine import get_quarantine_manager
@@ -437,4 +437,131 @@ async def discard_quarantined_messages(
         message_ids=[m.message_id for m in discarded],
         message=f"Successfully discarded {len(discarded)} quarantined messages.",
     )
+
+
+# --- Golden Record Versioning & Rollback Schemas & Endpoints ---
+
+class GoldenRecordResponse(BaseModel):
+    """Canonical Golden Record state."""
+
+    golden_id: str
+    tenant_id: str
+    version: int
+    cluster_size: int
+    source_record_ids: List[str]
+    created_at: str
+    updated_at: str
+    attributes: Dict[str, Any]
+
+
+class GoldenRecordHistoryItem(BaseModel):
+    """Historical audit trail entry for a Golden Record."""
+
+    history_id: str
+    golden_id: str
+    tenant_id: str
+    version: int
+    cluster_size: int
+    source_record_ids: List[str]
+    action: str
+    created_at: str
+    attributes: Dict[str, Any]
+
+
+class GoldenRecordHistoryResponse(BaseModel):
+    """Response containing full audit history across versions."""
+
+    golden_id: str
+    total_versions: int
+    history: List[GoldenRecordHistoryItem]
+
+
+class RollbackRequest(BaseModel):
+    """Request payload to restore a prior Golden Record version."""
+
+    target_version: int = Field(..., ge=1, description="Historical version number to restore.")
+
+
+class RollbackResponse(BaseModel):
+    """Response summarizing successful version rollback."""
+
+    message: str
+    golden_record: GoldenRecordResponse
+
+
+@router.get(
+    "/golden-records/{golden_id}",
+    response_model=GoldenRecordResponse,
+    summary="Get current state of a Golden Record",
+)
+async def get_golden_record_endpoint(
+    golden_id: str,
+    tenant_id: Optional[str] = Query(default=None, description="Optional tenant scoping filter"),
+) -> GoldenRecordResponse:
+    """Retrieve the current state, version, and attributes of a canonical Golden Record."""
+    from app.processing.er.golden_record import get_golden_record
+
+    record = get_golden_record(golden_id, tenant_id=tenant_id)
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Golden record '{golden_id}' not found",
+        )
+    return GoldenRecordResponse(**record)
+
+
+@router.get(
+    "/golden-records/{golden_id}/history",
+    response_model=GoldenRecordHistoryResponse,
+    summary="Get version history of a Golden Record",
+)
+async def get_golden_record_history_endpoint(
+    golden_id: str,
+    tenant_id: Optional[str] = Query(default=None, description="Optional tenant scoping filter"),
+) -> GoldenRecordHistoryResponse:
+    """Retrieve complete historical audit trail and point-in-time snapshots for a Golden Record."""
+    from app.processing.er.golden_record import get_golden_record_history
+
+    history = get_golden_record_history(golden_id, tenant_id=tenant_id)
+    if not history:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No history found for golden record '{golden_id}'",
+        )
+    return GoldenRecordHistoryResponse(
+        golden_id=golden_id,
+        total_versions=len(history),
+        history=[GoldenRecordHistoryItem(**item) for item in history],
+    )
+
+
+@router.post(
+    "/golden-records/{golden_id}/rollback",
+    response_model=RollbackResponse,
+    summary="Rollback Golden Record to a prior version",
+)
+async def rollback_golden_record_endpoint(
+    golden_id: str,
+    request: RollbackRequest,
+    tenant_id: Optional[str] = Query(default=None, description="Optional tenant scoping filter"),
+) -> RollbackResponse:
+    """Restore a Golden Record to a prior historical version snapshot."""
+    from app.processing.er.golden_record import rollback_golden_record
+
+    try:
+        restored = rollback_golden_record(
+            golden_id=golden_id,
+            target_version=request.target_version,
+            tenant_id=tenant_id,
+        )
+        return RollbackResponse(
+            message=f"Golden record '{golden_id}' successfully rolled back to version {request.target_version} (new version: {restored.get('version')}).",
+            golden_record=GoldenRecordResponse(**restored),
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 

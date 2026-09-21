@@ -6,11 +6,15 @@ Calculates string similarity metrics for candidate pairs using Jaro-Winkler
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import logging
+import os
 from typing import Any, Mapping
 
 import jellyfish
 import polars as pl
+
+from app.processing.er.semantic import semantic_name_similarity
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +82,8 @@ def calculate_pair_similarity_score(
 ) -> dict[str, float]:
     """Calculate attribute-level similarities and weighted overall confidence score S.
 
+    Combines string distances with semantic matching (nicknames & abbreviations) for name fields.
+
     Formula:
       S = sum(w_attr * S_attr) / sum(w_attr_active)
 
@@ -93,12 +99,30 @@ def calculate_pair_similarity_score(
     active_weight = 0.0
     weighted_sum = 0.0
 
-    for attr, weight in w_map.items():
-        val_a = record_a.get(f"{attr}_a", record_a.get(attr))
-        val_b = record_b.get(f"{attr}_b", record_b.get(attr))
+    def _get_val(rec: Mapping[str, Any], a_name: str, side: str) -> Any:
+        keys_to_try = [
+            f"{a_name}_{side}",
+            f"{a_name}_{'l' if side == 'a' else 'r'}",
+            f"full_{a_name}_{side}",
+            f"full_{a_name}_{'l' if side == 'a' else 'r'}",
+            f"full_{a_name}",
+            a_name,
+        ]
+        for k in keys_to_try:
+            if k in rec and rec[k] is not None:
+                return rec[k]
+        return None
 
-        # Use Levenshtein for code/ID/date fields, Jaro-Winkler for general text
-        if attr in ("dob", "code", "id", "ssn", "phone"):
+    for attr, weight in w_map.items():
+        val_a = _get_val(record_a, attr, "a")
+        val_b = _get_val(record_b, attr, "b")
+
+        # Use semantic matching for name fields (handles Bob <-> Robert, IBM <-> International Business Machines)
+        if attr == "name":
+            jw = jaro_winkler_similarity(val_a, val_b)
+            sem = semantic_name_similarity(val_a, val_b)
+            attr_score = max(jw, sem)
+        elif attr in ("dob", "code", "id", "ssn", "phone"):
             attr_score = levenshtein_similarity(val_a, val_b)
         else:
             attr_score = jaro_winkler_similarity(val_a, val_b)
@@ -118,29 +142,114 @@ def calculate_pair_similarity_score(
     return scores
 
 
+def _vectorized_attribute_similarity(
+    col_a: list[Any],
+    col_b: list[Any],
+    attr: str,
+) -> list[float]:
+    """Fast columnar similarity calculation over parallel lists."""
+    if attr == "name":
+        return [
+            round(max(jaro_winkler_similarity(a, b), semantic_name_similarity(a, b)), 4)
+            for a, b in zip(col_a, col_b)
+        ]
+    elif attr in ("dob", "code", "id", "ssn", "phone"):
+        return [round(levenshtein_similarity(a, b), 4) for a, b in zip(col_a, col_b)]
+    else:
+        return [round(jaro_winkler_similarity(a, b), 4) for a, b in zip(col_a, col_b)]
+
+
 def compare_candidate_pairs(
     candidate_pairs: pl.DataFrame,
     weights: Mapping[str, float] | None = None,
 ) -> pl.DataFrame:
     """Evaluate candidate record pairs DataFrame and compute similarity scores.
 
-    Applies vectorized/rowwise comparison to candidate pairs DataFrame. Adds
-    ``confidence_score`` and attribute similarity score columns.
+    Optimized for enterprise scale (100K+ pairs) using columnar vectorization and
+    thread pool parallelization for multi-thousand pair batches.
     """
     if candidate_pairs.height == 0:
         return candidate_pairs.with_columns(pl.lit(0.0).alias("confidence_score"))
 
-    evaluated_rows = []
-    for row in candidate_pairs.iter_rows(named=True):
-        sim_results = calculate_pair_similarity_score(row, row, weights=weights)
-        row_res = dict(row)
-        row_res.update(sim_results)
-        evaluated_rows.append(row_res)
+    w_map = dict(weights) if weights else dict(DEFAULT_WEIGHTS)
+    total_weight = sum(w_map.values())
+    if total_weight <= 0:
+        total_weight = 1.0
+        w_map = {k: v / total_weight for k, v in w_map.items()}
 
-    result_df = pl.DataFrame(evaluated_rows)
+    # For large datasets (>10,000 pairs), process in parallel chunks
+    chunk_size = 5000
+    if candidate_pairs.height > chunk_size:
+        num_chunks = (candidate_pairs.height + chunk_size - 1) // chunk_size
+        chunks = [
+            candidate_pairs.slice(i * chunk_size, chunk_size)
+            for i in range(num_chunks)
+        ]
+        max_workers = min(os.cpu_count() or 4, 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            processed_chunks = list(
+                executor.map(lambda c: _evaluate_candidate_chunk(c, w_map), chunks)
+            )
+        result_df = pl.concat(processed_chunks)
+    else:
+        result_df = _evaluate_candidate_chunk(candidate_pairs, w_map)
+
     logger.info(
         "Evaluated candidate pairs — total pairs=%d, avg_score=%.4f",
         result_df.height,
         result_df["confidence_score"].mean() if result_df.height > 0 else 0.0,
     )
     return result_df
+
+
+def _evaluate_candidate_chunk(
+    chunk: pl.DataFrame,
+    w_map: dict[str, float],
+) -> pl.DataFrame:
+    """Fast columnar evaluation of a single candidate pairs DataFrame chunk."""
+    n_rows = chunk.height
+    new_columns: list[pl.Series] = []
+    active_weight_list = [0.0] * n_rows
+    weighted_sum_list = [0.0] * n_rows
+
+    def _find_col(df_cols: set[str], a_name: str, side: str) -> str | None:
+        candidates = [
+            f"{a_name}_{side}",
+            f"{a_name}_{'l' if side == 'a' else 'r'}",
+            f"full_{a_name}_{side}",
+            f"full_{a_name}_{'l' if side == 'a' else 'r'}",
+            f"full_{a_name}",
+            a_name,
+        ]
+        for c in candidates:
+            if c in df_cols:
+                return c
+        return None
+
+    cols_set = set(chunk.columns)
+
+    for attr, weight in w_map.items():
+        col_a_name = _find_col(cols_set, attr, "a")
+        col_b_name = _find_col(cols_set, attr, "b")
+
+        if col_a_name is not None and col_b_name is not None:
+            col_a = chunk[col_a_name].to_list()
+            col_b = chunk[col_b_name].to_list()
+            attr_scores = _vectorized_attribute_similarity(col_a, col_b, attr)
+            for i in range(n_rows):
+                if col_a[i] is not None or col_b[i] is not None:
+                    active_weight_list[i] += weight
+                    weighted_sum_list[i] += weight * attr_scores[i]
+        else:
+            attr_scores = [0.0] * n_rows
+
+        new_columns.append(pl.Series(f"score_{attr}", attr_scores, dtype=pl.Float64))
+
+    confidence_scores = [
+        round(weighted_sum_list[i] / active_weight_list[i], 4) if active_weight_list[i] > 0 else 0.0
+        for i in range(n_rows)
+    ]
+    new_columns.append(pl.Series("confidence_score", confidence_scores, dtype=pl.Float64))
+
+    return chunk.with_columns(new_columns)
+

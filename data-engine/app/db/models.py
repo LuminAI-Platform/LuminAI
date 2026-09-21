@@ -37,9 +37,35 @@ class GoldenRecord(Base):
 
     golden_id: Mapped[str] = mapped_column(String(255), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     cluster_size: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     source_record_ids: Mapped[str] = mapped_column(Text, nullable=False)
     attributes: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class GoldenRecordHistory(Base):
+    """Historical audit trail and point-in-time snapshots of Golden Records across versions."""
+
+    __tablename__ = "golden_record_history"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    golden_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    cluster_size: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    source_record_ids: Mapped[str] = mapped_column(Text, nullable=False)
+    attributes: Mapped[str] = mapped_column(Text, nullable=False)
+    action: Mapped[str] = mapped_column(String(50), default="CREATED", nullable=False)  # CREATED, UPDATED, ROLLBACK
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

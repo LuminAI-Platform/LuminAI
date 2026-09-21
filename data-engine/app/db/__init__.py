@@ -13,6 +13,7 @@ from app.db.models import (
     Base,
     ERCandidate,
     GoldenRecord,
+    GoldenRecordHistory,
     ProvenanceRecord,
     StagingRecord,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "Base",
     "StagingRecord",
     "GoldenRecord",
+    "GoldenRecordHistory",
     "ERCandidate",
     "ProvenanceRecord",
     "run_migrations",
