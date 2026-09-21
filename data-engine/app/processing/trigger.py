@@ -18,6 +18,12 @@ from typing import Any, Optional
 from dagster import materialize
 
 from app.logging import bind_context
+from app.processing.checks import (
+    cleaning_max_null_percentage_check,
+    cleaning_min_row_count_check,
+    cleaning_value_range_check,
+    er_referential_integrity_check,
+)
 from app.processing.pipelines import cleaning_pipeline, er_pipeline
 from app.processing.reconciliation import run_cross_store_reconciliation
 from app.processing.run_tracker import get_run_tracker
@@ -103,6 +109,9 @@ class DagsterTrigger:
                     cleaning_pipeline.deduplicated_ingestion_data,
                     cleaning_pipeline.validated_ingestion_data,
                     cleaning_pipeline.staged_ingestion_data,
+                    cleaning_min_row_count_check,
+                    cleaning_max_null_percentage_check,
+                    cleaning_value_range_check,
                 ],
                 run_config={
                     "resources": {},
@@ -185,6 +194,7 @@ class DagsterTrigger:
                     er_pipeline.er_scored_pairs,
                     er_pipeline.er_classified_pairs,
                     er_pipeline.er_golden_records,
+                    er_referential_integrity_check,
                 ],
                 run_config={"resources": {}},
                 tags={

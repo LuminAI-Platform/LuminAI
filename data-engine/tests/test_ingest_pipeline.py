@@ -48,6 +48,15 @@ class TestDagsterDefinitions:
         assert "validated_ingestion_data" in asset_keys
         assert "staged_ingestion_data" in asset_keys
 
+    def test_asset_checks_registered(self):
+        """Quality gate asset checks are registered in Definitions."""
+        asset_graph = defs.resolve_asset_graph()
+        check_names = {k.name for k in asset_graph.asset_check_keys}
+        assert "cleaning_min_row_count_check" in check_names
+        assert "cleaning_max_null_percentage_check" in check_names
+        assert "cleaning_value_range_check" in check_names
+        assert "er_referential_integrity_check" in check_names
+
 
 class TestRawDataPlaceholder:
     """Tests for the raw_data_placeholder Dagster asset."""
