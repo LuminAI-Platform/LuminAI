@@ -5,19 +5,33 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: luminai-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: luminai
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-luminai}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d luminai"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-luminai}"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # Keycloak — OIDC Identity & Access Management Provider
@@ -25,13 +39,18 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: luminai-keycloak
+    restart: unless-stopped
     command: start-dev --import-realm
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_HTTP_PORT: 8180
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
+      KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "8180:8180"
+      - "127.0.0.1:8180:8180"
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import
     depends_on:
@@ -39,9 +58,22 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8180/health/ready || exit 1"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 10
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # Zookeeper — Distributed coordination for Kafka broker
@@ -49,11 +81,30 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: luminai-zookeeper
+    restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - "2181:2181"
+      - "127.0.0.1:2181:2181"
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # Kafka — Distributed Event Streaming Broker
@@ -61,11 +112,13 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: luminai-kafka
+    restart: unless-stopped
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
-      - "9092:9092"
-      - "29092:29092"
+      - "127.0.0.1:9092:9092"
+      - "127.0.0.1:29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -75,6 +128,24 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # MinIO — S3-compatible Object Storage for raw dataset uploads
@@ -82,13 +153,14 @@ services:
   minio:
     image: minio/minio:RELEASE.2024-03-03T17-50-39Z
     container_name: luminai-minio
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -96,6 +168,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # Redis — In-memory caching & session store
@@ -103,13 +188,29 @@ services:
   redis:
     image: redis:7-alpine
     container_name: luminai-redis
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # Neo4j — Graph Database for ontology relationships & entity graphs
@@ -117,13 +218,32 @@ services:
   neo4j:
     image: neo4j:5-community
     container_name: luminai-neo4j
+    restart: unless-stopped
     environment:
-      NEO4J_AUTH: neo4j/luminai_dev_password
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/luminai_dev_password}
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
     volumes:
       - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # OpenSearch — Distributed Search & Analytics Engine
@@ -131,6 +251,7 @@ services:
   opensearch:
     image: opensearchproject/opensearch:2.12.0
     container_name: luminai-opensearch
+    restart: unless-stopped
     environment:
       - cluster.name=luminai-cluster
       - node.name=luminai-node1
@@ -139,10 +260,28 @@ services:
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - DISABLE_SECURITY_PLUGIN=true
     ports:
-      - "9200:9200"
-      - "9600:9600"
+      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:9600:9600"
     volumes:
       - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # Dagster Webserver — Dagster UI & Asset Management Studio
@@ -152,13 +291,41 @@ services:
       context: ./data-engine
       dockerfile: Dockerfile
     container_name: luminai-dagster-webserver
+    restart: unless-stopped
     command: ["uv", "run", "dagster", "dev", "-h", "0.0.0.0", "-p", "3001", "-w", "dagster_workspace.yaml"]
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     environment:
       DAGSTER_HOME: /tmp/dagster_home
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/luminai}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     volumes:
       - ./data-engine:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/server_info || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
 
   # ---------------------------------------------------------------------------
   # Dagster Daemon — Background Schedule & Sensors Execution Engine
@@ -168,14 +335,143 @@ services:
       context: ./data-engine
       dockerfile: Dockerfile
     container_name: luminai-dagster-daemon
+    restart: unless-stopped
     command: ["uv", "run", "dagster-daemon", "run", "-w", "dagster_workspace.yaml"]
     environment:
       DAGSTER_HOME: /tmp/dagster_home
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/luminai}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     volumes:
       - ./data-engine:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "uv run dagster-daemon liveness-check || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
+
+  # ---------------------------------------------------------------------------
+  # Core Backend — Spring Boot API Server
+  # ---------------------------------------------------------------------------
+  core-backend:
+    build:
+      context: ./core-backend
+      dockerfile: Dockerfile
+    container_name: luminai-core-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8180/realms/luminai-auth}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8180/realms/luminai-auth/protocol/openid-connect/certs}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "0.75"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
+
+  # ---------------------------------------------------------------------------
+  # Data Engine — FastAPI Data Processing Service
+  # ---------------------------------------------------------------------------
+  data-engine:
+    build:
+      context: ./data-engine
+      dockerfile: Dockerfile
+    container_name: luminai-data-engine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/luminai}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - luminai-net
+
+networks:
+  luminai-net:
+    driver: bridge
 
 volumes:
   postgres_data:
   minio_data:
   neo4j_data:
   opensearch_data:
+  redis_data:
