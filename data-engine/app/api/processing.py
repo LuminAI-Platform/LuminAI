@@ -107,6 +107,36 @@ class TriggerResponse(BaseModel):
     )
 
 
+class RetryResponse(BaseModel):
+    """Response schema returned when retrying a failed pipeline run."""
+
+    run_id: str = Field(
+        ...,
+        description="The unique identifier of the retried pipeline run.",
+        examples=["d3b07384-d113-4ec2-a5f6-2a6c2bb47509"],
+    )
+    status: Literal["queued", "running", "completed", "failed"] = Field(
+        ...,
+        description="The updated execution stage of the job.",
+        examples=["running"],
+    )
+    retry_count: int = Field(
+        ...,
+        description="The current retry attempt number.",
+        examples=[1],
+    )
+    resumed_step: Optional[str] = Field(
+        default=None,
+        description="The step/asset from which execution resumes.",
+        examples=["deduplicated_ingestion_data"],
+    )
+    message: str = Field(
+        ...,
+        description="Information message detailing the retry outcome.",
+        examples=["Pipeline run scheduled for retry."],
+    )
+
+
 class StatusResponse(BaseModel):
     """Response schema containing pipeline execution progress details."""
 
@@ -160,6 +190,18 @@ class StatusResponse(BaseModel):
         default=None,
         description="Underlying Dagster orchestrator run ID.",
     )
+    retry_count: int = Field(
+        default=0,
+        description="Number of retry attempts executed for this run.",
+    )
+    failed_step: Optional[str] = Field(
+        default=None,
+        description="The step that triggered the pipeline failure.",
+    )
+    error_history: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Historical log of step errors and retry attempts.",
+    )
 
 
 # Endpoints
@@ -184,6 +226,7 @@ async def trigger_pipeline(
         source_id=request.source_id,
         total_steps=5,
         message=f"Cleaning pipeline queued for source '{request.source_id}' (tenant: {request.tenant_id}).",
+        metadata={"options": request.options, "tenant_id": request.tenant_id, "source_id": request.source_id},
     )
 
     trigger = DagsterTrigger()
@@ -222,6 +265,7 @@ async def trigger_er_pipeline(
         source_id=request.source_id,
         total_steps=5,
         message=f"Entity Resolution pipeline queued for tenant '{request.tenant_id}'.",
+        metadata={"tenant_id": request.tenant_id, "source_id": request.source_id},
     )
 
     trigger = DagsterTrigger()
@@ -279,6 +323,68 @@ async def get_pipeline_status(run_id: str) -> StatusResponse:
         started_at=rec.started_at,
         completed_at=rec.completed_at,
         dagster_run_id=rec.dagster_run_id,
+        retry_count=rec.retry_count,
+        failed_step=rec.failed_step,
+        error_history=rec.error_history,
+    )
+
+
+@router.post(
+    "/retry/{run_id}",
+    response_model=RetryResponse,
+    summary="Retry a failed pipeline run from failed step",
+    status_code=200,
+)
+async def retry_pipeline_run(
+    run_id: str,
+    background_tasks: BackgroundTasks,
+) -> RetryResponse:
+    """Retry a failed pipeline run, resuming execution from intermediate checkpoints.
+
+    Validates that:
+      1. The run exists in tracking storage.
+      2. The run's current status is 'failed'.
+      3. The run has not exceeded the maximum retry limit (max 3 retries).
+    """
+    tracker = get_run_tracker()
+    rec = tracker.get_status(run_id)
+
+    # Check existence
+    if rec.pipeline_name == "unknown" and rec.message.startswith("Pipeline run '"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Pipeline run '{run_id}' not found.",
+        )
+
+    # Check status
+    if rec.status != "failed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot retry run '{run_id}' with status '{rec.status}'. Only failed runs can be retried.",
+        )
+
+    # Check retry limit
+    if rec.retry_count >= 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum retry limit of 3 exceeded for run '{run_id}' (attempted {rec.retry_count} times).",
+        )
+
+    resumed_step = rec.failed_step or "checkpoint"
+    updated_rec = tracker.retry_run(
+        run_id,
+        message=f"Pipeline run '{run_id}' retrying from step '{resumed_step}' (attempt {rec.retry_count + 1}/3).",
+    )
+
+    trigger = DagsterTrigger()
+    background_tasks.add_task(trigger.retry_pipeline, run_id)
+
+    return RetryResponse(
+        run_id=run_id,
+        status="running",
+        retry_count=updated_rec.retry_count,
+        resumed_step=resumed_step,
+        message=f"Pipeline run '{run_id}' scheduled for retry from step '{resumed_step}' (attempt {updated_rec.retry_count}/3).",
     )
 
 
