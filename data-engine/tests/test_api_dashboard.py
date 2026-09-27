@@ -11,7 +11,7 @@ empty-tenant edge cases, and default tenant_id fallback behavior.
 
 import json
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import polars as pl
 import pytest

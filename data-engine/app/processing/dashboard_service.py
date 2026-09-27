@@ -17,7 +17,7 @@ import logging
 import os
 import sqlite3
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import duckdb
 import polars as pl

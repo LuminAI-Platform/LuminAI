@@ -5,7 +5,7 @@ GET /analytics/dashboard/data-quality     →  Data quality dimension scores.
 GET /analytics/dashboard/entity-stats     →  Entity counts and type breakdown.
 """
 
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field

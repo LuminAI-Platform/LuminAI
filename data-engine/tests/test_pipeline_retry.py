@@ -8,11 +8,9 @@ Covers:
   5. CheckpointManager save, load, and partial pipeline recovery
 """
 
-import json
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import polars as pl
@@ -24,7 +22,7 @@ from app.kafka.quarantine import QuarantineManager
 from app.main import app
 from app.processing.checkpoint import CheckpointManager
 from app.processing.pipelines import cleaning_pipeline, er_pipeline
-from app.processing.run_tracker import PipelineRunTracker, RunRecord
+from app.processing.run_tracker import PipelineRunTracker
 
 client = TestClient(app)
 
