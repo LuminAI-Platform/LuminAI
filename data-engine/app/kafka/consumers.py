@@ -153,16 +153,29 @@ class IngestRawConsumer:
         if self._consumer is None:
             return []
 
-        raw_messages = self._consumer.consume(num_messages=batch_size, timeout=timeout)
+        raw_messages: list[Any] = []
+        if hasattr(self._consumer, "consume"):
+            try:
+                msgs = self._consumer.consume(num_messages=batch_size, timeout=timeout)
+                if isinstance(msgs, (list, tuple)):
+                    raw_messages = list(msgs)
+            except Exception as e:
+                logger.debug("consume() failed or unavailable, trying poll(): %s", e)
+
+        if not raw_messages and hasattr(self._consumer, "poll"):
+            try:
+                msg = self._consumer.poll(timeout=timeout)
+                if msg is not None:
+                    raw_messages = [msg]
+            except Exception as e:
+                logger.debug("poll() failed: %s", e)
+
         if not raw_messages:
             return []
 
         processed_batch: list[tuple[str | None, dict[str, Any]]] = []
 
         for msg in raw_messages:
-            if not self._running:
-                break
-
             error = msg.error()
             if error:
                 if error.code() == KafkaError._PARTITION_EOF:
@@ -200,6 +213,8 @@ class IngestRawConsumer:
                     )
                 except Exception as q_exc:
                     logger.error("Failed to quarantine deserialization failure: %s", q_exc)
+                if not self._running:
+                    break
                 continue
 
             # Dispatch to handler
@@ -224,6 +239,9 @@ class IngestRawConsumer:
                     )
                 except Exception as q_exc:
                     logger.error("Failed to quarantine processing failure: %s", q_exc)
+
+            if not self._running:
+                break
 
         # Commit offset after batch is processed
         if processed_batch:

@@ -176,6 +176,7 @@ class TestConsumerQuarantineIntegration:
                 return mock_msg
 
             consumer._consumer.poll.side_effect = fake_poll
+            consumer._consumer.consume.side_effect = lambda num_messages=100, timeout=1.0: [fake_poll(timeout)]
             with patch.object(consumer, "_create_consumer", return_value=consumer._consumer):
                 consumer._poll_loop()
 
