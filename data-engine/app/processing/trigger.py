@@ -133,15 +133,22 @@ class DagsterTrigger:
 
                 dagster_run_id = str(result.run_id) if hasattr(result, "run_id") else active_run_id
 
+                # Track individual step successes and failures
+                failed_step = None
+                for event in result.all_events:
+                    if getattr(event, "is_step_success", False):
+                        tracker.update_step(active_run_id, event.step_key)
+                    elif getattr(event, "is_step_failure", False):
+                        failed_step = event.step_key
+                        err_msg = str(getattr(event, "step_failure_data", None) or f"Step '{event.step_key}' failed")
+                        tracker.record_step_error(active_run_id, step_name=event.step_key, error=err_msg)
+
                 if result.success:
                     duration = time.perf_counter() - start_time
                     record_pipeline_duration("cleaning_pipeline", duration, status="success")
                     step_names = [
                         e.step_key for e in result.all_events if getattr(e, "is_step_success", False)
                     ]
-                    for step in step_names:
-                        tracker.update_step(active_run_id, step)
-
                     tracker.complete_run(
                         active_run_id,
                         dagster_run_id=dagster_run_id,
@@ -163,12 +170,14 @@ class DagsterTrigger:
                         active_run_id,
                         error="Dagster materialization completed with errors.",
                         message="Cleaning pipeline execution failed.",
+                        failed_step=failed_step,
                     )
                     logger.error(
-                        "❌ Cleaning pipeline failed — tenant=%s, source=%s, run_id=%s",
+                        "❌ Cleaning pipeline failed — tenant=%s, source=%s, run_id=%s, failed_step=%s",
                         tenant_id,
                         source_id,
                         active_run_id,
+                        failed_step,
                     )
                     return None
 
@@ -236,15 +245,22 @@ class DagsterTrigger:
 
                 dagster_run_id = str(result.run_id) if hasattr(result, "run_id") else active_run_id
 
+                # Track individual step successes and failures
+                failed_step = None
+                for event in result.all_events:
+                    if getattr(event, "is_step_success", False):
+                        tracker.update_step(active_run_id, event.step_key)
+                    elif getattr(event, "is_step_failure", False):
+                        failed_step = event.step_key
+                        err_msg = str(getattr(event, "step_failure_data", None) or f"Step '{event.step_key}' failed")
+                        tracker.record_step_error(active_run_id, step_name=event.step_key, error=err_msg)
+
                 if result.success:
                     duration = time.perf_counter() - start_time
                     record_pipeline_duration("er_pipeline", duration, status="success")
                     step_names = [
                         e.step_key for e in result.all_events if getattr(e, "is_step_success", False)
                     ]
-                    for step in step_names:
-                        tracker.update_step(active_run_id, step)
-
                     tracker.complete_run(
                         active_run_id,
                         dagster_run_id=dagster_run_id,
@@ -259,8 +275,9 @@ class DagsterTrigger:
                         active_run_id,
                         error="Dagster ER materialization failed.",
                         message="Entity Resolution pipeline failed.",
+                        failed_step=failed_step,
                     )
-                    logger.error("❌ ER pipeline failed — tenant=%s, run_id=%s", tenant_id, active_run_id)
+                    logger.error("❌ ER pipeline failed — tenant=%s, run_id=%s, failed_step=%s", tenant_id, active_run_id, failed_step)
                     return None
         except Exception as exc:
             duration = time.perf_counter() - start_time
@@ -271,6 +288,42 @@ class DagsterTrigger:
                 message=f"Entity Resolution error: {exc}",
             )
             logger.exception("❌ Error triggering ER pipeline — tenant=%s, run_id=%s", tenant_id, active_run_id)
+            return None
+
+    def retry_pipeline(self, run_id: str) -> str | None:
+        """Retry a previously failed pipeline run, resuming from checkpoints."""
+        tracker = get_run_tracker()
+        rec = tracker.get_status(run_id)
+        if not rec or (rec.status == "failed" and rec.message.startswith("Pipeline run '")):
+            logger.error("Cannot retry unknown pipeline run %s", run_id)
+            return None
+
+        logger.info(
+            "🔁 Retrying pipeline run %s (pipeline=%s, tenant=%s, attempt=%d, failed_step=%s)",
+            run_id,
+            rec.pipeline_name,
+            rec.tenant_id,
+            rec.retry_count,
+            rec.failed_step,
+        )
+
+        if rec.pipeline_name == "cleaning_pipeline":
+            options = rec.metadata.get("options", {}) if isinstance(rec.metadata, dict) else {}
+            return self.trigger_cleaning_pipeline(
+                tenant_id=rec.tenant_id,
+                source_id=rec.source_id,
+                batch_metadata={"run_id": run_id, **options},
+                run_id=run_id,
+            )
+        elif rec.pipeline_name == "er_pipeline":
+            return self.trigger_er_pipeline(
+                tenant_id=rec.tenant_id,
+                source_id=rec.source_id,
+                run_id=run_id,
+            )
+        else:
+            logger.warning("Unrecognized pipeline '%s' for retry on run %s", rec.pipeline_name, run_id)
+            tracker.fail_run(run_id, error=f"Cannot retry unrecognized pipeline: {rec.pipeline_name}")
             return None
 
 

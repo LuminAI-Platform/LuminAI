@@ -44,6 +44,10 @@ class RunRecord:
     completed_at: Optional[str] = None
     dagster_run_id: Optional[str] = None
     logs: List[str] = field(default_factory=list)
+    retry_count: int = 0
+    failed_step: Optional[str] = None
+    error_history: List[Dict[str, Any]] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -82,10 +86,24 @@ class PipelineRunTracker:
                         started_at TEXT,
                         completed_at TEXT,
                         dagster_run_id TEXT,
-                        logs TEXT
+                        logs TEXT,
+                        retry_count INTEGER DEFAULT 0,
+                        failed_step TEXT,
+                        error_history TEXT,
+                        metadata TEXT
                     );
                     """
                 )
+                # Ensure new columns exist if table was previously created with older schema
+                existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(pipeline_runs)").fetchall()}
+                if "retry_count" not in existing_cols:
+                    conn.execute("ALTER TABLE pipeline_runs ADD COLUMN retry_count INTEGER DEFAULT 0")
+                if "failed_step" not in existing_cols:
+                    conn.execute("ALTER TABLE pipeline_runs ADD COLUMN failed_step TEXT")
+                if "error_history" not in existing_cols:
+                    conn.execute("ALTER TABLE pipeline_runs ADD COLUMN error_history TEXT")
+                if "metadata" not in existing_cols:
+                    conn.execute("ALTER TABLE pipeline_runs ADD COLUMN metadata TEXT")
         except Exception as exc:
             logger.warning("Could not initialize SQLite run storage at %s: %s", self.db_path, exc)
 
@@ -98,8 +116,9 @@ class PipelineRunTracker:
                     INSERT OR REPLACE INTO pipeline_runs (
                         run_id, pipeline_name, tenant_id, source_id, status,
                         progress_pct, current_step, steps_completed, total_steps,
-                        message, error, started_at, completed_at, dagster_run_id, logs
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        message, error, started_at, completed_at, dagster_run_id, logs,
+                        retry_count, failed_step, error_history, metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     """,
                     (
                         record.run_id,
@@ -117,6 +136,10 @@ class PipelineRunTracker:
                         record.completed_at,
                         record.dagster_run_id,
                         json.dumps(record.logs),
+                        record.retry_count,
+                        record.failed_step,
+                        json.dumps(record.error_history),
+                        json.dumps(record.metadata),
                     ),
                 )
         except Exception as exc:
@@ -132,6 +155,7 @@ class PipelineRunTracker:
                 cur = conn.execute("SELECT * FROM pipeline_runs WHERE run_id = ?", (run_id,))
                 row = cur.fetchone()
                 if row:
+                    row_keys = row.keys()
                     return RunRecord(
                         run_id=row["run_id"],
                         pipeline_name=row["pipeline_name"] or "pipeline",
@@ -148,6 +172,10 @@ class PipelineRunTracker:
                         completed_at=row["completed_at"],
                         dagster_run_id=row["dagster_run_id"],
                         logs=json.loads(row["logs"] or "[]"),
+                        retry_count=int(row["retry_count"]) if "retry_count" in row_keys and row["retry_count"] is not None else 0,
+                        failed_step=row["failed_step"] if "failed_step" in row_keys else None,
+                        error_history=json.loads(row["error_history"] or "[]") if "error_history" in row_keys and row["error_history"] else [],
+                        metadata=json.loads(row["metadata"] or "{}") if "metadata" in row_keys and row["metadata"] else {},
                     )
         except Exception as exc:
             logger.debug("Failed to read run %s from SQLite: %s", run_id, exc)
@@ -161,6 +189,7 @@ class PipelineRunTracker:
         source_id: str,
         total_steps: int = 5,
         message: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> RunRecord:
         """Create and register a newly queued pipeline run."""
         rec = RunRecord(
@@ -172,6 +201,7 @@ class PipelineRunTracker:
             progress_pct=0,
             total_steps=total_steps,
             message=message or f"{pipeline_name} queued for source '{source_id}' (tenant: {tenant_id}).",
+            metadata=metadata or {},
         )
         with self._lock:
             self._runs[run_id] = rec
@@ -260,13 +290,45 @@ class PipelineRunTracker:
             self._persist_to_db(rec)
             return rec
 
+    def record_step_error(
+        self,
+        run_id: str,
+        step_name: str,
+        error: str,
+        retry_count: Optional[int] = None,
+    ) -> RunRecord:
+        """Record step-specific failure details in error history."""
+        with self._lock:
+            rec = self._runs.get(run_id) or self._load_from_db(run_id)
+            if not rec:
+                rec = RunRecord(
+                    run_id=run_id,
+                    pipeline_name="pipeline",
+                    tenant_id="unknown",
+                    source_id="unknown",
+                )
+            rec.failed_step = step_name
+            rec.error = error
+            now_iso = datetime.now(timezone.utc).isoformat()
+            rec.error_history.append({
+                "step": step_name,
+                "error": error,
+                "timestamp": now_iso,
+                "retry_count": rec.retry_count if retry_count is None else retry_count,
+            })
+            rec.logs.append(f"[{now_iso}] Step '{step_name}' failed: {error}")
+            self._runs[run_id] = rec
+            self._persist_to_db(rec)
+            return rec
+
     def fail_run(
         self,
         run_id: str,
         error: str,
         message: Optional[str] = None,
+        failed_step: Optional[str] = None,
     ) -> RunRecord:
-        """Mark a pipeline run as 'failed' with error details."""
+        """Mark a pipeline run as 'failed' with error details and step history."""
         with self._lock:
             rec = self._runs.get(run_id) or self._load_from_db(run_id)
             if not rec:
@@ -278,9 +340,55 @@ class PipelineRunTracker:
                 )
             rec.status = "failed"
             rec.error = error
-            rec.completed_at = datetime.now(timezone.utc).isoformat()
+            if failed_step:
+                rec.failed_step = failed_step
+            elif rec.current_step and not rec.failed_step:
+                rec.failed_step = rec.current_step
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            rec.completed_at = now_iso
             rec.message = message or f"Pipeline execution failed: {error}"
-            rec.logs.append(f"[{rec.completed_at}] Error: {error}")
+            rec.logs.append(f"[{now_iso}] Error: {error}")
+
+            if not rec.error_history or rec.error_history[-1].get("error") != error:
+                rec.error_history.append({
+                    "step": rec.failed_step or "pipeline",
+                    "error": error,
+                    "timestamp": now_iso,
+                    "retry_count": rec.retry_count,
+                })
+
+            self._runs[run_id] = rec
+            self._persist_to_db(rec)
+            return rec
+
+    def retry_run(
+        self,
+        run_id: str,
+        message: Optional[str] = None,
+    ) -> RunRecord:
+        """Reset a failed run for partial re-execution, incrementing retry count."""
+        with self._lock:
+            rec = self._runs.get(run_id) or self._load_from_db(run_id)
+            if not rec:
+                rec = RunRecord(
+                    run_id=run_id,
+                    pipeline_name="pipeline",
+                    tenant_id="unknown",
+                    source_id="unknown",
+                )
+            rec.retry_count += 1
+            rec.status = "running"
+            rec.error = None
+            now_iso = datetime.now(timezone.utc).isoformat()
+            resumed_from = rec.failed_step or "checkpoint"
+            rec.message = (
+                message
+                or f"Retrying pipeline run (attempt {rec.retry_count}/3) resuming from step '{resumed_from}'."
+            )
+            rec.logs.append(
+                f"[{now_iso}] Retry attempt {rec.retry_count} started (resuming after '{resumed_from}')."
+            )
             self._runs[run_id] = rec
             self._persist_to_db(rec)
             return rec

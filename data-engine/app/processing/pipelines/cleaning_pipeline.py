@@ -22,15 +22,23 @@ import warnings
 from datetime import datetime, timezone
 
 import polars as pl
-from dagster import AssetExecutionContext, asset
+from dagster import AssetExecutionContext, Backoff, Jitter, RetryPolicy, asset
 from sqlalchemy import text
 
 from app.config import get_settings
 from app.kafka.producers import IngestValidProducer
+from app.processing.checkpoint import get_checkpoint_manager
 from app.processing.minio_client import get_minio_client
 from app.telemetry import record_records_processed, trace_span
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_RETRY_POLICY = RetryPolicy(
+    max_retries=3,
+    delay=1.0,
+    backoff=Backoff.EXPONENTIAL,
+    jitter=Jitter.FULL,
+)
 
 # Column type defaults for null substitution
 NULL_DEFAULTS: dict[type, object] = {
@@ -120,6 +128,7 @@ def _generate_synthetic_raw_data() -> pl.DataFrame:
         "Loads uploaded CSV, Parquet, JSON, or Excel files scoping by tenant/source. "
         "Generates realistic synthetic data when offline or in unit tests."
     ),
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
     """
@@ -132,9 +141,16 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
     Otherwise, falls back to generating a realistic synthetic dataset that
     exercises all cleaning rules (nulls, mixed case, duplicates, bad dates, etc.).
     """
-    context.log.info("📥 raw_ingestion_data: loading raw records from staging…")
-
     tags = _extract_run_tags(context)
+    run_id = tags.get("luminai_run_id") or tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "raw_ingestion_data")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for raw_ingestion_data (%d rows)", cached.height)
+            return cached
+
+    context.log.info("📥 raw_ingestion_data: loading raw records from staging…")
     object_key = (
         tags.get("object_key")
         or tags.get("file_path")
@@ -180,6 +196,9 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
         df.columns,
     )
 
+    if run_id:
+        cp_mgr.save_checkpoint(run_id, "raw_ingestion_data", df)
+
     return df
 
 
@@ -192,6 +211,7 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
         "parsing, and deduplication."
     ),
     deps=[raw_ingestion_data],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def cleaned_ingestion_data(
     context: AssetExecutionContext,
@@ -210,6 +230,14 @@ def cleaned_ingestion_data(
     """
     run_tags = _extract_run_tags(context)
     tenant_id = run_tags.get("tenant_id", "acme")
+    run_id = run_tags.get("luminai_run_id") or run_tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "cleaned_ingestion_data")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for cleaned_ingestion_data (%d rows)", cached.height)
+            return cached
+
     initial_rows = raw_ingestion_data.height
     context.log.info("🧹 cleaned_ingestion_data: starting — %d input rows", initial_rows)
 
@@ -303,6 +331,9 @@ def cleaned_ingestion_data(
             df.height,
         )
 
+        if run_id:
+            cp_mgr.save_checkpoint(run_id, "cleaned_ingestion_data", df)
+
         return df
 
 
@@ -312,6 +343,7 @@ def cleaned_ingestion_data(
     group_name="cleaning",
     description="Fuzzy and exact deduplication on cleaned records within the source batch.",
     deps=[cleaned_ingestion_data],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def deduplicated_ingestion_data(
     context: AssetExecutionContext,
@@ -322,6 +354,15 @@ def deduplicated_ingestion_data(
     """
     import recordlinkage
     import pandas as pd
+
+    run_tags = _extract_run_tags(context)
+    run_id = run_tags.get("luminai_run_id") or run_tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "deduplicated_ingestion_data")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for deduplicated_ingestion_data (%d rows)", cached.height)
+            return cached
 
     initial_rows = cleaned_ingestion_data.height
     context.log.info("🔍 deduplicated_ingestion_data: starting with %d rows", initial_rows)
@@ -389,6 +430,9 @@ def deduplicated_ingestion_data(
         after_exact - final_rows,
     )
 
+    if run_id:
+        cp_mgr.save_checkpoint(run_id, "deduplicated_ingestion_data", result)
+
     return result
 
 
@@ -401,6 +445,7 @@ def deduplicated_ingestion_data(
         "through; bad rows are logged for review."
     ),
     deps=[deduplicated_ingestion_data],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def validated_ingestion_data(
     context: AssetExecutionContext,
@@ -414,6 +459,15 @@ def validated_ingestion_data(
       - ``name`` must not be empty
       - ``email`` must contain '@'
     """
+    run_tags = _extract_run_tags(context)
+    run_id = run_tags.get("luminai_run_id") or run_tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "validated_ingestion_data")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for validated_ingestion_data (%d rows)", cached.height)
+            return cached
+
     context.log.info(
         "✔️  validated_ingestion_data: validating %d rows…",
         deduplicated_ingestion_data.height,
@@ -445,7 +499,34 @@ def validated_ingestion_data(
     )
 
     if invalid_rows.height > 0:
-        context.log.warning("⚠️  Invalid rows:\n%s", invalid_rows.select(["id", "name", "email"]))
+        context.log.warning("⚠️  Invalid rows detected (%d rows):\n%s", invalid_rows.height, invalid_rows.select(["id", "name", "email"]))
+        tenant_id = run_tags.get("tenant_id", "acme")
+        source_id = run_tags.get("source_id", "default-source")
+        try:
+            from app.kafka.quarantine import get_quarantine_manager
+            qm = get_quarantine_manager()
+            for row in invalid_rows.iter_rows(named=True):
+                row_dict = dict(row)
+                fail_reasons = []
+                if not row_dict.get("_valid_id"):
+                    fail_reasons.append("Empty/missing ID")
+                if not row_dict.get("_valid_name"):
+                    fail_reasons.append("Empty/missing Name")
+                if not row_dict.get("_valid_email"):
+                    fail_reasons.append("Missing '@' in Email")
+                reason_str = ", ".join(fail_reasons) or "Validation failed"
+                clean_payload = {k: v for k, v in row_dict.items() if not k.startswith("_")}
+                qm.record_failure(
+                    topic="ingest.cleaning.invalid",
+                    key=str(clean_payload.get("id") or ""),
+                    raw_payload=json.dumps(clean_payload),
+                    error=f"Row failed validation: {reason_str}",
+                    tenant_id=tenant_id,
+                    source_id=source_id,
+                )
+            context.log.info("🛡️ Quarantined %d unrecoverable invalid records into QuarantineManager", invalid_rows.height)
+        except Exception as q_exc:
+            context.log.warning("⚠️ Failed to record invalid records in quarantine: %s", q_exc)
 
     # Return valid rows, dropping internal validation columns
     result = valid_rows.drop(
@@ -457,6 +538,9 @@ def validated_ingestion_data(
         result.height,
     )
 
+    if run_id:
+        cp_mgr.save_checkpoint(run_id, "validated_ingestion_data", result)
+
     return result
 
 
@@ -465,6 +549,7 @@ def validated_ingestion_data(
     group_name="cleaning",
     description="Stages validated data to MinIO/local storage (Parquet) and PostgreSQL/local SQLite database.",
     deps=[validated_ingestion_data],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def staged_ingestion_data(
     context: AssetExecutionContext,
@@ -479,6 +564,13 @@ def staged_ingestion_data(
     tenant_id = run_tags.get("tenant_id", "acme")
     source_id = run_tags.get("source_id", "default-source")
     batch_id = run_tags.get("dagster/run_id") or run_tags.get("luminai_run_id") or str(uuid.uuid4())
+    run_id = run_tags.get("luminai_run_id") or run_tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "staged_ingestion_data")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for staged_ingestion_data (%d rows)", cached.height)
+            return cached
 
     context.log.info("💾 staged_ingestion_data: starting staging for tenant=%s, source=%s, batch=%s", tenant_id, source_id, batch_id)
 
@@ -607,6 +699,9 @@ def staged_ingestion_data(
             )
         except Exception as ke:
             context.log.error("❌ Failed to publish Kafka ingest.valid event: %s", ke)
+
+        if run_id:
+            cp_mgr.save_checkpoint(run_id, "staged_ingestion_data", validated_ingestion_data)
 
         return validated_ingestion_data
 

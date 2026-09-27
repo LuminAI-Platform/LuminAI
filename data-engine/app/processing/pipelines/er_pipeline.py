@@ -17,10 +17,11 @@ import warnings
 from typing import Any, Dict, List
 
 import polars as pl
-from dagster import AssetExecutionContext, asset
+from dagster import AssetExecutionContext, Backoff, Jitter, RetryPolicy, asset
 from sqlalchemy import text
 
 from app.kafka.producers import EntityResolvedProducer
+from app.processing.checkpoint import get_checkpoint_manager
 from app.processing.er.blocking import generate_candidate_pairs
 from app.processing.er.classification import (
     classify_candidate_pairs,
@@ -39,6 +40,13 @@ from app.processing.er.provenance import (
 from app.telemetry import record_er_metrics, trace_span
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_RETRY_POLICY = RetryPolicy(
+    max_retries=3,
+    delay=1.0,
+    backoff=Backoff.EXPONENTIAL,
+    jitter=Jitter.FULL,
+)
 
 
 def _extract_run_tags(context: AssetExecutionContext) -> dict[str, str]:
@@ -64,6 +72,7 @@ def _extract_run_tags(context: AssetExecutionContext) -> dict[str, str]:
     name="staged_records_for_er",
     group_name="entity_resolution",
     description="Loads validated records from staging database or Parquet for Entity Resolution.",
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     """Load staged records for ER processing.
@@ -71,10 +80,17 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     In dev/test environments without active DB tables, generates a realistic multi-source
     dataset containing exact and fuzzy duplicates across sources.
     """
-    context.log.info("🔍 staged_records_for_er: fetching staged records for ER…")
-
     tags = _extract_run_tags(context)
     tenant_id = tags.get("tenant_id")
+    run_id = tags.get("luminai_run_id") or tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "staged_records_for_er")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for staged_records_for_er (%d rows)", cached.height)
+            return cached
+
+    context.log.info("🔍 staged_records_for_er: fetching staged records for ER…")
 
     from app.db import get_engine, get_sqlite_engine
 
@@ -195,7 +211,10 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
         r["tenant_id"] = active_tenant
 
     context.log.info("staged_records_for_er: loaded %d records for ER analysis (tenant: %s)", len(synthetic_records), active_tenant)
-    return pl.DataFrame(synthetic_records)
+    res_df = pl.DataFrame(synthetic_records)
+    if run_id:
+        cp_mgr.save_checkpoint(run_id, "staged_records_for_er", res_df)
+    return res_df
 
 
 @asset(
@@ -203,6 +222,7 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     group_name="entity_resolution",
     description="Groups records into candidate comparison blocks using phonetic and categorical keys.",
     deps=[staged_records_for_er],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def er_blocked_pairs(
     context: AssetExecutionContext,
@@ -211,6 +231,14 @@ def er_blocked_pairs(
     """Generate candidate record pairs sharing blocking keys."""
     tags = _extract_run_tags(context)
     tenant_id = tags.get("tenant_id") or "acme"
+    run_id = tags.get("luminai_run_id") or tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "er_blocked_pairs")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for er_blocked_pairs (%d rows)", cached.height)
+            return cached
+
     context.log.info("🧱 er_blocked_pairs: generating candidate pairs…")
 
     with trace_span(
@@ -233,6 +261,8 @@ def er_blocked_pairs(
             candidate_pairs.height,
             staged_records_for_er.height,
         )
+        if run_id:
+            cp_mgr.save_checkpoint(run_id, "er_blocked_pairs", candidate_pairs)
         return candidate_pairs
 
 
@@ -241,15 +271,27 @@ def er_blocked_pairs(
     group_name="entity_resolution",
     description="Evaluates pairwise similarity metrics (Jaro-Winkler, Levenshtein) for candidate pairs.",
     deps=[er_blocked_pairs],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def er_scored_pairs(
     context: AssetExecutionContext,
     er_blocked_pairs: pl.DataFrame,
 ) -> pl.DataFrame:
     """Compute weighted similarity scores for candidate pairs."""
+    tags = _extract_run_tags(context)
+    run_id = tags.get("luminai_run_id") or tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "er_scored_pairs")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for er_scored_pairs (%d rows)", cached.height)
+            return cached
+
     context.log.info("📊 er_scored_pairs: evaluating similarity for %d candidate pairs…", er_blocked_pairs.height)
     scored = compare_candidate_pairs(er_blocked_pairs)
     context.log.info("📊 Pairwise comparison complete — avg confidence=%.4f", scored["confidence_score"].mean() if scored.height > 0 else 0.0)
+    if run_id:
+        cp_mgr.save_checkpoint(run_id, "er_scored_pairs", scored)
     return scored
 
 
@@ -258,6 +300,7 @@ def er_scored_pairs(
     group_name="entity_resolution",
     description="Classifies pairs into Match, Review, and Non-Match; persists Review pairs to er_candidates.",
     deps=[er_scored_pairs],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def er_classified_pairs(
     context: AssetExecutionContext,
@@ -266,6 +309,13 @@ def er_classified_pairs(
     """Classify candidate pairs and persist review candidates to database."""
     tags = _extract_run_tags(context)
     tenant_id = tags.get("tenant_id") or "acme"
+    run_id = tags.get("luminai_run_id") or tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "er_classified_pairs")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for er_classified_pairs (%d rows)", cached.height)
+            return cached
 
     context.log.info("⚖️ er_classified_pairs: classifying %d pairs (tenant: %s)…", er_scored_pairs.height, tenant_id)
 
@@ -296,6 +346,9 @@ def er_classified_pairs(
             persisted = persist_review_candidates(review_df, tenant_id=tenant_id)
             context.log.info("⚖️ Persisted %d review candidates to er_candidates table (tenant: %s)", persisted, tenant_id)
 
+        if run_id:
+            cp_mgr.save_checkpoint(run_id, "er_classified_pairs", matches_df)
+
         return matches_df
 
 
@@ -304,6 +357,7 @@ def er_classified_pairs(
     group_name="entity_resolution",
     description="Clusters matched pairs via Union-Find, synthesizes Golden Records, tracks provenance, and publishes Kafka events.",
     deps=[er_classified_pairs, staged_records_for_er],
+    retry_policy=DEFAULT_RETRY_POLICY,
 )
 def er_golden_records(
     context: AssetExecutionContext,
@@ -313,6 +367,13 @@ def er_golden_records(
     """Synthesize canonical Golden Records, persist them, and publish to Kafka."""
     tags = _extract_run_tags(context)
     tenant_id = tags.get("tenant_id") or "acme"
+    run_id = tags.get("luminai_run_id") or tags.get("dagster/run_id")
+    cp_mgr = get_checkpoint_manager()
+    if run_id:
+        cached = cp_mgr.load_checkpoint(run_id, "er_golden_records")
+        if cached is not None:
+            context.log.info("⏩ Reusing checkpoint for er_golden_records (%d rows)", cached.height)
+            return cached
 
     context.log.info("👑 er_golden_records: clustering matches and synthesizing Golden Records (tenant: %s)…", tenant_id)
 
@@ -384,5 +445,7 @@ def er_golden_records(
             context.log.info("👑 Successfully persisted %d field provenance records (tenant: %s)", persisted_prov, tenant_id)
 
         context.log.info("✅ er_golden_records: pipeline finished with %d canonical Golden Records", golden_records_df.height)
+        if run_id:
+            cp_mgr.save_checkpoint(run_id, "er_golden_records", golden_records_df)
         return golden_records_df
 
