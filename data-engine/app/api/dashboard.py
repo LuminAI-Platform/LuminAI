@@ -5,11 +5,13 @@ GET /analytics/dashboard/data-quality     →  Data quality dimension scores.
 GET /analytics/dashboard/entity-stats     →  Entity counts and type breakdown.
 """
 
+import asyncio
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.config import get_settings
 from app.processing.dashboard_service import DashboardAnalyticsService
 
 router = APIRouter()
@@ -143,9 +145,19 @@ async def get_pipeline_stats(
     counts to compute total runs, success rate, average duration, and total
     records processed.
     """
+    settings = get_settings()
     service = DashboardAnalyticsService()
-    stats = service.get_pipeline_stats(tenant_id)
-    return PipelineStatsResponse(**stats)
+    try:
+        stats = await asyncio.wait_for(
+            asyncio.to_thread(service.get_pipeline_stats, tenant_id),
+            timeout=settings.analytics_query_timeout_seconds,
+        )
+        return PipelineStatsResponse(**stats)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Pipeline stats query timed out after {settings.analytics_query_timeout_seconds}s limit",
+        )
 
 
 @router.get(
@@ -166,9 +178,19 @@ async def get_data_quality(
     weighted composite (30% completeness, 30% uniqueness, 20% consistency,
     20% timeliness).
     """
+    settings = get_settings()
     service = DashboardAnalyticsService()
-    quality = service.get_data_quality(tenant_id)
-    return DataQualityResponse(**quality)
+    try:
+        quality = await asyncio.wait_for(
+            asyncio.to_thread(service.get_data_quality, tenant_id),
+            timeout=settings.analytics_query_timeout_seconds,
+        )
+        return DataQualityResponse(**quality)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Data quality query timed out after {settings.analytics_query_timeout_seconds}s limit",
+        )
 
 
 @router.get(
@@ -188,6 +210,16 @@ async def get_entity_stats(
     and a breakdown of golden record counts grouped by ontology entity type
     (extracted from the JSON ``attributes`` column via DuckDB).
     """
+    settings = get_settings()
     service = DashboardAnalyticsService()
-    stats = service.get_entity_stats(tenant_id)
-    return EntityStatsResponse(**stats)
+    try:
+        stats = await asyncio.wait_for(
+            asyncio.to_thread(service.get_entity_stats, tenant_id),
+            timeout=settings.analytics_query_timeout_seconds,
+        )
+        return EntityStatsResponse(**stats)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Entity stats query timed out after {settings.analytics_query_timeout_seconds}s limit",
+        )

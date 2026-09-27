@@ -95,6 +95,7 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 1800
     db_pool_pre_ping: bool = True
     auto_migrate: bool = True  # Automatically run database migrations on application startup
+    analytics_query_timeout_seconds: float = 30.0  # Maximum execution time for analytics queries
 
     @property
     def postgres_dsn(self) -> str:

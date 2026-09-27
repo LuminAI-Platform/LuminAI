@@ -266,9 +266,11 @@ class DuckDBAnalyticsEngine:
 
         df = self.load_table_dataframe(table_name, tenant_id)
 
-        # Create isolated in-memory DuckDB connection
+        # Create isolated in-memory DuckDB connection with optimized thread & memory settings
         con = duckdb.connect()
         try:
+            con.execute("PRAGMA threads=4")
+            con.execute("PRAGMA preserve_insertion_order=false")
             con.register("source_table", df)
 
             # Build sanitized WHERE clause
@@ -309,6 +311,52 @@ class DuckDBAnalyticsEngine:
         finally:
             con.close()
 
+    def explain_query(
+        self,
+        tenant_id: str,
+        entity_type: str,
+        aggregations: List[str],
+        filters: Optional[Dict[str, Any]] = None,
+        table_name: str = "golden_records",
+    ) -> str:
+        """Inspect the DuckDB physical query execution plan for profiling and optimization."""
+        filters = filters or {}
+        if not aggregations:
+            aggregations = ["count"]
+
+        is_golden = "golden" in table_name.lower()
+        json_col = "attributes" if is_golden else "data"
+        known_cols = GOLDEN_COLUMNS if is_golden else STAGING_COLUMNS
+
+        select_exprs = ["COUNT(*) as count"]
+        for agg in aggregations:
+            agg_clean = agg.strip()
+            if agg_clean.lower() not in {"count", "count(*)"} and ":" in agg_clean:
+                op, field = agg_clean.split(":", 1)
+                target_ref = field if field in known_cols else f"json_extract({json_col}, '$.{field}')"
+                if op == "avg":
+                    select_exprs.append(f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}")
+                elif op == "sum":
+                    select_exprs.append(f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}")
+
+        df = self.load_table_dataframe(table_name, tenant_id)
+        con = duckdb.connect()
+        try:
+            con.execute("PRAGMA threads=4")
+            con.execute("PRAGMA preserve_insertion_order=false")
+            con.register("source_table", df)
+            where_clause, params = self._build_where_clause(
+                table_name=table_name,
+                tenant_id=tenant_id,
+                entity_type=entity_type,
+                filters=filters,
+            )
+            agg_sql = f"EXPLAIN SELECT {', '.join(select_exprs)} FROM source_table {where_clause}"
+            rows = con.execute(agg_sql, params).fetchall()
+            return "\n".join(str(r[1]) for r in rows)
+        finally:
+            con.close()
+
     def execute_timeseries(
         self,
         tenant_id: str,
@@ -339,6 +387,8 @@ class DuckDBAnalyticsEngine:
 
         con = duckdb.connect()
         try:
+            con.execute("PRAGMA threads=4")
+            con.execute("PRAGMA preserve_insertion_order=false")
             con.register("source_table", df)
 
             is_golden = "golden" in table_name.lower()

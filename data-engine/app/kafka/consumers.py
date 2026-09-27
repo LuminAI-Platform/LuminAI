@@ -13,7 +13,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from confluent_kafka import Consumer, KafkaError, KafkaException
+from confluent_kafka import Consumer, KafkaError
 
 from app.config import get_settings
 from app.kafka.quarantine import get_quarantine_manager
@@ -39,11 +39,12 @@ class IngestRawConsumer:
         4. Call :meth:`stop` to gracefully shut down the consumer.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, batch_size: int = 100) -> None:
         settings = get_settings()
         self.topic = settings.kafka_topic_ingest_raw
         self.bootstrap_servers = settings.kafka_bootstrap_servers
         self.group_id = settings.kafka_group_id
+        self.batch_size = batch_size
         self._running = False
         self._consumer: Consumer | None = None
 
@@ -51,10 +52,11 @@ class IngestRawConsumer:
         self.on_batch_complete: Callable[[str, str, dict[str, Any]], None] | None = None
 
         logger.info(
-            "IngestRawConsumer initialised — topic='%s', brokers='%s', group='%s'",
+            "IngestRawConsumer initialised — topic='%s', brokers='%s', group='%s', batch_size=%d",
             self.topic,
             self.bootstrap_servers,
             self.group_id,
+            self.batch_size,
         )
 
     def _create_consumer(self) -> Consumer:
@@ -132,85 +134,143 @@ class IngestRawConsumer:
                         )
 
 
+    def consume_batch(
+        self,
+        batch_size: int = 100,
+        timeout: float = 1.0,
+    ) -> list[tuple[str | None, dict[str, Any]]]:
+        """
+        Fetch and process up to ``batch_size`` (default 100) messages per batch/commit.
+
+        Uses confluent-kafka's ``consume(num_messages=batch_size, timeout=timeout)``
+        to retrieve messages in bulk, dispatches each to :meth:`handle`, routes
+        malformed or failed records to QuarantineManager, and commits offsets
+        after batch completion.
+
+        Returns:
+            List of successfully processed ``(key, value)`` message tuples.
+        """
+        if self._consumer is None:
+            return []
+
+        raw_messages: list[Any] = []
+        if hasattr(self._consumer, "consume"):
+            try:
+                msgs = self._consumer.consume(num_messages=batch_size, timeout=timeout)
+                if isinstance(msgs, (list, tuple)):
+                    raw_messages = list(msgs)
+            except Exception as e:
+                logger.debug("consume() failed or unavailable, trying poll(): %s", e)
+
+        if not raw_messages and hasattr(self._consumer, "poll"):
+            try:
+                msg = self._consumer.poll(timeout=timeout)
+                if msg is not None:
+                    raw_messages = [msg]
+            except Exception as e:
+                logger.debug("poll() failed: %s", e)
+
+        if not raw_messages:
+            return []
+
+        processed_batch: list[tuple[str | None, dict[str, Any]]] = []
+
+        for msg in raw_messages:
+            error = msg.error()
+            if error:
+                if error.code() == KafkaError._PARTITION_EOF:
+                    logger.debug(
+                        "End of partition — topic=%s [%d] offset=%d",
+                        msg.topic(),
+                        msg.partition(),
+                        msg.offset(),
+                    )
+                else:
+                    logger.error("Consumer error: %s", error)
+                continue
+
+            # Deserialize message
+            key: str | None = None
+            raw_value = "{}"
+            try:
+                key = msg.key().decode("utf-8") if msg.key() else None
+                raw_value = msg.value().decode("utf-8", errors="replace") if msg.value() else "{}"
+                value = json.loads(raw_value)
+            except Exception as exc:
+                luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="malformed").inc()
+                logger.warning(
+                    "Failed to deserialize message at offset %d: %s",
+                    msg.offset(),
+                    exc,
+                )
+                try:
+                    quarantine_manager = get_quarantine_manager()
+                    quarantine_manager.record_failure(
+                        topic=self.topic,
+                        key=key,
+                        raw_payload=raw_value,
+                        error=f"DeserializationError: {str(exc)}",
+                    )
+                except Exception as q_exc:
+                    logger.error("Failed to quarantine deserialization failure: %s", q_exc)
+                if not self._running:
+                    break
+                continue
+
+            # Dispatch to handler
+            try:
+                self.handle(key, value)
+                processed_batch.append((key, value))
+            except Exception as exc:
+                luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="error").inc()
+                logger.exception(
+                    "Unhandled error processing message at offset %d",
+                    msg.offset(),
+                )
+                try:
+                    quarantine_manager = get_quarantine_manager()
+                    quarantine_manager.record_failure(
+                        topic=self.topic,
+                        key=key,
+                        raw_payload=raw_value,
+                        error=f"ProcessingError: {str(exc)}",
+                        tenant_id=value.get("tenant_id") or "unknown",
+                        source_id=value.get("source_id") or "unknown",
+                    )
+                except Exception as q_exc:
+                    logger.error("Failed to quarantine processing failure: %s", q_exc)
+
+            if not self._running:
+                break
+
+        # Commit offset after batch is processed
+        if processed_batch:
+            try:
+                self._consumer.commit(asynchronous=False)
+                logger.debug("Committed Kafka offsets for batch of %d messages", len(processed_batch))
+            except Exception as commit_exc:
+                logger.warning("Failed to commit Kafka offsets: %s", commit_exc)
+
+        return processed_batch
+
     def _poll_loop(self) -> None:
         """
         Blocking poll loop that runs in a thread.
 
-        Continuously polls the Kafka broker for new messages, deserializes
-        them, and dispatches to :meth:`handle`. Errors are logged and
-        the loop continues (at-least-once semantics).
+        Continuously polls the Kafka broker in batches of up to ``batch_size`` (default 100),
+        deserializes them, and dispatches to :meth:`handle`.
         """
         self._consumer = self._create_consumer()
         self._consumer.subscribe([self.topic])
-        logger.info("Consumer subscribed to topic '%s' — polling started.", self.topic)
+        logger.info(
+            "Consumer subscribed to topic '%s' (batch_size=%d) — polling started.",
+            self.topic,
+            self.batch_size,
+        )
 
         try:
             while self._running:
-                msg = self._consumer.poll(timeout=1.0)
-                if msg is None:
-                    continue
-
-                error = msg.error()
-                if error:
-                    if error.code() == KafkaError._PARTITION_EOF:
-                        logger.debug(
-                            "End of partition — topic=%s [%d] offset=%d",
-                            msg.topic(),
-                            msg.partition(),
-                            msg.offset(),
-                        )
-                    else:
-                        logger.error("Consumer error: %s", error)
-                        raise KafkaException(error)
-                    continue
-
-                # Deserialize message
-                key: str | None = None
-                raw_value = "{}"
-                try:
-                    key = msg.key().decode("utf-8") if msg.key() else None
-                    raw_value = msg.value().decode("utf-8", errors="replace") if msg.value() else "{}"
-                    value = json.loads(raw_value)
-                except Exception as exc:
-                    luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="malformed").inc()
-                    logger.warning(
-                        "Failed to deserialize message at offset %d: %s",
-                        msg.offset(),
-                        exc,
-                    )
-                    try:
-                        quarantine_manager = get_quarantine_manager()
-                        quarantine_manager.record_failure(
-                            topic=self.topic,
-                            key=key,
-                            raw_payload=raw_value,
-                            error=f"DeserializationError: {str(exc)}",
-                        )
-                    except Exception as q_exc:
-                        logger.error("Failed to quarantine deserialization failure: %s", q_exc)
-                    continue
-
-                # Dispatch to handler
-                try:
-                    self.handle(key, value)
-                except Exception as exc:
-                    luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="error").inc()
-                    logger.exception(
-                        "Unhandled error processing message at offset %d",
-                        msg.offset(),
-                    )
-                    try:
-                        quarantine_manager = get_quarantine_manager()
-                        quarantine_manager.record_failure(
-                            topic=self.topic,
-                            key=key,
-                            raw_payload=raw_value,
-                            error=f"ProcessingError: {str(exc)}",
-                            tenant_id=value.get("tenant_id") or "unknown",
-                            source_id=value.get("source_id") or "unknown",
-                        )
-                    except Exception as q_exc:
-                        logger.error("Failed to quarantine processing failure: %s", q_exc)
+                self.consume_batch(batch_size=self.batch_size, timeout=1.0)
         finally:
             logger.info("Consumer shutting down — closing connection…")
             self._consumer.close()

@@ -5,10 +5,12 @@ POST /analytics/timeseries      →  Compute time-series rollups.
 GET  /analytics/reconciliation  →  Retrieve Cross-Store Reconciliation health report.
 """
 
+import asyncio
 from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.config import get_settings
 from app.processing.analytics_engine import DuckDBAnalyticsEngine
 from app.processing.reconciliation import (
     ReconciliationReport,
@@ -148,21 +150,34 @@ class TimeseriesResponse(BaseModel):
     summary="Ad-hoc analytical query",
 )
 async def analytics_query(request: QueryRequest) -> QueryResponse:
-    """Execute an ad-hoc aggregation query over ontology entities using DuckDB."""
+    """Execute an ad-hoc aggregation query over ontology entities using DuckDB.
+
+    Enforces request-level timeout (default 30s) to prevent runaway OLAP queries.
+    """
+    settings = get_settings()
     engine = DuckDBAnalyticsEngine()
     try:
-        result, row_count = engine.execute_query(
-            tenant_id=request.tenant_id,
-            entity_type=request.entity_type,
-            aggregations=request.aggregations,
-            filters=request.filters,
-            table_name=request.table,
+        result, row_count = await asyncio.wait_for(
+            asyncio.to_thread(
+                engine.execute_query,
+                tenant_id=request.tenant_id,
+                entity_type=request.entity_type,
+                aggregations=request.aggregations,
+                filters=request.filters,
+                table_name=request.table,
+            ),
+            timeout=settings.analytics_query_timeout_seconds,
         )
         return QueryResponse(
             tenant_id=request.tenant_id,
             entity_type=request.entity_type,
             result=result,
             row_count=row_count,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Analytics query timed out after {settings.analytics_query_timeout_seconds}s limit",
         )
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
@@ -174,23 +189,36 @@ async def analytics_query(request: QueryRequest) -> QueryResponse:
     summary="Time-series rollup",
 )
 async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
-    """Compute time-series rollups over a time-stamped entity field using DuckDB."""
+    """Compute time-series rollups over a time-stamped entity field using DuckDB.
+
+    Enforces request-level timeout (default 30s) to prevent runaway OLAP queries.
+    """
+    settings = get_settings()
     engine = DuckDBAnalyticsEngine()
     try:
-        series = engine.execute_timeseries(
-            tenant_id=request.tenant_id,
-            entity_type=request.entity_type,
-            time_field=request.time_field,
-            interval=request.interval,
-            metric=request.metric,
-            filters=request.filters,
-            table_name=request.table,
+        series = await asyncio.wait_for(
+            asyncio.to_thread(
+                engine.execute_timeseries,
+                tenant_id=request.tenant_id,
+                entity_type=request.entity_type,
+                time_field=request.time_field,
+                interval=request.interval,
+                metric=request.metric,
+                filters=request.filters,
+                table_name=request.table,
+            ),
+            timeout=settings.analytics_query_timeout_seconds,
         )
         return TimeseriesResponse(
             tenant_id=request.tenant_id,
             entity_type=request.entity_type,
             interval=request.interval,
             series=series,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Analytics timeseries query timed out after {settings.analytics_query_timeout_seconds}s limit",
         )
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))

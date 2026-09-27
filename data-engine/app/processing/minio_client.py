@@ -23,6 +23,9 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+MULTIPART_THRESHOLD: int = 100 * 1024 * 1024  # 100MB threshold
+DEFAULT_PART_SIZE: int = 10 * 1024 * 1024     # 10MB parts
+
 
 def _sign(key: bytes, msg: str) -> bytes:
     return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
@@ -162,6 +165,111 @@ class MinioRawStorageClient:
             f"Raw object '{clean_key}' was not found in MinIO (bucket: {bucket}) or local fallback paths: {candidates}"
         )
 
+    MULTIPART_THRESHOLD: int = 100 * 1024 * 1024  # 100MB threshold
+    DEFAULT_PART_SIZE: int = 10 * 1024 * 1024     # 10MB parts
+
+    def put_object_multipart(
+        self,
+        bucket: str,
+        object_key: str,
+        data: bytes,
+        content_type: str = "application/octet-stream",
+        part_size: int = DEFAULT_PART_SIZE,
+    ) -> bool:
+        """Upload large objects (>100MB) using S3/MinIO multipart upload protocol.
+
+        Workflow:
+          1. Writes full payload to local fallback cache.
+          2. Initiates multipart upload (POST /{bucket}/{key}?uploads).
+          3. Uploads 10MB chunk parts (PUT /{bucket}/{key}?partNumber={i}&uploadId={id}).
+          4. Completes multipart upload with part manifests (POST /{bucket}/{key}?uploadId={id}).
+        """
+        import xml.etree.ElementTree as ET
+
+        clean_key = object_key.lstrip("/")
+        path = f"/{bucket}/{clean_key}"
+        url = f"{self.base_url}{path}"
+
+        # 1. Save local copy first
+        local_path = os.path.join(self.local_fallback_dir, bucket, clean_key)
+        try:
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(data)
+        except Exception as exc:
+            logger.debug("Local cache write failed for %s: %s", clean_key, exc)
+
+        total_bytes = len(data)
+        num_parts = max(1, (total_bytes + part_size - 1) // part_size)
+        logger.info(
+            "Initiating MinIO multipart upload for s3://%s/%s (%d bytes, %d parts)",
+            bucket,
+            clean_key,
+            total_bytes,
+            num_parts,
+        )
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                # Step 1: Initiate multipart upload
+                init_headers = self._build_sigv4_headers("POST", f"{path}?uploads", payload=b"", content_type=content_type)
+                init_resp = client.post(f"{url}?uploads", headers=init_headers)
+                if init_resp.status_code not in (200, 201):
+                    logger.warning("MinIO InitiateMultipartUpload failed (%s): %s", init_resp.status_code, init_resp.text)
+                    return True  # Fallback cached locally
+
+                upload_id = None
+                try:
+                    root = ET.fromstring(init_resp.text)
+                    for elem in root.iter():
+                        if elem.tag.endswith("UploadId"):
+                            upload_id = elem.text
+                            break
+                except Exception:
+                    pass
+
+                if not upload_id:
+                    logger.warning("Could not extract UploadId from MinIO response. Using local cache.")
+                    return True
+
+                # Step 2: Upload parts
+                parts_info = []
+                for part_num in range(1, num_parts + 1):
+                    start = (part_num - 1) * part_size
+                    end = min(start + part_size, total_bytes)
+                    part_bytes = data[start:end]
+
+                    part_path = f"{path}?partNumber={part_num}&uploadId={upload_id}"
+                    part_headers = self._build_sigv4_headers("PUT", part_path, payload=part_bytes)
+                    part_resp = client.put(f"{url}?partNumber={part_num}&uploadId={upload_id}", headers=part_headers, content=part_bytes)
+
+                    if part_resp.status_code not in (200, 201):
+                        logger.warning("Part %d upload failed: %s", part_num, part_resp.status_code)
+                        return True
+
+                    etag = part_resp.headers.get("ETag", f'"{part_num}"').strip('"')
+                    parts_info.append((part_num, etag))
+
+                # Step 3: Complete multipart upload
+                complete_xml = "<CompleteMultipartUpload>" + "".join(
+                    f"<Part><PartNumber>{pn}</PartNumber><ETag>\"{etag}\"</ETag></Part>"
+                    for pn, etag in parts_info
+                ) + "</CompleteMultipartUpload>"
+                complete_payload = complete_xml.encode("utf-8")
+
+                complete_path = f"{path}?uploadId={upload_id}"
+                complete_headers = self._build_sigv4_headers("POST", complete_path, payload=complete_payload, content_type="application/xml")
+                comp_resp = client.post(f"{url}?uploadId={upload_id}", headers=complete_headers, content=complete_payload)
+
+                if comp_resp.status_code in (200, 201):
+                    logger.info("Successfully completed MinIO multipart upload: s3://%s/%s", bucket, clean_key)
+                    return True
+
+        except Exception as exc:
+            logger.debug("MinIO multipart upload failed (%s). Local file cached at %s", exc, local_path)
+
+        return True
+
     def put_object_bytes(
         self,
         bucket: str,
@@ -169,7 +277,13 @@ class MinioRawStorageClient:
         data: bytes,
         content_type: str = "text/csv",
     ) -> bool:
-        """Upload raw object bytes to MinIO and local fallback cache."""
+        """Upload raw object bytes to MinIO and local fallback cache.
+
+        Automatically uses multipart upload protocol when size exceeds MULTIPART_THRESHOLD (100MB).
+        """
+        if len(data) >= self.MULTIPART_THRESHOLD:
+            return self.put_object_multipart(bucket, object_key, data, content_type=content_type)
+
         clean_key = object_key.lstrip("/")
         path = f"/{bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
