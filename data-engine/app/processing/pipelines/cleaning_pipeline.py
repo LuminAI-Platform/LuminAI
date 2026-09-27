@@ -177,6 +177,26 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
                 bucket,
                 object_key,
             )
+
+            # Pre-flight schema validation and data quality gate
+            from app.processing.schema_detector import get_schema_detector
+            detector = get_schema_detector()
+            preflight = detector.validate_dataframe(df)
+            if not preflight.is_valid:
+                context.log.error(
+                    "❌ Pre-flight validation rejected file s3://%s/%s: %s",
+                    bucket,
+                    object_key,
+                    preflight.error_message,
+                )
+                raise ValueError(preflight.error_message)
+
+            context.log.info(
+                "✅ Pre-flight validation passed for s3://%s/%s (suggested entity: %s)",
+                bucket,
+                object_key,
+                preflight.suggested_entity_type or "Unknown",
+            )
             return df
         except Exception as exc:
             context.log.warning(

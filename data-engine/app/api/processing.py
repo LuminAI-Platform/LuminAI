@@ -9,7 +9,7 @@ GET  /process/status/{run_id}  →  Poll the status of a queued run.
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 
 from app.kafka.quarantine import get_quarantine_manager
@@ -85,6 +85,53 @@ class ReconciliationRequest(BaseModel):
         default=None,
         description="Optional explicit OpenSearch records payload override.",
     )
+
+
+class SchemaValidationRequest(BaseModel):
+    """Request payload schema for pre-flight validation and schema auto-detection."""
+
+    file_path: Optional[str] = Field(default=None, description="Local or absolute file path to inspect.")
+    object_key: Optional[str] = Field(default=None, description="MinIO/S3 object key to inspect.")
+    bucket: Optional[str] = Field(default=None, description="MinIO/S3 bucket name.")
+    content: Optional[str] = Field(default=None, description="Raw text content of the CSV or JSON file.")
+    file_name: Optional[str] = Field(default="upload.csv", description="File name indicating format extension.")
+    tenant_id: Optional[str] = Field(default="acme", description="Tenant scoping identifier.")
+    reject_on_violation: bool = Field(
+        default=True,
+        description="Whether to reject with HTTP 422 if null percentage exceeds 50%.",
+    )
+
+
+class ColumnValidationResponse(BaseModel):
+    """Detailed validation and schema detection report for a single column."""
+
+    column_name: str
+    detected_type: str
+    total_count: int
+    null_count: int
+    null_percentage: float
+    unique_count: int
+    unique_percentage: float
+    type_distribution: Dict[str, float]
+    sample_values: List[Any]
+    is_rejected: bool = False
+    rejection_reason: Optional[str] = None
+    suggested_property: Optional[str] = None
+    suggested_entity_type: Optional[str] = None
+    mapping_confidence: float = 0.0
+
+
+class SchemaValidationResponse(BaseModel):
+    """Comprehensive pre-flight schema and data quality report."""
+
+    is_valid: bool
+    total_rows: int
+    total_columns: int
+    columns: List[ColumnValidationResponse]
+    rejected_columns: List[str] = Field(default_factory=list)
+    error_message: Optional[str] = None
+    suggested_entity_type: Optional[str] = None
+    entity_confidence: float = 0.0
 
 
 class TriggerResponse(BaseModel):
@@ -670,4 +717,94 @@ async def rollback_golden_record_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+# Ingest Schema Auto-Detection and Pre-Flight Validation
+
+@router.post(
+    "/validate-schema",
+    response_model=SchemaValidationResponse,
+    summary="Validate ingest schema, auto-detect column types, and suggest ontology mappings",
+)
+async def validate_schema_endpoint(
+    request: SchemaValidationRequest,
+) -> SchemaValidationResponse:
+    """
+    Perform pre-flight schema auto-detection and data quality validation.
+
+    Auto-detects column types ('string', 'number', 'date', 'boolean', 'email', 'phone'),
+    calculates null percentages, unique value counts, type distributions, suggests
+    fuzzy ontology property mappings, and rejects files with >50% null columns.
+    """
+    from app.processing.minio_client import get_minio_client
+    from app.processing.schema_detector import get_schema_detector
+
+    detector = get_schema_detector()
+    data_bytes: Optional[bytes] = None
+    file_name = request.file_name or "upload.csv"
+
+    if request.content is not None:
+        data_bytes = request.content.encode("utf-8")
+    elif request.object_key is not None:
+        bucket = request.bucket or "luminai-raw"
+        file_name = request.object_key
+        try:
+            client = get_minio_client()
+            data_bytes = client.get_object_bytes(bucket, request.object_key)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Could not retrieve object '{request.object_key}' from bucket '{bucket}': {exc}",
+            )
+    elif request.file_path is not None:
+        file_name = request.file_path
+        try:
+            with open(request.file_path, "rb") as f:
+                data_bytes = f.read()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Could not read file at '{request.file_path}': {exc}",
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Must provide one of 'content', 'object_key', or 'file_path' for validation.",
+        )
+
+    report = detector.validate_file_bytes(data_bytes, file_name=file_name)
+    if request.reject_on_violation and not report.is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail=report.error_message,
+        )
+
+    return SchemaValidationResponse(**report.to_dict())
+
+
+@router.post(
+    "/validate-schema/upload",
+    response_model=SchemaValidationResponse,
+    summary="Direct file upload for schema auto-detection and validation",
+)
+async def validate_schema_upload_endpoint(
+    file: UploadFile = File(...),
+    reject_on_violation: bool = Query(default=True, description="Whether to reject with 422 if nulls exceed 50%"),
+) -> SchemaValidationResponse:
+    """
+    Direct file upload endpoint for schema auto-detection and pre-flight validation.
+    """
+    from app.processing.schema_detector import get_schema_detector
+
+    detector = get_schema_detector()
+    data_bytes = await file.read()
+    report = detector.validate_file_bytes(data_bytes, file_name=file.filename or "upload.csv")
+
+    if reject_on_violation and not report.is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail=report.error_message,
+        )
+
+    return SchemaValidationResponse(**report.to_dict())
 
