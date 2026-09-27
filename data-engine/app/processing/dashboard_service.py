@@ -227,8 +227,30 @@ class DashboardAnalyticsService:
                 "timeliness": 0.0,
             }
 
-        completeness = self._compute_completeness(df, total_rows)
-        uniqueness = self._compute_uniqueness(df, total_rows)
+        # Optimized single-pass DuckDB query for completeness and uniqueness
+        completeness = 0.0
+        uniqueness = 0.0
+        con = duckdb.connect()
+        try:
+            con.execute("PRAGMA threads=4")
+            con.execute("PRAGMA preserve_insertion_order=false")
+            con.register("golden", df)
+            res = con.execute(
+                """
+                SELECT
+                    COUNT(CASE WHEN attributes IS NOT NULL AND LENGTH(TRIM(attributes)) > 2 THEN 1 END) AS non_empty,
+                    COUNT(DISTINCT golden_id) AS distinct_ids
+                FROM golden
+                """
+            ).fetchone()
+            if res:
+                non_empty = int(res[0])
+                distinct = int(res[1])
+                completeness = round((non_empty / total_rows) * 100, 1)
+                uniqueness = round((distinct / total_rows) * 100, 1)
+        finally:
+            con.close()
+
         consistency = self._compute_consistency(df, total_rows)
         timeliness = self._compute_timeliness(df, total_rows)
 
@@ -462,6 +484,8 @@ class DashboardAnalyticsService:
 
         con = duckdb.connect()
         try:
+            con.execute("PRAGMA threads=4")
+            con.execute("PRAGMA preserve_insertion_order=false")
             con.register("golden", df)
             rows = con.execute(
                 """

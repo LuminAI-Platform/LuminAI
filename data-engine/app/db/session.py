@@ -10,7 +10,7 @@ import os
 import threading
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import Dict, Generator, Optional
+from typing import Any, Dict, Generator, Optional
 
 from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -123,6 +123,31 @@ class DatabaseManager:
         engine = self.get_engine()
         with engine.connect() as conn:
             yield conn
+
+    @classmethod
+    def get_pool_status(cls) -> Dict[str, Any]:
+        """Return real-time connection pool telemetry for monitoring and verification."""
+        manager = cls() if isinstance(cls, type) else cls
+        engine = manager.get_engine()
+        pool = engine.pool
+        if isinstance(pool, QueuePool):
+            return {
+                "pool_type": "QueuePool",
+                "pool_size": pool.size(),
+                "max_overflow": pool._max_overflow,
+                "checked_in": pool.checkedin(),
+                "checked_out": pool.checkedout(),
+                "overflow": pool.overflow(),
+                "total_connections": pool.checkedin() + pool.checkedout(),
+                "timeout": pool._timeout,
+                "recycle": pool._recycle,
+                "pre_ping": pool._pre_ping,
+            }
+        return {
+            "pool_type": pool.__class__.__name__,
+            "pool_size": getattr(pool, "size", lambda: 0)(),
+            "max_overflow": getattr(pool, "_max_overflow", 0),
+        }
 
     def dispose_all(self) -> None:
         """Gracefully close and dispose of all active connection pools."""

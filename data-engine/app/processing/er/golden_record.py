@@ -150,8 +150,14 @@ def _get_active_engine():
 def persist_golden_records(
     golden_records_df: pl.DataFrame,
     tenant_id: str = "acme",
+    batch_size: int = 500,
 ) -> int:
-    """Persist Golden Records with version tracking and historical audit snapshots.
+    """Persist Golden Records with version tracking, historical audit snapshots, and batched execution.
+
+    Operates in chunks of `batch_size` (default 500) to minimize database round-trips:
+      - Bulk queries existing records by IDs in each chunk.
+      - Partitions into bulk updates and bulk inserts.
+      - Uses SQLAlchemy executemany for high-throughput batch writes.
 
     If a golden record with the given `golden_id` already exists:
       - Increments `version`.
@@ -170,7 +176,6 @@ def persist_golden_records(
     now_utc = datetime.now(timezone.utc)
     persisted_count = 0
 
-    select_sql = text("SELECT golden_id, version, attributes FROM golden_records WHERE golden_id = :golden_id")
     insert_record_sql = text("""
         INSERT INTO golden_records (golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, created_at, updated_at)
         VALUES (:golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :created_at, :updated_at)
@@ -186,51 +191,78 @@ def persist_golden_records(
         VALUES (:id, :golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :action, :created_at)
     """)
 
+    all_rows = golden_records_df.to_dicts()
+    total_records = len(all_rows)
+
     with engine.begin() as conn:
-        for row in golden_records_df.iter_rows(named=True):
-            gid = str(row.get("golden_id", f"gr-{uuid.uuid4()}"))
-            c_size = int(row.get("cluster_size", 1))
-            s_ids = json.dumps(row.get("source_record_ids", []))
-            rec_tenant_id = str(row.get("tenant_id") or tenant_id)
+        for offset in range(0, total_records, batch_size):
+            chunk = all_rows[offset : offset + batch_size]
+            chunk_prepared = []
+            chunk_gids = []
 
-            attr_dict = {
-                k: v for k, v in row.items()
-                if k not in {
-                    "golden_id",
-                    "tenant_id",
-                    "version",
-                    "cluster_size",
-                    "source_record_ids",
-                    "created_at",
-                    "updated_at",
+            for row in chunk:
+                gid = str(row.get("golden_id") or f"gr-{uuid.uuid4()}")
+                c_size = int(row.get("cluster_size", 1))
+                s_ids = json.dumps(row.get("source_record_ids", []))
+                rec_tenant_id = str(row.get("tenant_id") or tenant_id)
+
+                attr_dict = {
+                    k: v for k, v in row.items()
+                    if k not in {
+                        "golden_id",
+                        "tenant_id",
+                        "version",
+                        "cluster_size",
+                        "source_record_ids",
+                        "created_at",
+                        "updated_at",
+                    }
                 }
-            }
-            attr_json = json.dumps(attr_dict)
+                attr_json = json.dumps(attr_dict)
 
-            # Check existing record
-            existing = conn.execute(select_sql, {"golden_id": gid}).mappings().first()
+                chunk_prepared.append({
+                    "golden_id": gid,
+                    "tenant_id": rec_tenant_id,
+                    "cluster_size": c_size,
+                    "source_record_ids": s_ids,
+                    "attributes": attr_json,
+                })
+                chunk_gids.append(gid)
 
-            if existing:
-                current_version = int(existing["version"])
-                new_version = current_version + 1
+            # Query existing records in one batch query for this chunk
+            existing_map: dict[str, int] = {}
+            if chunk_gids:
+                in_placeholders = [f":gid_{i}" for i in range(len(chunk_gids))]
+                params = {f"gid_{i}": gid for i, gid in enumerate(chunk_gids)}
+                batch_select_sql = text(
+                    f"SELECT golden_id, version FROM golden_records WHERE golden_id IN ({','.join(in_placeholders)})"
+                )
+                existing_rows = conn.execute(batch_select_sql, params).mappings().fetchall()
+                for er in existing_rows:
+                    existing_map[er["golden_id"]] = int(er["version"])
 
-                # Update golden_records
-                conn.execute(
-                    update_record_sql,
-                    {
+            records_to_insert = []
+            records_to_update = []
+            history_to_insert = []
+
+            for item in chunk_prepared:
+                gid = item["golden_id"]
+                rec_tenant_id = item["tenant_id"]
+                c_size = item["cluster_size"]
+                s_ids = item["source_record_ids"]
+                attr_json = item["attributes"]
+
+                if gid in existing_map:
+                    new_version = existing_map[gid] + 1
+                    records_to_update.append({
                         "golden_id": gid,
                         "version": new_version,
                         "cluster_size": c_size,
                         "source_record_ids": s_ids,
                         "attributes": attr_json,
                         "updated_at": now_utc,
-                    },
-                )
-
-                # Record history snapshot
-                conn.execute(
-                    insert_history_sql,
-                    {
+                    })
+                    history_to_insert.append({
                         "id": str(uuid.uuid4()),
                         "golden_id": gid,
                         "tenant_id": rec_tenant_id,
@@ -240,13 +272,10 @@ def persist_golden_records(
                         "attributes": attr_json,
                         "action": "UPDATED",
                         "created_at": now_utc,
-                    },
-                )
-            else:
-                new_version = 1
-                conn.execute(
-                    insert_record_sql,
-                    {
+                    })
+                else:
+                    new_version = 1
+                    records_to_insert.append({
                         "golden_id": gid,
                         "tenant_id": rec_tenant_id,
                         "version": new_version,
@@ -255,11 +284,8 @@ def persist_golden_records(
                         "attributes": attr_json,
                         "created_at": now_utc,
                         "updated_at": now_utc,
-                    },
-                )
-                conn.execute(
-                    insert_history_sql,
-                    {
+                    })
+                    history_to_insert.append({
                         "id": str(uuid.uuid4()),
                         "golden_id": gid,
                         "tenant_id": rec_tenant_id,
@@ -269,12 +295,23 @@ def persist_golden_records(
                         "attributes": attr_json,
                         "action": "CREATED",
                         "created_at": now_utc,
-                    },
-                )
+                    })
 
-            persisted_count += 1
+            # Execute batch inserts and updates
+            if records_to_insert:
+                conn.execute(insert_record_sql, records_to_insert)
+            if records_to_update:
+                conn.execute(update_record_sql, records_to_update)
+            if history_to_insert:
+                conn.execute(insert_history_sql, history_to_insert)
 
-    logger.info("Persisted %d Golden Records (with versioning & audit trail)", persisted_count)
+            persisted_count += len(chunk)
+
+    logger.info(
+        "Persisted %d Golden Records in batches of %d (with versioning & audit trail)",
+        persisted_count,
+        batch_size,
+    )
     return persisted_count
 
 
