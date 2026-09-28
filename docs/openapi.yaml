@@ -1,0 +1,524 @@
+openapi: 3.1.0
+info:
+  title: LuminAI Platform Core Backend API
+  description: >
+    Production-grade enterprise master data management, entity resolution,
+    knowledge graph exploration, and pipeline orchestration REST APIs.
+  version: 1.0.0
+  contact:
+    name: LuminAI Platform Engineering
+    email: api@luminai.io
+servers:
+  - url: http://localhost:8080
+    description: Local Development Environment
+  - url: https://api.staging.luminai.io
+    description: Staging Environment
+  - url: https://api.luminai.io
+    description: Production Environment
+
+tags:
+  - name: Authentication
+    description: Authentication context and user claims
+  - name: Dashboard
+    description: Platform KPIs, telemetry charts, and activity streams
+  - name: Connections
+    description: Source connectors, file ingestion, and dataset preview
+  - name: Pipeline SSE
+    description: Real-time pipeline progress streaming via Server-Sent Events
+  - name: Pipeline Monitoring
+    description: Pipeline run history, status, and throughput counters
+  - name: Graph
+    description: Neo4j Cypher knowledge graph exploration and degree centrality
+  - name: Explorer
+    description: OpenSearch entity search, faceted navigation, and field provenance
+  - name: Ontology
+    description: Entity types, relationship types, and version publishing
+  - name: Cleaning Rules
+    description: Dagster data cleansing and validation rules
+  - name: Merge Review
+    description: Entity resolution candidate deduplication and merge decisions
+
+paths:
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Retrieve current authenticated user and tenant profile
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: User profile and tenant isolation context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Get platform KPI summary for tenant
+      operationId: getDashboardSummary
+      responses:
+        '200':
+          description: Aggregated KPI metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/dashboard/activity:
+    get:
+      tags: [Dashboard]
+      summary: Get recent platform activity feed
+      operationId: getDashboardActivity
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of recent activity events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityItem'
+
+  /api/v1/dashboard/stats/timeseries:
+    get:
+      tags: [Dashboard]
+      summary: Get 7-day time series metrics for charting
+      operationId: getDashboardTimeSeries
+      parameters:
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+            default: 7d
+      responses:
+        '200':
+          description: Time-series telemetry points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeSeriesPoint'
+
+  /api/v1/connections:
+    get:
+      tags: [Connections]
+      summary: List all registered data connections for tenant
+      operationId: listConnections
+      responses:
+        '200':
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectionResponse'
+    post:
+      tags: [Connections]
+      summary: Register a new data connection
+      operationId: createConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionCreateRequest'
+      responses:
+        '201':
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/connections/{id}:
+    get:
+      tags: [Connections]
+      summary: Get connection by ID
+      operationId: getConnectionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Connections]
+      summary: Update connection configuration
+      operationId: updateConnection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionUpdateRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+    delete:
+      tags: [Connections]
+      summary: Delete connection
+      operationId: deleteConnection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Connection deleted
+
+  /api/v1/pipelines/stream:
+    get:
+      tags: [Pipeline SSE]
+      summary: Real-time Server-Sent Events stream for pipeline updates
+      operationId: streamPipelineEvents
+      parameters:
+        - name: connectionId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: runId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream of pipeline.progress, pipeline.error, and ping events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/v1/pipelines/stream/{runId}:
+    get:
+      tags: [Pipeline SSE]
+      summary: Real-time SSE stream scoped to a specific pipeline run
+      operationId: streamPipelineRunEvents
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream of progress and complete events for designated run
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/v1/graph/neighbourhood:
+    get:
+      tags: [Graph]
+      summary: Fetch Cytoscape-compatible knowledge graph neighbourhood
+      operationId: getGraphNeighbourhood
+      parameters:
+        - name: entityId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Cytoscape nodes and edges
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphQueryResponse'
+
+  /api/v1/graph/stats:
+    get:
+      tags: [Graph]
+      summary: Get centrality and degree metrics for graph entity
+      operationId: getGraphStats
+      parameters:
+        - name: entityId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Degree centrality and topology metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphStats'
+
+  /api/v1/explorer/search:
+    get:
+      tags: [Explorer]
+      summary: Full-text and faceted search across golden records
+      operationId: searchEntities
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: entityType
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search hits with OpenSearch facets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExplorerSearchResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Bad Request / Validation Failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Authentication Required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Requested Resource Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+        correlationId:
+          type: string
+
+    AuthMeResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        tenantId:
+          type: string
+        tenantSlug:
+          type: string
+        roles:
+          type: object
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalEntities:
+          type: integer
+        totalConnections:
+          type: integer
+        totalPipelines:
+          type: integer
+        entityBreakdown:
+          type: object
+          additionalProperties:
+            type: integer
+        recentActivity:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityItem'
+        dataQualityScore:
+          type: number
+        pipelineHealth:
+          type: object
+          properties:
+            running:
+              type: integer
+            completed:
+              type: integer
+            failed:
+              type: integer
+        lastSyncAt:
+          type: string
+          format: date-time
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+
+    TimeSeriesPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        entityCount:
+          type: integer
+        pipelineRuns:
+          type: integer
+
+    ConnectionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        config:
+          type: string
+        status:
+          type: string
+
+    ConnectionCreateRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [FILE, POSTGRESQL, MYSQL, MSSQL, API]
+        config:
+          type: string
+        credentialsRef:
+          type: string
+
+    ConnectionUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        config:
+          type: string
+        status:
+          type: string
+
+    GraphQueryResponse:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            type: object
+        edges:
+          type: array
+          items:
+            type: object
+        centerNodeId:
+          type: string
+        totalNodes:
+          type: integer
+        totalEdges:
+          type: integer
+
+    GraphStats:
+      type: object
+      properties:
+        degree:
+          type: integer
+        inDegree:
+          type: integer
+        outDegree:
+          type: integer
+        clusterCoefficient:
+          type: number
+        relationshipTypeCounts:
+          type: object
+
+    ExplorerSearchResponse:
+      type: object
+      properties:
+        totalHits:
+          type: integer
+        records:
+          type: array
+          items:
+            type: object
+        facets:
+          type: object

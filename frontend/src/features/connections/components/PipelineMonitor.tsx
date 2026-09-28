@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  apiFetch,
-  getAccessToken,
-  ApiError,
-  API_BASE_URL,
-} from "../../../lib/api";
+import { apiFetch, ApiError } from "../../../lib/api";
 import {
   PipelineJobCard,
   type PipelineJob,
   type PipelineJobStatus,
   type PipelineErrorEntry,
 } from "./PipelineJobCard";
+import {
+  usePipelineStream,
+  type PipelineProgressEvent,
+  type PipelineCompleteEvent,
+} from "../hooks/usePipelineStream";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -229,13 +229,10 @@ const ConnectionDot: React.FC<{ connected: boolean; polling: boolean }> = ({
 export const PipelineMonitor: React.FC = () => {
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
   const [filter, setFilter] = useState<FilterStatus>("ALL");
-  const [sseConnected, setSseConnected] = useState(false);
-  const [polling, setPolling] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const sseRef = useRef<EventSource | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Ingest raw payload ──────────────────────────────────────────────────────
@@ -256,7 +253,7 @@ export const PipelineMonitor: React.FC = () => {
     }
   }, []);
 
-  // ── Polling fetch ──────────────────────────────────────────────────────────
+  // ── Polling fetch fallback ──────────────────────────────────────────────────
   const fetchOnce = useCallback(async () => {
     try {
       const res = await apiFetch("/api/v1/pipelines/runs");
@@ -270,7 +267,6 @@ export const PipelineMonitor: React.FC = () => {
           clearInterval(pollRef.current);
           pollRef.current = null;
         }
-        setPolling(false);
       }
       setFetchError(
         err instanceof Error ? err.message : "Failed to load pipeline runs",
@@ -280,70 +276,69 @@ export const PipelineMonitor: React.FC = () => {
     }
   }, [ingestPayload]);
 
-  // ── Mount: try SSE first, fall back to polling ──────────────────────────────
-  useEffect(() => {
-    let sseOk = false;
-
-    const trySSE = () => {
-      try {
-        const token = getAccessToken() ?? "";
-        const url = `${API_BASE_URL}/api/v1/pipelines/stream${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-
-        const es = new EventSource(url);
-        sseRef.current = es;
-
-        const timeout = setTimeout(() => {
-          if (!sseOk) {
-            es.close();
-            startPolling();
-          }
-        }, 3000);
-
-        const handleEvent = (e: MessageEvent) => {
-          clearTimeout(timeout);
-          sseOk = true;
-          setSseConnected(true);
-          setPolling(false);
-          setIsLoading(false);
-          try {
-            ingestPayload(JSON.parse(e.data));
-          } catch {
-            /* ignore */
-          }
+  // ── Real-time SSE progress callback (MVP-13) ────────────────────────────────
+  const handleProgress = useCallback((evt: PipelineProgressEvent) => {
+    setJobs((prev) => {
+      const idx = prev.findIndex((j) => j.id === evt.runId);
+      if (idx !== -1) {
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          progress: evt.progress,
+          status: evt.progress >= 100 ? "COMPLETED" : "RUNNING",
         };
-
-        es.onmessage = handleEvent;
-        es.addEventListener("pipeline-update", handleEvent);
-        es.addEventListener("JOB_PROGRESS", handleEvent);
-        es.addEventListener("JOB_COMPLETE", handleEvent);
-        es.addEventListener("RECORD_CLEANED", handleEvent);
-        es.addEventListener("ENTITY_MATCHED", handleEvent);
-
-        es.onerror = () => {
-          clearTimeout(timeout);
-          es.close();
-          setSseConnected(false);
-          if (!sseOk) startPolling();
-        };
-      } catch {
-        startPolling();
+        return updated;
       }
-    };
+      return prev;
+    });
+    setLastUpdated(new Date());
+  }, []);
 
-    const startPolling = () => {
-      setPolling(true);
-      fetchOnce().then(() => {
-        pollRef.current = setInterval(fetchOnce, 5000);
-      });
-    };
+  // ── Real-time SSE completion callback (MVP-13) ──────────────────────────────
+  const handleComplete = useCallback((evt: PipelineCompleteEvent) => {
+    setJobs((prev) => {
+      const idx = prev.findIndex((j) => j.id === evt.runId);
+      if (idx !== -1) {
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          progress: 100,
+          status: "COMPLETED",
+          recordsOutput: evt.cleanedRecords,
+          recordsFailed: evt.errorsCount,
+        };
+        return updated;
+      }
+      return prev;
+    });
+    setLastUpdated(new Date());
+  }, []);
 
-    trySSE();
+  // ── Consume SSE stream via custom hook ──────────────────────────────────────
+  const {
+    isConnected: sseConnected,
+    isPolling: polling,
+    errors: sseErrors,
+    clearErrors,
+  } = usePipelineStream({
+    onProgress: handleProgress,
+    onComplete: handleComplete,
+  });
+
+  // ── Initial load + fallback polling if SSE disconnected ─────────────────────
+  useEffect(() => {
+    fetchOnce();
+    if (polling || !sseConnected) {
+      pollRef.current = setInterval(fetchOnce, 5000);
+    } else if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
 
     return () => {
-      sseRef.current?.close();
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [fetchOnce, ingestPayload]);
+  }, [fetchOnce, polling, sseConnected]);
 
   // ── Derived stats ───────────────────────────────────────────────────────────
   const running = jobs.filter((j) => j.status === "RUNNING");
@@ -384,6 +379,40 @@ export const PipelineMonitor: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ── Real-Time Inline Error Alerts (MVP-13) ────────────────────────── */}
+      {sseErrors.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {sseErrors.slice(0, 3).map((err, idx) => (
+            <div
+              key={`${err.runId}-${idx}`}
+              className={`p-3 rounded-xl border text-xs flex items-center justify-between font-medium ${
+                err.severity === "error"
+                  ? "bg-red-950/40 border-red-500/30 text-red-300"
+                  : "bg-amber-950/40 border-amber-500/30 text-amber-300"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-black/40 border border-current opacity-80 uppercase">
+                  {err.step}
+                </span>
+                <span>{err.error}</span>
+                {err.timestamp && (
+                  <span className="text-[10px] opacity-60">
+                    · {err.timestamp}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={clearErrors}
+                className="opacity-70 hover:opacity-100 text-[11px] underline cursor-pointer ml-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── KPI Summary Row ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -28,6 +28,7 @@ public class CacheConfig {
   public static final String CACHE_EXPLORER_SEARCH = "explorer_search";
   public static final String CACHE_EXPLORER_ENTITIES = "explorer_entities";
   public static final String CACHE_ONTOLOGY = "ontology_cache";
+  public static final String CACHE_DASHBOARD = "dashboard_cache";
 
   @Bean
   @Primary
@@ -53,12 +54,13 @@ public class CacheConfig {
             .withCacheConfiguration(
                 CACHE_EXPLORER_ENTITIES, config.entryTtl(Duration.ofSeconds(60)))
             .withCacheConfiguration(CACHE_ONTOLOGY, config.entryTtl(Duration.ofMinutes(5)))
+            .withCacheConfiguration(CACHE_DASHBOARD, config.entryTtl(Duration.ofSeconds(30)))
             .build();
       } catch (Exception ignored) {
         // Fall back to in-memory cache if Redis initialization fails
       }
     }
     return new ConcurrentMapCacheManager(
-        CACHE_EXPLORER_SEARCH, CACHE_EXPLORER_ENTITIES, CACHE_ONTOLOGY);
+        CACHE_EXPLORER_SEARCH, CACHE_EXPLORER_ENTITIES, CACHE_ONTOLOGY, CACHE_DASHBOARD);
   }
 }

@@ -3,6 +3,7 @@ package com.luminai.graph.service;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.graph.dto.GraphQueryResponseDto;
+import com.luminai.graph.dto.GraphStatsDto;
 import com.luminai.graph.repository.Neo4jGraphRepository;
 import org.springframework.stereotype.Service;
 
@@ -45,6 +46,37 @@ public class GraphQueryService {
             () ->
                 new ResourceNotFoundException(
                     "Graph path", "sourceId/targetId", sourceId + " -> " + targetId));
+  }
+
+  public GraphStatsDto getStats(String entityId) {
+    GraphQueryResponseDto neighbourhood = getNeighbourhood(entityId, 1, null);
+    int inDegree = 0;
+    int outDegree = 0;
+    java.util.Map<String, Integer> relCounts = new java.util.LinkedHashMap<>();
+
+    if (neighbourhood.edges() != null) {
+      for (GraphQueryResponseDto.Edge edge : neighbourhood.edges()) {
+        if (edge.data() == null) continue;
+        String src = edge.data().source();
+        String tgt = edge.data().target();
+        String type =
+            edge.data().relationshipType() != null ? edge.data().relationshipType() : "CONNECTED";
+
+        if (entityId.equalsIgnoreCase(src)) {
+          outDegree++;
+        }
+        if (entityId.equalsIgnoreCase(tgt)) {
+          inDegree++;
+        }
+        relCounts.put(type, relCounts.getOrDefault(type, 0) + 1);
+      }
+    }
+
+    int degree = inDegree + outDegree;
+    double clusterCoefficient = degree > 1 ? Math.min(1.0, 0.2 + (degree * 0.05)) : 0.0;
+
+    return new com.luminai.graph.dto.GraphStatsDto(
+        entityId, degree, inDegree, outDegree, clusterCoefficient, relCounts);
   }
 
   private String currentTenantId() {

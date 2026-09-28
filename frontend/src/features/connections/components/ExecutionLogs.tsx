@@ -237,11 +237,9 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
   // Sync controlled props
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (entriesProp) setLogs(entriesProp);
   }, [entriesProp]);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (errorsProp) setErrors(errorsProp);
   }, [errorsProp]);
 

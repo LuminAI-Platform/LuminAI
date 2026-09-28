@@ -71,8 +71,7 @@ class TenantResolutionServiceTest {
     Tenant suspendedTenant =
         new Tenant(UUID.randomUUID(), "Suspended Co", "suspended-co", "suspended");
     User user =
-        new User(
-            UUID.randomUUID(), "kc-123", "a@x.com", "A User", suspendedTenant, "VIEWER", true);
+        new User(UUID.randomUUID(), "kc-123", "a@x.com", "A User", suspendedTenant, "VIEWER", true);
     when(userRepository.findByKeycloakId("kc-123")).thenReturn(Optional.of(user));
 
     Optional<TenantResolutionService.ResolvedTenant> result = svc.resolveForKeycloakUser("kc-123");
@@ -101,4 +100,3 @@ class TenantResolutionServiceTest {
     verify(userRepository).findByKeycloakId("some-sub");
   }
 }
-

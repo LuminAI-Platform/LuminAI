@@ -44,7 +44,6 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
   // Adjust page number if out of range after filter
   React.useEffect(() => {
     if (currentPage > totalPages) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentPage(totalPages);
     }
   }, [totalPages, currentPage]);
