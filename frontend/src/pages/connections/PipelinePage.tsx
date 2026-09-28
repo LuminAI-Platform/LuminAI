@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "@tanstack/react-router";
 import { PipelineMonitor } from "../../features/connections/components/PipelineMonitor";
 
 export const PipelinePage: React.FC = () => {
@@ -17,18 +18,18 @@ export const PipelinePage: React.FC = () => {
 
         {/* Quick links */}
         <div className="flex items-center gap-2">
-          <a
-            href="/connections"
+          <Link
+            to="/connections"
             className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer"
           >
             ← Connections
-          </a>
-          <a
-            href="/connections/schema-map"
+          </Link>
+          <Link
+            to="/connections/schema-map"
             className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer"
           >
             Schema Map →
-          </a>
+          </Link>
         </div>
       </div>
 

@@ -17,6 +17,7 @@
  */
 
 import { useAuthStore } from "../stores/authStore";
+import { showToastNotification } from "../components/ui/ToastProvider";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -48,11 +49,9 @@ let isHandlingUnauthorized = false;
  *  2. Injects `Authorization: Bearer <token>` from the auth store.
  *  3. Sets `Content-Type: application/json` unless the caller overrides it or
  *     the body is FormData.
- *  4. Intercepts 401 responses to invalidate stale auth state and prevent retry loops.
- *  5. Throws an `ApiError` for non-2xx responses.
- *
- * Signature matches the `fetchApi` slot of the generated
- * `ConfigurationParameters` interface so it can be passed directly.
+ *  4. Intercepts 401 responses to invalidate stale auth state and emit toast.
+ *  5. Automatically surfaces server / client errors as non-blocking toasts.
+ *  6. Throws an `ApiError` for non-2xx responses.
  */
 export async function apiFetch(
   input: RequestInfo | URL,
@@ -93,12 +92,29 @@ export async function apiFetch(
             "401 Unauthorized encountered. Clearing local session without window redirect.",
           );
           clearAuthSession();
+          showToastNotification(
+            "warning",
+            "Session Expired",
+            "Your session has ended. Please sign in again.",
+          );
         }
       } catch (err) {
         console.error("Failed to reset auth store state on 401:", err);
       } finally {
         isHandlingUnauthorized = false;
       }
+    } else if (response.status >= 500) {
+      showToastNotification(
+        "error",
+        "Server Error",
+        `Server returned error (${response.status}). Please try again later.`,
+      );
+    } else if (response.status !== 401) {
+      showToastNotification(
+        "error",
+        "Request Failed",
+        `HTTP ${response.status}: ${response.statusText || "Unable to complete request"}`,
+      );
     }
     throw new ApiError(response);
   }

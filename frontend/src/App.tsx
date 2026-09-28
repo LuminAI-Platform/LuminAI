@@ -19,10 +19,12 @@ import { EntityDetailPage } from "./pages/explorer/EntityDetailPage";
 import { UserRegistrationPage } from "./features/admin/UserRegistrationPage";
 import { TenantRegistrationPage } from "./features/admin/TenantRegistrationPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
+import { NotFoundPage } from "./pages/common/NotFoundPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
+  notFoundComponent: NotFoundPage,
 });
 
 const shellRoute = createRoute({
