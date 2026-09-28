@@ -12,6 +12,7 @@ import { CallbackPage } from "./features/auth/CallbackPage";
 import { ConnectionsPage } from "./pages/connections/ConnectionsPage";
 import { SchemaMapPage } from "./pages/connections/SchemaMapPage";
 import { PipelinePage } from "./pages/connections/PipelinePage";
+import { MergeReviewPage } from "./pages/connections/MergeReviewPage";
 import { OntologyPage } from "./pages/ontology/OntologyPage";
 import { ExplorerPage } from "./pages/explorer/ExplorerPage";
 import { EntityDetailPage } from "./pages/explorer/EntityDetailPage";
@@ -110,6 +111,12 @@ const pipelineRoute = createRoute({
   component: PipelinePage,
 });
 
+const mergeReviewRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/connections/merge-review",
+  component: MergeReviewPage,
+});
+
 const ontologyRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/ontology",
@@ -159,6 +166,7 @@ const routeTree = rootRoute.addChildren([
     connectionsRoute,
     schemaMapRoute,
     pipelineRoute,
+    mergeReviewRoute,
     ontologyRoute,
     graphRoute,
     settingsRoute,

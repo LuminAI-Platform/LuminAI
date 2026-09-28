@@ -122,8 +122,7 @@ const DEFAULT_SEED_GRAPH: GraphElements = {
  * Interactive Knowledge Graph Explorer Page powered by Cytoscape.js
  */
 export const GraphPage: React.FC = () => {
-  const [selectedEntityId, setSelectedEntityId] =
-    useState<string>("ent-luminai");
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [depth, setDepth] = useState<number>(2);
   const [layoutType, setLayoutType] = useState<GraphLayoutType>("cose");
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
@@ -136,6 +135,28 @@ export const GraphPage: React.FC = () => {
 
   const cyRef = useRef<Core | null>(null);
 
+  // Discover initial entity from tenant catalog if none selected yet
+  const { data: initialEntityId } = useQuery<string | null>({
+    queryKey: ["graph", "initialEntity"],
+    queryFn: async () => {
+      try {
+        const res = await apiFetch("/api/v1/explorer/search?size=1", {
+          headers: { "X-Suppress-Toast": "true" },
+        });
+        const data = await res.json();
+        if (data && data.content && data.content.length > 0) {
+          return data.content[0].id as string;
+        }
+      } catch {
+        // Fallback gracefully
+      }
+      return null;
+    },
+    staleTime: 60000,
+  });
+
+  const activeEntityId = selectedEntityId || initialEntityId || null;
+
   // 1. Fetch neighbourhood from real REST API
   const {
     data: apiGraph,
@@ -146,19 +167,23 @@ export const GraphPage: React.FC = () => {
     queryKey: [
       "graph",
       "neighbourhood",
-      selectedEntityId,
+      activeEntityId,
       depth,
       selectedRelFilter,
     ],
     queryFn: async () => {
-      let url = `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(selectedEntityId)}&depth=${depth}`;
+      if (!activeEntityId) return { nodes: [], edges: [] };
+      let url = `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(activeEntityId)}&depth=${depth}`;
       if (selectedRelFilter) {
         url += `&relationshipType=${encodeURIComponent(selectedRelFilter)}`;
       }
-      const res = await apiFetch(url);
+      const res = await apiFetch(url, {
+        headers: { "X-Suppress-Toast": "true" },
+      });
       return res.json();
     },
-    retry: 1,
+    enabled: !!activeEntityId,
+    retry: false,
   });
 
   // Use API response or fallback to seed demo graph if API returns empty

@@ -189,14 +189,17 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
           password,
         }),
       });
-      if (response && Array.isArray(response)) {
-        setDiscoveredData(response as SchemaDiscovery[]);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setDiscoveredData(data as SchemaDiscovery[]);
+        } else {
+          setDiscoveredData(DEFAULT_DISCOVERED_DATA[dbType]);
+        }
       } else {
-        // Fallback to static mock datasets
         setDiscoveredData(DEFAULT_DISCOVERED_DATA[dbType]);
       }
     } catch {
-      // Fallback on connection issues
       setDiscoveredData(DEFAULT_DISCOVERED_DATA[dbType]);
     }
 

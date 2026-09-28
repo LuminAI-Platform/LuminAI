@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,8 +18,10 @@ import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.connection.controller.ConnectionController;
 import com.luminai.connection.dto.ConnectionDto;
 import com.luminai.connection.model.Connection;
+import com.luminai.connection.producer.ConnectionProducer;
 import com.luminai.connection.repository.ConnectionPreviewService;
 import com.luminai.connection.service.ConnectionService;
+import com.luminai.connection.service.FileConnectorService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -39,6 +43,8 @@ class ConnectionControllerTest {
 
   @Mock private ConnectionService connectionService;
   @Mock private ConnectionPreviewService connectionPreviewService;
+  @Mock private FileConnectorService fileConnectorService;
+  @Mock private ConnectionProducer connectionProducer;
 
   @InjectMocks private ConnectionController controller;
 
@@ -230,5 +236,37 @@ class ConnectionControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].email").value("test@corp.com"));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/connections/discover returns discovered schema catalog")
+  void discoverSchemasSuccess() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/connections/discover")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"database\":\"production\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].schema").value("public"));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/connections/{id}/upload ingests multipart file and publishes rows")
+  void uploadFileSuccess() throws Exception {
+    UUID connId = UUID.randomUUID();
+    MockMultipartFile file =
+        new MockMultipartFile(
+            "file", "users.csv", "text/csv", "id,name\n1,Alice\n2,Bob".getBytes());
+
+    when(fileConnectorService.ingest(any(), eq(connId), any()))
+        .thenReturn("tenant/raw/" + connId + "/users.csv");
+
+    mockMvc
+        .perform(multipart("/api/v1/connections/" + connId + "/upload").file(file))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INGESTED"))
+        .andExpect(jsonPath("$.fileName").value("users.csv"))
+        .andExpect(jsonPath("$.recordsCount").value(2));
   }
 }
