@@ -129,9 +129,22 @@ def generate_candidate_pairs(
             output_col=block_key_col,
         )
 
+    # Filter out empty/uninformative blocking keys to prevent mega-block Cartesian explosion
+    # Records with missing/uninformative names must not match each other purely on being empty
+    informative_df = df.filter(
+        pl.col(block_key_col).is_not_null()
+        & (~pl.col(block_key_col).str.starts_with("EMPTY_"))
+        & (pl.col(block_key_col) != "EMPTY")
+    )
+
+    if informative_df.height < 2:
+        logger.info("Not enough records with valid blocking keys to generate candidate pairs.")
+        dummy_cols = [f"{c}_a" for c in df.columns] + [f"{c}_b" for c in df.columns] + ["block_key"]
+        return pl.DataFrame(schema={c: pl.Utf8 for c in dummy_cols})
+
     # Perform self-join on block_key
-    left_df = df.select([pl.col(col).alias(f"{col}_a") for col in df.columns])
-    right_df = df.select([pl.col(col).alias(f"{col}_b") for col in df.columns])
+    left_df = informative_df.select([pl.col(col).alias(f"{col}_a") for col in df.columns])
+    right_df = informative_df.select([pl.col(col).alias(f"{col}_b") for col in df.columns])
 
     # Join where block_key_a == block_key_b and id_a < id_b
     joined = left_df.join(

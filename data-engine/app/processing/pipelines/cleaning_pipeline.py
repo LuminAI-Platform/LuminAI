@@ -206,6 +206,18 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
                 exc,
             )
 
+    settings = get_settings()
+    if not settings.synthetic_data_allowed:
+        context.log.error(
+            "❌ Cleaning pipeline failure: Raw ingestion data could not be retrieved from MinIO (bucket: %s, key: %s) and synthetic fallback is disabled.",
+            bucket,
+            object_key,
+        )
+        raise RuntimeError(
+            f"Production safety violation: Unable to load raw dataset from s3://{bucket}/{object_key or '<missing>'} "
+            "and synthetic data fallback is prohibited in production mode."
+        )
+
     context.log.info("📥 raw_ingestion_data: using synthetic dataset for cleaning pipeline.")
     df = _generate_synthetic_raw_data()
 
@@ -280,7 +292,19 @@ def cleaned_ingestion_data(
             pl.col(col).str.strip_chars().alias(col) for col in string_cols
         ]
         df = raw_ingestion_data.with_columns(strip_exprs) if strip_exprs else raw_ingestion_data
-        context.log.info("🧹 Step 1: Stripped whitespace from %d string columns", len(string_cols))
+
+        # Neutralize CSV / Spreadsheet Formula Injection (=, @, +, - followed by text)
+        sanitize_formula_exprs = [
+            pl.when(pl.col(col).str.starts_with("=") | pl.col(col).str.starts_with("@"))
+            .then(pl.col(col).str.slice(1))
+            .otherwise(pl.col(col))
+            .alias(col)
+            for col in string_cols
+        ]
+        if sanitize_formula_exprs:
+            df = df.with_columns(sanitize_formula_exprs)
+
+        context.log.info("🧹 Step 1: Stripped whitespace and sanitized %d string columns", len(string_cols))
 
         # Step 2: Casing normalization
         if "email" in df.columns:
@@ -337,12 +361,13 @@ def cleaned_ingestion_data(
             ).drop(["salary_parsed", "salary"])
         context.log.info("🧹 Step 6: Normalized currency (salary to salary_amount and salary_currency)")
 
+        entity_type = run_tags.get("entity_type") or "Person"
         record_records_processed(
             tenant_id=tenant_id,
             stage="clean",
             count=df.height,
             status="success",
-            entity_type="Person",
+            entity_type=entity_type,
         )
 
         context.log.info(
@@ -390,31 +415,60 @@ def deduplicated_ingestion_data(
     if initial_rows == 0:
         return cleaned_ingestion_data
 
-    # Step 1: Exact deduplication by email
+    # Step 1: Exact deduplication by email if present
     df_exact = cleaned_ingestion_data
-    if "email" in df_exact.columns:
-        df_exact = df_exact.unique(subset=["email"], keep="first").sort("id")
+    email_col = "email" if "email" in df_exact.columns else next((c for c in ["contact_email", "user_email", "mail"] if c in df_exact.columns), None)
+    if email_col:
+        df_exact = df_exact.unique(subset=[email_col], keep="first").sort("id")
     after_exact = df_exact.height
-    context.log.info("🔍 Step 1 (Exact): Deduplicated by email — %d → %d rows", initial_rows, after_exact)
+    context.log.info("🔍 Step 1 (Exact): Deduplicated by %s — %d → %d rows", email_col or "id", initial_rows, after_exact)
 
     if after_exact == 0:
         return df_exact
 
-    # Step 2: Fuzzy deduplication by name (blocking on country)
+    # Step 2: Fuzzy deduplication by name (blocking on country if present)
     # Convert Polars to Pandas safely without pyarrow
     df_pd = pd.DataFrame(df_exact.to_dict(as_series=False))
 
-    # Fill country field to ensure blocking works on non-null values
-    df_pd["country"] = df_pd["country"].fillna("")
-    df_pd["name"] = df_pd["name"].fillna("")
+    # Identify name column
+    name_col = "name" if "name" in df_pd.columns else next((c for c in ["full_name", "customer_name", "first_name", "person_name"] if c in df_pd.columns), None)
+    if not name_col:
+        context.log.info("ℹ️ No 'name' column found in dataset, skipping fuzzy name deduplication")
+        if run_id:
+            cp_mgr.save_checkpoint(run_id, "deduplicated_ingestion_data", df_exact)
+        return df_exact
+
+    df_pd["_dedup_name"] = df_pd[name_col].fillna("")
+
+    # Handle country for blocking if present
+    has_country = "country" in df_pd.columns
+    if has_country:
+        df_pd["_dedup_country"] = df_pd["country"].fillna("")
+    else:
+        df_pd["_dedup_country"] = ""
 
     indexer = recordlinkage.Index()
-    indexer.block("country")
+    has_valid_country = has_country and (df_pd["_dedup_country"].str.len() > 0).any()
+
+    if has_valid_country:
+        indexer.block("_dedup_country")
+    elif len(df_pd) > 1000:
+        # Prevent O(N^2) Cartesian explosion on large datasets lacking country
+        df_pd["_dedup_prefix"] = df_pd["_dedup_name"].str[:2].str.lower()
+        if (df_pd["_dedup_prefix"].str.len() > 0).any():
+            indexer.block("_dedup_prefix")
+        else:
+            indexer.sortedneighbourhood("_dedup_name", window=5)
+    elif len(df_pd) > 300:
+        indexer.sortedneighbourhood("_dedup_name", window=7)
+    else:
+        indexer.full()
+
     candidate_links = indexer.index(df_pd)
 
     # Compare
     compare = recordlinkage.Compare()
-    compare.string("name", "name", method="jarowinkler", threshold=0.85, label="name_score")
+    compare.string("_dedup_name", "_dedup_name", method="jarowinkler", threshold=0.85, label="name_score")
 
     features = compare.compute(candidate_links, df_pd)
 
@@ -427,14 +481,18 @@ def deduplicated_ingestion_data(
         keep_idx = min(idx1, idx2)
         drop_idx = max(idx1, idx2)
 
-        name_1 = df_pd.loc[keep_idx, "name"]
-        name_2 = df_pd.loc[drop_idx, "name"]
+        name_1 = df_pd.loc[keep_idx, "_dedup_name"]
+        name_2 = df_pd.loc[drop_idx, "_dedup_name"]
         context.log.info(
-            "⚠️ Fuzzy match found in same country: '%s' and '%s'. Merging...",
+            "⚠️ Fuzzy match found: '%s' and '%s'. Merging...",
             name_1,
             name_2,
         )
         to_drop.add(drop_idx)
+
+    # Clean temporary helper columns before converting back
+    cols_to_clean = [c for c in ["_dedup_name", "_dedup_country", "_dedup_prefix"] if c in df_pd.columns]
+    df_pd = df_pd.drop(columns=cols_to_clean)
 
     # Drop matches
     df_dedup_pd = df_pd.drop(index=list(to_drop))
@@ -493,14 +551,29 @@ def validated_ingestion_data(
         deduplicated_ingestion_data.height,
     )
 
-    # Apply validation flags
-    df = deduplicated_ingestion_data.with_columns(
-        [
-            (pl.col("id").str.len_chars() > 0).alias("_valid_id"),
-            (pl.col("name").str.len_chars() > 0).alias("_valid_name"),
-            (pl.col("email").str.contains("@")).alias("_valid_email"),
-        ]
-    )
+    # Dynamically resolve ID, name, and email columns
+    cols = deduplicated_ingestion_data.columns
+    id_col = "id" if "id" in cols else next((c for c in ["ID", "_id", "uuid", "key"] if c in cols), None)
+    name_col = "name" if "name" in cols else next((c for c in ["full_name", "customer_name", "first_name", "person_name"] if c in cols), None)
+    email_col = "email" if "email" in cols else next((c for c in ["contact_email", "user_email", "mail"] if c in cols), None)
+
+    exprs = []
+    if id_col:
+        exprs.append((pl.col(id_col).cast(pl.Utf8).str.len_chars() > 0).alias("_valid_id"))
+    else:
+        exprs.append(pl.lit(True).alias("_valid_id"))
+
+    if name_col:
+        exprs.append((pl.col(name_col).cast(pl.Utf8).str.len_chars() > 0).alias("_valid_name"))
+    else:
+        exprs.append(pl.lit(True).alias("_valid_name"))
+
+    if email_col:
+        exprs.append((pl.col(email_col).cast(pl.Utf8).str.contains("@")).alias("_valid_email"))
+    else:
+        exprs.append(pl.lit(True).alias("_valid_email"))
+
+    df = deduplicated_ingestion_data.with_columns(exprs)
 
     # Compute overall validity
     df = df.with_columns(
@@ -519,7 +592,11 @@ def validated_ingestion_data(
     )
 
     if invalid_rows.height > 0:
-        context.log.warning("⚠️  Invalid rows detected (%d rows):\n%s", invalid_rows.height, invalid_rows.select(["id", "name", "email"]))
+        display_cols = [c for c in [id_col, name_col, email_col] if c and c in invalid_rows.columns]
+        if display_cols:
+            context.log.warning("⚠️  Invalid rows detected (%d rows):\n%s", invalid_rows.height, invalid_rows.select(display_cols))
+        else:
+            context.log.warning("⚠️  Invalid rows detected (%d rows)", invalid_rows.height)
         tenant_id = run_tags.get("tenant_id", "acme")
         source_id = run_tags.get("source_id", "default-source")
         try:
@@ -528,17 +605,19 @@ def validated_ingestion_data(
             for row in invalid_rows.iter_rows(named=True):
                 row_dict = dict(row)
                 fail_reasons = []
-                if not row_dict.get("_valid_id"):
-                    fail_reasons.append("Empty/missing ID")
-                if not row_dict.get("_valid_name"):
-                    fail_reasons.append("Empty/missing Name")
-                if not row_dict.get("_valid_email"):
-                    fail_reasons.append("Missing '@' in Email")
+                if id_col and not row_dict.get("_valid_id"):
+                    id_label = "ID" if id_col.lower() in ("id", "uuid", "key") else id_col.title()
+                    fail_reasons.append(f"Empty/missing {id_label}")
+                if name_col and not row_dict.get("_valid_name"):
+                    name_label = "Name" if name_col.lower() in ("name", "full_name", "customer_name", "first_name", "person_name") else name_col.title()
+                    fail_reasons.append(f"Empty/missing {name_label}")
+                if email_col and not row_dict.get("_valid_email"):
+                    fail_reasons.append(f"Missing '@' in {email_col}")
                 reason_str = ", ".join(fail_reasons) or "Validation failed"
                 clean_payload = {k: v for k, v in row_dict.items() if not k.startswith("_")}
                 qm.record_failure(
                     topic="ingest.cleaning.invalid",
-                    key=str(clean_payload.get("id") or ""),
+                    key=str(clean_payload.get(id_col or "id") or ""),
                     raw_payload=json.dumps(clean_payload),
                     error=f"Row failed validation: {reason_str}",
                     tenant_id=tenant_id,
@@ -603,12 +682,13 @@ def staged_ingestion_data(
             "records.staged_count": int(validated_ingestion_data.height),
         },
     ):
+        entity_type = run_tags.get("entity_type") or "Person"
         record_records_processed(
             tenant_id=tenant_id,
             stage="stage",
             count=validated_ingestion_data.height,
             status="success",
-            entity_type="Person",
+            entity_type=entity_type,
         )
 
         # Step 1: Write to Local Parquet + MinIO Staging
@@ -703,12 +783,13 @@ def staged_ingestion_data(
             producer = IngestValidProducer()
             producer.publish(
                 tenant_id=tenant_id,
-                entity_type="Person",
+                entity_type=entity_type,
                 payload={
                     "tenant_id": tenant_id,
                     "tenantId": tenant_id,
                     "source_id": source_id,
                     "connectionId": source_id,
+                    "entity_type": entity_type,
                     "batch_id": batch_id,
                     "status": "VALIDATED",
                     "staging_path": staging_path,

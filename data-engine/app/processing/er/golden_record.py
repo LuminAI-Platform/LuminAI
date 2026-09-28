@@ -9,6 +9,7 @@ in the ``golden_records`` and ``golden_record_history`` database tables.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from functools import lru_cache
 import json
 import logging
 import os
@@ -21,6 +22,46 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=32768)
+def _parse_date_string_to_epoch(val_str: str) -> float:
+    """Cached parsing of common date formats into UTC epoch timestamp."""
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%d-%m-%Y",
+    ):
+        try:
+            dt = datetime.strptime(val_str, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            continue
+    return 0.0
+
+
+def _parse_ts_epoch(ts_val: Any) -> float:
+    """Safely convert any date string or datetime into UTC epoch float for chronological sorting."""
+    if not ts_val:
+        return 0.0
+    if isinstance(ts_val, (int, float)):
+        return float(ts_val)
+    if isinstance(ts_val, datetime):
+        if ts_val.tzinfo is None:
+            ts_val = ts_val.replace(tzinfo=timezone.utc)
+        return ts_val.timestamp()
+
+    val_str = str(ts_val).strip()
+    if not val_str:
+        return 0.0
+    return _parse_date_string_to_epoch(val_str)
+
+
 def merge_cluster_to_golden_record(
     cluster_records: list[dict[str, Any]],
     tenant_id: str = "acme",
@@ -31,7 +72,7 @@ def merge_cluster_to_golden_record(
     Merge policy for each field:
       1. Non-null values preferred.
       2. If multiple non-null values exist, pick the value from the record with the
-         latest timestamp (e.g. ``updated_at``, ``joined_at``, ``staged_at``).
+         latest chronological timestamp (e.g. ``updated_at``, ``joined_at``, ``staged_at``).
       3. If timestamps are equal or missing, pick the value with maximum string length
          (highest completeness).
     """
@@ -42,6 +83,17 @@ def merge_cluster_to_golden_record(
         golden_id = f"gr-{uuid.uuid4()}"
 
     source_ids = [str(r.get("id", r.get("raw_id", ""))) for r in cluster_records if "id" in r or "raw_id" in r]
+
+    # Pre-parse timestamps once per cluster record to maximize performance
+    rec_epochs = [
+        _parse_ts_epoch(
+            rec.get("updated_at")
+            or rec.get("joined_at")
+            or rec.get("staged_at")
+            or ""
+        )
+        for rec in cluster_records
+    ]
 
     # Collect all unique attribute keys across cluster records
     all_keys: set[str] = set()
@@ -67,22 +119,16 @@ def merge_cluster_to_golden_record(
 
     for key in sorted(all_keys - exclude_keys):
         candidates = []
-        for rec in cluster_records:
+        for i, rec in enumerate(cluster_records):
             val = rec.get(key)
             if val is not None and str(val).strip() != "":
-                # Extract timestamp indicator if present
-                ts = (
-                    rec.get("updated_at")
-                    or rec.get("joined_at")
-                    or rec.get("staged_at")
-                    or ""
-                )
+                epoch = rec_epochs[i]
                 str_val = str(val).strip()
-                candidates.append((ts, len(str_val), val))
+                candidates.append((epoch, len(str_val), val))
 
         if candidates:
-            # Sort by timestamp desc, then length desc
-            candidates.sort(key=lambda x: (str(x[0]), x[1]), reverse=True)
+            # Sort chronologically by epoch desc, then completeness/length desc
+            candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
             canonical_attributes[key] = candidates[0][2]
         else:
             canonical_attributes[key] = None
@@ -123,7 +169,14 @@ def merge_clusters_to_golden_records(
     if not golden_records:
         return pl.DataFrame()
 
-    df = pl.DataFrame(golden_records)
+    try:
+        df = pl.DataFrame(golden_records)
+    except Exception:
+        # Resilient fallback for heterogeneous attribute schemas across records
+        import pandas as pd
+        df_pd = pd.DataFrame(golden_records)
+        df = pl.from_pandas(df_pd)
+
     logger.info("Golden record merge complete — merged %d clusters into %d golden records", len(clusters), df.height)
     return df
 

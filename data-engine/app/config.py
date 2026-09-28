@@ -27,6 +27,28 @@ class Settings(BaseSettings):
     app_port: int = 8000
     app_frontend_url: str = "https://luminai-sand.vercel.app"
     debug: bool = False
+    environment: str = "development"  # "development", "staging", "production"
+    enable_mock_auth: bool | None = None  # None: enabled only in non-production environments
+    allow_synthetic_data: bool | None = None  # None: allowed only in non-production environments
+
+    @property
+    def is_production(self) -> bool:
+        """Return True if application is running in production mode."""
+        return self.environment.lower() in ("production", "prod")
+
+    @property
+    def mock_auth_allowed(self) -> bool:
+        """Strictly prohibit mock/sandbox tokens in production unless explicitly opted in."""
+        if self.enable_mock_auth is not None:
+            return self.enable_mock_auth
+        return not self.is_production
+
+    @property
+    def synthetic_data_allowed(self) -> bool:
+        """Strictly prohibit silent synthetic data fallbacks in production."""
+        if self.allow_synthetic_data is not None:
+            return self.allow_synthetic_data
+        return not self.is_production
 
     # Logging Configuration
     log_level: str = "INFO"
