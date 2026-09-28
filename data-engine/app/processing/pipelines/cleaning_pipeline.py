@@ -206,6 +206,18 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
                 exc,
             )
 
+    settings = get_settings()
+    if not settings.synthetic_data_allowed:
+        context.log.error(
+            "❌ Cleaning pipeline failure: Raw ingestion data could not be retrieved from MinIO (bucket: %s, key: %s) and synthetic fallback is disabled.",
+            bucket,
+            object_key,
+        )
+        raise RuntimeError(
+            f"Production safety violation: Unable to load raw dataset from s3://{bucket}/{object_key or '<missing>'} "
+            "and synthetic data fallback is prohibited in production mode."
+        )
+
     context.log.info("📥 raw_ingestion_data: using synthetic dataset for cleaning pipeline.")
     df = _generate_synthetic_raw_data()
 
@@ -349,12 +361,13 @@ def cleaned_ingestion_data(
             ).drop(["salary_parsed", "salary"])
         context.log.info("🧹 Step 6: Normalized currency (salary to salary_amount and salary_currency)")
 
+        entity_type = run_tags.get("entity_type") or "Person"
         record_records_processed(
             tenant_id=tenant_id,
             stage="clean",
             count=df.height,
             status="success",
-            entity_type="Person",
+            entity_type=entity_type,
         )
 
         context.log.info(
@@ -593,9 +606,11 @@ def validated_ingestion_data(
                 row_dict = dict(row)
                 fail_reasons = []
                 if id_col and not row_dict.get("_valid_id"):
-                    fail_reasons.append(f"Empty/missing {id_col}")
+                    id_label = "ID" if id_col.lower() in ("id", "uuid", "key") else id_col.title()
+                    fail_reasons.append(f"Empty/missing {id_label}")
                 if name_col and not row_dict.get("_valid_name"):
-                    fail_reasons.append(f"Empty/missing {name_col}")
+                    name_label = "Name" if name_col.lower() in ("name", "full_name", "customer_name", "first_name", "person_name") else name_col.title()
+                    fail_reasons.append(f"Empty/missing {name_label}")
                 if email_col and not row_dict.get("_valid_email"):
                     fail_reasons.append(f"Missing '@' in {email_col}")
                 reason_str = ", ".join(fail_reasons) or "Validation failed"
@@ -667,12 +682,13 @@ def staged_ingestion_data(
             "records.staged_count": int(validated_ingestion_data.height),
         },
     ):
+        entity_type = run_tags.get("entity_type") or "Person"
         record_records_processed(
             tenant_id=tenant_id,
             stage="stage",
             count=validated_ingestion_data.height,
             status="success",
-            entity_type="Person",
+            entity_type=entity_type,
         )
 
         # Step 1: Write to Local Parquet + MinIO Staging
@@ -767,12 +783,13 @@ def staged_ingestion_data(
             producer = IngestValidProducer()
             producer.publish(
                 tenant_id=tenant_id,
-                entity_type="Person",
+                entity_type=entity_type,
                 payload={
                     "tenant_id": tenant_id,
                     "tenantId": tenant_id,
                     "source_id": source_id,
                     "connectionId": source_id,
+                    "entity_type": entity_type,
                     "batch_id": batch_id,
                     "status": "VALIDATED",
                     "staging_path": staging_path,

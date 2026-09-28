@@ -284,3 +284,33 @@ class TestAuthenticationDisabledDevMode:
         )
         assert response.status_code == 202
         assert response.json()["status"] == "queued"
+
+
+class TestProductionAuthSafeguards:
+    """Tests ensuring mock/sandbox bypasses are strictly prohibited in production mode."""
+
+    def test_mock_token_rejected_in_production_environment(self):
+        """In production environment, mock/sandbox tokens must return 401 Unauthorized."""
+        prod_settings = Settings(
+            auth_enabled=True,
+            environment="production",
+            api_key="prod-secret-api-key",
+            keycloak_url="http://keycloak.prod:8080",
+            keycloak_realm="luminai",
+        )
+        prod_validator = KeycloakTokenValidator(prod_settings)
+
+        app.dependency_overrides[get_settings] = lambda: prod_settings
+        app.dependency_overrides[get_keycloak_validator] = lambda: prod_validator
+
+        try:
+            for bad_token in ["mock-access-token-123", "sandbox-token", "mock-admin", "user-sandbox-session"]:
+                resp = client.post(
+                    "/process/trigger",
+                    headers={"Authorization": f"Bearer {bad_token}"},
+                    json={"source_id": "src-1", "tenant_id": "acme"},
+                )
+                assert resp.status_code == 401, f"Expected 401 for token '{bad_token}' in production"
+                assert "prohibited in production" in resp.json()["detail"]
+        finally:
+            app.dependency_overrides.clear()

@@ -20,6 +20,7 @@ import polars as pl
 from dagster import AssetExecutionContext, Backoff, Jitter, RetryPolicy, asset
 from sqlalchemy import text
 
+from app.config import get_settings
 from app.kafka.producers import EntityResolvedProducer
 from app.processing.checkpoint import get_checkpoint_manager
 from app.processing.er.blocking import generate_candidate_pairs
@@ -95,17 +96,35 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     from app.db import get_engine, get_sqlite_engine
 
     limit_val = tags.get("max_rows") or tags.get("limit")
-    limit_clause = f" LIMIT {int(limit_val)}" if limit_val and str(limit_val).isdigit() else ""
+    safe_limit: Optional[int] = None
+    if limit_val is not None:
+        try:
+            val_int = int(str(limit_val).strip())
+            if val_int > 0:
+                safe_limit = val_int
+        except (ValueError, TypeError):
+            safe_limit = None
 
     if tenant_id:
-        query = text(
-            f"SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
-            f"WHERE tenant_id = :tenant_id{limit_clause};"
-        )
-        query_params = {"tenant_id": tenant_id}
+        if safe_limit:
+            query = text(
+                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
+                "WHERE tenant_id = :tenant_id LIMIT :limit_val;"
+            )
+            query_params = {"tenant_id": tenant_id, "limit_val": safe_limit}
+        else:
+            query = text(
+                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
+                "WHERE tenant_id = :tenant_id;"
+            )
+            query_params = {"tenant_id": tenant_id}
     else:
-        query = text(f"SELECT id, tenant_id, source_id, raw_id, data FROM staging_records{limit_clause};")
-        query_params = {}
+        if safe_limit:
+            query = text("SELECT id, tenant_id, source_id, raw_id, data FROM staging_records LIMIT :limit_val;")
+            query_params = {"limit_val": safe_limit}
+        else:
+            query = text("SELECT id, tenant_id, source_id, raw_id, data FROM staging_records;")
+            query_params = {}
 
     records: List[Dict[str, Any]] = []
 
@@ -146,6 +165,17 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
                 return pl.DataFrame(records)
         except Exception as sqle:
             context.log.debug("SQLite staging error: %s", sqle)
+
+    settings = get_settings()
+    if not settings.synthetic_data_allowed:
+        context.log.error(
+            "❌ ER pipeline failure: No staged records found for tenant '%s' and synthetic data fallback is disabled in this environment.",
+            tenant_id or "all",
+        )
+        raise RuntimeError(
+            f"Production safety violation: Staging store returned no records for tenant '{tenant_id or 'all'}' "
+            "and synthetic data fallback is prohibited in production mode."
+        )
 
     # Synthetic realistic multi-source dataset for ER
     synthetic_records = [
@@ -403,11 +433,13 @@ def er_golden_records(
         persisted_gr = persist_golden_records(golden_records_df, tenant_id=tenant_id)
         context.log.info("👑 Successfully persisted %d Golden Records to database (tenant: %s)", persisted_gr, tenant_id)
 
+        pipeline_entity_type = tags.get("entity_type") or "Person"
+
         record_er_metrics(
             tenant_id=tenant_id,
             clusters_count=len(clusters),
             golden_records_count=persisted_gr,
-            entity_type="Person",
+            entity_type=pipeline_entity_type,
         )
 
         # Track and persist field-level provenance
@@ -429,6 +461,7 @@ def er_golden_records(
             )
 
             if golden_rec:
+                resolved_entity_type = str(golden_rec.get("entity_type") or pipeline_entity_type)
                 prov_entries = track_field_provenance(golden_rec, cluster_records, tenant_id=tenant_id)
                 all_provenance_entries.extend(prov_entries)
 
@@ -437,7 +470,7 @@ def er_golden_records(
                     producer.publish_resolved_entity(
                         tenant_id=tenant_id,
                         golden_id=str(golden_rec.get("golden_id")),
-                        entity_type="Person",
+                        entity_type=resolved_entity_type,
                         payload=golden_rec,
                     )
                 except Exception as exc:

@@ -71,12 +71,20 @@ class KeycloakTokenValidator:
     def validate_token(self, token: str) -> Dict[str, Any]:
         """Validate and decode a JWT token string, returning its claims payload."""
         # 1. Dev / Sandbox mock token parity (matching Core Backend SecurityConfig.java)
-        if (
+        is_mock_token = (
             token in ("mock-access-token-123", "mock-token", "sandbox-token")
             or token.startswith("mock-")
             or token.startswith("sandbox")
             or "sandbox" in token
-        ):
+        )
+        if is_mock_token:
+            if not self.settings.mock_auth_allowed:
+                logger.warning("Security alert: Rejected mock/sandbox token in production environment: %s", token[:16])
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Mock and sandbox authentication tokens are prohibited in production mode.",
+                    headers={"WWW-Authenticate": "Bearer error=\"invalid_token\""},
+                )
             return {
                 "sub": "sandbox-admin-id",
                 "preferred_username": "admin",
