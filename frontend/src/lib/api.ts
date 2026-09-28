@@ -103,18 +103,24 @@ export async function apiFetch(
       } finally {
         isHandlingUnauthorized = false;
       }
-    } else if (response.status >= 500) {
-      showToastNotification(
-        "error",
-        "Server Error",
-        `Server returned error (${response.status}). Please try again later.`,
-      );
-    } else if (response.status !== 401) {
-      showToastNotification(
-        "error",
-        "Request Failed",
-        `HTTP ${response.status}: ${response.statusText || "Unable to complete request"}`,
-      );
+    }
+
+    const suppressToast = headers.get("X-Suppress-Toast") === "true";
+
+    if (!suppressToast) {
+      if (response.status >= 500) {
+        showToastNotification(
+          "error",
+          "Server Error",
+          `Server returned error (${response.status}). Please try again later.`,
+        );
+      } else if (response.status !== 401 && response.status !== 404) {
+        showToastNotification(
+          "error",
+          "Request Failed",
+          `HTTP ${response.status}: ${response.statusText || "Unable to complete request"}`,
+        );
+      }
     }
     throw new ApiError(response);
   }

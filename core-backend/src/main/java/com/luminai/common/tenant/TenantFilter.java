@@ -67,6 +67,13 @@ public class TenantFilter extends OncePerRequestFilter {
       throws ServletException, IOException {
 
     try {
+      // If ApiKeyAuthenticationFilter has already authenticated the request and populated
+      // TenantContext, pass through
+      if (TenantContext.getTenantId() != null) {
+        filterChain.doFilter(request, response);
+        return;
+      }
+
       Optional<Jwt> jwt = currentJwt();
       if (jwt.isEmpty()) {
         // Spring Security already rejects unauthenticated requests to protected paths before this

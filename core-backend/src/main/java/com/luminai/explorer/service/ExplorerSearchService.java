@@ -56,18 +56,28 @@ public class ExplorerSearchService {
       typeFacets.put(type, typeFacets.getOrDefault(type, 0L) + 1);
     }
 
-    // 2. Filter by query and entityType
+    // 2. Filter by query and entityType (supports single, comma-separated, and multi-facet
+    // filtering)
     String qLower = (query != null) ? query.trim().toLowerCase() : "";
-    String typeFilter =
-        (entityType != null && !entityType.isBlank() && !"ALL".equalsIgnoreCase(entityType))
-            ? entityType.trim()
-            : null;
+    Set<String> allowedTypes = null;
+    if (entityType != null && !entityType.isBlank() && !"ALL".equalsIgnoreCase(entityType.trim())) {
+      allowedTypes = new HashSet<>();
+      for (String t : entityType.split(",")) {
+        String trimmed = t.trim();
+        if (!trimmed.isEmpty() && !"ALL".equalsIgnoreCase(trimmed)) {
+          allowedTypes.add(trimmed.toLowerCase());
+        }
+      }
+      if (allowedTypes.isEmpty()) {
+        allowedTypes = null;
+      }
+    }
 
     List<SearchResponseDto.SearchItem> matchingItems = new ArrayList<>();
 
     for (GoldenRecord gr : allRecords) {
       String grType = extractEntityType(gr);
-      if (typeFilter != null && !typeFilter.equalsIgnoreCase(grType)) {
+      if (allowedTypes != null && !allowedTypes.contains(grType.toLowerCase())) {
         continue;
       }
 

@@ -28,6 +28,20 @@ interface AuthMeResponse {
   roles?: { roles?: string[] };
 }
 
+interface ApiKeyInfo {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  isActive: boolean;
+}
+
+interface ApiKeysResponse {
+  hasKey: boolean;
+  key?: ApiKeyInfo;
+}
+
 /**
  * Production Settings & Identity Management Page
  */
@@ -39,14 +53,17 @@ export const SettingsPage: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [apiKey, setApiKey] = useState<string>("");
 
-  // Default API Key stored or generated locally for session
-  const [apiKey, setApiKey] = useState(() => {
-    return (
-      localStorage.getItem("luminai_api_key") ||
-      "lum_live_9f8e7d6c5b4a392817263544"
-    );
-  });
+  // Query backend /api/v1/settings/api-keys for active enterprise key
+  const { data: apiKeyData, refetch: refetchApiKey } =
+    useQuery<ApiKeysResponse>({
+      queryKey: ["settings", "api-keys"],
+      queryFn: async () => {
+        const res = await apiFetch("/api/v1/settings/api-keys");
+        return res.json();
+      },
+    });
 
   // Query backend /api/v1/auth/me for enriched tenant & user metadata
   const { data: authMe } = useQuery<AuthMeResponse>({
@@ -77,8 +94,17 @@ export const SettingsPage: React.FC = () => {
       ? (user?.profile?.roles as string[])
       : ["ADMIN", "DATA_ARCHITECT"]);
 
+  const displayedKey =
+    apiKey ||
+    (apiKeyData?.hasKey && apiKeyData.key
+      ? `${apiKeyData.key.keyPrefix}••••••••••••••••••••••••••••••••`
+      : "No active API key. Click 'Roll Key' to generate one.");
+
   const handleCopyKey = () => {
-    navigator.clipboard.writeText(apiKey);
+    const toCopy =
+      apiKey || (apiKeyData?.hasKey ? apiKeyData.key?.keyPrefix : "");
+    if (!toCopy) return;
+    navigator.clipboard.writeText(toCopy);
     setCopiedKey(true);
     toast.success(
       "API Key Copied",
@@ -87,23 +113,31 @@ export const SettingsPage: React.FC = () => {
     setTimeout(() => setCopiedKey(false), 2500);
   };
 
-  const handleRegenerateKey = () => {
+  const handleRegenerateKey = async () => {
     setIsRegenerating(true);
-    setTimeout(() => {
-      const newKey =
-        "lum_live_" +
-        Array.from(crypto.getRandomValues(new Uint8Array(16)))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-      setApiKey(newKey);
-      localStorage.setItem("luminai_api_key", newKey);
-      setIsRegenerating(false);
+    try {
+      const res = await apiFetch("/api/v1/settings/api-keys/rotate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Production Live Key" }),
+      });
+      const data = await res.json();
+      setApiKey(data.apiKey);
+      setIsKeyVisible(true);
       setIsConfirmOpen(false);
+      refetchApiKey();
       toast.success(
         "API Key Rotated",
-        "A new live access token has been generated.",
+        "A new live access token has been generated and activated in PostgreSQL.",
       );
-    }, 600);
+    } catch (err) {
+      toast.error(
+        "Rotation Failed",
+        err instanceof Error ? err.message : "Failed to rotate API key",
+      );
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -263,7 +297,7 @@ export const SettingsPage: React.FC = () => {
             <input
               type={isKeyVisible ? "text" : "password"}
               readOnly
-              value={apiKey}
+              value={displayedKey}
               className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2.5 pl-3 pr-10 text-xs font-mono text-zinc-200 outline-none select-all"
             />
             <button
@@ -305,6 +339,26 @@ export const SettingsPage: React.FC = () => {
             </Button>
           </div>
         </div>
+
+        {apiKeyData?.hasKey && apiKeyData.key && (
+          <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500 mt-3 pt-3 border-t border-zinc-800/60">
+            <span>
+              Key Prefix:{" "}
+              <strong className="font-mono text-zinc-300">
+                {apiKeyData.key.keyPrefix}
+              </strong>
+            </span>
+            <span>
+              Created: {new Date(apiKeyData.key.createdAt).toLocaleDateString()}
+            </span>
+            <span>
+              Last used:{" "}
+              {apiKeyData.key.lastUsedAt
+                ? new Date(apiKeyData.key.lastUsedAt).toLocaleString()
+                : "Never"}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 4. System Capabilities & Engine Preferences */}
