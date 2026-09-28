@@ -64,14 +64,11 @@ export const SettingsPage: React.FC = () => {
     user?.profile?.preferred_username ||
     "LuminAI Operator";
 
-  const userEmail =
-    authMe?.email || user?.profile?.email || "admin@luminai.io";
+  const userEmail = authMe?.email || user?.profile?.email || "admin@luminai.io";
 
-  const tenantSlug =
-    authMe?.tenantSlug || "lumin-global-prod";
+  const tenantSlug = authMe?.tenantSlug || "lumin-global-prod";
 
-  const tenantId =
-    authMe?.tenantId || "00000000-0000-0000-0000-000000000001";
+  const tenantId = authMe?.tenantId || "00000000-0000-0000-0000-000000000001";
 
   // Extract roles
   const roles: string[] =
@@ -83,21 +80,29 @@ export const SettingsPage: React.FC = () => {
   const handleCopyKey = () => {
     navigator.clipboard.writeText(apiKey);
     setCopiedKey(true);
-    toast.success("API Key Copied", "The token has been copied to your clipboard.");
+    toast.success(
+      "API Key Copied",
+      "The token has been copied to your clipboard.",
+    );
     setTimeout(() => setCopiedKey(false), 2500);
   };
 
   const handleRegenerateKey = () => {
     setIsRegenerating(true);
     setTimeout(() => {
-      const newKey = "lum_live_" + Array.from(crypto.getRandomValues(new Uint8Array(16)))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+      const newKey =
+        "lum_live_" +
+        Array.from(crypto.getRandomValues(new Uint8Array(16)))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
       setApiKey(newKey);
       localStorage.setItem("luminai_api_key", newKey);
       setIsRegenerating(false);
       setIsConfirmOpen(false);
-      toast.success("API Key Rotated", "A new live access token has been generated.");
+      toast.success(
+        "API Key Rotated",
+        "A new live access token has been generated.",
+      );
     }, 600);
   };
 
@@ -119,7 +124,8 @@ export const SettingsPage: React.FC = () => {
             Account & System Settings
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Manage your authenticated user profile, multi-tenant isolation, and data-engine API keys
+            Manage your authenticated user profile, multi-tenant isolation, and
+            data-engine API keys
           </p>
         </div>
 
@@ -142,7 +148,9 @@ export const SettingsPage: React.FC = () => {
                 {userName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-zinc-100">{userName}</h3>
+                <h3 className="text-sm font-semibold text-zinc-100">
+                  {userName}
+                </h3>
                 <p className="text-xs text-zinc-400">{userEmail}</p>
               </div>
             </div>
@@ -244,7 +252,8 @@ export const SettingsPage: React.FC = () => {
               Data Engine API Access Key
             </h3>
             <p className="text-xs text-zinc-400">
-              Authenticate external Dagster workers, Python SDK scripts, and programmatic REST clients
+              Authenticate external Dagster workers, Python SDK scripts, and
+              programmatic REST clients
             </p>
           </div>
         </div>
@@ -262,7 +271,11 @@ export const SettingsPage: React.FC = () => {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-1 cursor-pointer"
               title={isKeyVisible ? "Hide key" : "Show key"}
             >
-              {isKeyVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {isKeyVisible ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
             </button>
           </div>
 
@@ -271,7 +284,13 @@ export const SettingsPage: React.FC = () => {
               variant="secondary"
               size="md"
               onClick={handleCopyKey}
-              leftIcon={copiedKey ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              leftIcon={
+                copiedKey ? (
+                  <Check className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )
+              }
             >
               {copiedKey ? "Copied" : "Copy Key"}
             </Button>
@@ -306,18 +325,30 @@ export const SettingsPage: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800/80">
-            <span className="text-zinc-500 font-medium block mb-1">Theme Palette</span>
-            <span className="text-zinc-200 font-semibold">OLED Dark (Tailwind v4)</span>
+            <span className="text-zinc-500 font-medium block mb-1">
+              Theme Palette
+            </span>
+            <span className="text-zinc-200 font-semibold">
+              OLED Dark (Tailwind v4)
+            </span>
           </div>
 
           <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800/80">
-            <span className="text-zinc-500 font-medium block mb-1">Cache Layer</span>
-            <span className="text-zinc-200 font-semibold">Redis (30s Dashboard / 60s Explorer)</span>
+            <span className="text-zinc-500 font-medium block mb-1">
+              Cache Layer
+            </span>
+            <span className="text-zinc-200 font-semibold">
+              Redis (30s Dashboard / 60s Explorer)
+            </span>
           </div>
 
           <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800/80">
-            <span className="text-zinc-500 font-medium block mb-1">Event Bus</span>
-            <span className="text-zinc-200 font-semibold">Apache Kafka (Batch 100)</span>
+            <span className="text-zinc-500 font-medium block mb-1">
+              Event Bus
+            </span>
+            <span className="text-zinc-200 font-semibold">
+              Apache Kafka (Batch 100)
+            </span>
           </div>
         </div>
       </div>

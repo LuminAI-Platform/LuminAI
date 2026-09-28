@@ -1,5 +1,12 @@
 import React from "react";
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Filter, Eye } from "lucide-react";
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  RotateCcw,
+  Filter,
+  Eye,
+} from "lucide-react";
 import type { GraphLayoutType } from "./GraphCanvas";
 
 interface GraphControlsProps {
@@ -101,7 +108,9 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
             onChange={(e) => onSelectEntityType(e.target.value || null)}
             className="bg-transparent text-zinc-200 outline-none cursor-pointer"
           >
-            <option value="" className="bg-zinc-900">All Entity Types</option>
+            <option value="" className="bg-zinc-900">
+              All Entity Types
+            </option>
             {entityTypes.map((t) => (
               <option key={t} value={t} className="bg-zinc-900">
                 {t}
@@ -120,7 +129,9 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
             onChange={(e) => onSelectRelType(e.target.value || null)}
             className="bg-transparent text-zinc-200 outline-none cursor-pointer"
           >
-            <option value="" className="bg-zinc-900">All Relationships</option>
+            <option value="" className="bg-zinc-900">
+              All Relationships
+            </option>
             {relationshipTypes.map((r) => (
               <option key={r} value={r} className="bg-zinc-900">
                 {r}

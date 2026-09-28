@@ -1,7 +1,15 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { X, Network, ExternalLink, GitFork, ArrowDownLeft, ArrowUpRight, PlusCircle } from "lucide-react";
+import {
+  X,
+  Network,
+  ExternalLink,
+  GitFork,
+  ArrowDownLeft,
+  ArrowUpRight,
+  PlusCircle,
+} from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
@@ -35,7 +43,9 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     queryKey: ["graph", "stats", node?.id],
     queryFn: async () => {
       if (!node) return null;
-      const res = await apiFetch(`/api/v1/graph/stats?entityId=${encodeURIComponent(node.id)}`);
+      const res = await apiFetch(
+        `/api/v1/graph/stats?entityId=${encodeURIComponent(node.id)}`,
+      );
       return res.json();
     },
     enabled: !!node,
@@ -88,7 +98,9 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         ) : (
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
-              <span className="text-[10px] text-zinc-500 block mb-0.5">Degree</span>
+              <span className="text-[10px] text-zinc-500 block mb-0.5">
+                Degree
+              </span>
               <span className="text-sm font-bold text-zinc-200">
                 {stats?.degree ?? 0}
               </span>
@@ -114,34 +126,41 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
       </div>
 
       {/* Relationship types breakdown */}
-      {stats?.relationshipTypeCounts && Object.keys(stats.relationshipTypeCounts).length > 0 && (
-        <div>
-          <h4 className="text-[11px] font-semibold text-zinc-400 mb-1.5 flex items-center gap-1.5">
-            <GitFork className="w-3.5 h-3.5 text-purple-400" />
-            Adjacent Edges
-          </h4>
-          <div className="flex flex-wrap gap-1.5">
-            {Object.entries(stats.relationshipTypeCounts).map(([type, count]) => (
-              <span
-                key={type}
-                className="px-2 py-0.5 rounded-md text-[10px] bg-zinc-950 border border-zinc-800 text-zinc-300 flex items-center gap-1"
-              >
-                <span>{type}</span>
-                <span className="font-bold text-blue-400">×{count}</span>
-              </span>
-            ))}
+      {stats?.relationshipTypeCounts &&
+        Object.keys(stats.relationshipTypeCounts).length > 0 && (
+          <div>
+            <h4 className="text-[11px] font-semibold text-zinc-400 mb-1.5 flex items-center gap-1.5">
+              <GitFork className="w-3.5 h-3.5 text-purple-400" />
+              Adjacent Edges
+            </h4>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(stats.relationshipTypeCounts).map(
+                ([type, count]) => (
+                  <span
+                    key={type}
+                    className="px-2 py-0.5 rounded-md text-[10px] bg-zinc-950 border border-zinc-800 text-zinc-300 flex items-center gap-1"
+                  >
+                    <span>{type}</span>
+                    <span className="font-bold text-blue-400">×{count}</span>
+                  </span>
+                ),
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Entity Properties Table */}
       {node.properties && Object.keys(node.properties).length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-zinc-400 mb-2">Properties</h4>
+          <h4 className="text-xs font-semibold text-zinc-400 mb-2">
+            Properties
+          </h4>
           <div className="bg-zinc-950 rounded-lg border border-zinc-800/80 p-2.5 divide-y divide-zinc-900 text-xs">
             {Object.entries(node.properties).map(([k, v]) => (
               <div key={k} className="py-1.5 flex justify-between gap-2">
-                <span className="text-zinc-500 font-mono text-[10px] truncate">{k}</span>
+                <span className="text-zinc-500 font-mono text-[10px] truncate">
+                  {k}
+                </span>
                 <span className="text-zinc-300 text-right truncate max-w-[140px]">
                   {String(v)}
                 </span>

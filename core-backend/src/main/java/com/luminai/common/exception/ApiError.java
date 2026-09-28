@@ -6,16 +6,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Standardized API Error response schema across all LuminAI backend REST endpoints (MVP-06).
- */
+/** Standardized API Error response schema across all LuminAI backend REST endpoints (MVP-06). */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ApiError(
     int status,
     String error,
     String message,
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
-    Instant timestamp,
+    @JsonFormat(shape = JsonFormat.Shape.STRING) Instant timestamp,
     String path,
     String correlationId,
     Object details,
@@ -23,7 +20,8 @@ public record ApiError(
 
   public record FieldError(String field, String message) {}
 
-  public static ApiError of(int status, String error, String message, String path, String correlationId) {
+  public static ApiError of(
+      int status, String error, String message, String path, String correlationId) {
     return new ApiError(
         status,
         error,

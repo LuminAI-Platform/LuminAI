@@ -148,10 +148,10 @@ export const ConnectionsPage: React.FC = () => {
               rawStatus === "ACTIVE" || rawStatus === "CONNECTED"
                 ? "Connected"
                 : rawStatus === "SYNCING"
-                ? "Syncing"
-                : rawStatus === "FAILED"
-                ? "Failed"
-                : rawStatus;
+                  ? "Syncing"
+                  : rawStatus === "FAILED"
+                    ? "Failed"
+                    : rawStatus;
 
             return {
               id: typeof item.id === "string" ? item.id : undefined,
@@ -164,7 +164,8 @@ export const ConnectionsPage: React.FC = () => {
                 (typeof item.credentialsRef === "string"
                   ? item.credentialsRef
                   : "Registered database pipeline connector."),
-              lastSyncedAt: typeof item.updatedAt === "string" ? item.updatedAt : undefined,
+              lastSyncedAt:
+                typeof item.updatedAt === "string" ? item.updatedAt : undefined,
             };
           },
         );

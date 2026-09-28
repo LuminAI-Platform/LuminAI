@@ -53,7 +53,12 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
         borderColor: "#27272a",
         textStyle: { color: "#f4f4f5", fontSize: 12 },
         formatter: (params: unknown) => {
-          const p = params as { name: string; value: number; percent: number; color: string };
+          const p = params as {
+            name: string;
+            value: number;
+            percent: number;
+            color: string;
+          };
           return `
             <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
               <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${p.color};"></span>
@@ -98,7 +103,10 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
             scale: true,
             scaleSize: 6,
           },
-          data: seriesData.length > 0 ? seriesData : [{ name: "No Data", value: 1 }],
+          data:
+            seriesData.length > 0
+              ? seriesData
+              : [{ name: "No Data", value: 1 }],
         },
       ],
     };

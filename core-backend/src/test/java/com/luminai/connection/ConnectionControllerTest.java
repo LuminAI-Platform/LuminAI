@@ -61,7 +61,8 @@ class ConnectionControllerTest {
     UUID tenantId = UUID.randomUUID();
 
     ConnectionDto.CreateRequest request =
-        new ConnectionDto.CreateRequest("PostgreSQL Prod", Connection.Type.POSTGRESQL, "{}", "creds/pg");
+        new ConnectionDto.CreateRequest(
+            "PostgreSQL Prod", Connection.Type.POSTGRESQL, "{}", "creds/pg");
 
     ConnectionDto.Response response =
         new ConnectionDto.Response(
@@ -196,9 +197,7 @@ class ConnectionControllerTest {
     UUID connId = UUID.randomUUID();
     doNothing().when(connectionService).delete(connId);
 
-    mockMvc
-        .perform(delete("/api/v1/connections/" + connId))
-        .andExpect(status().isNoContent());
+    mockMvc.perform(delete("/api/v1/connections/" + connId)).andExpect(status().isNoContent());
   }
 
   @Test
@@ -206,9 +205,7 @@ class ConnectionControllerTest {
   void previewFileSuccess() throws Exception {
     UUID connId = UUID.randomUUID();
     List<Map<String, Object>> sampleRows =
-        List.of(
-            Map.of("id", "1", "name", "Alpha"),
-            Map.of("id", "2", "name", "Beta"));
+        List.of(Map.of("id", "1", "name", "Alpha"), Map.of("id", "2", "name", "Beta"));
 
     when(connectionPreviewService.previewFile(connId)).thenReturn(sampleRows);
 

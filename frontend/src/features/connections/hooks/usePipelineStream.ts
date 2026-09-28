@@ -64,7 +64,10 @@ export function usePipelineStream(
   >({});
 
   const esRef = useRef<EventSource | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const connectRef = useRef<() => void>(() => {});
 
   const clearErrors = useCallback(() => {
     setErrors([]);
@@ -163,7 +166,7 @@ export function usePipelineStream(
           clearTimeout(reconnectTimeoutRef.current);
         }
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          connectRef.current();
         }, 5000);
       };
     } catch {
@@ -171,6 +174,10 @@ export function usePipelineStream(
       setIsPolling(true);
     }
   }, [runId, onProgress, onErrorEvent, onComplete]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     connect();

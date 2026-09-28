@@ -122,12 +122,17 @@ const DEFAULT_SEED_GRAPH: GraphElements = {
  * Interactive Knowledge Graph Explorer Page powered by Cytoscape.js
  */
 export const GraphPage: React.FC = () => {
-  const [selectedEntityId, setSelectedEntityId] = useState<string>("ent-luminai");
+  const [selectedEntityId, setSelectedEntityId] =
+    useState<string>("ent-luminai");
   const [depth, setDepth] = useState<number>(2);
   const [layoutType, setLayoutType] = useState<GraphLayoutType>("cose");
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
-  const [selectedRelFilter, setSelectedRelFilter] = useState<string | null>(null);
-  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string | null>(null);
+  const [selectedRelFilter, setSelectedRelFilter] = useState<string | null>(
+    null,
+  );
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string | null>(
+    null,
+  );
 
   const cyRef = useRef<Core | null>(null);
 
@@ -138,7 +143,13 @@ export const GraphPage: React.FC = () => {
     error,
     refetch,
   } = useQuery<GraphResponse>({
-    queryKey: ["graph", "neighbourhood", selectedEntityId, depth, selectedRelFilter],
+    queryKey: [
+      "graph",
+      "neighbourhood",
+      selectedEntityId,
+      depth,
+      selectedRelFilter,
+    ],
     queryFn: async () => {
       let url = `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(selectedEntityId)}&depth=${depth}`;
       if (selectedRelFilter) {
@@ -162,7 +173,9 @@ export const GraphPage: React.FC = () => {
       ? graphData.nodes.filter((n) => n.data.entityType === selectedTypeFilter)
       : graphData.nodes,
     edges: selectedRelFilter
-      ? graphData.edges.filter((e) => e.data.relationshipType === selectedRelFilter)
+      ? graphData.edges.filter(
+          (e) => e.data.relationshipType === selectedRelFilter,
+        )
       : graphData.edges,
   };
 
@@ -220,7 +233,8 @@ export const GraphPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Explore 2D semantic entity neighbourhoods, shortest paths, and topological degree centrality
+            Explore 2D semantic entity neighbourhoods, shortest paths, and
+            topological degree centrality
           </p>
         </div>
 
@@ -234,7 +248,9 @@ export const GraphPage: React.FC = () => {
           />
 
           <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 text-xs gap-1.5">
-            <span className="text-zinc-500 text-[11px] px-1 font-medium">Depth</span>
+            <span className="text-zinc-500 text-[11px] px-1 font-medium">
+              Depth
+            </span>
             {[1, 2, 3, 4].map((d) => (
               <button
                 key={d}
@@ -267,7 +283,8 @@ export const GraphPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              Connected to fallback graph topology. Live Neo4j connection will sync when services are live.
+              Connected to fallback graph topology. Live Neo4j connection will
+              sync when services are live.
             </span>
           </div>
           <Button size="xs" variant="ghost" onClick={() => refetch()}>
@@ -316,7 +333,8 @@ export const GraphPage: React.FC = () => {
         {/* Graph Bottom Legend Bar */}
         <div className="absolute bottom-4 left-4 z-10 bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-lg px-3 py-1.5 shadow-xl flex items-center gap-4 text-[11px] text-zinc-400">
           <span className="font-semibold text-zinc-300">
-            {filteredElements.nodes.length} Nodes · {filteredElements.edges.length} Edges
+            {filteredElements.nodes.length} Nodes ·{" "}
+            {filteredElements.edges.length} Edges
           </span>
           <div className="h-3 w-px bg-zinc-800" />
           <div className="flex items-center gap-3">
@@ -324,7 +342,8 @@ export const GraphPage: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-blue-500" /> Person
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Organization
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
+              Organization
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-500" /> Dataset

@@ -4,9 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Cytoscape.js element response and graph stats for a tenant-scoped entity neighbourhood.
- */
+/** Cytoscape.js element response and graph stats for a tenant-scoped entity neighbourhood. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record GraphQueryResponseDto(
     List<Node> nodes,
@@ -23,11 +21,7 @@ public record GraphQueryResponseDto(
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record NodeData(
-      String id,
-      String label,
-      String entityType,
-      Map<String, Object> properties,
-      String color) {
+      String id, String label, String entityType, Map<String, Object> properties, String color) {
 
     public NodeData(String id, String label, String entityType) {
       this(id, label, entityType, null, null);

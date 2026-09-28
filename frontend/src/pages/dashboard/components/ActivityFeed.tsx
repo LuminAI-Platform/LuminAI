@@ -1,5 +1,14 @@
 import React from "react";
-import { Activity, Play, Database, Network, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import {
+  Activity,
+  Play,
+  Database,
+  Network,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 import { Badge, type BadgeVariant } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
 
@@ -24,16 +33,37 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   DEFAULT: <Activity className="w-3.5 h-3.5 text-zinc-400" />,
 };
 
-const STATUS_BADGES: Record<string, { label: string; variant: BadgeVariant; icon: React.ReactNode }> = {
-  SUCCESS: { label: "Completed", variant: "success", icon: <CheckCircle2 className="w-3 h-3" /> },
-  RUNNING: { label: "Running", variant: "warning", icon: <Clock className="w-3 h-3 animate-spin" /> },
-  FAILED: { label: "Failed", variant: "danger", icon: <XCircle className="w-3 h-3" /> },
-  INFO: { label: "Info", variant: "info", icon: <AlertCircle className="w-3 h-3" /> },
+const STATUS_BADGES: Record<
+  string,
+  { label: string; variant: BadgeVariant; icon: React.ReactNode }
+> = {
+  SUCCESS: {
+    label: "Completed",
+    variant: "success",
+    icon: <CheckCircle2 className="w-3 h-3" />,
+  },
+  RUNNING: {
+    label: "Running",
+    variant: "warning",
+    icon: <Clock className="w-3 h-3 animate-spin" />,
+  },
+  FAILED: {
+    label: "Failed",
+    variant: "danger",
+    icon: <XCircle className="w-3 h-3" />,
+  },
+  INFO: {
+    label: "Info",
+    variant: "info",
+    icon: <AlertCircle className="w-3 h-3" />,
+  },
 };
 
 function formatRelativeTime(dateString: string): string {
   try {
-    const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+    const diff = Math.floor(
+      (Date.now() - new Date(dateString).getTime()) / 1000,
+    );
     if (diff < 60) return "just now";
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -63,7 +93,9 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
   if (activities.length === 0) {
     return (
       <div className="p-8 text-center border border-dashed border-zinc-800 rounded-xl">
-        <p className="text-xs text-zinc-500">No activity events recorded yet.</p>
+        <p className="text-xs text-zinc-500">
+          No activity events recorded yet.
+        </p>
       </div>
     );
   }

@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  apiFetch,
-  ApiError,
-} from "../../../lib/api";
+import { apiFetch, ApiError } from "../../../lib/api";
 import {
   PipelineJobCard,
   type PipelineJob,

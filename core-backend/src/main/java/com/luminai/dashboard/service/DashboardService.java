@@ -16,7 +16,6 @@ import com.luminai.ontology.repository.EntityTypeRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,9 +48,7 @@ public class DashboardService {
     this.entityTypeRepository = entityTypeRepository;
   }
 
-  /**
-   * Aggregates platform summary KPI metrics with 30s cache TTL.
-   */
+  /** Aggregates platform summary KPI metrics with 30s cache TTL. */
   @Transactional(readOnly = true)
   @Cacheable(
       value = CacheConfig.CACHE_DASHBOARD,
@@ -119,9 +116,7 @@ public class DashboardService {
         lastSyncAt);
   }
 
-  /**
-   * Retrieves recent platform events across pipeline runs and connections.
-   */
+  /** Retrieves recent platform events across pipeline runs and connections. */
   @Transactional(readOnly = true)
   public List<ActivityItemDto> getActivity(int limit) {
     int maxLimit = Math.max(1, Math.min(limit, 50));
@@ -178,9 +173,7 @@ public class DashboardService {
     return activities.stream().limit(maxLimit).toList();
   }
 
-  /**
-   * Generates time-series points over the specified window (e.g. "7d").
-   */
+  /** Generates time-series points over the specified window (e.g. "7d"). */
   @Transactional(readOnly = true)
   public List<TimeSeriesPointDto> getTimeSeries(String range) {
     int days = 7;
@@ -209,9 +202,7 @@ public class DashboardService {
     return points;
   }
 
-  /**
-   * Computes a data quality score between 0.0 and 100.0.
-   */
+  /** Computes a data quality score between 0.0 and 100.0. */
   private double calculateDataQualityScore() {
     long totalOutput = pipelineRunRepository.sumRecordsOutput();
     long totalFailed = pipelineRunRepository.sumRecordsFailed();

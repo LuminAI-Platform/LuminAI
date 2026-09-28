@@ -283,7 +283,6 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
 
   // Sync prop job into state when caller provides one
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (jobProp) setJob(jobProp);
   }, [jobProp]);
 

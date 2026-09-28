@@ -21,7 +21,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @Validated
 @RequestMapping("/api/v1/dashboard")
-@Tag(name = "Dashboard", description = "Tenant dashboard KPI summary, event streams, and time-series telemetry")
+@Tag(
+    name = "Dashboard",
+    description = "Tenant dashboard KPI summary, event streams, and time-series telemetry")
 public class DashboardController {
 
   private final DashboardService dashboardService;
@@ -32,7 +34,8 @@ public class DashboardController {
 
   @Operation(
       summary = "Get Dashboard Summary",
-      description = "Returns aggregated tenant-scoped KPI counters, entity breakdown, pipeline health, and data quality score.")
+      description =
+          "Returns aggregated tenant-scoped KPI counters, entity breakdown, pipeline health, and data quality score.")
   @ApiResponse(responseCode = "200", description = "Dashboard summary retrieved successfully")
   @GetMapping("/summary")
   public ResponseEntity<DashboardSummaryDto> getSummary() {
@@ -41,7 +44,8 @@ public class DashboardController {
 
   @Operation(
       summary = "Get Recent Activity",
-      description = "Retrieves recent audit events including pipeline executions, entity resolutions, and connector updates.")
+      description =
+          "Retrieves recent audit events including pipeline executions, entity resolutions, and connector updates.")
   @ApiResponse(responseCode = "200", description = "Activity items retrieved successfully")
   @GetMapping("/activity")
   public ResponseEntity<List<ActivityItemDto>> getActivity(
@@ -55,7 +59,8 @@ public class DashboardController {
 
   @Operation(
       summary = "Get Time-Series Statistics",
-      description = "Returns date-bucketed entity count and pipeline throughput metrics for charting.")
+      description =
+          "Returns date-bucketed entity count and pipeline throughput metrics for charting.")
   @ApiResponse(responseCode = "200", description = "Time-series stats retrieved successfully")
   @GetMapping("/stats/timeseries")
   public ResponseEntity<List<TimeSeriesPointDto>> getTimeSeries(

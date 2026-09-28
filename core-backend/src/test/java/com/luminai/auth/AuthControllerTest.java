@@ -38,7 +38,8 @@ class AuthControllerTest {
     when(mockJwt.getSubject()).thenReturn("usr_test_123");
     when(mockJwt.getClaimAsString("email")).thenReturn("operator@corp.io");
     when(mockJwt.getClaimAsString("preferred_username")).thenReturn("operator_one");
-    when(mockJwt.getClaimAsMap("realm_access")).thenReturn(Map.of("roles", java.util.List.of("ADMIN")));
+    when(mockJwt.getClaimAsMap("realm_access"))
+        .thenReturn(Map.of("roles", java.util.List.of("ADMIN")));
 
     Map<String, Object> result = authController.getCurrentUser(mockJwt);
 

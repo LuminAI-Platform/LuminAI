@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * Server-Sent Events (SSE) controller for real-time pipeline execution progress streaming.
- * Emits pipeline.progress, pipeline.error, and pipeline.complete events with a 15-second heartbeat ping.
+ * Server-Sent Events (SSE) controller for real-time pipeline execution progress streaming. Emits
+ * pipeline.progress, pipeline.error, and pipeline.complete events with a 15-second heartbeat ping.
  */
 @RestController
 @RequestMapping("/api/v1/pipelines")
@@ -51,11 +51,9 @@ public class PipelineSseController {
     @ApiResponse(responseCode = "200", description = "SSE stream established successfully")
   })
   public SseEmitter streamPipelineEvents(
-      @Parameter(description = "Filter by connection UUID")
-          @RequestParam(required = false)
+      @Parameter(description = "Filter by connection UUID") @RequestParam(required = false)
           UUID connectionId,
-      @Parameter(description = "Filter by pipeline run ID")
-          @RequestParam(required = false)
+      @Parameter(description = "Filter by pipeline run ID") @RequestParam(required = false)
           String runId) {
 
     log.info("New SSE client connected — connId={}, runId={}", connectionId, runId);
@@ -76,8 +74,7 @@ public class PipelineSseController {
     @ApiResponse(responseCode = "200", description = "SSE stream established for the given run")
   })
   public SseEmitter streamPipelineRunEvents(
-      @Parameter(description = "Pipeline run UUID or ID", required = true)
-          @PathVariable
+      @Parameter(description = "Pipeline run UUID or ID", required = true) @PathVariable
           String runId) {
 
     log.info("New SSE client connected for runId={}", runId);

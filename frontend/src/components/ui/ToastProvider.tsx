@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 import { Toast, type ToastItem, type ToastType } from "./Toast";
 
 interface ToastContextType {

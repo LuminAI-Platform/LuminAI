@@ -17,9 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-/**
- * Global REST exception handler producing standardized JSON error structures (MVP-06).
- */
+/** Global REST exception handler producing standardized JSON error structures (MVP-06). */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -33,8 +31,7 @@ public class GlobalExceptionHandler {
             .map(fe -> new ApiError.FieldError(fe.getField(), fe.getDefaultMessage()))
             .toList();
 
-    return ResponseEntity.badRequest()
-        .body(ApiError.ofValidation(fieldErrors, getPath(request)));
+    return ResponseEntity.badRequest().body(ApiError.ofValidation(fieldErrors, getPath(request)));
   }
 
   @ExceptionHandler(ConstraintViolationException.class)
@@ -49,8 +46,7 @@ public class GlobalExceptionHandler {
                 })
             .toList();
 
-    return ResponseEntity.badRequest()
-        .body(ApiError.ofValidation(fieldErrors, getPath(request)));
+    return ResponseEntity.badRequest().body(ApiError.ofValidation(fieldErrors, getPath(request)));
   }
 
   @ExceptionHandler(ValidationException.class)

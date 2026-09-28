@@ -17,7 +17,10 @@ import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
 import { KpiCard } from "./components/KpiCard";
 import { EntityBreakdownChart } from "./components/EntityBreakdownChart";
-import { PipelineTimelineChart, type TimeSeriesPoint } from "./components/PipelineTimelineChart";
+import {
+  PipelineTimelineChart,
+  type TimeSeriesPoint,
+} from "./components/PipelineTimelineChart";
 import { ActivityFeed, type ActivityItem } from "./components/ActivityFeed";
 
 interface DashboardSummary {
@@ -65,7 +68,9 @@ export const DashboardPage: React.FC = () => {
   } = useQuery<TimeSeriesPoint[]>({
     queryKey: ["dashboard", "timeseries", timeRange],
     queryFn: async () => {
-      const res = await apiFetch(`/api/v1/dashboard/stats/timeseries?range=${timeRange}`);
+      const res = await apiFetch(
+        `/api/v1/dashboard/stats/timeseries?range=${timeRange}`,
+      );
       return res.json();
     },
     refetchInterval: 30000,
@@ -105,7 +110,8 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Real-time entity resolution telemetry, pipeline health, and data infrastructure metrics
+            Real-time entity resolution telemetry, pipeline health, and data
+            infrastructure metrics
           </p>
         </div>
 
@@ -115,7 +121,11 @@ export const DashboardPage: React.FC = () => {
             size="sm"
             onClick={handleManualRefresh}
             isLoading={isRefetching}
-            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`} />}
+            leftIcon={
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
+              />
+            }
           >
             Refresh
           </Button>
@@ -137,9 +147,16 @@ export const DashboardPage: React.FC = () => {
         <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 flex items-center justify-between text-xs text-red-200">
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <span>Failed to connect to Dashboard telemetry services. Showing cached metrics.</span>
+            <span>
+              Failed to connect to Dashboard telemetry services. Showing cached
+              metrics.
+            </span>
           </div>
-          <Button size="xs" variant="secondary" onClick={() => refetchSummary()}>
+          <Button
+            size="xs"
+            variant="secondary"
+            onClick={() => refetchSummary()}
+          >
             Retry
           </Button>
         </div>
@@ -175,8 +192,12 @@ export const DashboardPage: React.FC = () => {
           }
           icon={<Play className="w-4 h-4" />}
           badge={{
-            text: (summary?.pipelineHealth?.failed ?? 0) > 0 ? "Issues" : "Healthy",
-            variant: (summary?.pipelineHealth?.failed ?? 0) > 0 ? "warning" : "success",
+            text:
+              (summary?.pipelineHealth?.failed ?? 0) > 0 ? "Issues" : "Healthy",
+            variant:
+              (summary?.pipelineHealth?.failed ?? 0) > 0
+                ? "warning"
+                : "success",
           }}
           isLoading={isSummaryLoading}
         />
@@ -221,7 +242,10 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <PipelineTimelineChart data={timeSeries} isLoading={isTimeSeriesLoading} />
+          <PipelineTimelineChart
+            data={timeSeries}
+            isLoading={isTimeSeriesLoading}
+          />
         </div>
 
         {/* Right: Entity Type Distribution (1 col) */}
@@ -264,7 +288,9 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <ActivityFeed
-            activities={activity.length > 0 ? activity : summary?.recentActivity}
+            activities={
+              activity.length > 0 ? activity : summary?.recentActivity
+            }
             isLoading={isActivityLoading && isSummaryLoading}
           />
         </div>
@@ -303,7 +329,8 @@ export const DashboardPage: React.FC = () => {
               Knowledge Graph Explorer
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Visualize semantic entity neighbourhoods and shortest paths in 2D mesh.
+              Visualize semantic entity neighbourhoods and shortest paths in 2D
+              mesh.
             </p>
           </Link>
 
@@ -321,7 +348,8 @@ export const DashboardPage: React.FC = () => {
               Semantic Schema Studio
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Define entity types, property schemas, and publish ontology versions.
+              Define entity types, property schemas, and publish ontology
+              versions.
             </p>
           </Link>
         </div>

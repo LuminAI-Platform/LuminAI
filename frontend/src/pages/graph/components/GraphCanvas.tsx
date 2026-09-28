@@ -58,6 +58,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
 
+  const onSelectNodeRef = useRef(onSelectNode);
+  const onExpandNodeRef = useRef(onExpandNode);
+  const onInitCyRef = useRef(onInitCy);
+
+  useEffect(() => {
+    onSelectNodeRef.current = onSelectNode;
+    onExpandNodeRef.current = onExpandNode;
+    onInitCyRef.current = onInitCy;
+  }, [onSelectNode, onExpandNode, onInitCy]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -67,7 +77,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         group: "nodes" as const,
         data: {
           ...n.data,
-          color: n.data.color || TYPE_COLORS[n.data.entityType || ""] || TYPE_COLORS.Default,
+          color:
+            n.data.color ||
+            TYPE_COLORS[n.data.entityType || ""] ||
+            TYPE_COLORS.Default,
         },
       })),
       ...elements.edges.map((e) => ({
@@ -155,34 +168,26 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     });
 
     cyRef.current = cy;
-    if (onInitCy) onInitCy(cy);
+    if (onInitCyRef.current) onInitCyRef.current(cy);
 
     // Event: Node Click
     cy.on("tap", "node", (evt: EventObject) => {
       const node = evt.target;
-      onSelectNode(node.data());
+      onSelectNodeRef.current(node.data());
     });
 
     // Event: Node Double Click -> Expand
     cy.on("dbltap", "node", (evt: EventObject) => {
       const node = evt.target;
-      onExpandNode(node.id());
+      onExpandNodeRef.current(node.id());
     });
 
     // Event: Tap background -> Deselect
     cy.on("tap", (evt: EventObject) => {
       if (evt.target === cy) {
-        onSelectNode(null);
+        onSelectNodeRef.current(null);
       }
     });
-
-    // Highlight pre-selected node if given
-    if (selectedNodeId) {
-      const targetNode = cy.$id(selectedNodeId);
-      if (targetNode.length > 0) {
-        targetNode.select();
-      }
-    }
 
     return () => {
       cy.destroy();
@@ -208,7 +213,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     <div className="relative w-full h-full bg-zinc-950 rounded-xl overflow-hidden border border-zinc-800/80">
       {/* Background dot pattern */}
       <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
-      <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+      <div
+        ref={containerRef}
+        className="w-full h-full cursor-grab active:cursor-grabbing"
+      />
     </div>
   );
 };

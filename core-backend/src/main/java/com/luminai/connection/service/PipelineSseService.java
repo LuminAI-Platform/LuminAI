@@ -18,8 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * Service managing real-time Server-Sent Events (SSE) for pipeline execution progress,
- * errors, and completions. Includes a 15-second heartbeat ping to keep connections alive.
+ * Service managing real-time Server-Sent Events (SSE) for pipeline execution progress, errors, and
+ * completions. Includes a 15-second heartbeat ping to keep connections alive.
  */
 @Service
 public class PipelineSseService {
@@ -42,10 +42,7 @@ public class PipelineSseService {
           });
 
   public record EmitterEntry(
-      String clientId,
-      SseEmitter emitter,
-      UUID connectionIdFilter,
-      String runIdFilter) {}
+      String clientId, SseEmitter emitter, UUID connectionIdFilter, String runIdFilter) {}
 
   /** Start the 15-second heartbeat ping interval. */
   @PostConstruct
@@ -108,9 +105,12 @@ public class PipelineSseService {
               .name("pipeline.connected")
               .data(
                   Map.of(
-                      "status", "CONNECTED",
-                      "clientId", clientId,
-                      "timestamp", Instant.now().toString())));
+                      "status",
+                      "CONNECTED",
+                      "clientId",
+                      clientId,
+                      "timestamp",
+                      Instant.now().toString())));
     } catch (IOException e) {
       emitters.remove(entry);
     }
@@ -118,10 +118,7 @@ public class PipelineSseService {
     return emitter;
   }
 
-  /**
-   * Emits a step-level progress update event (MVP-05).
-   * Event: pipeline.progress
-   */
+  /** Emits a step-level progress update event (MVP-05). Event: pipeline.progress */
   public void emitProgress(String runId, String step, int progress, String message) {
     Map<String, Object> data =
         Map.of(
@@ -132,10 +129,7 @@ public class PipelineSseService {
     broadcastToRun("pipeline.progress", runId, data);
   }
 
-  /**
-   * Emits an error notification event (MVP-05).
-   * Event: pipeline.error
-   */
+  /** Emits an error notification event (MVP-05). Event: pipeline.error */
   public void emitError(String runId, String step, String error, String severity) {
     Map<String, Object> data =
         Map.of(
@@ -147,8 +141,8 @@ public class PipelineSseService {
   }
 
   /**
-   * Emits a pipeline run completion event and completes associated run emitters (MVP-05).
-   * Event: pipeline.complete
+   * Emits a pipeline run completion event and completes associated run emitters (MVP-05). Event:
+   * pipeline.complete
    */
   public void emitComplete(
       String runId, long totalRecords, long cleanedRecords, long errorsCount, String duration) {
@@ -193,15 +187,12 @@ public class PipelineSseService {
     emitters.removeAll(stale);
   }
 
-  /**
-   * Broadcasts a pipeline event to all connected clients matching the connection filter.
-   */
+  /** Broadcasts a pipeline event to all connected clients matching the connection filter. */
   public void broadcast(String eventType, UUID connectionId, Map<String, Object> data) {
     List<EmitterEntry> stale = new ArrayList<>();
 
     for (EmitterEntry entry : emitters) {
-      if (entry.connectionIdFilter() != null
-          && !entry.connectionIdFilter().equals(connectionId)) {
+      if (entry.connectionIdFilter() != null && !entry.connectionIdFilter().equals(connectionId)) {
         continue;
       }
 

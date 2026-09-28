@@ -106,7 +106,8 @@ class GlobalExceptionHandlerTest {
         .perform(get("/test/forbidden"))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error").value("FORBIDDEN"))
-        .andExpect(jsonPath("$.message").value("You do not have permission to access this resource"))
+        .andExpect(
+            jsonPath("$.message").value("You do not have permission to access this resource"))
         .andExpect(jsonPath("$.path").value("/test/forbidden"))
         .andExpect(jsonPath("$.correlationId").isNotEmpty());
   }

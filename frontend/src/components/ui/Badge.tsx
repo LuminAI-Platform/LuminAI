@@ -14,7 +14,10 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   withDot?: boolean;
 }
 
-const BADGE_STYLES: Record<BadgeVariant, { bg: string; text: string; border: string; dot: string }> = {
+const BADGE_STYLES: Record<
+  BadgeVariant,
+  { bg: string; text: string; border: string; dot: string }
+> = {
   default: {
     bg: "bg-blue-500/10",
     text: "text-blue-400",

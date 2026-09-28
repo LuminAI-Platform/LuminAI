@@ -34,9 +34,7 @@ class PipelineSseControllerTest {
   @Test
   @DisplayName("GET /api/v1/pipelines/stream returns 200 and registers SSE emitter")
   void streamPipelineEventsSuccess() throws Exception {
-    mockMvc
-        .perform(get("/api/v1/pipelines/stream"))
-        .andExpect(status().isOk());
+    mockMvc.perform(get("/api/v1/pipelines/stream")).andExpect(status().isOk());
 
     assertThat(pipelineSseService.getConnectedClientCount()).isGreaterThanOrEqualTo(1);
   }
@@ -45,9 +43,7 @@ class PipelineSseControllerTest {
   @DisplayName("GET /api/v1/pipelines/stream/{runId} returns 200 and registers scoped emitter")
   void streamPipelineRunEventsSuccess() throws Exception {
     String runId = "run-" + UUID.randomUUID();
-    mockMvc
-        .perform(get("/api/v1/pipelines/stream/" + runId))
-        .andExpect(status().isOk());
+    mockMvc.perform(get("/api/v1/pipelines/stream/" + runId)).andExpect(status().isOk());
 
     assertThat(pipelineSseService.getConnectedClientCount()).isGreaterThanOrEqualTo(1);
   }
