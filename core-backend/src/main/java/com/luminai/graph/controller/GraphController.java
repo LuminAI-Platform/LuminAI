@@ -48,4 +48,10 @@ public class GraphController {
       @RequestParam @NotBlank(message = "targetId must not be blank") String targetId) {
     return ResponseEntity.ok(graphQueryService.getShortestPath(sourceId.trim(), targetId.trim()));
   }
+
+  @GetMapping("/stats")
+  public ResponseEntity<com.luminai.graph.dto.GraphStatsDto> getStats(
+      @RequestParam @NotBlank(message = "entityId must not be blank") String entityId) {
+    return ResponseEntity.ok(graphQueryService.getStats(entityId.trim()));
+  }
 }

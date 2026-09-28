@@ -20,6 +20,7 @@ import { TenantRegistrationPage } from "./features/admin/TenantRegistrationPage"
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
+import { GraphPage } from "./pages/graph/GraphPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -49,86 +50,7 @@ const shellRoute = createRoute({
 
 // Ontology page is imported from src/pages/ontology/OntologyPage
 
-// Graph Component
-const GraphView = () => {
-  return (
-    <div>
-      <div className="mb-6 select-none">
-        <h1 className="text-xl font-semibold text-zinc-100">Graph Explorer</h1>
-      </div>
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6">
-        <h2 className="text-zinc-100 font-semibold mb-2 text-base">
-          Semantic Connections
-        </h2>
-        <p className="text-sm text-zinc-400 mb-6">
-          Visualize entity links and relationship degrees.
-        </p>
-
-        {/* Mock Graph Visual */}
-        <div className="h-64 bg-zinc-950 rounded-lg border border-zinc-800/80 relative flex items-center justify-center overflow-hidden">
-          {/* Main Hub Node */}
-          <div className="w-20 h-20 rounded-full bg-blue-600/10 border-2 border-blue-500 flex items-center justify-center font-semibold text-zinc-200 z-10 shadow-lg shadow-blue-500/20">
-            LuminAI
-          </div>
-
-          {/* SVG Connector Lines */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-            <line
-              x1="50%"
-              y1="50%"
-              x2="25%"
-              y2="25%"
-              stroke="#27272a"
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-            <line
-              x1="50%"
-              y1="50%"
-              x2="75%"
-              y2="30%"
-              stroke="#27272a"
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-            <line
-              x1="50%"
-              y1="50%"
-              x2="30%"
-              y2="75%"
-              stroke="#27272a"
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-            <line
-              x1="50%"
-              y1="50%"
-              x2="70%"
-              y2="75%"
-              stroke="#27272a"
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-          </svg>
-
-          {/* Floating Nodes */}
-          <div className="absolute left-[12%] top-[18%] px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] text-zinc-300 font-medium">
-            User Node
-          </div>
-          <div className="absolute right-[12%] top-[24%] px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] text-zinc-300 font-medium">
-            Product Instance
-          </div>
-          <div className="absolute left-[18%] bottom-[18%] px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] text-zinc-300 font-medium">
-            Transactions
-          </div>
-          <div className="absolute right-[18%] bottom-[18%] px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-full text-[10px] text-zinc-300 font-medium">
-            Web Event
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// GraphPage is imported from src/pages/graph/GraphPage
 
 // Settings Component
 const SettingsView = () => {
@@ -240,7 +162,7 @@ const ontologyRoute = createRoute({
 const graphRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/graph",
-  component: GraphView,
+  component: GraphPage,
 });
 
 const settingsRoute = createRoute({
