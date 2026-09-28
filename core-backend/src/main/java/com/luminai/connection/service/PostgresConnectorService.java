@@ -254,6 +254,66 @@ public class PostgresConnectorService {
     }
   }
 
+  /**
+   * Fetches preview rows from an external PostgreSQL table (up to max limit). Schema and table
+   * names are strictly validated against alphanumeric/underscore characters.
+   */
+  public List<Map<String, Object>> previewRows(
+      UUID tenantId, UUID connectionId, String schema, String table, int limit) {
+    if (schema == null || schema.isBlank()) {
+      schema = "public";
+    }
+    if (!schema.matches("^[a-zA-Z0-9_]+$") || !table.matches("^[a-zA-Z0-9_]+$")) {
+      throw new IllegalArgumentException("Invalid schema or table name provided for preview");
+    }
+
+    int safeLimit = Math.min(Math.max(1, limit), 100);
+    DbCredentials creds = getCredentials(tenantId, connectionId);
+    String jdbcUrl = buildJdbcUrl(creds);
+
+    String sql = "SELECT * FROM " + schema + "." + table + " LIMIT ?";
+    List<Map<String, Object>> rows = new ArrayList<>();
+
+    try (Connection conn =
+            DriverManager.getConnection(jdbcUrl, creds.username(), creds.password());
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+      stmt.setInt(1, safeLimit);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        ResultSetMetaData meta = rs.getMetaData();
+        int columnCount = meta.getColumnCount();
+
+        while (rs.next()) {
+          Map<String, Object> row = new LinkedHashMap<>(columnCount);
+          for (int i = 1; i <= columnCount; i++) {
+            row.put(meta.getColumnName(i), rs.getObject(i));
+          }
+          rows.add(row);
+        }
+      }
+
+      log.info(
+          "Previewed {} rows from '{}.{}' on connection '{}'",
+          rows.size(),
+          schema,
+          table,
+          connectionId);
+
+    } catch (SQLException e) {
+      log.error(
+          "Failed to preview rows from {}.{} on connection {}: {}",
+          schema,
+          table,
+          connectionId,
+          e.getMessage());
+      throw new RuntimeException(
+          "Failed to preview table " + schema + "." + table + ": " + e.getMessage(), e);
+    }
+
+    return rows;
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------

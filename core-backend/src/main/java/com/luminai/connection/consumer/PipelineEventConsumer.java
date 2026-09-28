@@ -1,7 +1,10 @@
 package com.luminai.connection.consumer;
 
+import com.luminai.auth.repository.TenantRepository;
+import com.luminai.common.tenant.TenantContext;
 import com.luminai.connection.model.PipelineRun;
 import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
+import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.util.Map;
 import java.util.Set;
@@ -19,7 +22,8 @@ import org.springframework.stereotype.Component;
  * Kafka listener for the {@code ingest.valid} topic.
  *
  * <p>Processes validation events emitted by the Data Engine after a pipeline run has been cleaned
- * and validated, updating the corresponding {@link PipelineRun} status and output counters.
+ * and validated, updating the corresponding {@link PipelineRun} status and output counters under
+ * the correct tenant schema context.
  */
 @Component
 public class PipelineEventConsumer {
@@ -29,9 +33,16 @@ public class PipelineEventConsumer {
   private static final Set<String> ALLOWED_STATUSES = Set.of("CLEANED", "VALIDATED");
 
   private final PipelineRunRepository pipelineRunRepository;
+  private final ConnectionRepository connectionRepository;
+  private final TenantRepository tenantRepository;
 
-  public PipelineEventConsumer(PipelineRunRepository pipelineRunRepository) {
+  public PipelineEventConsumer(
+      PipelineRunRepository pipelineRunRepository,
+      ConnectionRepository connectionRepository,
+      TenantRepository tenantRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
+    this.connectionRepository = connectionRepository;
+    this.tenantRepository = tenantRepository;
   }
 
   /**
@@ -52,6 +63,7 @@ public class PipelineEventConsumer {
       containerFactory = "kafkaListenerContainerFactory")
   public void onIngestValid(
       @Payload Map<String, Object> payload,
+      @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String messageKey,
       @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
       @Header(KafkaHeaders.OFFSET) long offset,
       Acknowledgment ack) {
@@ -95,27 +107,81 @@ public class PipelineEventConsumer {
 
       PipelineRunStatus newStatus = PipelineRunStatus.valueOf(rawStatus);
 
-      pipelineRunRepository.findByConnectionId(connectionId).stream()
-          .filter(
-              run ->
-                  run.getStatus() == PipelineRunStatus.PENDING
-                      || run.getStatus() == PipelineRunStatus.INGESTING)
-          .findFirst()
-          .ifPresentOrElse(
-              run -> {
-                run.setStatus(newStatus);
-                run.setRecordsOutput(run.getRecordsOutput() + recordsOutput);
-                pipelineRunRepository.save(run);
-                log.info(
-                    "Updated PipelineRun '{}' for connection '{}' → status={}",
-                    run.getId(),
-                    connectionId,
-                    newStatus);
-              },
-              () ->
-                  log.warn(
-                      "No active PipelineRun found for connectionId='{}' — skipping",
-                      connectionId));
+      // Resolve tenant context for multi-tenant schema isolation
+      UUID tenantId = null;
+      String tenantSlug = null;
+      Object rawTenant =
+          payload.get("tenantId") != null ? payload.get("tenantId") : payload.get("tenant_id");
+      if (rawTenant instanceof String s && !s.isBlank()) {
+        try {
+          tenantId = UUID.fromString(s);
+        } catch (IllegalArgumentException ignored) {
+          tenantSlug = s;
+        }
+      }
+
+      if (tenantId == null
+          && tenantSlug == null
+          && messageKey != null
+          && messageKey.contains(":")) {
+        String keyPart = messageKey.split(":")[0];
+        try {
+          tenantId = UUID.fromString(keyPart);
+        } catch (IllegalArgumentException ignored) {
+          tenantSlug = keyPart;
+        }
+      }
+
+      if (tenantId == null && tenantSlug == null) {
+        var connOpt = connectionRepository.findById(connectionId);
+        if (connOpt.isPresent()) {
+          tenantId = connOpt.get().getTenantId();
+        }
+      }
+
+      if (tenantId != null) {
+        var tOpt = tenantRepository.findById(tenantId);
+        if (tOpt.isPresent()) {
+          tenantSlug = tOpt.get().getSlug();
+        }
+      } else if (tenantSlug != null) {
+        var tOpt = tenantRepository.findBySlug(tenantSlug);
+        if (tOpt.isPresent()) {
+          tenantId = tOpt.get().getId();
+        }
+      }
+
+      if (tenantId != null && tenantSlug != null) {
+        TenantContext.setTenant(tenantId, tenantSlug);
+      }
+
+      try {
+        pipelineRunRepository.findByConnectionId(connectionId).stream()
+            .filter(
+                run ->
+                    run.getStatus() == PipelineRunStatus.PENDING
+                        || run.getStatus() == PipelineRunStatus.INGESTING)
+            .findFirst()
+            .ifPresentOrElse(
+                run -> {
+                  run.setStatus(newStatus);
+                  run.setRecordsOutput(run.getRecordsOutput() + recordsOutput);
+                  pipelineRunRepository.save(run);
+                  log.info(
+                      "Updated PipelineRun '{}' for connection '{}' (tenant={}) → status={}",
+                      run.getId(),
+                      connectionId,
+                      TenantContext.getTenantSlug(),
+                      newStatus);
+                },
+                () ->
+                    log.warn(
+                        "No active PipelineRun found for connectionId='{}' (tenant={}) — skipping",
+                        connectionId,
+                        TenantContext.getTenantSlug()));
+      } finally {
+        TenantContext.clear();
+      }
 
       ack.acknowledge();
 

@@ -23,6 +23,8 @@ import org.springframework.kafka.support.Acknowledgment;
 class PipelineEventConsumerTest {
 
   @Mock private PipelineRunRepository pipelineRunRepository;
+  @Mock private com.luminai.connection.repository.ConnectionRepository connectionRepository;
+  @Mock private com.luminai.auth.repository.TenantRepository tenantRepository;
   @Mock private Acknowledgment acknowledgment;
 
   private PipelineEventConsumer consumer;
@@ -31,7 +33,8 @@ class PipelineEventConsumerTest {
 
   @BeforeEach
   void setUp() {
-    consumer = new PipelineEventConsumer(pipelineRunRepository);
+    consumer =
+        new PipelineEventConsumer(pipelineRunRepository, connectionRepository, tenantRepository);
     connectionId = UUID.randomUUID();
 
     existingRun = new PipelineRun();
@@ -53,7 +56,7 @@ class PipelineEventConsumerTest {
     payload.put("status", "VALIDATED");
     payload.put("recordsOutput", 95);
 
-    consumer.onIngestValid(payload, 0, 0L, acknowledgment);
+    consumer.onIngestValid(payload, null, 0, 0L, acknowledgment);
 
     ArgumentCaptor<PipelineRun> captor = ArgumentCaptor.forClass(PipelineRun.class);
     verify(pipelineRunRepository).save(captor.capture());
@@ -71,7 +74,7 @@ class PipelineEventConsumerTest {
     payload.put("status", "MALICIOUS'; DROP TABLE pipeline_runs;--");
     payload.put("recordsOutput", 0);
 
-    consumer.onIngestValid(payload, 0, 0L, acknowledgment);
+    consumer.onIngestValid(payload, null, 0, 0L, acknowledgment);
 
     verify(pipelineRunRepository, never()).save(any());
     verify(acknowledgment).acknowledge();
@@ -86,7 +89,7 @@ class PipelineEventConsumerTest {
     payload.put("status", "valid");
     payload.put("record_count", 80);
 
-    consumer.onIngestValid(payload, 0, 0L, acknowledgment);
+    consumer.onIngestValid(payload, null, 0, 0L, acknowledgment);
 
     ArgumentCaptor<PipelineRun> captor = ArgumentCaptor.forClass(PipelineRun.class);
     verify(pipelineRunRepository).save(captor.capture());
@@ -102,7 +105,7 @@ class PipelineEventConsumerTest {
     Map<String, Object> payload = new HashMap<>();
     payload.put("status", "VALIDATED");
 
-    consumer.onIngestValid(payload, 0, 0L, acknowledgment);
+    consumer.onIngestValid(payload, null, 0, 0L, acknowledgment);
 
     verify(pipelineRunRepository, never()).save(any());
     verify(acknowledgment).acknowledge();

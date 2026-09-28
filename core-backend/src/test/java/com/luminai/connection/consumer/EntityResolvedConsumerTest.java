@@ -23,6 +23,8 @@ import org.springframework.kafka.support.Acknowledgment;
 class EntityResolvedConsumerTest {
 
   @Mock private PipelineRunRepository pipelineRunRepository;
+  @Mock private com.luminai.connection.repository.ConnectionRepository connectionRepository;
+  @Mock private com.luminai.auth.repository.TenantRepository tenantRepository;
   @Mock private Acknowledgment acknowledgment;
 
   private EntityResolvedConsumer consumer;
@@ -31,7 +33,8 @@ class EntityResolvedConsumerTest {
 
   @BeforeEach
   void setUp() {
-    consumer = new EntityResolvedConsumer(pipelineRunRepository);
+    consumer =
+        new EntityResolvedConsumer(pipelineRunRepository, connectionRepository, tenantRepository);
     connectionId = UUID.randomUUID();
 
     existingRun = new PipelineRun();
@@ -52,7 +55,7 @@ class EntityResolvedConsumerTest {
     payload.put("connectionId", connectionId.toString());
     payload.put("resolvedEntities", 90);
 
-    consumer.onEntityResolved(payload, 0, 0L, acknowledgment);
+    consumer.onEntityResolved(payload, null, 0, 0L, acknowledgment);
 
     ArgumentCaptor<PipelineRun> captor = ArgumentCaptor.forClass(PipelineRun.class);
     verify(pipelineRunRepository).save(captor.capture());
@@ -70,7 +73,7 @@ class EntityResolvedConsumerTest {
     payload.put("golden_id", "gr-123");
     payload.put("entity_type", "Person");
 
-    consumer.onEntityResolved(payload, 0, 0L, acknowledgment);
+    consumer.onEntityResolved(payload, null, 0, 0L, acknowledgment);
 
     verify(pipelineRunRepository, never()).save(any());
     verify(acknowledgment).acknowledge();
@@ -82,7 +85,7 @@ class EntityResolvedConsumerTest {
     payload.put("connectionId", connectionId.toString());
     payload.put("resolvedEntities", -5);
 
-    consumer.onEntityResolved(payload, 0, 0L, acknowledgment);
+    consumer.onEntityResolved(payload, null, 0, 0L, acknowledgment);
 
     verify(pipelineRunRepository, never()).save(any());
     verify(acknowledgment).acknowledge();
