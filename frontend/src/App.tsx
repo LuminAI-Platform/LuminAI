@@ -4,7 +4,6 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  Link,
 } from "@tanstack/react-router";
 import { AppShell } from "./components/layout/AppShell";
 import { AdminRoute, ProtectedRoute } from "./components/layout/ProtectedRoute";
@@ -20,6 +19,7 @@ import { UserRegistrationPage } from "./features/admin/UserRegistrationPage";
 import { TenantRegistrationPage } from "./features/admin/TenantRegistrationPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
+import { DashboardPage } from "./pages/dashboard/DashboardPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -41,129 +41,7 @@ const shellRoute = createRoute({
 
 // 2. Route View Components
 
-// Dashboard Component
-const DashboardView = () => {
-  return (
-    <div>
-      <h1 className="text-xl font-semibold text-zinc-100 mb-6 select-none">
-        Dashboard
-      </h1>
-
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-12 text-center mb-6 flex flex-col items-center">
-        {/* Terminal Icon */}
-        <div className="w-14 h-14 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center text-blue-500 mb-6">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="4 17 10 11 4 5" />
-            <line x1="12" y1="19" x2="20" y2="19" />
-          </svg>
-        </div>
-
-        <h2 className="text-3xl font-bold text-zinc-100 mb-3 tracking-tight">
-          Welcome to LuminAI
-        </h2>
-        <p className="text-sm text-zinc-400 max-w-xl mb-10 leading-relaxed">
-          Your enterprise data environment is ready. Orchestrate multi-modal
-          pipelines, define semantic schemas, and deploy production-grade AI
-          applications from a single command center.
-        </p>
-
-        {/* Action Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-4xl">
-          <Link
-            to="/connections"
-            className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-6 text-left cursor-pointer transition-all duration-200 hover:border-blue-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/5 flex flex-col gap-3 group"
-          >
-            <div className="text-blue-500 group-hover:text-blue-400 transition-colors">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <line x1="8" y1="12" x2="14" y2="12" />
-              </svg>
-            </div>
-            <span className="text-[14px] font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">
-              Connect Source
-            </span>
-            <span className="text-[12px] text-zinc-500 leading-normal">
-              Ingest data from Snowflake, S3, or real-time Kafka streams.
-            </span>
-          </Link>
-
-          <Link
-            to="/explorer"
-            className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-6 text-left cursor-pointer transition-all duration-200 hover:border-blue-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/5 flex flex-col gap-3 group"
-          >
-            <div className="text-blue-500 group-hover:text-blue-400 transition-colors">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-            </div>
-            <span className="text-[14px] font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">
-              Build Pipeline
-            </span>
-            <span className="text-[12px] text-zinc-500 leading-normal">
-              Design ETL flows with our low-code visual canvas or Python SDK.
-            </span>
-          </Link>
-
-          <Link
-            to="/graph"
-            className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-6 text-left cursor-pointer transition-all duration-200 hover:border-blue-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/5 flex flex-col gap-3 group"
-          >
-            <div className="text-blue-500 group-hover:text-blue-400 transition-colors">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            </div>
-            <span className="text-[14px] font-semibold text-zinc-100 group-hover:text-blue-400 transition-colors">
-              Deploy App
-            </span>
-            <span className="text-[12px] text-zinc-500 leading-normal">
-              Expose your data as a secure REST API or LLM agent endpoint.
-            </span>
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-};
+// DashboardPage is imported from src/pages/dashboard/DashboardPage
 
 // ExplorerPage is now imported from src/pages/explorer/ExplorerPage
 
@@ -302,7 +180,7 @@ const SettingsView = () => {
 const indexRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/",
-  component: DashboardView,
+  component: DashboardPage,
 });
 
 const loginRoute = createRoute({
