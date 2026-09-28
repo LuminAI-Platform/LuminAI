@@ -21,6 +21,7 @@ import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { GraphPage } from "./pages/graph/GraphPage";
+import { SettingsPage } from "./pages/settings/SettingsPage";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -52,51 +53,7 @@ const shellRoute = createRoute({
 
 // GraphPage is imported from src/pages/graph/GraphPage
 
-// Settings Component
-const SettingsView = () => {
-  return (
-    <div>
-      <div className="mb-6 select-none">
-        <h1 className="text-xl font-semibold text-zinc-100">Settings</h1>
-      </div>
-      <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6">
-        <h2 className="text-zinc-100 font-semibold mb-2 text-base">
-          System Preferences
-        </h2>
-        <p className="text-sm text-zinc-400 mb-6">
-          Manage global application credentials, dark mode overrides, and system
-          diagnostics.
-        </p>
-
-        <div className="flex flex-col gap-5">
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 mb-2">
-              Tenant Namespace
-            </label>
-            <input
-              type="text"
-              readOnly
-              value="lumin-global-prod"
-              className="w-full max-w-md p-2.5 bg-zinc-950 border border-zinc-800/80 rounded-lg text-zinc-200 outline-none text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-zinc-400 mb-2">
-              API Access Key
-            </label>
-            <input
-              type="password"
-              readOnly
-              value="••••••••••••••••••••••••••••••••"
-              className="w-full max-w-md p-2.5 bg-zinc-950 border border-zinc-800/80 rounded-lg text-zinc-200 outline-none text-xs font-mono"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// SettingsPage is imported from src/pages/settings/SettingsPage
 
 // 3. Create Routes Tree
 const indexRoute = createRoute({
@@ -168,7 +125,7 @@ const graphRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/settings",
-  component: SettingsView,
+  component: SettingsPage,
 });
 
 const adminUsersRoute = createRoute({

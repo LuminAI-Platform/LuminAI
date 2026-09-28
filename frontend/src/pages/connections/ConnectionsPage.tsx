@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
+import { RefreshCw, Clock } from "lucide-react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
@@ -24,6 +25,60 @@ interface DatabaseConnector {
   pipelines: number;
   type: string;
   desc: string;
+  lastSyncedAt?: string;
+}
+
+// Format relative timestamp helper
+function formatRelativeTime(dateInput?: string | Date | null): string {
+  if (!dateInput) return "Just now";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return "Recently";
+  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diffSec < 15) return "Just now";
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${Math.floor(diffHours / 24)}d ago`;
+}
+
+// Compute health indicator dot and badge styles
+function getHealthStatusBadge(status: string) {
+  const s = status.toLowerCase();
+  if (
+    s.includes("connect") ||
+    (s.includes("sync") && !s.includes("syncing") && !s.includes("fail"))
+  ) {
+    return {
+      dotColor: "bg-emerald-500",
+      pingColor: "bg-emerald-400",
+      badgeStyle: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+      isSyncing: false,
+    };
+  }
+  if (s.includes("syncing") || s.includes("pending") || s.includes("running")) {
+    return {
+      dotColor: "bg-amber-400",
+      pingColor: "bg-amber-300",
+      badgeStyle: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+      isSyncing: true,
+    };
+  }
+  if (s.includes("fail") || s.includes("error") || s.includes("inactive")) {
+    return {
+      dotColor: "bg-red-500",
+      pingColor: "bg-red-400",
+      badgeStyle: "bg-red-500/10 border-red-500/20 text-red-400",
+      isSyncing: false,
+    };
+  }
+  return {
+    dotColor: "bg-zinc-500",
+    pingColor: "bg-zinc-400",
+    badgeStyle: "bg-zinc-900 border-zinc-800 text-zinc-400",
+    isSyncing: false,
+  };
 }
 
 export const ConnectionsPage: React.FC = () => {
@@ -50,15 +105,21 @@ export const ConnectionsPage: React.FC = () => {
     [],
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<"connectors" | "files">(
     "connectors",
   );
 
-  // Fetch connectors from GET /api/v1/connections
-  const loadConnectors = async () => {
-    setIsLoading(true);
+  // Fetch connectors from GET /api/v1/connections (MVP-16 auto-refresh)
+  const loadConnectors = useCallback(async (isInitial = false) => {
+    if (isInitial) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     setError(null);
     try {
       const res = await apiFetch("/api/v1/connections");
@@ -82,13 +143,20 @@ export const ConnectionsPage: React.FC = () => {
               }
             }
 
+            const rawStatus = String(item.status || "ACTIVE");
+            const normalizedStatus =
+              rawStatus === "ACTIVE" || rawStatus === "CONNECTED"
+                ? "Connected"
+                : rawStatus === "SYNCING"
+                ? "Syncing"
+                : rawStatus === "FAILED"
+                ? "Failed"
+                : rawStatus;
+
             return {
               id: typeof item.id === "string" ? item.id : undefined,
               name: String(item.name || ""),
-              status:
-                item.status === "ACTIVE"
-                  ? "Connected"
-                  : String(item.status || "Connected"),
+              status: normalizedStatus,
               pipelines: pipelinesCount || 1,
               type: String(item.type || "Database"),
               desc:
@@ -96,6 +164,7 @@ export const ConnectionsPage: React.FC = () => {
                 (typeof item.credentialsRef === "string"
                   ? item.credentialsRef
                   : "Registered database pipeline connector."),
+              lastSyncedAt: typeof item.updatedAt === "string" ? item.updatedAt : undefined,
             };
           },
         );
@@ -103,6 +172,7 @@ export const ConnectionsPage: React.FC = () => {
       } else {
         setCustomConnectors([]);
       }
+      setLastRefreshedAt(new Date());
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -112,15 +182,18 @@ export const ConnectionsPage: React.FC = () => {
       setCustomConnectors([]);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      await loadConnectors();
-    };
-    init();
   }, []);
+
+  // MVP-16: Auto-refresh polling every 15 seconds
+  useEffect(() => {
+    loadConnectors(true);
+    const interval = setInterval(() => {
+      loadConnectors(false);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [loadConnectors]);
 
   // Load files list from localStorage or initialize with mock data
   const loadFiles = () => {
@@ -328,7 +401,7 @@ export const ConnectionsPage: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-6">
       {/* Top Header Section */}
-      <div className="flex items-center justify-between select-none">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">Connections</h1>
           <p className="text-xs text-zinc-400 mt-1">
@@ -336,7 +409,32 @@ export const ConnectionsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          {/* MVP-16 Auto-refresh indicator */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Auto-refresh (15s)</span>
+            <span className="text-zinc-600">·</span>
+            <span className="text-zinc-300">
+              Refreshed {formatRelativeTime(lastRefreshedAt)}
+            </span>
+          </div>
+
+          {/* MVP-16 Manual refresh button */}
+          <button
+            onClick={() => loadConnectors(false)}
+            disabled={isRefreshing || isLoading}
+            className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-black/10 hover:shadow-black/20 disabled:opacity-50"
+            title="Manual refresh connections list"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${
+                isRefreshing || isLoading ? "animate-spin text-blue-400" : ""
+              }`}
+            />
+            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+          </button>
+
           <button
             onClick={handleOpenWizard}
             className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500/35 px-4 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all flex items-center gap-2 cursor-pointer"
@@ -438,7 +536,7 @@ export const ConnectionsPage: React.FC = () => {
               <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center justify-between font-medium">
                 <span>{error}</span>
                 <button
-                  onClick={loadConnectors}
+                  onClick={() => loadConnectors(true)}
                   className="underline hover:text-red-300 cursor-pointer"
                 >
                   Retry
@@ -475,6 +573,7 @@ export const ConnectionsPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {customConnectors.map((conn) => {
                   const isCustom = "id" in conn && !!conn.id;
+                  const badge = getHealthStatusBadge(conn.status);
                   return (
                     <div
                       key={conn.id || conn.name}
@@ -490,20 +589,20 @@ export const ConnectionsPage: React.FC = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
+                          {/* MVP-16 Health Indicator Dot + Badge */}
                           <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded border flex items-center gap-1.5 ${
-                              conn.status === "Connected"
-                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                                : "bg-zinc-900 border-zinc-800 text-zinc-500"
-                            }`}
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded border flex items-center gap-1.5 ${badge.badgeStyle}`}
                           >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                conn.status === "Connected"
-                                  ? "bg-emerald-500"
-                                  : "bg-zinc-600"
-                              }`}
-                            />
+                            <span className="relative flex h-2 w-2">
+                              {badge.isSyncing && (
+                                <span
+                                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${badge.pingColor}`}
+                                />
+                              )}
+                              <span
+                                className={`relative inline-flex rounded-full h-2 w-2 ${badge.dotColor}`}
+                              />
+                            </span>
                             {conn.status}
                           </span>
 
@@ -529,13 +628,25 @@ export const ConnectionsPage: React.FC = () => {
                           )}
                         </div>
                       </div>
-                      <div className="flex justify-between text-xs text-zinc-500 border-t border-zinc-850 pt-3 select-none">
-                        <span>
-                          Type:{" "}
-                          <strong className="text-zinc-400 font-normal">
-                            {conn.type}
-                          </strong>
-                        </span>
+
+                      {/* MVP-16: Connection footer with relative timestamp */}
+                      <div className="flex justify-between items-center text-xs text-zinc-500 border-t border-zinc-850 pt-3 select-none">
+                        <div className="flex items-center gap-3">
+                          <span>
+                            Type:{" "}
+                            <strong className="text-zinc-400 font-normal">
+                              {conn.type}
+                            </strong>
+                          </span>
+                          <span className="text-zinc-700">·</span>
+                          <span className="flex items-center gap-1 text-[11px] text-zinc-400">
+                            <Clock className="w-3 h-3 text-zinc-500" />
+                            Last synced{" "}
+                            {formatRelativeTime(
+                              conn.lastSyncedAt || lastRefreshedAt,
+                            )}
+                          </span>
+                        </div>
                         <span className="font-semibold text-blue-500">
                           {conn.pipelines} Pipelines
                         </span>
@@ -619,12 +730,22 @@ export const ConnectionsPage: React.FC = () => {
                       {file.recordsCount.toLocaleString()} rows
                     </div>
                     <div className="col-span-2 text-zinc-500">
-                      {file.createdAt}
+                      {formatRelativeTime(file.createdAt)}
                     </div>
                     <div className="col-span-1 flex justify-center select-none">
-                      <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-semibold">
-                        {file.status}
-                      </span>
+                      {(() => {
+                        const fileBadge = getHealthStatusBadge(file.status);
+                        return (
+                          <span
+                            className={`border px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1.5 ${fileBadge.badgeStyle}`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${fileBadge.dotColor}`}
+                            />
+                            {file.status}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1.5 select-none">
                       <button
