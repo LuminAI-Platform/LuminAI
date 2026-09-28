@@ -28,9 +28,16 @@ public class EntityResolvedConsumer {
   private static final PipelineRunStatus COMPLETED_STATUS = PipelineRunStatus.COMPLETED;
 
   private final PipelineRunRepository pipelineRunRepository;
+  private final com.luminai.connection.repository.ConnectionRepository connectionRepository;
+  private final com.luminai.auth.repository.TenantRepository tenantRepository;
 
-  public EntityResolvedConsumer(PipelineRunRepository pipelineRunRepository) {
+  public EntityResolvedConsumer(
+      PipelineRunRepository pipelineRunRepository,
+      com.luminai.connection.repository.ConnectionRepository connectionRepository,
+      com.luminai.auth.repository.TenantRepository tenantRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
+    this.connectionRepository = connectionRepository;
+    this.tenantRepository = tenantRepository;
   }
 
   /**
@@ -49,6 +56,7 @@ public class EntityResolvedConsumer {
       containerFactory = "kafkaListenerContainerFactory")
   public void onEntityResolved(
       @Payload Map<String, Object> payload,
+      @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String messageKey,
       @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
       @Header(KafkaHeaders.OFFSET) long offset,
       Acknowledgment ack) {
@@ -84,29 +92,82 @@ public class EntityResolvedConsumer {
         return;
       }
 
-      pipelineRunRepository.findByConnectionId(connectionId).stream()
-          .filter(
-              run ->
-                  run.getStatus() == PipelineRunStatus.VALIDATED
-                      || run.getStatus() == PipelineRunStatus.CLEANED)
-          .findFirst()
-          .ifPresentOrElse(
-              run -> {
-                run.setStatus(COMPLETED_STATUS);
-                run.setCompletedAt(Instant.now());
-                // Use long value directly — safe from injection since it's a numeric type
-                run.setMetadata("{\"resolvedEntities\":" + resolvedEntities + "}");
-                pipelineRunRepository.save(run);
-                log.info(
-                    "Marked PipelineRun '{}' COMPLETED for connection '{}' — resolvedEntities={}",
-                    run.getId(),
-                    connectionId,
-                    resolvedEntities);
-              },
-              () ->
-                  log.warn(
-                      "No active PipelineRun found for connectionId='{}' — skipping",
-                      connectionId));
+      UUID tenantId = null;
+      String tenantSlug = null;
+      Object rawTenant =
+          payload.get("tenantId") != null ? payload.get("tenantId") : payload.get("tenant_id");
+      if (rawTenant instanceof String s && !s.isBlank()) {
+        try {
+          tenantId = UUID.fromString(s);
+        } catch (IllegalArgumentException ignored) {
+          tenantSlug = s;
+        }
+      }
+
+      if (tenantId == null
+          && tenantSlug == null
+          && messageKey != null
+          && messageKey.contains(":")) {
+        String keyPart = messageKey.split(":")[0];
+        try {
+          tenantId = UUID.fromString(keyPart);
+        } catch (IllegalArgumentException ignored) {
+          tenantSlug = keyPart;
+        }
+      }
+
+      if (tenantId == null && tenantSlug == null) {
+        var connOpt = connectionRepository.findById(connectionId);
+        if (connOpt.isPresent()) {
+          tenantId = connOpt.get().getTenantId();
+        }
+      }
+
+      if (tenantId != null) {
+        var tOpt = tenantRepository.findById(tenantId);
+        if (tOpt.isPresent()) {
+          tenantSlug = tOpt.get().getSlug();
+        }
+      } else if (tenantSlug != null) {
+        var tOpt = tenantRepository.findBySlug(tenantSlug);
+        if (tOpt.isPresent()) {
+          tenantId = tOpt.get().getId();
+        }
+      }
+
+      if (tenantId != null && tenantSlug != null) {
+        com.luminai.common.tenant.TenantContext.setTenant(tenantId, tenantSlug);
+      }
+
+      try {
+        pipelineRunRepository.findByConnectionId(connectionId).stream()
+            .filter(
+                run ->
+                    run.getStatus() == PipelineRunStatus.VALIDATED
+                        || run.getStatus() == PipelineRunStatus.CLEANED)
+            .findFirst()
+            .ifPresentOrElse(
+                run -> {
+                  run.setStatus(COMPLETED_STATUS);
+                  run.setCompletedAt(Instant.now());
+                  // Use long value directly — safe from injection since it's a numeric type
+                  run.setMetadata("{\"resolvedEntities\":" + resolvedEntities + "}");
+                  pipelineRunRepository.save(run);
+                  log.info(
+                      "Marked PipelineRun '{}' COMPLETED for connection '{}' (tenant={}) — resolvedEntities={}",
+                      run.getId(),
+                      connectionId,
+                      com.luminai.common.tenant.TenantContext.getTenantSlug(),
+                      resolvedEntities);
+                },
+                () ->
+                    log.warn(
+                        "No active PipelineRun found for connectionId='{}' (tenant={}) — skipping",
+                        connectionId,
+                        com.luminai.common.tenant.TenantContext.getTenantSlug()));
+      } finally {
+        com.luminai.common.tenant.TenantContext.clear();
+      }
 
       ack.acknowledge();
 

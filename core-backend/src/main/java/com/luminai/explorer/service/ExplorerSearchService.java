@@ -47,13 +47,31 @@ public class ExplorerSearchService {
   public SearchResponseDto.Response search(
       String query, String entityType, int page, int size, String sortBy, String sortDirection) {
 
+    // 1. Calculate dynamic facets across all records using database-level GROUP BY where possible
+    Map<String, Long> typeFacets = new LinkedHashMap<>();
+    try {
+      List<Object[]> facetCounts = goldenRecordRepository.countByEntityType();
+      if (facetCounts != null && !facetCounts.isEmpty()) {
+        for (Object[] row : facetCounts) {
+          if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+            typeFacets.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
+          }
+        }
+      }
+    } catch (Exception e) {
+      log.debug(
+          "Database facet grouping unavailable, falling back to memory derivation: {}",
+          e.getMessage());
+    }
+
     List<GoldenRecord> allRecords = goldenRecordRepository.findAll();
 
-    // 1. Calculate dynamic facets across all records
-    Map<String, Long> typeFacets = new LinkedHashMap<>();
-    for (GoldenRecord gr : allRecords) {
-      String type = extractEntityType(gr);
-      typeFacets.put(type, typeFacets.getOrDefault(type, 0L) + 1);
+    // Fallback: derive facets in memory if database grouping returned empty
+    if (typeFacets.isEmpty()) {
+      for (GoldenRecord gr : allRecords) {
+        String type = extractEntityType(gr);
+        typeFacets.put(type, typeFacets.getOrDefault(type, 0L) + 1);
+      }
     }
 
     // 2. Filter by query and entityType (supports single, comma-separated, and multi-facet
