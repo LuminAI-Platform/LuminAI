@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import warnings
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import polars as pl
 from dagster import AssetExecutionContext, Backoff, Jitter, RetryPolicy, asset

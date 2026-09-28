@@ -19,13 +19,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import sys
 import time
 import tracemalloc
-from typing import Any, Dict, List
+from typing import Any
 
 # Ensure repository root is on sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -53,10 +52,8 @@ from app.processing.er.clustering import cluster_record_dictionaries
 from app.processing.er.comparison import compare_candidate_pairs
 from app.processing.er.golden_record import (
     merge_clusters_to_golden_records,
-    persist_golden_records,
 )
 from app.processing.er.provenance import (
-    persist_provenance_records,
     track_field_provenance,
 )
 from app.processing.pipelines.cleaning_pipeline import (
@@ -64,7 +61,7 @@ from app.processing.pipelines.cleaning_pipeline import (
     _parse_date_string,
 )
 from app.processing.reconciliation import run_cross_store_reconciliation
-from app.processing.schema_detector import ColumnType, get_schema_detector
+from app.processing.schema_detector import get_schema_detector
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("QA_StressTest")

@@ -15,7 +15,6 @@ import argparse
 import csv
 import os
 import random
-import sys
 from datetime import datetime, timedelta, timezone
 
 # Multi-source names and real-world nickname/phonetic variations
