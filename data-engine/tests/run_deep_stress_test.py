@@ -69,6 +69,7 @@ logger = logging.getLogger("QA_StressTest")
 
 class TestFailure(Exception):
     """Raised when a strict QA acceptance criterion is violated."""
+    __test__ = False
     pass
 
 

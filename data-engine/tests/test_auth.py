@@ -291,8 +291,11 @@ class TestProductionAuthSafeguards:
 
     def test_mock_token_rejected_in_production_environment(self):
         """In production environment, mock/sandbox tokens must return 401 Unauthorized."""
+        from app.rate_limit import reset_rate_limits
+        reset_rate_limits()
         prod_settings = Settings(
             auth_enabled=True,
+            rate_limit_enabled=False,
             environment="production",
             api_key="prod-secret-api-key",
             keycloak_url="http://keycloak.prod:8080",

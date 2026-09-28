@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings, get_settings
 from app.main import app
 from app.processing.pipelines import cleaning_pipeline, er_pipeline
+from app.rate_limit import reset_rate_limits
 from app.security import KeycloakTokenValidator, get_keycloak_validator
 
 client = TestClient(app)
@@ -22,8 +23,10 @@ client = TestClient(app)
 
 def test_production_rejects_mock_and_sandbox_tokens():
     """Verify that in production mode, mock/sandbox tokens are rejected with 401."""
+    reset_rate_limits()
     prod_settings = Settings(
         auth_enabled=True,
+        rate_limit_enabled=False,
         environment="production",
         api_key="prod-secret-key-12345",
         keycloak_url="http://keycloak.internal:8080",
