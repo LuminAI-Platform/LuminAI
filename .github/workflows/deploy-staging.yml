@@ -26,14 +26,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase image repository name
+        run: echo "IMAGE_REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Build & Push Core Backend Image
         uses: docker/build-push-action@v5
         with:
           context: ./core-backend
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/core-backend:latest
-            ghcr.io/${{ github.repository }}/core-backend:sha-${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_REPO }}/core-backend:latest
+            ghcr.io/${{ env.IMAGE_REPO }}/core-backend:sha-${{ github.sha }}
 
       - name: Build & Push Data Engine Image
         uses: docker/build-push-action@v5
@@ -41,8 +44,8 @@ jobs:
           context: ./data-engine
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/data-engine:latest
-            ghcr.io/${{ github.repository }}/data-engine:sha-${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_REPO }}/data-engine:latest
+            ghcr.io/${{ env.IMAGE_REPO }}/data-engine:sha-${{ github.sha }}
 
       - name: Build & Push Frontend Image
         uses: docker/build-push-action@v5
@@ -50,8 +53,8 @@ jobs:
           context: ./frontend
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/frontend:latest
-            ghcr.io/${{ github.repository }}/frontend:sha-${{ github.sha }}
+            ghcr.io/${{ env.IMAGE_REPO }}/frontend:latest
+            ghcr.io/${{ env.IMAGE_REPO }}/frontend:sha-${{ github.sha }}
 
   argocd-sync:
     needs: build-and-push
