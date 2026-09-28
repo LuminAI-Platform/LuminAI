@@ -22,6 +22,7 @@ import {
   type TimeSeriesPoint,
 } from "./components/PipelineTimelineChart";
 import { ActivityFeed, type ActivityItem } from "./components/ActivityFeed";
+import { DataEngineTelemetryCard } from "../../features/dashboard/components/DataEngineTelemetryCard";
 
 interface DashboardSummary {
   totalEntities: number;
@@ -211,6 +212,9 @@ export const DashboardPage: React.FC = () => {
           isLoading={isSummaryLoading}
         />
       </div>
+
+      {/* Python Data Engine Telemetry & Polars Compute */}
+      <DataEngineTelemetryCard />
 
       {/* 2. Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

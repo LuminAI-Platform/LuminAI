@@ -39,7 +39,9 @@ public class SecurityConfig {
   private String issuerUri;
 
   @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain securityFilterChain(
+      HttpSecurity http, com.luminai.auth.security.ApiKeyAuthenticationFilter apiKeyAuthFilter)
+      throws Exception {
     http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .csrf(csrf -> csrf.disable()) // Stateless JWT — no CSRF needed
         .sessionManagement(
@@ -55,6 +57,10 @@ public class SecurityConfig {
                     .permitAll()
                     .anyRequest()
                     .authenticated())
+        .addFilterBefore(
+            apiKeyAuthFilter,
+            org.springframework.security.oauth2.server.resource.web.authentication
+                .BearerTokenAuthenticationFilter.class)
         .oauth2ResourceServer(
             oauth2 -> {
               DefaultBearerTokenResolver resolver = new DefaultBearerTokenResolver();

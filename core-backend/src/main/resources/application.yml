@@ -31,3 +31,6 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+data-engine:
+  base-url: ${DATA_ENGINE_URL:http://localhost:8000}

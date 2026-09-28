@@ -1,0 +1,90 @@
+package com.luminai.engine.controller;
+
+import com.luminai.common.tenant.TenantContext;
+import com.luminai.engine.dto.DataEngineHealthDto;
+import com.luminai.engine.service.DataEngineClient;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.HashMap;
+import java.util.Map;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Gateway controller bridging frontend requests and platform telemetry to the Python Data Engine
+ * (:8000).
+ */
+@RestController
+@RequestMapping("/api/v1/engine")
+@Tag(
+    name = "Data Engine",
+    description = "Python Data Engine telemetry, Polars processing, and job execution gateway")
+public class DataEngineController {
+
+  private final DataEngineClient dataEngineClient;
+
+  public DataEngineController(DataEngineClient dataEngineClient) {
+    this.dataEngineClient = dataEngineClient;
+  }
+
+  @Operation(
+      summary = "Check Data Engine Health",
+      description =
+          "Inspects connectivity, response latency, and runtime status of the Python Data Engine service.")
+  @GetMapping("/health")
+  public ResponseEntity<DataEngineHealthDto> checkHealth() {
+    return ResponseEntity.ok(dataEngineClient.checkHealth());
+  }
+
+  @Operation(
+      summary = "Get Data Engine Metrics",
+      description =
+          "Returns combined Polars telemetry, pipeline throughput, and data quality scores for the tenant.")
+  @GetMapping("/metrics")
+  public ResponseEntity<Map<String, Object>> getMetrics() {
+    String tenantSlug = TenantContext.getTenantSlug();
+    DataEngineHealthDto health = dataEngineClient.checkHealth();
+    Map<String, Object> pipelineStats = dataEngineClient.getPipelineStats(tenantSlug);
+    Map<String, Object> dataQuality = dataEngineClient.getDataQuality(tenantSlug);
+    Map<String, Object> entityStats = dataEngineClient.getEntityStats(tenantSlug);
+
+    Map<String, Object> response = new HashMap<>();
+    response.put("engineHealth", health);
+    response.put("pipelineStats", pipelineStats);
+    response.put("dataQuality", dataQuality);
+    response.put("entityStats", entityStats);
+
+    return ResponseEntity.ok(response);
+  }
+
+  @Operation(
+      summary = "Trigger Polars Clean",
+      description = "Dispatches an on-demand Polars data cleaning job to the Python Data Engine.")
+  @PostMapping("/process/clean")
+  public ResponseEntity<Map<String, Object>> cleanData(@RequestBody Object requestPayload) {
+    return ResponseEntity.ok(dataEngineClient.cleanData(requestPayload));
+  }
+
+  @Operation(
+      summary = "Trigger Entity Resolution",
+      description =
+          "Dispatches a high-performance entity resolution compute job to the Python Data Engine.")
+  @PostMapping("/process/resolve")
+  public ResponseEntity<Map<String, Object>> resolveEntities(@RequestBody Object requestPayload) {
+    return ResponseEntity.ok(dataEngineClient.resolveEntities(requestPayload));
+  }
+
+  @Operation(
+      summary = "Get Job Status",
+      description =
+          "Retrieves the execution status and output logs of an asynchronous Data Engine compute job.")
+  @GetMapping("/process/jobs/{jobId}")
+  public ResponseEntity<Map<String, Object>> getJobStatus(@PathVariable String jobId) {
+    return ResponseEntity.ok(dataEngineClient.getJobStatus(jobId));
+  }
+}
