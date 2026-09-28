@@ -94,14 +94,17 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
 
     from app.db import get_engine, get_sqlite_engine
 
+    limit_val = tags.get("max_rows") or tags.get("limit")
+    limit_clause = f" LIMIT {int(limit_val)}" if limit_val and str(limit_val).isdigit() else ""
+
     if tenant_id:
         query = text(
-            "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
-            "WHERE tenant_id = :tenant_id LIMIT 5000;"
+            f"SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
+            f"WHERE tenant_id = :tenant_id{limit_clause};"
         )
         query_params = {"tenant_id": tenant_id}
     else:
-        query = text("SELECT id, tenant_id, source_id, raw_id, data FROM staging_records LIMIT 5000;")
+        query = text(f"SELECT id, tenant_id, source_id, raw_id, data FROM staging_records{limit_clause};")
         query_params = {}
 
     records: List[Dict[str, Any]] = []

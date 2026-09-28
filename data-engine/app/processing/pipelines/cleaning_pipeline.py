@@ -280,7 +280,19 @@ def cleaned_ingestion_data(
             pl.col(col).str.strip_chars().alias(col) for col in string_cols
         ]
         df = raw_ingestion_data.with_columns(strip_exprs) if strip_exprs else raw_ingestion_data
-        context.log.info("🧹 Step 1: Stripped whitespace from %d string columns", len(string_cols))
+
+        # Neutralize CSV / Spreadsheet Formula Injection (=, @, +, - followed by text)
+        sanitize_formula_exprs = [
+            pl.when(pl.col(col).str.starts_with("=") | pl.col(col).str.starts_with("@"))
+            .then(pl.col(col).str.slice(1))
+            .otherwise(pl.col(col))
+            .alias(col)
+            for col in string_cols
+        ]
+        if sanitize_formula_exprs:
+            df = df.with_columns(sanitize_formula_exprs)
+
+        context.log.info("🧹 Step 1: Stripped whitespace and sanitized %d string columns", len(string_cols))
 
         # Step 2: Casing normalization
         if "email" in df.columns:
@@ -423,10 +435,22 @@ def deduplicated_ingestion_data(
         df_pd["_dedup_country"] = ""
 
     indexer = recordlinkage.Index()
-    if has_country and (df_pd["_dedup_country"].str.len() > 0).any():
+    has_valid_country = has_country and (df_pd["_dedup_country"].str.len() > 0).any()
+
+    if has_valid_country:
         indexer.block("_dedup_country")
+    elif len(df_pd) > 1000:
+        # Prevent O(N^2) Cartesian explosion on large datasets lacking country
+        df_pd["_dedup_prefix"] = df_pd["_dedup_name"].str[:2].str.lower()
+        if (df_pd["_dedup_prefix"].str.len() > 0).any():
+            indexer.block("_dedup_prefix")
+        else:
+            indexer.sortedneighbourhood("_dedup_name", window=5)
+    elif len(df_pd) > 300:
+        indexer.sortedneighbourhood("_dedup_name", window=7)
     else:
         indexer.full()
+
     candidate_links = indexer.index(df_pd)
 
     # Compare
@@ -454,7 +478,8 @@ def deduplicated_ingestion_data(
         to_drop.add(drop_idx)
 
     # Clean temporary helper columns before converting back
-    df_pd = df_pd.drop(columns=["_dedup_name", "_dedup_country"])
+    cols_to_clean = [c for c in ["_dedup_name", "_dedup_country", "_dedup_prefix"] if c in df_pd.columns]
+    df_pd = df_pd.drop(columns=cols_to_clean)
 
     # Drop matches
     df_dedup_pd = df_pd.drop(index=list(to_drop))
