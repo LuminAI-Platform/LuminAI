@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Network } from "lucide-react";
 import type { Core } from "cytoscape";
 import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
@@ -38,91 +38,21 @@ interface GraphResponse {
   totalEdges?: number;
 }
 
-// Fallback seed graph for demo visualization before database has entities
-const DEFAULT_SEED_GRAPH: GraphElements = {
-  nodes: [
-    {
-      data: {
-        id: "ent-luminai",
-        label: "LuminAI Core",
-        entityType: "Organization",
-        properties: { domain: "AI Data Platform", tier: "Enterprise" },
-      },
-    },
-    {
-      data: {
-        id: "ent-snowflake",
-        label: "Snowflake DW",
-        entityType: "Dataset",
-        properties: { cloud: "AWS", region: "us-east-1" },
-      },
-    },
-    {
-      data: {
-        id: "ent-kafka",
-        label: "Kafka Event Stream",
-        entityType: "Dataset",
-        properties: { partitions: 16, retention: "7d" },
-      },
-    },
-    {
-      data: {
-        id: "ent-alice",
-        label: "Alice Henderson",
-        entityType: "Person",
-        properties: { role: "Chief Data Architect", department: "Data Ops" },
-      },
-    },
-    {
-      data: {
-        id: "ent-orders",
-        label: "Enterprise Orders",
-        entityType: "Transaction",
-        properties: { volume: "1.2M records/day" },
-      },
-    },
-  ],
-  edges: [
-    {
-      data: {
-        id: "rel-1",
-        source: "ent-snowflake",
-        target: "ent-luminai",
-        relationshipType: "INGESTED_BY",
-      },
-    },
-    {
-      data: {
-        id: "rel-2",
-        source: "ent-kafka",
-        target: "ent-luminai",
-        relationshipType: "STREAMED_TO",
-      },
-    },
-    {
-      data: {
-        id: "rel-3",
-        source: "ent-alice",
-        target: "ent-luminai",
-        relationshipType: "MANAGES",
-      },
-    },
-    {
-      data: {
-        id: "rel-4",
-        source: "ent-orders",
-        target: "ent-snowflake",
-        relationshipType: "STORED_IN",
-      },
-    },
-  ],
-};
-
 /**
  * Interactive Knowledge Graph Explorer Page powered by Cytoscape.js
  */
 export const GraphPage: React.FC = () => {
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const getSearchParamEntityId = () => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      return sp.get("entityId");
+    }
+    return null;
+  };
+
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
+    getSearchParamEntityId,
+  );
   const [depth, setDepth] = useState<number>(2);
   const [layoutType, setLayoutType] = useState<GraphLayoutType>("cose");
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
@@ -186,11 +116,11 @@ export const GraphPage: React.FC = () => {
     retry: false,
   });
 
-  // Use API response or fallback to seed demo graph if API returns empty
+  // Use real API response or empty graph
   const graphData: GraphElements =
-    apiGraph && apiGraph.nodes && apiGraph.nodes.length > 0
+    apiGraph && apiGraph.nodes
       ? apiGraph
-      : DEFAULT_SEED_GRAPH;
+      : { nodes: [], edges: [] };
 
   // Filter elements according to user selection
   const filteredElements: GraphElements = {
@@ -302,14 +232,13 @@ export const GraphPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Backend connection notice if fallback in use */}
+      {/* Backend connection error banner */}
       {error && (
-        <div className="bg-amber-950/20 border border-amber-500/30 rounded-lg px-3 py-2 flex items-center justify-between text-xs text-amber-300">
+        <div className="bg-red-950/20 border border-red-500/30 rounded-lg px-3 py-2 flex items-center justify-between text-xs text-red-300">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
             <span>
-              Connected to fallback graph topology. Live Neo4j connection will
-              sync when services are live.
+              Failed to load graph neighbourhood for entity "{activeEntityId}". Please verify backend graph services.
             </span>
           </div>
           <Button size="xs" variant="ghost" onClick={() => refetch()}>
@@ -335,6 +264,30 @@ export const GraphPage: React.FC = () => {
           selectedRelType={selectedRelFilter}
           onSelectRelType={setSelectedRelFilter}
         />
+
+        {/* Empty State Overlay */}
+        {!isLoading && filteredElements.nodes.length === 0 && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-xs text-center p-6 select-none">
+            <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
+              <Network className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-semibold text-zinc-200">
+              No Graph Relationships Found
+            </h3>
+            <p className="text-xs text-zinc-500 max-w-sm mt-1 mb-4">
+              {activeEntityId
+                ? `Entity "${activeEntityId}" currently has no connected edges or relationships in the graph catalog.`
+                : "No active entity selected to explore in the knowledge graph."}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelectedEntityId(null)}
+            >
+              Reset Selected Entity
+            </Button>
+          </div>
+        )}
 
         {/* Cytoscape Canvas */}
         <GraphCanvas

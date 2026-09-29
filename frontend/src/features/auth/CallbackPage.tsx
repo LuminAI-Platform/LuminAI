@@ -15,7 +15,17 @@ export const CallbackPage: React.FC = () => {
     const processCallback = async () => {
       try {
         await handleCallback();
-        navigate({ to: "/", replace: true });
+        const savedRedirect = sessionStorage.getItem("post_login_redirect");
+        if (
+          savedRedirect &&
+          savedRedirect !== "/login" &&
+          savedRedirect.startsWith("/")
+        ) {
+          sessionStorage.removeItem("post_login_redirect");
+          navigate({ to: savedRedirect, replace: true });
+        } else {
+          navigate({ to: "/", replace: true });
+        }
       } catch (err) {
         console.error("Authentication callback error:", err);
       }

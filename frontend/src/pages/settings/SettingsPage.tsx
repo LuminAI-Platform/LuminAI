@@ -101,16 +101,20 @@ export const SettingsPage: React.FC = () => {
       : "No active API key. Click 'Roll Key' to generate one.");
 
   const handleCopyKey = () => {
-    const toCopy =
-      apiKey || (apiKeyData?.hasKey ? apiKeyData.key?.keyPrefix : "");
-    if (!toCopy) return;
-    navigator.clipboard.writeText(toCopy);
-    setCopiedKey(true);
-    toast.success(
-      "API Key Copied",
-      "The token has been copied to your clipboard.",
-    );
-    setTimeout(() => setCopiedKey(false), 2500);
+    if (apiKey) {
+      navigator.clipboard.writeText(apiKey);
+      setCopiedKey(true);
+      toast.success(
+        "API Key Copied",
+        "The full secret token has been copied to your clipboard.",
+      );
+      setTimeout(() => setCopiedKey(false), 2500);
+    } else if (apiKeyData?.hasKey) {
+      toast.warning(
+        "Full Key Masked",
+        "For cryptographic security, the full secret token is only displayed immediately upon rotation. Please rotate the key to acquire a fresh full token.",
+      );
+    }
   };
 
   const handleRegenerateKey = async () => {

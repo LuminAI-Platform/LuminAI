@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { User } from "oidc-client-ts";
 import { userManager } from "../lib/auth";
+import { queryClient } from "../lib/queryClient";
 
 interface AuthState {
   user: User | null;
@@ -135,9 +136,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const sessionData = sessionStorage.getItem(OIDC_SESSION_KEY);
       const isMock = sessionData?.includes("mock-access-token-123") ?? false;
 
-      // Clear store state and sessionStorage unconditionally
+      // Clear store state, caches, and unpartitioned storage
       set({ user: null, isAuthenticated: false });
-      sessionStorage.removeItem(OIDC_SESSION_KEY);
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem(OIDC_SESSION_KEY);
+        sessionStorage.removeItem("post_login_redirect");
+      }
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("local_ingested_files");
+        localStorage.removeItem("most_recent_ingested_file");
+        localStorage.removeItem("lumin_schema_mapping");
+      }
+      queryClient.clear();
 
       if (!isMock) {
         await userManager.signoutRedirect();
@@ -153,7 +163,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   clearAuthSession: () => {
     set({ user: null, isAuthenticated: false, isLoading: false, error: null });
-    sessionStorage.removeItem(OIDC_SESSION_KEY);
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(OIDC_SESSION_KEY);
+      sessionStorage.removeItem("post_login_redirect");
+    }
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("local_ingested_files");
+      localStorage.removeItem("most_recent_ingested_file");
+      localStorage.removeItem("lumin_schema_mapping");
+    }
+    queryClient.clear();
   },
 
   handleCallback: async () => {
@@ -237,3 +256,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   clearError: () => set({ error: null }),
 }));
+
+// Synchronize oidc-client-ts background events with Zustand store
+if (typeof window !== "undefined") {
+  userManager.events.addUserLoaded((loadedUser) => {
+    useAuthStore.setState({
+      user: loadedUser,
+      isAuthenticated: !loadedUser.expired,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  userManager.events.addUserUnloaded(() => {
+    useAuthStore.getState().clearAuthSession();
+  });
+
+  userManager.events.addAccessTokenExpiring(() => {
+    console.info("Access token is expiring; silent renewal proceeding in background.");
+  });
+
+  userManager.events.addSilentRenewError((err) => {
+    console.warn("Silent token renewal error:", err);
+  });
+}

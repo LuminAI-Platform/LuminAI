@@ -40,40 +40,6 @@ interface PageData {
   number: number;
 }
 
-// Demo fallback candidate for interactive testing when database queue is empty
-const DEMO_CANDIDATE: CandidateResponse = {
-  candidateId: "cand-demo-01",
-  goldenRecordId: "gr-acme-corp-001",
-  similarityScore: 0.94,
-  matchRationale:
-    "Exact tax_id match (US-9482910) + 94% Jaro-Winkler company name similarity",
-  status: "PENDING",
-  recordA: {
-    recordId: "rec-crm-1049",
-    properties: {
-      canonicalName: "Acme Corporation",
-      taxId: "US-9482910",
-      industry: "Enterprise Software",
-      country: "United States",
-      annualRevenue: "$45,000,000",
-      primaryEmail: "contact@acme.com",
-      sourceSystem: "Salesforce CRM",
-    },
-  },
-  recordB: {
-    recordId: "rec-erp-8821",
-    properties: {
-      canonicalName: "Acme Corp, Inc.",
-      taxId: "US-9482910",
-      industry: "Technology / SaaS",
-      country: "United States",
-      annualRevenue: "$48,200,000",
-      primaryEmail: "billing@acmecorp.com",
-      sourceSystem: "NetSuite ERP",
-    },
-  },
-};
-
 /**
  * Palantir-style Entity Resolution (ER) & Object Fusion Review Console
  */
@@ -107,10 +73,7 @@ export const MergeReviewPage: React.FC = () => {
     },
   });
 
-  const candidatesList: CandidateResponse[] =
-    pagedData && pagedData.content && pagedData.content.length > 0
-      ? pagedData.content
-      : [DEMO_CANDIDATE];
+  const candidatesList: CandidateResponse[] = pagedData?.content || [];
 
   // Auto-select first candidate if none selected
   const activeCandidate =
@@ -121,12 +84,12 @@ export const MergeReviewPage: React.FC = () => {
   // 2. Accept Merge Mutation
   const acceptMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (id === DEMO_CANDIDATE.candidateId) {
-        return { ...DEMO_CANDIDATE, status: "ACCEPTED" };
-      }
       const res = await apiFetch(`/api/v1/er/candidates/${id}/accept`, {
         method: "POST",
       });
+      if (!res.ok) {
+        throw new Error(`Accept candidate failed with HTTP ${res.status}`);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -148,12 +111,12 @@ export const MergeReviewPage: React.FC = () => {
   // 3. Reject Candidate Mutation
   const rejectMutation = useMutation({
     mutationFn: async (id: string) => {
-      if (id === DEMO_CANDIDATE.candidateId) {
-        return { ...DEMO_CANDIDATE, status: "REJECTED" };
-      }
       const res = await apiFetch(`/api/v1/er/candidates/${id}/reject`, {
         method: "POST",
       });
+      if (!res.ok) {
+        throw new Error(`Reject candidate failed with HTTP ${res.status}`);
+      }
       return res.json();
     },
     onSuccess: () => {

@@ -29,7 +29,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   });
 
   const [ramMetric, setRamMetric] = useState<string>("N/A");
-  const [cpuMetric, setCpuMetric] = useState<string>("8%");
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
 
   useEffect(() => {
     // RAM metrics via Chromium performance.memory API
@@ -56,19 +58,21 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       }
     };
 
+    // Track online/offline status
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     // Defer initial execution out of synchronous effect stack to pass lint rules
     Promise.resolve().then(updateMemory);
-    const interval = setInterval(updateMemory, 3000);
-
-    // Dynamic subtle CPU load jitter simulation based on active background tasks
-    const cpuInterval = setInterval(() => {
-      const simulatedUsage = Math.floor(Math.random() * 8) + 8; // 8% - 15%
-      setCpuMetric(`${simulatedUsage}%`);
-    }, 4000);
+    const interval = setInterval(updateMemory, 5000);
 
     return () => {
       clearInterval(interval);
-      clearInterval(cpuInterval);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -102,9 +106,17 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         <footer className="h-9 bg-zinc-900 border-t border-zinc-800/80 px-6 flex items-center justify-between text-[10px] font-mono text-zinc-500 z-10 shrink-0 select-none">
           <div className="flex items-center gap-4">
             <span className="flex items-center">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 shadow-sm shadow-emerald-500/50" />
-              Cluster:{" "}
-              <span className="text-zinc-300 ml-1">lumin-us-east-1</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full mr-2 shadow-sm ${
+                  isOnline
+                    ? "bg-emerald-500 shadow-emerald-500/50"
+                    : "bg-red-500 shadow-red-500/50"
+                }`}
+              />
+              Network:{" "}
+              <span className="text-zinc-300 ml-1">
+                {isOnline ? "Connected" : "Offline"}
+              </span>
             </span>
             <span>|</span>
             <span>
@@ -115,15 +127,15 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </span>
             <span>|</span>
             <span>
-              CPU: <span className="text-zinc-300">{cpuMetric}</span>
+              HEAP: <span className="text-zinc-300">{ramMetric}</span>
             </span>
             <span>|</span>
             <span>
-              RAM: <span className="text-zinc-300">{ramMetric}</span>
+              ENV: <span className="text-zinc-300">{import.meta.env.MODE.toUpperCase()}</span>
             </span>
           </div>
           <div className="hidden sm:block text-zinc-600">
-            VERSION 2.4.1-STABLE
+            LuminAI Operational Intelligence
           </div>
         </footer>
       </div>

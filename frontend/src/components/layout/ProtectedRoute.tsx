@@ -11,9 +11,11 @@ interface ProtectedRouteProps {
  * Skips saving if we're already on /login to avoid a redirect loop.
  */
 function saveRedirectPath() {
-  const path = window.location.pathname;
-  if (path !== "/login") {
-    sessionStorage.setItem("post_login_redirect", path);
+  if (typeof window !== "undefined" && typeof sessionStorage !== "undefined") {
+    const path = window.location.pathname;
+    if (path !== "/login") {
+      sessionStorage.setItem("post_login_redirect", path);
+    }
   }
 }
 

@@ -51,7 +51,9 @@ export const DataEngineTelemetryCard: React.FC = () => {
     useQuery<EngineMetricsResponse>({
       queryKey: ["engine", "metrics"],
       queryFn: async () => {
-        const res = await apiFetch("/api/v1/engine/metrics");
+        const res = await apiFetch("/api/v1/engine/metrics", {
+          headers: { "X-Suppress-Toast": "true" },
+        });
         return res.json();
       },
       refetchInterval: 15000,

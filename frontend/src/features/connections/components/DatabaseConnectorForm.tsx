@@ -17,13 +17,6 @@ interface ConnectionCheckStep {
   errorMsg?: string;
 }
 
-const DEFAULT_DISCOVERED_DATA: Record<DBType, SchemaDiscovery[]> = {
-  postgresql: [],
-  mysql: [],
-  snowflake: [],
-  sqlserver: [],
-};
-
 export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   onClose,
   onSuccess,
@@ -169,11 +162,10 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
       prev.map((s) => (s.id === 3 ? { ...s, status: "success" } : s)),
     );
 
-    // Step 4: Discovering database schemas (Try calling real API, then fallback to mock)
+    // Step 4: Discovering database schemas
     setCheckSteps((prev) =>
       prev.map((s) => (s.id === 4 ? { ...s, status: "loading" } : s)),
     );
-    await sleep(600);
 
     try {
       // Attempt connection discover API payload
@@ -189,27 +181,39 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
           password,
         }),
       });
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setDiscoveredData(data as SchemaDiscovery[]);
-        } else {
-          setDiscoveredData(DEFAULT_DISCOVERED_DATA[dbType]);
-        }
-      } else {
-        setDiscoveredData(DEFAULT_DISCOVERED_DATA[dbType]);
+
+      if (!response.ok) {
+        throw new Error(
+          `Database connection rejected (HTTP ${response.status}). Check host, port, and credentials.`,
+        );
       }
-    } catch {
-      setDiscoveredData(DEFAULT_DISCOVERED_DATA[dbType]);
+
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setDiscoveredData(data as SchemaDiscovery[]);
+      } else {
+        setDiscoveredData([]);
+      }
+
+      setCheckSteps((prev) =>
+        prev.map((s) => (s.id === 4 ? { ...s, status: "success" } : s)),
+      );
+      setIsVerifying(false);
+      setIsConnected(true);
+    } catch (err) {
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : "Database connection failed or rejected credentials.";
+      setCheckSteps((prev) =>
+        prev.map((s) =>
+          s.id === 4 ? { ...s, status: "error", errorMsg } : s,
+        ),
+      );
+      setValidationError(errorMsg);
+      setIsConnected(false);
+      setIsVerifying(false);
     }
-
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 4 ? { ...s, status: "success" } : s)),
-    );
-    await sleep(400);
-
-    setIsVerifying(false);
-    setIsConnected(true);
   };
 
   // Save the connection metadata

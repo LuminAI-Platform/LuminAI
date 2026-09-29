@@ -57,12 +57,14 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     >
   >({});
 
-  // Step 4 Simulation states
+  // Step 4 Ingestion states
   const [ingesting, setIngesting] = useState(false);
   const [ingestionProgress, setIngestionProgress] = useState(0);
   const [ingestionLogs, setIngestionLogs] = useState<IngestionLog[]>([]);
   const [ingestedCount, setIngestedCount] = useState(0);
   const [ingestionFinished, setIngestionFinished] = useState(false);
+  const [ingestionFailed, setIngestionFailed] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -366,6 +368,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     setIngesting(true);
     setIngestionProgress(10);
     setIngestionFinished(false);
+    setIngestionFailed(false);
+    setErrorMessage(null);
     setIngestionLogs([]);
 
     addLog(`Starting ingestion pipeline for file: ${file.name}`, "INFO");
@@ -374,7 +378,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       "INFO",
     );
 
-    let createdConnId: string | null = null;
+    let createdConnId: string | undefined;
 
     try {
       // Step 1: Register Connection entity in core-backend
@@ -399,24 +403,27 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         body: JSON.stringify(regPayload),
       });
 
-      if (connRes.ok) {
-        const connData = await connRes.json();
-        createdConnId = connData.id;
-        addLog(
-          `[API] Connection registered with ID: ${createdConnId}`,
-          "SUCCESS",
-        );
+      if (!connRes.ok) {
+        throw new Error(`Connection registration rejected (HTTP ${connRes.status})`);
       }
-    } catch {
+
+      const connData = await connRes.json();
+      createdConnId = connData.id;
       addLog(
-        `[API] Backend connection registration note: proceeding with direct multipart storage.`,
-        "WARN",
+        `[API] Connection registered with ID: ${createdConnId}`,
+        "SUCCESS",
       );
-      createdConnId = "00000000-0000-0000-0000-000000000001";
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to register connection";
+      addLog(`[API] Ingestion error: ${msg}`, "ERROR");
+      setIngestionFailed(true);
+      setErrorMessage(msg);
+      setIngesting(false);
+      return;
     }
 
     try {
-      // Step 2: Real multipart upload to MinIO via Backend /upload endpoint
+      // Step 2: Multipart upload to MinIO via Backend /upload endpoint
       setIngestionProgress(50);
       addLog(
         `[MinIO] Uploading multipart payload to tenant-isolated raw storage...`,
@@ -426,49 +433,57 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       const formData = new FormData();
       formData.append("file", file);
 
-      const targetConnId =
-        createdConnId || "00000000-0000-0000-0000-000000000001";
       const uploadRes = await apiFetch(
-        `/api/v1/connections/${targetConnId}/upload`,
+        `/api/v1/connections/${createdConnId}/upload`,
         {
           method: "POST",
           body: formData,
         },
       );
 
-      if (uploadRes.ok) {
-        const uploadJson = await uploadRes.json();
-        setIngestionProgress(75);
-        addLog(
-          `[MinIO] Upload complete. Key: ${uploadJson.fileKey}`,
-          "SUCCESS",
-        );
-        addLog(
-          `[Kafka] Published ${uploadJson.recordsCount ?? parsedData.rows.length} rows onto topic 'ingest.raw' for Data Engine processing.`,
-          "SUCCESS",
-        );
+      if (!uploadRes.ok) {
+        throw new Error(`File upload rejected by storage engine (HTTP ${uploadRes.status})`);
       }
-    } catch {
-      addLog(
-        `[MinIO] Stream partitioned and queued for background ingestion.`,
-        "INFO",
-      );
+
+      const uploadJson = await uploadRes.json();
       setIngestionProgress(75);
+      addLog(
+        `[MinIO] Upload complete. Key: ${uploadJson.fileKey || file.name}`,
+        "SUCCESS",
+      );
+      addLog(
+        `[Kafka] Published ${uploadJson.recordsCount ?? parsedData.rows.length} rows onto topic 'ingest.raw' for Data Engine processing.`,
+        "SUCCESS",
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "File upload failed";
+      addLog(`[MinIO] Storage failure: ${msg}`, "ERROR");
+      setIngestionFailed(true);
+      setErrorMessage(msg);
+      setIngesting(false);
+      return;
     }
 
     // Step 3: Save Schema Mappings
-    setIngestionProgress(85);
-    addLog(
-      `[Schema] Persisting ontology entity and property mappings...`,
-      "INFO",
-    );
-    await saveMappingsToBackend(createdConnId || undefined);
-    addLog(`[Schema] Mappings active. Target ontology updated.`, "SUCCESS");
+    try {
+      setIngestionProgress(85);
+      addLog(
+        `[Schema] Persisting ontology entity and property mappings...`,
+        "INFO",
+      );
+      await saveMappingsToBackend(createdConnId || undefined);
+      addLog(`[Schema] Mappings active. Target ontology updated.`, "SUCCESS");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Schema mapping update warning";
+      addLog(`[Schema] ${msg}`, "WARN");
+    }
 
     // Step 4: Finished
     setIngestedCount(parsedData.rows.length);
     setIngestionProgress(100);
     setIngestionFinished(true);
+    setIngestionFailed(false);
+    setIngesting(false);
     addLog(
       `[Sync] Ingestion pipeline execution completed successfully.`,
       "SUCCESS",
@@ -477,7 +492,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/75 backdrop-blur-md transition-opacity">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="file-wizard-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/75 backdrop-blur-md transition-opacity"
+    >
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
@@ -497,7 +517,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </svg>
             </div>
             <div>
-              <h2 className="text-base font-bold text-zinc-100">
+              <h2 id="file-wizard-title" className="text-base font-bold text-zinc-100">
                 File Ingestion Wizard
               </h2>
               <p className="text-[11px] text-zinc-400">
@@ -838,7 +858,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     </div>
                   </div>
 
-                  {!ingesting && !ingestionFinished && (
+                  {!ingesting && !ingestionFinished && !ingestionFailed && (
                     <button
                       onClick={startIngestion}
                       className="w-full mt-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -856,6 +876,23 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       </svg>
                       Initialize Ingestion Sync
                     </button>
+                  )}
+
+                  {ingestionFailed && (
+                    <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-center select-none">
+                      <span className="text-xs font-semibold text-rose-400 block mb-1">
+                        Ingestion Failed
+                      </span>
+                      <span className="text-[10px] text-zinc-400 block mb-2">
+                        {errorMessage || "An unexpected error occurred during ingestion."}
+                      </span>
+                      <button
+                        onClick={startIngestion}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        Retry Ingestion
+                      </button>
+                    </div>
                   )}
 
                   {ingestionFinished && (
@@ -1001,6 +1038,15 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/10 transition-colors cursor-pointer"
               >
                 Next Step
+              </button>
+            )}
+
+            {step === 4 && ingestionFailed && (
+              <button
+                onClick={startIngestion}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-rose-500/10 transition-colors cursor-pointer"
+              >
+                Retry Ingestion
               </button>
             )}
 
