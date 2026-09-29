@@ -3,7 +3,6 @@ package com.luminai.dashboard.service;
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.config.CacheConfig;
 import com.luminai.connection.model.Connection;
-import com.luminai.connection.model.GoldenRecord;
 import com.luminai.connection.model.PipelineRun;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.GoldenRecordRepository;
@@ -79,16 +78,20 @@ public class DashboardService {
             runningPipelines, completedPipelines, failedPipelines);
 
     // 3. Golden entity breakdown
-    List<GoldenRecord> records = goldenRecordRepository.findAll();
-    long totalEntities = records.size();
+    long totalEntities = goldenRecordRepository.count();
 
     Map<String, Long> entityBreakdown = new LinkedHashMap<>();
-    for (GoldenRecord record : records) {
-      String type = "Person";
-      if (record.getProperties() != null && record.getProperties().containsKey("entity_type")) {
-        type = String.valueOf(record.getProperties().get("entity_type"));
+    try {
+      List<Object[]> counts = goldenRecordRepository.countByEntityType();
+      if (counts != null && !counts.isEmpty()) {
+        for (Object[] row : counts) {
+          if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+            entityBreakdown.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
+          }
+        }
       }
-      entityBreakdown.put(type, entityBreakdown.getOrDefault(type, 0L) + 1);
+    } catch (Exception e) {
+      log.debug("Database entity type count unavailable: {}", e.getMessage());
     }
 
     // Default breakdown from defined entity types if records are not yet resolved
@@ -185,18 +188,22 @@ public class DashboardService {
 
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
     long currentEntities = goldenRecordRepository.count();
-    long totalRuns = pipelineRunRepository.count();
 
     List<TimeSeriesPointDto> points = new ArrayList<>();
     for (int i = days - 1; i >= 0; i--) {
       LocalDate date = today.minusDays(i);
       String dateStr = date.toString();
+      Instant startOfDay = date.atStartOfDay().toInstant(ZoneOffset.UTC);
+      Instant endOfDay = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
 
-      // Cumulative baseline estimation with slight variance per day
-      long estimatedEntities = Math.max(0, currentEntities - (i * 12L));
-      long dayRuns = (totalRuns > 0) ? Math.max(1, (totalRuns / days) + (i % 3)) : 0L;
+      long dayRuns = 0L;
+      try {
+        dayRuns = pipelineRunRepository.countByStartedAtBetween(startOfDay, endOfDay);
+      } catch (Exception e) {
+        log.debug("Telemetry query for date {} unavailable: {}", dateStr, e.getMessage());
+      }
 
-      points.add(new TimeSeriesPointDto(dateStr, estimatedEntities, dayRuns));
+      points.add(new TimeSeriesPointDto(dateStr, currentEntities, dayRuns));
     }
 
     return points;
@@ -209,7 +216,7 @@ public class DashboardService {
     long totalRecords = totalOutput + totalFailed;
 
     if (totalRecords == 0) {
-      return 98.5; // Baseline initial score
+      return 100.0; // Baseline when no errors or records have occurred
     }
 
     double ratio = (double) totalOutput / totalRecords;

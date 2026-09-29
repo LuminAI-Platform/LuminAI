@@ -85,6 +85,12 @@ public class SecurityConfig {
     return http.build();
   }
 
+  @Value("${luminai.security.allow-mock-tokens:false}")
+  private boolean allowMockTokens;
+
+  @Value("${spring.profiles.active:}")
+  private String activeProfiles;
+
   @Bean
   public JwtDecoder jwtDecoder() {
     JwtDecoder realDecoder = null;
@@ -100,16 +106,24 @@ public class SecurityConfig {
     final JwtDecoder delegate = realDecoder;
 
     return token -> {
-      if (token == null
-          || token.startsWith("mock-")
-          || token.contains("sandbox")
-          || "mock-access-token-123".equals(token)
-          || delegate == null) {
-        // Sandbox/dev tokens still go through the exact same tenant-resolution path as a real
-        // Keycloak token — see TenantFilter / TenantResolutionService. This "sub" must have a
-        // matching row in public.users (seeded by a Flyway migration) or requests will be
-        // rejected with 403, same as any other user with no tenant mapping.
-        return Jwt.withTokenValue(token != null ? token : "sandbox-token")
+      if (token == null || token.isBlank()) {
+        throw new org.springframework.security.oauth2.jwt.BadJwtException(
+            "Missing or blank JWT token");
+      }
+
+      boolean isMockCandidate =
+          token.startsWith("mock-")
+              || token.contains("sandbox")
+              || "mock-access-token-123".equals(token);
+
+      boolean isDevProfile =
+          activeProfiles != null
+              && (activeProfiles.contains("dev")
+                  || activeProfiles.contains("local")
+                  || activeProfiles.contains("test"));
+
+      if (isMockCandidate && allowMockTokens && isDevProfile) {
+        return Jwt.withTokenValue(token)
             .header("alg", "none")
             .header("typ", "JWT")
             .claim("sub", "sandbox-admin-id")
@@ -119,6 +133,11 @@ public class SecurityConfig {
             .issuedAt(Instant.now())
             .expiresAt(Instant.now().plusSeconds(86400))
             .build();
+      }
+
+      if (delegate == null) {
+        throw new org.springframework.security.oauth2.jwt.BadJwtException(
+            "OAuth2 JWT decoder not configured or Keycloak JWKS endpoint is unreachable");
       }
 
       return delegate.decode(token);
@@ -141,7 +160,11 @@ public class SecurityConfig {
       config.setAllowedOriginPatterns(List.of(envOrigins.split(",")));
     } else {
       config.setAllowedOriginPatterns(
-          List.of("http://localhost:*", "https://*.vercel.app", "https://*.onrender.com"));
+          List.of(
+              "http://localhost:*",
+              "http://127.0.0.1:*",
+              "https://*.luminai.com",
+              "https://*.luminai.dev"));
     }
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));

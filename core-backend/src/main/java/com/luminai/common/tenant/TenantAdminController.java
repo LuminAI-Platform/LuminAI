@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Admin endpoint for provisioning new tenant schemas. Requires authentication. */
 @RestController
 @RequestMapping("/api/v1/admin/tenants")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'ADMIN')")
 public class TenantAdminController {
 
   private static final Logger log = LoggerFactory.getLogger(TenantAdminController.class);
@@ -25,6 +26,7 @@ public class TenantAdminController {
   }
 
   @PostMapping
+  @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'ADMIN')")
   public ResponseEntity<?> provisionTenant(@RequestBody TenantRequest request) {
     log.info("Tenant provisioning request: name='{}', slug='{}'", request.name(), request.slug());
 

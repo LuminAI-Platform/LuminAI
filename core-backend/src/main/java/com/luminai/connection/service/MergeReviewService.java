@@ -144,12 +144,30 @@ public class MergeReviewService {
             new ProvenanceEntry(
                 sourceRecordIdToExtract, null, null, Instant.now(), "SPLIT_REMOVE"));
 
+    UUID tenantId =
+        original.getTenantId() != null
+            ? original.getTenantId()
+            : (com.luminai.common.tenant.TenantContext.getTenantUuid() != null
+                ? com.luminai.common.tenant.TenantContext.getTenantUuid()
+                : UUID.fromString("00000000-0000-0000-0000-000000000001"));
+
     GoldenRecord extracted = GoldenRecord.newStandalone();
+    extracted.setTenantId(tenantId);
+    extracted.setEntityType(original.getEntityType());
+    extracted.setCanonicalName(
+        original.getCanonicalName() != null
+            ? original.getCanonicalName() + " (Split)"
+            : "Split Entity");
+    extracted.setConfidenceScore(
+        original.getConfidenceScore() != null
+            ? original.getConfidenceScore()
+            : java.math.BigDecimal.valueOf(1.0));
     extracted.getSourceRecordIds().add(sourceRecordIdToExtract);
+    extracted.setSourceCount(1);
+    original.setSourceCount(Math.max(1, original.getSourceRecordIds().size()));
+
     // The cluster's current merged properties are the best available starting point for the
     // extracted record, since per-source-record field snapshots aren't retained once merged.
-    // If the project stores a durable per-source-record snapshot elsewhere, prefer seeding from
-    // that instead of copying the cluster's current values.
     extracted.getProperties().putAll(original.getProperties());
     extracted
         .getProvenance()

@@ -52,6 +52,8 @@ public class OntologyController {
       summary = "List all entity types",
       description = "Retrieves all registered entity types for the active tenant")
   @ApiResponse(responseCode = "200", description = "List of entity types")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<EntityTypeDto.Response>> getAllEntityTypes() {
     return ResponseEntity.ok(entityTypeService.getAll());
   }
@@ -64,6 +66,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "200", description = "Entity type schema details"),
     @ApiResponse(responseCode = "404", description = "Entity type not found")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<EntityTypeDto.Response> getEntityTypeById(@PathVariable UUID id) {
     return ResponseEntity.ok(entityTypeService.getById(id));
   }
@@ -77,6 +81,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "400", description = "Invalid request payload"),
     @ApiResponse(responseCode = "409", description = "Entity type with this name already exists")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<EntityTypeDto.Response> createEntityType(
       @Valid @RequestBody EntityTypeDto.CreateRequest request) {
     EntityTypeDto.Response created = entityTypeService.create(request);
@@ -93,6 +99,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "404", description = "Entity type not found"),
     @ApiResponse(responseCode = "409", description = "Conflicting entity type name")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<EntityTypeDto.Response> updateEntityType(
       @PathVariable UUID id, @RequestBody EntityTypeDto.UpdateRequest request) {
     return ResponseEntity.ok(entityTypeService.update(id, request));
@@ -104,6 +112,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "204", description = "Entity type deleted successfully"),
     @ApiResponse(responseCode = "404", description = "Entity type not found")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<Void> deleteEntityType(@PathVariable UUID id) {
     entityTypeService.delete(id);
     return ResponseEntity.noContent().build();
@@ -118,6 +128,8 @@ public class OntologyController {
       summary = "List all relationship types",
       description = "Retrieves all directional relationship types defined for the tenant")
   @ApiResponse(responseCode = "200", description = "List of relationship types")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<RelationshipTypeDto.Response>> getAllRelationshipTypes() {
     return ResponseEntity.ok(relationshipTypeService.getAll());
   }
@@ -130,6 +142,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "200", description = "Relationship type details"),
     @ApiResponse(responseCode = "404", description = "Relationship type not found")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<RelationshipTypeDto.Response> getRelationshipTypeById(
       @PathVariable UUID id) {
     return ResponseEntity.ok(relationshipTypeService.getById(id));
@@ -148,6 +162,8 @@ public class OntologyController {
         responseCode = "409",
         description = "Relationship type with this name already exists")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<RelationshipTypeDto.Response> createRelationshipType(
       @Valid @RequestBody RelationshipTypeDto.CreateRequest request) {
     RelationshipTypeDto.Response created = relationshipTypeService.create(request);
@@ -164,6 +180,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "404", description = "Relationship type not found"),
     @ApiResponse(responseCode = "409", description = "Conflicting relationship type name")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<RelationshipTypeDto.Response> updateRelationshipType(
       @PathVariable UUID id, @RequestBody RelationshipTypeDto.UpdateRequest request) {
     return ResponseEntity.ok(relationshipTypeService.update(id, request));
@@ -177,6 +195,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "204", description = "Relationship type deleted successfully"),
     @ApiResponse(responseCode = "404", description = "Relationship type not found")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<Void> deleteRelationshipType(@PathVariable UUID id) {
     relationshipTypeService.delete(id);
     return ResponseEntity.noContent().build();
@@ -191,6 +211,8 @@ public class OntologyController {
       summary = "List ontology versions",
       description = "Retrieves all published and draft ontology versions")
   @ApiResponse(responseCode = "200", description = "List of ontology versions")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<OntologyVersionDto.Response>> getAllVersions() {
     return ResponseEntity.ok(ontologyVersionService.getAll());
   }
@@ -203,6 +225,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "200", description = "Ontology version details"),
     @ApiResponse(responseCode = "404", description = "Ontology version not found")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<OntologyVersionDto.Response> getVersionById(@PathVariable UUID id) {
     return ResponseEntity.ok(ontologyVersionService.getById(id));
   }
@@ -216,6 +240,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "400", description = "Invalid semver string"),
     @ApiResponse(responseCode = "409", description = "Version already exists")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<OntologyVersionDto.Response> publishVersion(
       @Valid @RequestBody OntologyVersionDto.CreateRequest request) {
     OntologyVersionDto.Response published = ontologyVersionService.publishVersion(request);
@@ -230,6 +256,8 @@ public class OntologyController {
     @ApiResponse(responseCode = "200", description = "Schema diff between versions"),
     @ApiResponse(responseCode = "404", description = "Ontology version not found")
   })
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<OntologyVersionDto.DiffResponse> getVersionDiff(@PathVariable UUID id) {
     return ResponseEntity.ok(ontologyVersionService.getVersionDiff(id));
   }

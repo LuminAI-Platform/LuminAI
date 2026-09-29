@@ -37,6 +37,8 @@ public class CleaningRuleController {
   @Operation(
       summary = "List cleaning rules",
       description = "Returns all rules for a connector, ordered by priority")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<CleaningRuleDto.Response>> list(@PathVariable UUID connectionId) {
 
     return ResponseEntity.ok(cleaningRuleService.getAllForConnection(connectionId));
@@ -46,6 +48,8 @@ public class CleaningRuleController {
   @Operation(
       summary = "Create cleaning rule",
       description = "Creates a new data cleaning rule for the connector")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<CleaningRuleDto.Response> create(
       @PathVariable UUID connectionId, @Valid @RequestBody CleaningRuleDto.CreateRequest request) {
 
@@ -57,6 +61,8 @@ public class CleaningRuleController {
   @Operation(
       summary = "Update cleaning rule",
       description = "Partially updates an existing cleaning rule")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<CleaningRuleDto.Response> update(
       @PathVariable UUID connectionId,
       @PathVariable UUID ruleId,
@@ -69,6 +75,8 @@ public class CleaningRuleController {
   @Operation(
       summary = "Delete cleaning rule",
       description = "Removes a cleaning rule from the connector")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<Void> delete(@PathVariable UUID connectionId, @PathVariable UUID ruleId) {
 
     cleaningRuleService.delete(ruleId);

@@ -13,6 +13,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +63,80 @@ public class ExplorerSearchService {
       log.debug(
           "Database facet grouping unavailable, falling back to memory derivation: {}",
           e.getMessage());
+    }
+
+    int safePage = Math.max(0, page);
+    int safeSize = (size > 0) ? Math.min(size, 100) : 20;
+
+    // Push down paginated search to PostgreSQL database whenever possible to prevent JVM heap
+    // exhaustion
+    Page<GoldenRecord> dbPage = null;
+    try {
+      org.springframework.data.domain.Sort sort =
+          "canonicalName".equalsIgnoreCase(sortBy)
+              ? org.springframework.data.domain.Sort.by(
+                  "DESC".equalsIgnoreCase(sortDirection)
+                      ? org.springframework.data.domain.Sort.Direction.DESC
+                      : org.springframework.data.domain.Sort.Direction.ASC,
+                  "canonical_name")
+              : org.springframework.data.domain.Sort.by(
+                  "ASC".equalsIgnoreCase(sortDirection)
+                      ? org.springframework.data.domain.Sort.Direction.ASC
+                      : org.springframework.data.domain.Sort.Direction.DESC,
+                  "created_at");
+      org.springframework.data.domain.Pageable pageable =
+          org.springframework.data.domain.PageRequest.of(safePage, safeSize, sort);
+      dbPage =
+          goldenRecordRepository.searchByPropertiesAndType(
+              (query != null && !query.isBlank()) ? query.trim() : null,
+              (entityType != null
+                      && !entityType.isBlank()
+                      && !"ALL".equalsIgnoreCase(entityType.trim()))
+                  ? entityType.trim()
+                  : null,
+              pageable);
+    } catch (Exception e) {
+      log.debug(
+          "Database pushdown search unavailable, falling back to repository scanning: {}",
+          e.getMessage());
+    }
+
+    if (dbPage != null) {
+      List<SearchResponseDto.SearchItem> items = new ArrayList<>();
+      String qLower = (query != null) ? query.trim().toLowerCase() : "";
+      for (GoldenRecord gr : dbPage.getContent()) {
+        String grType = extractEntityType(gr);
+        String canonicalName = extractCanonicalName(gr);
+        Map<String, Object> props = gr.getProperties() != null ? gr.getProperties() : Map.of();
+        Map<String, List<String>> highlights = new LinkedHashMap<>();
+        if (!qLower.isEmpty()) {
+          if (canonicalName.toLowerCase().contains(qLower)) {
+            highlights.put("canonicalName", List.of(highlightMatch(canonicalName, qLower)));
+          }
+          for (Map.Entry<String, Object> entry : props.entrySet()) {
+            if (entry.getValue() != null) {
+              String valStr = entry.getValue().toString();
+              if (valStr.toLowerCase().contains(qLower)) {
+                highlights.put(entry.getKey(), List.of(highlightMatch(valStr, qLower)));
+              }
+            }
+          }
+        }
+        items.add(
+            new SearchResponseDto.SearchItem(
+                gr.getId(),
+                canonicalName,
+                grType,
+                gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 0.95,
+                gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1,
+                props,
+                gr.getCreatedAt(),
+                gr.getUpdatedAt(),
+                highlights.isEmpty() ? null : highlights));
+      }
+      Map<String, Map<String, Long>> facets = Map.of("entityTypes", typeFacets);
+      return new SearchResponseDto.Response(
+          items, (int) dbPage.getTotalElements(), safePage, safeSize, facets);
     }
 
     List<GoldenRecord> allRecords = goldenRecordRepository.findAll();
@@ -129,7 +204,7 @@ public class ExplorerSearchService {
                 gr.getId(),
                 canonicalName,
                 grType,
-                0.95, // confidence score
+                gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 0.95,
                 gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1,
                 props,
                 gr.getCreatedAt(),
@@ -161,8 +236,6 @@ public class ExplorerSearchService {
 
     // 4. Paginate
     int total = matchingItems.size();
-    int safePage = Math.max(0, page);
-    int safeSize = (size > 0) ? Math.min(size, 100) : 20;
     int fromIndex = Math.min(safePage * safeSize, total);
     int toIndex = Math.min(fromIndex + safeSize, total);
 
@@ -234,6 +307,11 @@ public class ExplorerSearchService {
   }
 
   private String extractCanonicalName(GoldenRecord gr) {
+    if (gr.getCanonicalName() != null
+        && !gr.getCanonicalName().isBlank()
+        && !"Unnamed Entity".equals(gr.getCanonicalName())) {
+      return gr.getCanonicalName();
+    }
     if (gr.getProperties() != null) {
       Map<String, Object> props = gr.getProperties();
       if (props.containsKey("canonical_name")) return String.valueOf(props.get("canonical_name"));
@@ -242,12 +320,23 @@ public class ExplorerSearchService {
       if (props.containsKey("full_name")) return String.valueOf(props.get("full_name"));
       if (props.containsKey("title")) return String.valueOf(props.get("title"));
     }
+    if (gr.getCanonicalName() != null && !gr.getCanonicalName().isBlank()) {
+      return gr.getCanonicalName();
+    }
     return "Entity " + (gr.getId() != null ? gr.getId().toString().substring(0, 8) : "00000000");
   }
 
   private String extractEntityType(GoldenRecord gr) {
+    if (gr.getEntityType() != null
+        && !gr.getEntityType().isBlank()
+        && !"Entity".equals(gr.getEntityType())) {
+      return gr.getEntityType();
+    }
     if (gr.getProperties() != null && gr.getProperties().containsKey("entity_type")) {
       return String.valueOf(gr.getProperties().get("entity_type"));
+    }
+    if (gr.getEntityType() != null && !gr.getEntityType().isBlank()) {
+      return gr.getEntityType();
     }
     return "Person";
   }

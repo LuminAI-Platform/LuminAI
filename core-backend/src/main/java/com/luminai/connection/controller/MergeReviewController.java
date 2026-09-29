@@ -35,6 +35,8 @@ public class MergeReviewController {
   }
 
   @GetMapping("/candidates")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Page<MergeReviewDto.CandidateResponse>> listCandidates(
       @RequestParam(required = false) CandidateStatus status, Pageable pageable) {
 
@@ -42,21 +44,29 @@ public class MergeReviewController {
   }
 
   @GetMapping("/candidates/{id}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<MergeReviewDto.CandidateResponse> getCandidate(@PathVariable UUID id) {
     return ResponseEntity.ok(mergeReviewService.getCandidate(id));
   }
 
   @PostMapping("/candidates/{id}/accept")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST')")
   public ResponseEntity<MergeReviewDto.CandidateResponse> acceptCandidate(@PathVariable UUID id) {
     return ResponseEntity.ok(mergeReviewService.acceptCandidate(id));
   }
 
   @PostMapping("/candidates/{id}/reject")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST')")
   public ResponseEntity<MergeReviewDto.CandidateResponse> rejectCandidate(@PathVariable UUID id) {
     return ResponseEntity.ok(mergeReviewService.rejectCandidate(id));
   }
 
   @PostMapping("/golden-records/{id}/split")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST')")
   public ResponseEntity<MergeReviewDto.SplitResponse> splitGoldenRecord(
       @PathVariable("id") UUID goldenRecordId,
       @Valid @RequestBody MergeReviewDto.SplitRequest request) {

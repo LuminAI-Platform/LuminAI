@@ -42,7 +42,11 @@ public class PipelineSseService {
           });
 
   public record EmitterEntry(
-      String clientId, SseEmitter emitter, UUID connectionIdFilter, String runIdFilter) {}
+      String clientId,
+      SseEmitter emitter,
+      UUID tenantId,
+      UUID connectionIdFilter,
+      String runIdFilter) {}
 
   /** Start the 15-second heartbeat ping interval. */
   @PostConstruct
@@ -58,7 +62,8 @@ public class PipelineSseService {
 
   /** Creates an emitter with optional connection filter. */
   public SseEmitter createEmitter(UUID connectionIdFilter) {
-    return createEmitter(connectionIdFilter, null);
+    return createEmitter(
+        com.luminai.common.tenant.TenantContext.getTenantUuid(), connectionIdFilter, null);
   }
 
   /**
@@ -69,13 +74,28 @@ public class PipelineSseService {
    * @return the configured SseEmitter
    */
   public SseEmitter createEmitter(UUID connectionIdFilter, String runIdFilter) {
+    return createEmitter(
+        com.luminai.common.tenant.TenantContext.getTenantUuid(), connectionIdFilter, runIdFilter);
+  }
+
+  /**
+   * Creates and registers a new tenant-isolated SSE emitter for a client with optional filters.
+   *
+   * @param tenantId tenant UUID to ensure cross-tenant event isolation
+   * @param connectionIdFilter optional connection ID to filter events
+   * @param runIdFilter optional pipeline run ID to filter events
+   * @return the configured SseEmitter
+   */
+  public SseEmitter createEmitter(UUID tenantId, UUID connectionIdFilter, String runIdFilter) {
     String clientId = UUID.randomUUID().toString();
     SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
-    EmitterEntry entry = new EmitterEntry(clientId, emitter, connectionIdFilter, runIdFilter);
+    EmitterEntry entry =
+        new EmitterEntry(clientId, emitter, tenantId, connectionIdFilter, runIdFilter);
 
     emitters.add(entry);
     log.info(
-        "SSE client registered — clientId={} connFilter={} runFilter={}",
+        "SSE client registered — tenantId={} clientId={} connFilter={} runFilter={}",
+        tenantId,
         clientId,
         connectionIdFilter,
         runIdFilter);
@@ -120,24 +140,34 @@ public class PipelineSseService {
 
   /** Emits a step-level progress update event (MVP-05). Event: pipeline.progress */
   public void emitProgress(String runId, String step, int progress, String message) {
+    emitProgress(
+        com.luminai.common.tenant.TenantContext.getTenantUuid(), runId, step, progress, message);
+  }
+
+  public void emitProgress(UUID tenantId, String runId, String step, int progress, String message) {
     Map<String, Object> data =
         Map.of(
             "runId", runId,
             "step", step,
             "progress", progress,
             "message", message != null ? message : "");
-    broadcastToRun("pipeline.progress", runId, data);
+    broadcastToRun(tenantId, "pipeline.progress", runId, data);
   }
 
   /** Emits an error notification event (MVP-05). Event: pipeline.error */
   public void emitError(String runId, String step, String error, String severity) {
+    emitError(
+        com.luminai.common.tenant.TenantContext.getTenantUuid(), runId, step, error, severity);
+  }
+
+  public void emitError(UUID tenantId, String runId, String step, String error, String severity) {
     Map<String, Object> data =
         Map.of(
             "runId", runId,
             "step", step,
             "error", error,
             "severity", severity != null ? severity : "error");
-    broadcastToRun("pipeline.error", runId, data);
+    broadcastToRun(tenantId, "pipeline.error", runId, data);
   }
 
   /**
@@ -146,6 +176,22 @@ public class PipelineSseService {
    */
   public void emitComplete(
       String runId, long totalRecords, long cleanedRecords, long errorsCount, String duration) {
+    emitComplete(
+        com.luminai.common.tenant.TenantContext.getTenantUuid(),
+        runId,
+        totalRecords,
+        cleanedRecords,
+        errorsCount,
+        duration);
+  }
+
+  public void emitComplete(
+      UUID tenantId,
+      String runId,
+      long totalRecords,
+      long cleanedRecords,
+      long errorsCount,
+      String duration) {
     Map<String, Object> data =
         Map.of(
             "runId", runId,
@@ -153,7 +199,7 @@ public class PipelineSseService {
             "cleanedRecords", cleanedRecords,
             "errorsCount", errorsCount,
             "duration", duration != null ? duration : "0s");
-    broadcastToRun("pipeline.complete", runId, data);
+    broadcastToRun(tenantId, "pipeline.complete", runId, data);
 
     // Gracefully complete any emitter subscribed specifically to this runId
     for (EmitterEntry entry : emitters) {
@@ -169,9 +215,17 @@ public class PipelineSseService {
 
   /** Broadcasts an event to all subscribers matching the given runId filter. */
   public void broadcastToRun(String eventType, String runId, Map<String, Object> data) {
+    broadcastToRun(com.luminai.common.tenant.TenantContext.getTenantUuid(), eventType, runId, data);
+  }
+
+  public void broadcastToRun(
+      UUID tenantId, String eventType, String runId, Map<String, Object> data) {
     List<EmitterEntry> stale = new ArrayList<>();
 
     for (EmitterEntry entry : emitters) {
+      if (tenantId != null && entry.tenantId() != null && !entry.tenantId().equals(tenantId)) {
+        continue;
+      }
       if (entry.runIdFilter() != null && !entry.runIdFilter().equals(runId)) {
         continue;
       }
@@ -189,9 +243,18 @@ public class PipelineSseService {
 
   /** Broadcasts a pipeline event to all connected clients matching the connection filter. */
   public void broadcast(String eventType, UUID connectionId, Map<String, Object> data) {
+    broadcast(
+        com.luminai.common.tenant.TenantContext.getTenantUuid(), eventType, connectionId, data);
+  }
+
+  public void broadcast(
+      UUID tenantId, String eventType, UUID connectionId, Map<String, Object> data) {
     List<EmitterEntry> stale = new ArrayList<>();
 
     for (EmitterEntry entry : emitters) {
+      if (tenantId != null && entry.tenantId() != null && !entry.tenantId().equals(tenantId)) {
+        continue;
+      }
       if (entry.connectionIdFilter() != null && !entry.connectionIdFilter().equals(connectionId)) {
         continue;
       }
