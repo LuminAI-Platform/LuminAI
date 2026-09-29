@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch } from "../../lib/api";
 import { SearchBar } from "../../features/explorer/components/SearchBar";
 import { EntityCard } from "../../features/explorer/components/EntityCard";
@@ -71,16 +71,29 @@ const FALLBACK_ONTOLOGY_TYPES: EntityType[] = [
 ];
 
 export const ExplorerPage: React.FC = () => {
-  const [inputValue, setInputValue] = useState("");
-  const [query, setQuery] = useState("");
+  const getInitialParam = (key: string) => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      return sp.get(key);
+    }
+    return null;
+  };
+
+  const initialQuery = getInitialParam("query") || "";
+  const initialPage = Number(getInitialParam("page") || 0);
+
+  const [inputValue, setInputValue] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(Number.isNaN(initialPage) ? 0 : initialPage);
   const pageSize = 6; // Compact grid sizing
 
   const [ontologyTypes, setOntologyTypes] = useState<EntityType[]>([]);
   const [searchData, setSearchData] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 1. Fetch Ontology Entity Types
   useEffect(() => {
@@ -110,39 +123,72 @@ export const ExplorerPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [inputValue]);
 
-  // 3. Main Search Fetch
-  const executeSearch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      params.set("query", query);
-      params.set("page", page.toString());
-      params.set("size", pageSize.toString());
-
-      selectedTypes.forEach((t) => params.append("entityType", t));
-
-      const res = await apiFetch(
-        `/api/v1/explorer/search?${params.toString()}`,
-      );
-      if (!res.ok) {
-        throw new Error(`Search failed: ${res.statusText}`);
+  // 3. Main Search Fetch with AbortController to eliminate out-of-order race conditions
+  const executeSearch = useCallback(
+    async (searchQuery: string, types: string[], pageNum: number) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-      const data: SearchResponse = await res.json();
-      setSearchData(data);
-    } catch (err) {
-      console.error("Search error:", err);
-      setError("Failed to execute search. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [query, selectedTypes, page]);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      setLoading(true);
+      setError(null);
+
+      // Synchronize search query and page state to browser URL without reload
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (searchQuery) url.searchParams.set("query", searchQuery);
+        else url.searchParams.delete("query");
+        if (pageNum > 0) url.searchParams.set("page", pageNum.toString());
+        else url.searchParams.delete("page");
+        window.history.replaceState(null, "", url.toString());
+      }
+
+      try {
+        const params = new URLSearchParams();
+        params.set("query", searchQuery);
+        params.set("page", pageNum.toString());
+        params.set("size", pageSize.toString());
+
+        types.forEach((t) => params.append("entityType", t));
+
+        const res = await apiFetch(
+          `/api/v1/explorer/search?${params.toString()}`,
+          {
+            signal: controller.signal,
+            headers: { "X-Suppress-Toast": "true" },
+          },
+        );
+        if (!res.ok) {
+          throw new Error(`Search failed: ${res.statusText}`);
+        }
+        const data: SearchResponse = await res.json();
+        setSearchData(data);
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          // Request intentionally aborted by newer query
+          return;
+        }
+        console.error("Search error:", err);
+        setError("Failed to execute search. Please try again.");
+      } finally {
+        if (abortControllerRef.current === controller) {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    Promise.resolve().then(() => {
-      executeSearch();
-    });
-  }, [executeSearch]);
+    executeSearch(query, selectedTypes, page);
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [query, selectedTypes, page, executeSearch]);
 
   // Autocomplete Suggestions computation
   // Generates autocomplete suggestion words matching current input from current search results
@@ -225,7 +271,7 @@ export const ExplorerPage: React.FC = () => {
               </span>
               <p className="text-[11px] text-zinc-500 max-w-sm mb-4">{error}</p>
               <button
-                onClick={executeSearch}
+                onClick={() => executeSearch(query, selectedTypes, page)}
                 className="px-3.5 py-1.5 text-xs font-semibold text-zinc-200 hover:text-white bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
               >
                 Retry Search

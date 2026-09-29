@@ -87,20 +87,7 @@ export const ConnectionsPage: React.FC = () => {
   const [previewingFile, setPreviewingFile] = useState<IngestedFile | null>(
     null,
   );
-  const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>(() => {
-    const stored = localStorage.getItem("local_ingested_files");
-    if (stored) {
-      return JSON.parse(stored);
-    } else {
-      const initialFiles: IngestedFile[] = [];
-      localStorage.setItem(
-        "local_ingested_files",
-        JSON.stringify(initialFiles),
-      );
-      return initialFiles;
-    }
-  });
-
+  const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>([]);
   const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
     [],
   );
@@ -122,25 +109,49 @@ export const ConnectionsPage: React.FC = () => {
     }
     setError(null);
     try {
-      const res = await apiFetch("/api/v1/connections");
+      const res = await apiFetch("/api/v1/connections", {
+        headers: { "X-Suppress-Toast": "true" },
+      });
       const data = await res.json();
       if (Array.isArray(data)) {
-        const mapped: DatabaseConnector[] = data.map(
-          (item: Record<string, unknown>) => {
+        const fileItems: IngestedFile[] = [];
+        const dbItems: DatabaseConnector[] = [];
+
+        data.forEach((item: Record<string, unknown>) => {
+          let parsedConfig: Record<string, unknown> = {};
+          if (typeof item.config === "string") {
+            try {
+              parsedConfig = JSON.parse(item.config);
+            } catch {
+              // ignore parse errors
+            }
+          }
+
+          if (String(item.type || "").toUpperCase() === "FILE") {
+            fileItems.push({
+              id: String(item.id || Math.random().toString(36).substring(7)),
+              name: String(
+                item.name || parsedConfig.fileName || "File Ingestion",
+              ),
+              size:
+                typeof parsedConfig.fileSize === "number"
+                  ? `${(Number(parsedConfig.fileSize) / (1024 * 1024)).toFixed(2)} MB`
+                  : "1.2 MB",
+              recordsCount: Number(parsedConfig.rowsCount ?? 0),
+              status: item.status === "FAILED" ? "Failed" : "Synced",
+              createdAt:
+                typeof item.createdAt === "string"
+                  ? new Date(item.createdAt).toLocaleString()
+                  : new Date().toLocaleString(),
+            });
+          } else {
             let pipelinesCount = 0;
             let configDesc = "";
-            if (typeof item.config === "string") {
-              try {
-                const parsed = JSON.parse(item.config);
-                if (Array.isArray(parsed.selectedTables)) {
-                  pipelinesCount = parsed.selectedTables.length;
-                }
-                if (parsed.database) {
-                  configDesc = `Connected to ${parsed.database} database.`;
-                }
-              } catch {
-                // Ignore json parse error
-              }
+            if (Array.isArray(parsedConfig.selectedTables)) {
+              pipelinesCount = parsedConfig.selectedTables.length;
+            }
+            if (parsedConfig.database) {
+              configDesc = `Connected to ${parsedConfig.database} database.`;
             }
 
             const rawStatus = String(item.status || "ACTIVE");
@@ -153,7 +164,7 @@ export const ConnectionsPage: React.FC = () => {
                     ? "Failed"
                     : rawStatus;
 
-            return {
+            dbItems.push({
               id: typeof item.id === "string" ? item.id : undefined,
               name: String(item.name || ""),
               status: normalizedStatus,
@@ -166,12 +177,15 @@ export const ConnectionsPage: React.FC = () => {
                   : "Registered database pipeline connector."),
               lastSyncedAt:
                 typeof item.updatedAt === "string" ? item.updatedAt : undefined,
-            };
-          },
-        );
-        setCustomConnectors(mapped);
+            });
+          }
+        });
+
+        setCustomConnectors(dbItems);
+        setIngestedFiles(fileItems);
       } else {
         setCustomConnectors([]);
+        setIngestedFiles([]);
       }
       setLastRefreshedAt(new Date());
     } catch (err: unknown) {
@@ -181,6 +195,7 @@ export const ConnectionsPage: React.FC = () => {
           : "Failed to load registered connections";
       setError(msg);
       setCustomConnectors([]);
+      setIngestedFiles([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -196,62 +211,20 @@ export const ConnectionsPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadConnectors]);
 
-  // Load files list from localStorage or initialize with mock data
-  const loadFiles = () => {
-    const stored = localStorage.getItem("local_ingested_files");
-    if (stored) {
-      setIngestedFiles(JSON.parse(stored));
-    } else {
-      const initialFiles: IngestedFile[] = [];
-      localStorage.setItem(
-        "local_ingested_files",
-        JSON.stringify(initialFiles),
-      );
-      setIngestedFiles(initialFiles);
-    }
-  };
-
   const deleteConnector = async (id: string) => {
     try {
       await apiFetch(`/api/v1/connections/${id}`, {
         method: "DELETE",
       });
       setCustomConnectors((prev) => prev.filter((c) => c.id !== id));
+      setIngestedFiles((prev) => prev.filter((f) => f.id !== id));
     } catch (err: unknown) {
       console.error("Failed to delete connection", err);
     }
   };
 
   const handleWizardSuccess = () => {
-    // Read the file object or state from some place? In the wizard, we know what we uploaded.
-    // Let's add the last uploaded file to localStorage.
-    // In our FileUploadWizard, we can read/write directly, but we can also just refresh.
-    // Let's check localStorage for any new mapping or files written by the wizard.
-    // We will append a new file object.
-    const stored = localStorage.getItem("local_ingested_files");
-    const files: IngestedFile[] = stored ? JSON.parse(stored) : [];
-
-    // In real use case, the wizard runs and writes to local_ingested_files directly,
-    // let's simulate it by checking if a new one was added, or we add one manually:
-    const mostRecentFile = localStorage.getItem("most_recent_ingested_file");
-    if (mostRecentFile) {
-      const newFileObj = JSON.parse(mostRecentFile);
-      if (!files.some((f) => f.name === newFileObj.name)) {
-        files.unshift({
-          id: Math.random().toString(36).substring(7),
-          name: newFileObj.name,
-          size: newFileObj.size,
-          recordsCount: newFileObj.recordsCount,
-          status: "Synced",
-          createdAt: new Date().toLocaleString(),
-          columns: newFileObj.columns,
-          sampleRows: newFileObj.sampleRows,
-        });
-        localStorage.setItem("local_ingested_files", JSON.stringify(files));
-        localStorage.removeItem("most_recent_ingested_file");
-      }
-    }
-    loadFiles();
+    loadConnectors(false);
   };
 
   const getPreviewData = (

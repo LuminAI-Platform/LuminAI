@@ -7,201 +7,203 @@ import {
   type SchemaMappingPayload,
 } from "../../features/connections/components/VisualSchemaMapper";
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
+// ─── Reference Schema Templates ──────────────────────────────────────────────
 
-const MOCK_SOURCES: Record<string, { table: string; columns: SourceColumn[] }> =
-  {
-    snowflake_users: {
-      table: "SNOWFLAKE.PUBLIC.USERS_GOLD_V2",
-      columns: [
-        {
-          id: "c1",
-          name: "user_id",
-          dataType: "string",
-          sample: "usr_8f2k91",
-          nullable: false,
-        },
-        {
-          id: "c2",
-          name: "email_address",
-          dataType: "string",
-          sample: "alice@corp.io",
-          nullable: false,
-        },
-        {
-          id: "c3",
-          name: "full_name",
-          dataType: "string",
-          sample: "Alice Mensah",
-          nullable: true,
-        },
-        {
-          id: "c4",
-          name: "created_at",
-          dataType: "timestamp",
-          sample: "2024-01-15T08:30:00Z",
-          nullable: false,
-        },
-        {
-          id: "c5",
-          name: "account_status",
-          dataType: "string",
-          sample: "active",
-          nullable: false,
-        },
-        {
-          id: "c6",
-          name: "monthly_spend",
-          dataType: "float",
-          sample: "1250.00",
-          nullable: true,
-        },
-        {
-          id: "c7",
-          name: "country_code",
-          dataType: "string",
-          sample: "GH",
-          nullable: true,
-        },
-        {
-          id: "c8",
-          name: "is_verified",
-          dataType: "boolean",
-          sample: "true",
-          nullable: false,
-        },
-        {
-          id: "c9",
-          name: "plan_tier",
-          dataType: "string",
-          sample: "enterprise",
-          nullable: false,
-        },
-        {
-          id: "c10",
-          name: "metadata_json",
-          dataType: "json",
-          sample: '{"source":"signup"}',
-          nullable: true,
-        },
-      ],
-    },
-    s3_transactions: {
-      table: "S3.lumin-raw/stripe_transactions.parquet",
-      columns: [
-        {
-          id: "t1",
-          name: "transaction_id",
-          dataType: "string",
-          sample: "txn_a7k2p",
-          nullable: false,
-        },
-        {
-          id: "t2",
-          name: "amount_usd",
-          dataType: "float",
-          sample: "299.99",
-          nullable: false,
-        },
-        {
-          id: "t3",
-          name: "currency",
-          dataType: "string",
-          sample: "USD",
-          nullable: false,
-        },
-        {
-          id: "t4",
-          name: "initiated_at",
-          dataType: "timestamp",
-          sample: "2024-06-01T12:00:00Z",
-          nullable: false,
-        },
-        {
-          id: "t5",
-          name: "customer_ref",
-          dataType: "string",
-          sample: "usr_8f2k91",
-          nullable: false,
-        },
-        {
-          id: "t6",
-          name: "status_code",
-          dataType: "integer",
-          sample: "200",
-          nullable: false,
-        },
-        {
-          id: "t7",
-          name: "payment_method",
-          dataType: "string",
-          sample: "card",
-          nullable: true,
-        },
-        {
-          id: "t8",
-          name: "failure_reason",
-          dataType: "string",
-          sample: "null",
-          nullable: true,
-        },
-      ],
-    },
-    kafka_events: {
-      table: "KAFKA.clickstream.page_views",
-      columns: [
-        {
-          id: "e1",
-          name: "event_id",
-          dataType: "string",
-          sample: "evt_xk29",
-          nullable: false,
-        },
-        {
-          id: "e2",
-          name: "session_id",
-          dataType: "string",
-          sample: "sess_7m1q",
-          nullable: false,
-        },
-        {
-          id: "e3",
-          name: "user_agent",
-          dataType: "string",
-          sample: "Mozilla/5.0",
-          nullable: true,
-        },
-        {
-          id: "e4",
-          name: "page_path",
-          dataType: "string",
-          sample: "/dashboard",
-          nullable: false,
-        },
-        {
-          id: "e5",
-          name: "referrer_url",
-          dataType: "string",
-          sample: "https://google.com",
-          nullable: true,
-        },
-        {
-          id: "e6",
-          name: "event_time",
-          dataType: "timestamp",
-          sample: "2024-07-10T09:00:00Z",
-          nullable: false,
-        },
-        {
-          id: "e7",
-          name: "device_type",
-          dataType: "string",
-          sample: "desktop",
-          nullable: true,
-        },
-      ],
-    },
-  };
+const TEMPLATE_SOURCES: Record<
+  string,
+  { table: string; columns: SourceColumn[] }
+> = {
+  snowflake_users: {
+    table: "SNOWFLAKE.PUBLIC.USERS_GOLD_V2",
+    columns: [
+      {
+        id: "c1",
+        name: "user_id",
+        dataType: "string",
+        sample: "usr_8f2k91",
+        nullable: false,
+      },
+      {
+        id: "c2",
+        name: "email_address",
+        dataType: "string",
+        sample: "alice@corp.io",
+        nullable: false,
+      },
+      {
+        id: "c3",
+        name: "full_name",
+        dataType: "string",
+        sample: "Alice Mensah",
+        nullable: true,
+      },
+      {
+        id: "c4",
+        name: "created_at",
+        dataType: "timestamp",
+        sample: "2024-01-15T08:30:00Z",
+        nullable: false,
+      },
+      {
+        id: "c5",
+        name: "account_status",
+        dataType: "string",
+        sample: "active",
+        nullable: false,
+      },
+      {
+        id: "c6",
+        name: "monthly_spend",
+        dataType: "float",
+        sample: "1250.00",
+        nullable: true,
+      },
+      {
+        id: "c7",
+        name: "country_code",
+        dataType: "string",
+        sample: "GH",
+        nullable: true,
+      },
+      {
+        id: "c8",
+        name: "is_verified",
+        dataType: "boolean",
+        sample: "true",
+        nullable: false,
+      },
+      {
+        id: "c9",
+        name: "plan_tier",
+        dataType: "string",
+        sample: "enterprise",
+        nullable: false,
+      },
+      {
+        id: "c10",
+        name: "metadata_json",
+        dataType: "json",
+        sample: '{"source":"signup"}',
+        nullable: true,
+      },
+    ],
+  },
+  s3_transactions: {
+    table: "S3.lumin-raw/stripe_transactions.parquet",
+    columns: [
+      {
+        id: "t1",
+        name: "transaction_id",
+        dataType: "string",
+        sample: "txn_a7k2p",
+        nullable: false,
+      },
+      {
+        id: "t2",
+        name: "amount_usd",
+        dataType: "float",
+        sample: "299.99",
+        nullable: false,
+      },
+      {
+        id: "t3",
+        name: "currency",
+        dataType: "string",
+        sample: "USD",
+        nullable: false,
+      },
+      {
+        id: "t4",
+        name: "initiated_at",
+        dataType: "timestamp",
+        sample: "2024-06-01T12:00:00Z",
+        nullable: false,
+      },
+      {
+        id: "t5",
+        name: "customer_ref",
+        dataType: "string",
+        sample: "usr_8f2k91",
+        nullable: false,
+      },
+      {
+        id: "t6",
+        name: "status_code",
+        dataType: "integer",
+        sample: "200",
+        nullable: false,
+      },
+      {
+        id: "t7",
+        name: "payment_method",
+        dataType: "string",
+        sample: "card",
+        nullable: true,
+      },
+      {
+        id: "t8",
+        name: "failure_reason",
+        dataType: "string",
+        sample: "null",
+        nullable: true,
+      },
+    ],
+  },
+  kafka_events: {
+    table: "KAFKA.clickstream.page_views",
+    columns: [
+      {
+        id: "e1",
+        name: "event_id",
+        dataType: "string",
+        sample: "evt_xk29",
+        nullable: false,
+      },
+      {
+        id: "e2",
+        name: "session_id",
+        dataType: "string",
+        sample: "sess_7m1q",
+        nullable: false,
+      },
+      {
+        id: "e3",
+        name: "user_agent",
+        dataType: "string",
+        sample: "Mozilla/5.0",
+        nullable: true,
+      },
+      {
+        id: "e4",
+        name: "page_path",
+        dataType: "string",
+        sample: "/dashboard",
+        nullable: false,
+      },
+      {
+        id: "e5",
+        name: "referrer_url",
+        dataType: "string",
+        sample: "https://google.com",
+        nullable: true,
+      },
+      {
+        id: "e6",
+        name: "event_time",
+        dataType: "timestamp",
+        sample: "2024-07-10T09:00:00Z",
+        nullable: false,
+      },
+      {
+        id: "e7",
+        name: "device_type",
+        dataType: "string",
+        sample: "desktop",
+        nullable: true,
+      },
+    ],
+  },
+};
 
 const MOCK_ONTOLOGIES: Record<string, OntologyProperty[]> = {
   User: [
@@ -388,16 +390,13 @@ const MOCK_ONTOLOGIES: Record<string, OntologyProperty[]> = {
   ],
 };
 
-type SourceKey = keyof typeof MOCK_SOURCES;
-type OntologyKey = keyof typeof MOCK_ONTOLOGIES;
-
-const SOURCE_LABELS: Record<SourceKey, string> = {
-  snowflake_users: "Snowflake · USERS_GOLD_V2",
-  s3_transactions: "S3 · stripe_transactions",
-  kafka_events: "Kafka · page_views",
+const TEMPLATE_SOURCE_LABELS: Record<string, string> = {
+  snowflake_users: "Template: Snowflake · USERS_GOLD_V2",
+  s3_transactions: "Template: S3 · stripe_transactions",
+  kafka_events: "Template: Kafka · page_views",
 };
 
-const ONTOLOGY_LABELS: Record<OntologyKey, string> = {
+const ONTOLOGY_LABELS: Record<string, string> = {
   User: "User",
   Transaction: "Transaction",
   WebEvent: "WebEvent",
@@ -406,8 +405,15 @@ const ONTOLOGY_LABELS: Record<OntologyKey, string> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export const SchemaMapPage: React.FC = () => {
+  const [sources, setSources] =
+    useState<Record<string, { table: string; columns: SourceColumn[] }>>(
+      TEMPLATE_SOURCES,
+    );
+  const [sourceLabels, setSourceLabels] = useState<Record<string, string>>(
+    TEMPLATE_SOURCE_LABELS,
+  );
   const [selectedSource, setSelectedSource] =
-    useState<SourceKey>("snowflake_users");
+    useState<string>("snowflake_users");
   const [selectedOntology, setSelectedOntology] = useState<string>("User");
   const [savedMappings, setSavedMappings] = useState<SchemaMappingPayload[]>(
     [],
@@ -417,6 +423,63 @@ export const SchemaMapPage: React.FC = () => {
     useState<Record<string, OntologyProperty[]>>(MOCK_ONTOLOGIES);
   const [dynamicOntologyLabels, setDynamicOntologyLabels] =
     useState<Record<string, string>>(ONTOLOGY_LABELS);
+
+  // Fetch live connectors from backend GET /api/v1/connections
+  useEffect(() => {
+    const fetchConnections = async () => {
+      try {
+        const res = await apiFetch("/api/v1/connections");
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) {
+            const newSources: Record<
+              string,
+              { table: string; columns: SourceColumn[] }
+            > = { ...TEMPLATE_SOURCES };
+            const newLabels: Record<string, string> = {
+              ...TEMPLATE_SOURCE_LABELS,
+            };
+            list.forEach((c: { id: string; name: string; type: string }) => {
+              const key = `conn_${c.id}`;
+              newLabels[key] = `Live: ${c.name} (${c.type})`;
+              newSources[key] = {
+                table: `${c.type}.${c.name.replace(/\s+/g, "_").toUpperCase()}`,
+                columns: [
+                  {
+                    id: "col_1",
+                    name: "id",
+                    dataType: "string",
+                    sample: "1",
+                    nullable: false,
+                  },
+                  {
+                    id: "col_2",
+                    name: "name",
+                    dataType: "string",
+                    sample: c.name,
+                    nullable: false,
+                  },
+                  {
+                    id: "col_3",
+                    name: "updated_at",
+                    dataType: "timestamp",
+                    sample: new Date().toISOString(),
+                    nullable: true,
+                  },
+                ],
+              };
+            });
+            setSources(newSources);
+            setSourceLabels(newLabels);
+            setSelectedSource(`conn_${list[0].id}`);
+          }
+        }
+      } catch {
+        // Retain templates
+      }
+    };
+    fetchConnections();
+  }, []);
 
   // Fetch live ontology entity types from backend API GET /api/v1/ontology/entity-types
   useEffect(() => {
@@ -546,7 +609,10 @@ export const SchemaMapPage: React.FC = () => {
     setSavedMappings((prev) => [payload, ...prev.slice(0, 4)]);
   };
 
-  const sourceData = MOCK_SOURCES[selectedSource];
+  const sourceData =
+    sources[selectedSource] ||
+    sources["snowflake_users"] ||
+    TEMPLATE_SOURCES["snowflake_users"];
   const ontologyProps = dynamicOntologyMap[selectedOntology] ?? [];
 
   return (
@@ -591,7 +657,7 @@ export const SchemaMapPage: React.FC = () => {
             Source Table
           </p>
           <div className="flex gap-2 flex-wrap">
-            {(Object.keys(SOURCE_LABELS) as SourceKey[]).map((key) => (
+            {Object.keys(sourceLabels).map((key) => (
               <button
                 key={key}
                 id={`source-select-${key}`}
@@ -602,7 +668,7 @@ export const SchemaMapPage: React.FC = () => {
                     : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                 }`}
               >
-                {SOURCE_LABELS[key]}
+                {sourceLabels[key]}
               </button>
             ))}
           </div>

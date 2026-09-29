@@ -55,7 +55,9 @@ export const DashboardPage: React.FC = () => {
   } = useQuery<DashboardSummary>({
     queryKey: ["dashboard", "summary"],
     queryFn: async () => {
-      const res = await apiFetch("/api/v1/dashboard/summary");
+      const res = await apiFetch("/api/v1/dashboard/summary", {
+        headers: { "X-Suppress-Toast": "true" },
+      });
       return res.json();
     },
     refetchInterval: 30000,
@@ -71,6 +73,9 @@ export const DashboardPage: React.FC = () => {
     queryFn: async () => {
       const res = await apiFetch(
         `/api/v1/dashboard/stats/timeseries?range=${timeRange}`,
+        {
+          headers: { "X-Suppress-Toast": "true" },
+        },
       );
       return res.json();
     },
@@ -85,7 +90,9 @@ export const DashboardPage: React.FC = () => {
   } = useQuery<ActivityItem[]>({
     queryKey: ["dashboard", "activity"],
     queryFn: async () => {
-      const res = await apiFetch("/api/v1/dashboard/activity?limit=15");
+      const res = await apiFetch("/api/v1/dashboard/activity?limit=15", {
+        headers: { "X-Suppress-Toast": "true" },
+      });
       return res.json();
     },
     refetchInterval: 30000,
