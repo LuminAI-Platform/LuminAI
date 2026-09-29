@@ -72,7 +72,9 @@ export const EntityCard: React.FC<EntityCardProps> = ({
             <h3 className="text-sm font-bold text-zinc-100 leading-tight truncate group-hover:text-blue-400 transition-colors">
               {nameHighlighted ? (
                 <span
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(nameHighlighted) }}
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(nameHighlighted),
+                  }}
                   className="[&>em]:bg-blue-500/20 [&>em]:text-blue-400 [&>em]:not-italic [&>em]:font-semibold [&>em]:px-0.5 [&>em]:rounded"
                 />
               ) : (
@@ -117,7 +119,9 @@ export const EntityCard: React.FC<EntityCardProps> = ({
               <span className="text-xs text-zinc-300 font-medium truncate mt-0.5">
                 {isHighlighted ? (
                   <span
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(isHighlighted[0]) }}
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(isHighlighted[0]),
+                    }}
                     className="[&>em]:bg-blue-500/20 [&>em]:text-blue-400 [&>em]:not-italic [&>em]:font-semibold [&>em]:px-0.5 [&>em]:rounded"
                   />
                 ) : (
@@ -143,7 +147,9 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                   {propName}:
                 </span>{" "}
                 <span
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(snippetList[0]) }}
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(snippetList[0]),
+                  }}
                   className="italic [&>em]:bg-blue-500/20 [&>em]:text-blue-400 [&>em]:not-italic [&>em]:font-semibold [&>em]:px-0.5 [&>em]:rounded"
                 />
               </div>

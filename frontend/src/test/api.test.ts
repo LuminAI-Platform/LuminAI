@@ -28,12 +28,16 @@ describe("apiFetch & Network Layer Robustness", () => {
     let capturedHeaders: Headers | undefined;
     globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
       capturedHeaders = new Headers(init?.headers);
-      return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+      return Promise.resolve(
+        new Response(JSON.stringify({ success: true }), { status: 200 }),
+      );
     });
 
     const res = await apiFetch("/api/v1/test");
     expect(res.ok).toBe(true);
-    expect(capturedHeaders?.get("Authorization")).toBe("Bearer mock-jwt-token-12345");
+    expect(capturedHeaders?.get("Authorization")).toBe(
+      "Bearer mock-jwt-token-12345",
+    );
     expect(capturedHeaders?.get("Content-Type")).toBe("application/json");
   });
 

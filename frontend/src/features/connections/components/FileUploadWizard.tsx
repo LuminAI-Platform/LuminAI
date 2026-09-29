@@ -404,7 +404,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       });
 
       if (!connRes.ok) {
-        throw new Error(`Connection registration rejected (HTTP ${connRes.status})`);
+        throw new Error(
+          `Connection registration rejected (HTTP ${connRes.status})`,
+        );
       }
 
       const connData = await connRes.json();
@@ -414,7 +416,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         "SUCCESS",
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to register connection";
+      const msg =
+        err instanceof Error ? err.message : "Failed to register connection";
       addLog(`[API] Ingestion error: ${msg}`, "ERROR");
       setIngestionFailed(true);
       setErrorMessage(msg);
@@ -442,7 +445,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       );
 
       if (!uploadRes.ok) {
-        throw new Error(`File upload rejected by storage engine (HTTP ${uploadRes.status})`);
+        throw new Error(
+          `File upload rejected by storage engine (HTTP ${uploadRes.status})`,
+        );
       }
 
       const uploadJson = await uploadRes.json();
@@ -474,7 +479,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       await saveMappingsToBackend(createdConnId || undefined);
       addLog(`[Schema] Mappings active. Target ontology updated.`, "SUCCESS");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Schema mapping update warning";
+      const msg =
+        err instanceof Error ? err.message : "Schema mapping update warning";
       addLog(`[Schema] ${msg}`, "WARN");
     }
 
@@ -517,7 +523,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </svg>
             </div>
             <div>
-              <h2 id="file-wizard-title" className="text-base font-bold text-zinc-100">
+              <h2
+                id="file-wizard-title"
+                className="text-base font-bold text-zinc-100"
+              >
                 File Ingestion Wizard
               </h2>
               <p className="text-[11px] text-zinc-400">
@@ -884,7 +893,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                         Ingestion Failed
                       </span>
                       <span className="text-[10px] text-zinc-400 block mb-2">
-                        {errorMessage || "An unexpected error occurred during ingestion."}
+                        {errorMessage ||
+                          "An unexpected error occurred during ingestion."}
                       </span>
                       <button
                         onClick={startIngestion}

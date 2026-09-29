@@ -206,9 +206,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
           ? err.message
           : "Database connection failed or rejected credentials.";
       setCheckSteps((prev) =>
-        prev.map((s) =>
-          s.id === 4 ? { ...s, status: "error", errorMsg } : s,
-        ),
+        prev.map((s) => (s.id === 4 ? { ...s, status: "error", errorMsg } : s)),
       );
       setValidationError(errorMsg);
       setIsConnected(false);

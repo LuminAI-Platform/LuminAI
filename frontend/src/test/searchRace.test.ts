@@ -3,18 +3,24 @@ import { describe, it, expect, vi } from "vitest";
 describe("Search Request Race Condition Guard (DC-01)", () => {
   it("should abort an in-flight search request when a new search query is dispatched", async () => {
     let activeController: AbortController | null = null;
-    const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
-      return new Promise((resolve, reject) => {
-        if (init?.signal) {
-          init.signal.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted", "AbortError"));
-          });
-        }
-        setTimeout(() => {
-          resolve(new Response(JSON.stringify({ content: [] }), { status: 200 }));
-        }, 100);
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((_url: string, init?: RequestInit) => {
+        return new Promise((resolve, reject) => {
+          if (init?.signal) {
+            init.signal.addEventListener("abort", () => {
+              reject(
+                new DOMException("The operation was aborted", "AbortError"),
+              );
+            });
+          }
+          setTimeout(() => {
+            resolve(
+              new Response(JSON.stringify({ content: [] }), { status: 200 }),
+            );
+          }, 100);
+        });
       });
-    });
 
     const dispatchSearch = async (query: string) => {
       if (activeController) {

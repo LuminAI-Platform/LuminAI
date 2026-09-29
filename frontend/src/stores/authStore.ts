@@ -273,7 +273,9 @@ if (typeof window !== "undefined") {
   });
 
   userManager.events.addAccessTokenExpiring(() => {
-    console.info("Access token is expiring; silent renewal proceeding in background.");
+    console.info(
+      "Access token is expiring; silent renewal proceeding in background.",
+    );
   });
 
   userManager.events.addSilentRenewError((err) => {

@@ -6,7 +6,8 @@ import DOMPurify from "dompurify";
 type DOMPurifyFactory = (w: Window) => typeof DOMPurify;
 
 const purify =
-  typeof window !== "undefined" && typeof (DOMPurify as unknown as DOMPurifyFactory) === "function"
+  typeof window !== "undefined" &&
+  typeof (DOMPurify as unknown as DOMPurifyFactory) === "function"
     ? (DOMPurify as unknown as DOMPurifyFactory)(window)
     : DOMPurify;
 

@@ -131,7 +131,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </span>
             <span>|</span>
             <span>
-              ENV: <span className="text-zinc-300">{import.meta.env.MODE.toUpperCase()}</span>
+              ENV:{" "}
+              <span className="text-zinc-300">
+                {import.meta.env.MODE.toUpperCase()}
+              </span>
             </span>
           </div>
           <div className="hidden sm:block text-zinc-600">

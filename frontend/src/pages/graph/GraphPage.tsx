@@ -118,9 +118,7 @@ export const GraphPage: React.FC = () => {
 
   // Use real API response or empty graph
   const graphData: GraphElements =
-    apiGraph && apiGraph.nodes
-      ? apiGraph
-      : { nodes: [], edges: [] };
+    apiGraph && apiGraph.nodes ? apiGraph : { nodes: [], edges: [] };
 
   // Filter elements according to user selection
   const filteredElements: GraphElements = {
@@ -238,7 +236,8 @@ export const GraphPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
             <span>
-              Failed to load graph neighbourhood for entity "{activeEntityId}". Please verify backend graph services.
+              Failed to load graph neighbourhood for entity "{activeEntityId}".
+              Please verify backend graph services.
             </span>
           </div>
           <Button size="xs" variant="ghost" onClick={() => refetch()}>

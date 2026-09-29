@@ -130,7 +130,9 @@ export const ConnectionsPage: React.FC = () => {
           if (String(item.type || "").toUpperCase() === "FILE") {
             fileItems.push({
               id: String(item.id || Math.random().toString(36).substring(7)),
-              name: String(item.name || parsedConfig.fileName || "File Ingestion"),
+              name: String(
+                item.name || parsedConfig.fileName || "File Ingestion",
+              ),
               size:
                 typeof parsedConfig.fileSize === "number"
                   ? `${(Number(parsedConfig.fileSize) / (1024 * 1024)).toFixed(2)} MB`

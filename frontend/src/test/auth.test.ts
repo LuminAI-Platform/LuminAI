@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { useAuthStore, hasRealmRole, isPlatformAdmin } from "../stores/authStore";
+import {
+  useAuthStore,
+  hasRealmRole,
+  isPlatformAdmin,
+} from "../stores/authStore";
 import type { User } from "oidc-client-ts";
 import { queryClient } from "../lib/queryClient";
 
@@ -56,7 +60,10 @@ describe("Authentication & Authorization Security", () => {
   describe("Session Management & Tenant Partitioning", () => {
     it("should clear session, remove un-namespaced keys, and purge query cache on clearAuthSession", () => {
       // Simulate tenant artifacts in local storage
-      localStorage.setItem("local_ingested_files", JSON.stringify([{ id: "test" }]));
+      localStorage.setItem(
+        "local_ingested_files",
+        JSON.stringify([{ id: "test" }]),
+      );
       localStorage.setItem("most_recent_ingested_file", "test.csv");
       localStorage.setItem("lumin_schema_mapping", "{}");
       sessionStorage.setItem("post_login_redirect", "/explorer/entity/123");
