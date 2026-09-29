@@ -165,11 +165,11 @@ public class KafkaConfig {
     props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1);
     props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
 
-    // Trust all packages for JSON deserialisation.
-    // Restrict to specific packages in production:
-    //   props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.luminai.model.events");
+    // Trust packages for JSON deserialisation and fall back cleanly to java.util.Map
+    // for events arriving from external Python Data Engine services
     props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);
+    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, Map.class.getName());
+    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
 
     return new DefaultKafkaConsumerFactory<>(props);
   }

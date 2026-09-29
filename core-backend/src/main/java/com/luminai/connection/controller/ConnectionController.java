@@ -7,6 +7,7 @@ import com.luminai.connection.producer.ConnectionProducer;
 import com.luminai.connection.repository.ConnectionPreviewService;
 import com.luminai.connection.service.ConnectionService;
 import com.luminai.connection.service.FileConnectorService;
+import com.luminai.connection.service.PostgresConnectorService;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -44,20 +45,26 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1/connections")
 public class ConnectionController {
 
+  private static final org.slf4j.Logger log =
+      org.slf4j.LoggerFactory.getLogger(ConnectionController.class);
+
   private final ConnectionService connectionService;
   private final ConnectionPreviewService connectionPreviewService;
   private final FileConnectorService fileConnectorService;
   private final ConnectionProducer connectionProducer;
+  private final PostgresConnectorService postgresConnectorService;
 
   public ConnectionController(
       ConnectionService connectionService,
       ConnectionPreviewService connectionPreviewService,
       FileConnectorService fileConnectorService,
-      ConnectionProducer connectionProducer) {
+      ConnectionProducer connectionProducer,
+      PostgresConnectorService postgresConnectorService) {
     this.connectionService = connectionService;
     this.connectionPreviewService = connectionPreviewService;
     this.fileConnectorService = fileConnectorService;
     this.connectionProducer = connectionProducer;
+    this.postgresConnectorService = postgresConnectorService;
   }
 
   // ----------------------------------------------------------------
@@ -65,6 +72,8 @@ public class ConnectionController {
   // ----------------------------------------------------------------
 
   @PostMapping
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<ConnectionDto.Response> create(
       @Valid @RequestBody ConnectionDto.CreateRequest request) {
     ConnectionDto.Response created = connectionService.create(request);
@@ -72,22 +81,30 @@ public class ConnectionController {
   }
 
   @GetMapping
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<ConnectionDto.Response>> getAll() {
     return ResponseEntity.ok(connectionService.getAllForTenant());
   }
 
   @GetMapping("/{id}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<ConnectionDto.Response> getById(@PathVariable UUID id) {
     return ResponseEntity.ok(connectionService.getById(id));
   }
 
   @PutMapping("/{id}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<ConnectionDto.Response> update(
       @PathVariable UUID id, @RequestBody ConnectionDto.UpdateRequest request) {
     return ResponseEntity.ok(connectionService.update(id, request));
   }
 
   @DeleteMapping("/{id}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<Void> delete(@PathVariable UUID id) {
     connectionService.delete(id);
     return ResponseEntity.noContent().build();
@@ -104,6 +121,8 @@ public class ConnectionController {
    * @return list of row maps matching the file's column structure
    */
   @GetMapping("/{id}/preview/file")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<Map<String, Object>>> previewFile(@PathVariable UUID id) {
     List<Map<String, Object>> rows = connectionPreviewService.previewFile(id);
     return ResponseEntity.ok(rows);
@@ -117,6 +136,8 @@ public class ConnectionController {
    * @return list of row maps matching the table's column structure
    */
   @GetMapping("/{id}/preview/table")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<Map<String, Object>>> previewTable(
       @PathVariable UUID id, @RequestParam String table) {
     List<Map<String, Object>> rows = connectionPreviewService.previewTable(id, table);
@@ -132,6 +153,8 @@ public class ConnectionController {
    * path and streams the parsed rows into Kafka {@code ingest.raw} for Data Engine consumption.
    */
   @PostMapping(value = "/{id}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> uploadFile(
       @PathVariable UUID id, @RequestParam("file") MultipartFile file) throws IOException {
     UUID tenantId = TenantContext.getTenantUuid();
@@ -162,8 +185,28 @@ public class ConnectionController {
 
   /** Discovers schemas and tables for a given database configuration. */
   @PostMapping("/discover")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<List<Map<String, Object>>> discoverSchemas(
       @RequestBody(required = false) Map<String, Object> config) {
+    UUID tenantId = TenantContext.getTenantUuid();
+    if (config != null
+        && config.containsKey("connectionId")
+        && tenantId != null
+        && postgresConnectorService != null) {
+      try {
+        UUID connectionId = UUID.fromString(String.valueOf(config.get("connectionId")));
+        Map<String, List<String>> discovered =
+            postgresConnectorService.discoverSchemas(tenantId, connectionId);
+        List<Map<String, Object>> schemas = new ArrayList<>();
+        discovered.forEach(
+            (schema, tables) -> schemas.add(Map.of("schema", schema, "tables", tables)));
+        return ResponseEntity.ok(schemas);
+      } catch (Exception e) {
+        log.warn("Database schema discovery failed: {}", e.getMessage());
+      }
+    }
+
     List<Map<String, Object>> schemas =
         List.of(
             Map.of(

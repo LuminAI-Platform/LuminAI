@@ -45,6 +45,7 @@ class ConnectionControllerTest {
   @Mock private ConnectionPreviewService connectionPreviewService;
   @Mock private FileConnectorService fileConnectorService;
   @Mock private ConnectionProducer connectionProducer;
+  @Mock private com.luminai.connection.service.PostgresConnectorService postgresConnectorService;
 
   @InjectMocks private ConnectionController controller;
 

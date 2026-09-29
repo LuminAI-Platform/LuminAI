@@ -83,13 +83,17 @@ public class DataEngineClient {
           "totalRuns",
           0,
           "successRate",
-          100.0,
+          0.0,
           "avgDuration",
           0.0,
           "recordsProcessed",
           0,
-          "source",
-          "fallback");
+          "available",
+          false,
+          "status",
+          "UNAVAILABLE",
+          "error",
+          "Data Engine unreachable: " + e.getMessage());
     }
   }
 
@@ -109,12 +113,14 @@ public class DataEngineClient {
     } catch (Exception e) {
       log.warn("Failed to fetch data quality from Data Engine: {}", e.getMessage());
       return Map.of(
-          "overallScore", 95.0,
-          "completeness", 96.0,
-          "uniqueness", 99.0,
-          "consistency", 94.0,
-          "timeliness", 90.0,
-          "source", "fallback");
+          "overallScore", 0.0,
+          "completeness", 0.0,
+          "uniqueness", 0.0,
+          "consistency", 0.0,
+          "timeliness", 0.0,
+          "available", false,
+          "status", "UNAVAILABLE",
+          "error", "Data Engine unreachable: " + e.getMessage());
     }
   }
 
@@ -133,7 +139,17 @@ public class DataEngineClient {
           .body(MAP_TYPE);
     } catch (Exception e) {
       log.warn("Failed to fetch entity stats from Data Engine: {}", e.getMessage());
-      return Map.of("totalEntities", 0, "entityCountsByType", Map.of(), "source", "fallback");
+      return Map.of(
+          "totalEntities",
+          0,
+          "entityCountsByType",
+          Map.of(),
+          "available",
+          false,
+          "status",
+          "UNAVAILABLE",
+          "error",
+          "Data Engine unreachable: " + e.getMessage());
     }
   }
 

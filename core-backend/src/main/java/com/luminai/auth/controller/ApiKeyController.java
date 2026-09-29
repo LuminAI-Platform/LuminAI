@@ -33,6 +33,8 @@ public class ApiKeyController {
       description =
           "Retrieves the active API key metadata (prefix, creation date) for the current tenant.")
   @GetMapping
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'USER')")
   public ResponseEntity<?> getActiveApiKey() {
     UUID tenantId = TenantContext.getTenantUuid();
     Optional<ApiKeyDto> activeKey = apiKeyService.getActiveApiKey(tenantId);
@@ -47,6 +49,8 @@ public class ApiKeyController {
       description =
           "Generates a new cryptographically secure API key and revokes existing keys for the tenant.")
   @PostMapping("/rotate")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN')")
   public ResponseEntity<ApiKeyRotateResponse> rotateApiKey(
       @RequestBody(required = false) Map<String, String> body) {
     UUID tenantId = TenantContext.getTenantUuid();

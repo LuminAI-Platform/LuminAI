@@ -27,4 +27,9 @@ public interface PipelineRunRepository extends JpaRepository<PipelineRun, UUID> 
 
   @Query("select coalesce(sum(p.recordsFailed), 0) from PipelineRun p")
   long sumRecordsFailed();
+
+  @Query("select count(p) from PipelineRun p where p.startedAt >= :start and p.startedAt < :end")
+  long countByStartedAtBetween(
+      @org.springframework.data.repository.query.Param("start") java.time.Instant start,
+      @org.springframework.data.repository.query.Param("end") java.time.Instant end);
 }

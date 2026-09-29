@@ -27,6 +27,21 @@ import org.hibernate.annotations.UpdateTimestamp;
     indexes = {@Index(name = "idx_golden_records_tenant", columnList = "tenant_id")})
 public class GoldenRecord {
 
+  @Column(name = "tenant_id", nullable = false)
+  private UUID tenantId;
+
+  @Column(name = "entity_type", length = 100, nullable = false)
+  private String entityType = "Entity";
+
+  @Column(name = "canonical_name", length = 500, nullable = false)
+  private String canonicalName = "Unnamed Entity";
+
+  @Column(name = "confidence_score", precision = 5, scale = 4, nullable = false)
+  private java.math.BigDecimal confidenceScore = java.math.BigDecimal.valueOf(1.0000);
+
+  @Column(name = "source_count", nullable = false)
+  private int sourceCount = 1;
+
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
@@ -65,11 +80,68 @@ public class GoldenRecord {
   }
 
   public static GoldenRecord newStandalone() {
-    return new GoldenRecord();
+    GoldenRecord gr = new GoldenRecord();
+    UUID currentTenant = com.luminai.common.tenant.TenantContext.getTenantUuid();
+    if (currentTenant != null) {
+      gr.tenantId = currentTenant;
+    }
+    return gr;
   }
 
   public UUID getId() {
     return id;
+  }
+
+  public UUID getTenantId() {
+    return tenantId;
+  }
+
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
+
+  public String getEntityType() {
+    if (entityType != null && !entityType.isBlank()) {
+      return entityType;
+    }
+    if (properties != null && properties.containsKey("entity_type")) {
+      return String.valueOf(properties.get("entity_type"));
+    }
+    return "Entity";
+  }
+
+  public void setEntityType(String entityType) {
+    this.entityType = entityType;
+  }
+
+  public String getCanonicalName() {
+    if (canonicalName != null && !canonicalName.isBlank()) {
+      return canonicalName;
+    }
+    if (properties != null && properties.containsKey("canonical_name")) {
+      return String.valueOf(properties.get("canonical_name"));
+    }
+    return "Unnamed Entity";
+  }
+
+  public void setCanonicalName(String canonicalName) {
+    this.canonicalName = canonicalName;
+  }
+
+  public java.math.BigDecimal getConfidenceScore() {
+    return confidenceScore;
+  }
+
+  public void setConfidenceScore(java.math.BigDecimal confidenceScore) {
+    this.confidenceScore = confidenceScore;
+  }
+
+  public int getSourceCount() {
+    return sourceCount;
+  }
+
+  public void setSourceCount(int sourceCount) {
+    this.sourceCount = sourceCount;
   }
 
   public Set<UUID> getSourceRecordIds() {

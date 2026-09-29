@@ -56,8 +56,13 @@ public class PipelineSseController {
       @Parameter(description = "Filter by pipeline run ID") @RequestParam(required = false)
           String runId) {
 
-    log.info("New SSE client connected — connId={}, runId={}", connectionId, runId);
-    return pipelineSseService.createEmitter(connectionId, runId);
+    UUID tenantId = com.luminai.common.tenant.TenantContext.getTenantUuid();
+    log.info(
+        "New SSE client connected — tenantId={}, connId={}, runId={}",
+        tenantId,
+        connectionId,
+        runId);
+    return pipelineSseService.createEmitter(tenantId, connectionId, runId);
   }
 
   /**
@@ -77,7 +82,8 @@ public class PipelineSseController {
       @Parameter(description = "Pipeline run UUID or ID", required = true) @PathVariable
           String runId) {
 
-    log.info("New SSE client connected for runId={}", runId);
-    return pipelineSseService.createEmitter(null, runId);
+    UUID tenantId = com.luminai.common.tenant.TenantContext.getTenantUuid();
+    log.info("New SSE client connected for runId={}, tenantId={}", runId, tenantId);
+    return pipelineSseService.createEmitter(tenantId, null, runId);
   }
 }

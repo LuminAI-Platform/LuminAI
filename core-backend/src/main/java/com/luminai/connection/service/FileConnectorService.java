@@ -116,8 +116,21 @@ public class FileConnectorService {
     }
   }
 
+  private String sanitizeFileName(String fileName) {
+    if (fileName == null || fileName.isBlank()) {
+      throw new IllegalArgumentException("File name must not be blank");
+    }
+    String baseName = java.nio.file.Paths.get(fileName).getFileName().toString();
+    String sanitized = baseName.replaceAll("[^a-zA-Z0-9._-]", "_");
+    if (sanitized.isBlank() || sanitized.contains("..")) {
+      throw new IllegalArgumentException("Invalid file name: " + fileName);
+    }
+    return sanitized;
+  }
+
   private String buildObjectKey(UUID tenantId, UUID connectionId, String fileName) {
-    return String.format("%s/raw/%s/%s", tenantId, connectionId, fileName);
+    String safeName = sanitizeFileName(fileName);
+    return String.format("%s/raw/%s/%s", tenantId, connectionId, safeName);
   }
 
   private String resolveContentType(MultipartFile file) {

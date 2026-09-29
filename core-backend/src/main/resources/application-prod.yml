@@ -91,8 +91,9 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       max-poll-records: 50
       properties:
-        spring.json.trusted.packages: com.luminai.model.events
-        spring.json.use.type.headers: true
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: java.util.Map
     listener:
       ack-mode: manual_immediate
       concurrency: 3

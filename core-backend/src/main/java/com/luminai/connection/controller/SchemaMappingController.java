@@ -35,6 +35,8 @@ public class SchemaMappingController {
   }
 
   @PostMapping
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<SchemaMappingDto.Response> create(
       @Valid @RequestBody SchemaMappingDto.CreateRequest request) {
 
@@ -43,16 +45,22 @@ public class SchemaMappingController {
   }
 
   @GetMapping
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<SchemaMappingDto.Response>> getAll() {
     return ResponseEntity.ok(schemaMappingService.getAllForTenant());
   }
 
   @GetMapping("/{id}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<SchemaMappingDto.Response> getById(@PathVariable UUID id) {
     return ResponseEntity.ok(schemaMappingService.getById(id));
   }
 
   @GetMapping("/connector/{connectorId}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<SchemaMappingDto.Response>> getByConnector(
       @PathVariable UUID connectorId) {
 
@@ -60,6 +68,8 @@ public class SchemaMappingController {
   }
 
   @PutMapping("/{id}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<SchemaMappingDto.Response> update(
       @PathVariable UUID id, @RequestBody SchemaMappingDto.UpdateRequest request) {
 
@@ -67,6 +77,8 @@ public class SchemaMappingController {
   }
 
   @DeleteMapping("/{id}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
   public ResponseEntity<Void> delete(@PathVariable UUID id) {
     schemaMappingService.delete(id);
     return ResponseEntity.noContent().build();

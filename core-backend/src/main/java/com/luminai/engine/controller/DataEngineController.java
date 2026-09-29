@@ -37,6 +37,8 @@ public class DataEngineController {
       description =
           "Inspects connectivity, response latency, and runtime status of the Python Data Engine service.")
   @GetMapping("/health")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<DataEngineHealthDto> checkHealth() {
     return ResponseEntity.ok(dataEngineClient.checkHealth());
   }
@@ -46,6 +48,8 @@ public class DataEngineController {
       description =
           "Returns combined Polars telemetry, pipeline throughput, and data quality scores for the tenant.")
   @GetMapping("/metrics")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getMetrics() {
     String tenantSlug = TenantContext.getTenantSlug();
     DataEngineHealthDto health = dataEngineClient.checkHealth();
@@ -66,6 +70,8 @@ public class DataEngineController {
       summary = "Trigger Polars Clean",
       description = "Dispatches an on-demand Polars data cleaning job to the Python Data Engine.")
   @PostMapping("/process/clean")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> cleanData(@RequestBody Object requestPayload) {
     return ResponseEntity.ok(dataEngineClient.cleanData(requestPayload));
   }
@@ -75,6 +81,8 @@ public class DataEngineController {
       description =
           "Dispatches a high-performance entity resolution compute job to the Python Data Engine.")
   @PostMapping("/process/resolve")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> resolveEntities(@RequestBody Object requestPayload) {
     return ResponseEntity.ok(dataEngineClient.resolveEntities(requestPayload));
   }
@@ -84,6 +92,8 @@ public class DataEngineController {
       description =
           "Retrieves the execution status and output logs of an asynchronous Data Engine compute job.")
   @GetMapping("/process/jobs/{jobId}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getJobStatus(@PathVariable String jobId) {
     return ResponseEntity.ok(dataEngineClient.getJobStatus(jobId));
   }
