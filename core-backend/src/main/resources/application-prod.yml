@@ -121,7 +121,7 @@ spring:
 
 # ── Server ─────────────────────────────────────────────────────────────
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${PORT:${SERVER_PORT:8080}}
   shutdown: graceful
 
 # ── Actuator ───────────────────────────────────────────────────────────
@@ -170,4 +170,9 @@ luminai:
     realm: ${KEYCLOAK_REALM}
     admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
     admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+
+# ── Data Engine (Python FastAPI on Render) ─────────────────────────────
+data-engine:
+  base-url: ${DATA_ENGINE_URL:http://localhost:8000}
+  api-key: ${DATA_ENGINE_API_KEY:}
 
