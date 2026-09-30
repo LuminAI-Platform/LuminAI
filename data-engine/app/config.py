@@ -68,7 +68,7 @@ class Settings(BaseSettings):
 
 
     # CORS Configuration
-    cors_origins: list[str] = [
+    cors_origins: list[str] | str = [
         "https://luminai-sand.vercel.app",
         "https://luminai-api.onrender.com",
         "https://luminai-data.onrender.com",
