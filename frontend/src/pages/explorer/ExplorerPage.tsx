@@ -163,8 +163,53 @@ export const ExplorerPage: React.FC = () => {
         if (!res.ok) {
           throw new Error(`Search failed: ${res.statusText}`);
         }
-        const data: SearchResponse = await res.json();
-        setSearchData(data);
+        const raw = (await res.json()) as Record<string, unknown>;
+        const rawItems = (raw.items ?? raw.content) as
+          | SearchResponse["content"]
+          | undefined;
+        const items = rawItems ?? [];
+        const rawTotal = (raw.total ?? raw.totalElements) as number | undefined;
+        const totalElements = rawTotal ?? items.length;
+        const rawPages = raw.totalPages as number | undefined;
+        const totalPages =
+          rawPages ?? Math.max(1, Math.ceil(totalElements / pageSize));
+        const rawSize = raw.size as number | undefined;
+        const size = rawSize ?? pageSize;
+        const rawNum = (raw.page ?? raw.number) as number | undefined;
+        const number = rawNum ?? pageNum;
+
+        // Flatten facets if nested (e.g. backend sends { entityType: { Person: 10, Organization: 5 } })
+        let flattenedFacets: Record<string, number> = {};
+        const rawFacets = raw.facets;
+        if (rawFacets && typeof rawFacets === "object") {
+          const facetsObj = rawFacets as Record<string, unknown>;
+          if (
+            facetsObj.entityType &&
+            typeof facetsObj.entityType === "object"
+          ) {
+            flattenedFacets = {
+              ...(facetsObj.entityType as Record<string, number>),
+            };
+          } else {
+            for (const [k, v] of Object.entries(facetsObj)) {
+              if (typeof v === "number") {
+                flattenedFacets[k] = v;
+              } else if (typeof v === "object" && v !== null) {
+                Object.assign(flattenedFacets, v);
+              }
+            }
+          }
+        }
+
+        const normalized: SearchResponse = {
+          content: items,
+          facets: flattenedFacets,
+          totalElements,
+          totalPages,
+          size,
+          number,
+        };
+        setSearchData(normalized);
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") {
           // Request intentionally aborted by newer query

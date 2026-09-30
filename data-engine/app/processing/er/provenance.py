@@ -27,11 +27,20 @@ def track_field_provenance(
 ) -> list[dict[str, Any]]:
     """Build field-level provenance entries for attributes of a Golden Record."""
     golden_id = str(golden_record.get("golden_id", ""))
-    exclude_keys = {"golden_id", "tenant_id", "cluster_size", "source_record_ids", "created_at"}
+    exclude_keys = {
+        "golden_id",
+        "tenant_id",
+        "cluster_size",
+        "source_record_ids",
+        "created_at",
+    }
 
     resolved_tenant_id = tenant_id
     if resolved_tenant_id == "acme":
-        if golden_record.get("tenant_id") and str(golden_record.get("tenant_id")) != "acme":
+        if (
+            golden_record.get("tenant_id")
+            and str(golden_record.get("tenant_id")) != "acme"
+        ):
             resolved_tenant_id = str(golden_record.get("tenant_id"))
         else:
             for rec in cluster_records:
@@ -58,20 +67,28 @@ def track_field_provenance(
         if not contributor and cluster_records:
             contributor = cluster_records[0]
 
-        source_rec_id = str(contributor.get("id", contributor.get("raw_id", "unknown"))) if contributor else "unknown"
-        source_id = str(contributor.get("source_id", "unknown")) if contributor else "unknown"
+        source_rec_id = (
+            str(contributor.get("id", contributor.get("raw_id", "unknown")))
+            if contributor
+            else "unknown"
+        )
+        source_id = (
+            str(contributor.get("source_id", "unknown")) if contributor else "unknown"
+        )
 
-        provenance_entries.append({
-            "id": str(uuid.uuid4()),
-            "golden_id": golden_id,
-            "tenant_id": resolved_tenant_id,
-            "attribute_name": attr,
-            "attribute_value": str_val,
-            "source_record_id": source_rec_id,
-            "source_id": source_id,
-            "confidence_score": float(golden_record.get("confidence_score", 1.0)),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
+        provenance_entries.append(
+            {
+                "id": str(uuid.uuid4()),
+                "golden_id": golden_id,
+                "tenant_id": resolved_tenant_id,
+                "attribute_name": attr,
+                "attribute_value": str_val,
+                "source_record_id": source_rec_id,
+                "source_id": source_id,
+                "confidence_score": float(golden_record.get("confidence_score", 1.0)),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
     return provenance_entries
 
@@ -89,27 +106,11 @@ def persist_provenance_records(
     if not rows:
         return 0
 
+    from sqlalchemy import inspect
     from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
-
-    insert_sql = """
-    INSERT INTO provenance (id, golden_id, tenant_id, attribute_name, attribute_value, source_record_id, source_id, confidence_score, created_at)
-    VALUES (:id, :golden_id, :tenant_id, :attribute_name, :attribute_value, :source_record_id, :source_id, :confidence_score, :created_at);
-    """
+    from app.processing.er.classification import _to_uuid_str
 
     now_utc = datetime.now(timezone.utc)
-    params = []
-    for r in rows:
-        params.append({
-            "id": str(r.get("id", uuid.uuid4())),
-            "golden_id": str(r.get("golden_id", "")),
-            "tenant_id": str(r.get("tenant_id") or tenant_id),
-            "attribute_name": str(r.get("attribute_name", "")),
-            "attribute_value": str(r.get("attribute_value", "")),
-            "source_record_id": str(r.get("source_record_id", "unknown")),
-            "source_id": str(r.get("source_id", "unknown")),
-            "confidence_score": float(r.get("confidence_score", 1.0)),
-            "created_at": now_utc,
-        })
 
     # Try PostgreSQL first
     try:
@@ -117,12 +118,111 @@ def persist_provenance_records(
         with pg_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         ensure_tables_exist(pg_engine)
+
+        with pg_engine.connect() as conn:
+            try:
+                conn.execute(text("SET search_path TO tenant_default, public;"))
+            except Exception:
+                pass
+            inspector = inspect(conn)
+            cols = set()
+            try:
+                cols = {
+                    c["name"]
+                    for c in inspector.get_columns(
+                        "provenance", schema="tenant_default"
+                    )
+                }
+            except Exception:
+                pass
+            if not cols:
+                try:
+                    cols = {c["name"] for c in inspector.get_columns("provenance")}
+                except Exception:
+                    cols = set()
+
+        is_postgres_schema = "property_name" in cols
+
         with pg_engine.begin() as conn:
-            conn.execute(text(insert_sql), params)
-        logger.info("Persisted %d field-level provenance records to PostgreSQL", len(params))
-        return len(params)
+            try:
+                conn.execute(text("SET search_path TO tenant_default, public;"))
+            except Exception:
+                pass
+
+            if is_postgres_schema:
+                insert_sql = """
+                INSERT INTO provenance (
+                    id, tenant_id, golden_record_id, property_name,
+                    source_connection_id, source_record_id, contributed_value, contributed_at
+                ) VALUES (
+                    :id, :tenant_id, :golden_record_id, :property_name,
+                    :source_connection_id, :source_record_id, :contributed_value, :contributed_at
+                );
+                """
+                params = []
+                for r in rows:
+                    p_id = _to_uuid_str(r.get("id"))
+                    t_id = _to_uuid_str(r.get("tenant_id") or tenant_id)
+                    gr_id = _to_uuid_str(
+                        r.get("golden_record_id") or r.get("golden_id")
+                    )
+                    conn_id = _to_uuid_str(
+                        r.get("source_connection_id") or r.get("source_id")
+                    )
+                    src_rec_id = _to_uuid_str(r.get("source_record_id"))
+                    prop_name = str(
+                        r.get("property_name") or r.get("attribute_name") or "unknown"
+                    )
+                    val = str(
+                        r.get("contributed_value") or r.get("attribute_value") or ""
+                    )
+
+                    params.append(
+                        {
+                            "id": p_id,
+                            "tenant_id": t_id,
+                            "golden_record_id": gr_id,
+                            "property_name": prop_name,
+                            "source_connection_id": conn_id,
+                            "source_record_id": src_rec_id,
+                            "contributed_value": val,
+                            "contributed_at": now_utc,
+                        }
+                    )
+                conn.execute(text(insert_sql), params)
+            else:
+                insert_sql = """
+                INSERT INTO provenance (id, golden_id, tenant_id, attribute_name, attribute_value, source_record_id, source_id, confidence_score, created_at)
+                VALUES (:id, :golden_id, :tenant_id, :attribute_name, :attribute_value, :source_record_id, :source_id, :confidence_score, :created_at);
+                """
+                params = []
+                for r in rows:
+                    params.append(
+                        {
+                            "id": str(r.get("id", uuid.uuid4())),
+                            "golden_id": str(r.get("golden_id", "")),
+                            "tenant_id": str(r.get("tenant_id") or tenant_id),
+                            "attribute_name": str(r.get("attribute_name", "")),
+                            "attribute_value": str(r.get("attribute_value", "")),
+                            "source_record_id": str(
+                                r.get("source_record_id", "unknown")
+                            ),
+                            "source_id": str(r.get("source_id", "unknown")),
+                            "confidence_score": float(r.get("confidence_score", 1.0)),
+                            "created_at": now_utc,
+                        }
+                    )
+                conn.execute(text(insert_sql), params)
+
+        logger.info(
+            "Persisted %d field-level provenance records to PostgreSQL", len(rows)
+        )
+        return len(rows)
     except Exception as exc:
-        logger.warning("Could not persist provenance to PostgreSQL (%s). Using SQLite fallback.", exc)
+        logger.warning(
+            "Could not persist provenance to PostgreSQL (%s). Using SQLite fallback.",
+            exc,
+        )
 
     # SQLite fallback
     try:
@@ -131,9 +231,33 @@ def persist_provenance_records(
         sqlite_engine = get_sqlite_engine(sqlite_path)
         ensure_tables_exist(sqlite_engine)
 
+        insert_sql = """
+        INSERT INTO provenance (id, golden_id, tenant_id, attribute_name, attribute_value, source_record_id, source_id, confidence_score, created_at)
+        VALUES (:id, :golden_id, :tenant_id, :attribute_name, :attribute_value, :source_record_id, :source_id, :confidence_score, :created_at);
+        """
+        params = []
+        for r in rows:
+            params.append(
+                {
+                    "id": str(r.get("id", uuid.uuid4())),
+                    "golden_id": str(r.get("golden_id", "")),
+                    "tenant_id": str(r.get("tenant_id") or tenant_id),
+                    "attribute_name": str(r.get("attribute_name", "")),
+                    "attribute_value": str(r.get("attribute_value", "")),
+                    "source_record_id": str(r.get("source_record_id", "unknown")),
+                    "source_id": str(r.get("source_id", "unknown")),
+                    "confidence_score": float(r.get("confidence_score", 1.0)),
+                    "created_at": now_utc,
+                }
+            )
+
         with sqlite_engine.begin() as conn:
             conn.execute(text(insert_sql), params)
-        logger.info("Persisted %d field-level provenance records to SQLite at %s", len(params), sqlite_path)
+        logger.info(
+            "Persisted %d field-level provenance records to SQLite at %s",
+            len(params),
+            sqlite_path,
+        )
         return len(params)
     except Exception as exc:
         logger.error("Failed to persist provenance records to SQLite: %s", exc)

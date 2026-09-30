@@ -117,6 +117,19 @@ def calculate_pair_similarity_score(
         val_a = _get_val(record_a, attr, "a")
         val_b = _get_val(record_b, attr, "b")
 
+        has_a = val_a is not None and str(val_a).strip() != ""
+        has_b = val_b is not None and str(val_b).strip() != ""
+
+        if not has_a and not has_b:
+            # Both records lack this attribute — treat as missing data, not as a match
+            scores[f"score_{attr}"] = 0.0
+            continue
+
+        if not has_a or not has_b:
+            scores[f"score_{attr}"] = 0.0
+            active_weight += weight
+            continue
+
         # Use semantic matching for name fields (handles Bob <-> Robert, IBM <-> International Business Machines)
         if attr == "name":
             jw = jaro_winkler_similarity(val_a, val_b)
@@ -128,10 +141,8 @@ def calculate_pair_similarity_score(
             attr_score = jaro_winkler_similarity(val_a, val_b)
 
         scores[f"score_{attr}"] = round(attr_score, 4)
-
-        if val_a is not None or val_b is not None:
-            active_weight += weight
-            weighted_sum += weight * attr_score
+        active_weight += weight
+        weighted_sum += weight * attr_score
 
     if active_weight > 0:
         confidence = weighted_sum / active_weight
@@ -182,8 +193,7 @@ def compare_candidate_pairs(
     if candidate_pairs.height > chunk_size:
         num_chunks = (candidate_pairs.height + chunk_size - 1) // chunk_size
         chunks = [
-            candidate_pairs.slice(i * chunk_size, chunk_size)
-            for i in range(num_chunks)
+            candidate_pairs.slice(i * chunk_size, chunk_size) for i in range(num_chunks)
         ]
         max_workers = min(os.cpu_count() or 4, 8)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -246,10 +256,13 @@ def _evaluate_candidate_chunk(
         new_columns.append(pl.Series(f"score_{attr}", attr_scores, dtype=pl.Float64))
 
     confidence_scores = [
-        round(weighted_sum_list[i] / active_weight_list[i], 4) if active_weight_list[i] > 0 else 0.0
+        round(weighted_sum_list[i] / active_weight_list[i], 4)
+        if active_weight_list[i] > 0
+        else 0.0
         for i in range(n_rows)
     ]
-    new_columns.append(pl.Series("confidence_score", confidence_scores, dtype=pl.Float64))
+    new_columns.append(
+        pl.Series("confidence_score", confidence_scores, dtype=pl.Float64)
+    )
 
     return chunk.with_columns(new_columns)
-
