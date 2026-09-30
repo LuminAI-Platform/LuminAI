@@ -61,6 +61,7 @@ class IngestRawConsumer:
 
     def _create_consumer(self) -> Consumer:
         """Create and configure the confluent-kafka Consumer instance."""
+        settings = get_settings()
         conf = {
             "bootstrap.servers": self.bootstrap_servers,
             "group.id": self.group_id,
@@ -70,6 +71,7 @@ class IngestRawConsumer:
             "session.timeout.ms": 30000,
             "max.poll.interval.ms": 300000,
         }
+        conf.update(settings.kafka_security_conf)
         return Consumer(conf)
 
     def handle(self, key: str | None, value: dict[str, Any]) -> None:

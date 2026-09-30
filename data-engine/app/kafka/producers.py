@@ -179,6 +179,7 @@ class DeadLetterProducer:
                     "bootstrap.servers": self.bootstrap_servers,
                     "client.id": "data-engine-dlq-producer",
                 }
+                conf.update(settings.kafka_security_conf)
                 self._producer = Producer(conf)
                 logger.info("DeadLetterProducer started — topic='%s'", self.topic)
             except Exception as e:
@@ -278,6 +279,7 @@ class IngestValidProducer:
                     "bootstrap.servers": self.bootstrap_servers,
                     "client.id": "data-engine-valid-producer",
                 }
+                conf.update(settings.kafka_security_conf)
                 self._producer = Producer(conf)
                 logger.info(
                     "IngestValidProducer started — topic='%s', brokers='%s'",
@@ -404,6 +406,7 @@ class EntityResolvedProducer:
                     "bootstrap.servers": self.bootstrap_servers,
                     "client.id": "data-engine-resolved-producer",
                 }
+                conf.update(settings.kafka_security_conf)
                 self._producer = Producer(conf)
                 logger.info(
                     "EntityResolvedProducer started — topic='%s', brokers='%s'",
@@ -531,6 +534,7 @@ class IngestRawProducer:
                     "bootstrap.servers": self.bootstrap_servers,
                     "client.id": "data-engine-raw-replay-producer",
                 }
+                conf.update(settings.kafka_security_conf)
                 self._producer = Producer(conf)
                 logger.info("IngestRawProducer started — topic='%s'", self.topic)
             except Exception as e:

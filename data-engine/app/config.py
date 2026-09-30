@@ -99,9 +99,28 @@ class Settings(BaseSettings):
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
     kafka_topic_entity_resolved: str = "entity.resolved"
+    kafka_security_protocol: str | None = None
+    kafka_sasl_mechanism: str = "SCRAM-SHA-256"
+    kafka_username: str | None = None
+    kafka_password: str | None = None
     kafka_producer_max_retries: int = 3
     kafka_producer_initial_backoff: float = 0.5
     kafka_producer_backoff_multiplier: float = 2.0
+
+    @property
+    def kafka_security_conf(self) -> dict[str, Any]:
+        """Return confluent-kafka security dictionary based on environment settings."""
+        conf: dict[str, Any] = {}
+        if self.kafka_security_protocol:
+            conf["security.protocol"] = self.kafka_security_protocol
+        elif self.kafka_username and self.kafka_password:
+            conf["security.protocol"] = "SASL_SSL"
+
+        if self.kafka_username and self.kafka_password:
+            conf["sasl.mechanisms"] = self.kafka_sasl_mechanism or "SCRAM-SHA-256"
+            conf["sasl.username"] = self.kafka_username
+            conf["sasl.password"] = self.kafka_password
+        return conf
 
     # Database & Redis Configuration
     database_url: str | None = None
