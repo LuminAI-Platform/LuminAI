@@ -61,6 +61,13 @@ class DatabaseManager:
                             pool_timeout=self.settings.db_pool_timeout,
                             pool_recycle=self.settings.db_pool_recycle,
                         )
+                        connect_args: dict[str, Any] = {}
+                        raw_url = (self.settings.database_url or "").lower()
+                        if "sslmode=require" in raw_url or "sslmode=verify" in raw_url:
+                            connect_args["ssl_context"] = True
+                        elif "sslmode=disable" in raw_url:
+                            connect_args["ssl_context"] = False
+
                         self._pg_engine = create_engine(
                             db_url,
                             poolclass=QueuePool,
@@ -69,6 +76,7 @@ class DatabaseManager:
                             pool_timeout=self.settings.db_pool_timeout,
                             pool_recycle=self.settings.db_pool_recycle,
                             pool_pre_ping=self.settings.db_pool_pre_ping,
+                            connect_args=connect_args,
                         )
         return self._pg_engine
 

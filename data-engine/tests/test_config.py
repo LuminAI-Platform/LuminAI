@@ -45,6 +45,18 @@ def test_database_url_override():
     assert settings.postgres_dsn == "postgresql://user:pass@render-db:5432/luminai"
 
 
+def test_postgres_driver_dsn_sanitizes_sslmode():
+    """pg8000 driver DSN replaces driver prefix and strips incompatible parameters like sslmode."""
+    settings = Settings(
+        database_url="postgresql://user:pass@ep-fake.neon.tech/luminai?sslmode=require&channel_binding=prefer"
+    )
+    driver_dsn = settings.postgres_driver_dsn
+    assert driver_dsn.startswith("postgresql+pg8000://")
+    assert "sslmode" not in driver_dsn
+    assert "channel_binding" not in driver_dsn
+    assert "user:pass@ep-fake.neon.tech/luminai" in driver_dsn
+
+
 def test_security_defaults():
     """Security settings have expected defaults for dev/test mode."""
     settings = get_settings()

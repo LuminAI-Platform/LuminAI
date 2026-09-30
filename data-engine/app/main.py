@@ -65,18 +65,43 @@ async def lifespan(app: FastAPI):
                 settings.kafka_bootstrap_servers,
             )
         else:
-            try:
-                consumer = IngestRawConsumer()
-                trigger = DagsterTrigger()
-                consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
-                await consumer.start()
-                logger.info(
-                    "Kafka consumer started",
-                    topic=settings.kafka_topic_ingest_raw,
-                    bootstrap_servers=settings.kafka_bootstrap_servers,
+            # Check if broker host is resolvable before starting consumer (prevents rdkafka stderr flood)
+            resolvable = True
+            unresolved_err = ""
+            brokers = [b.strip() for b in settings.kafka_bootstrap_servers.split(",") if b.strip()]
+            for broker in brokers:
+                b_clean = broker.split("://")[-1]
+                host = b_clean.split(":")[0]
+                port = int(b_clean.split(":")[1]) if ":" in b_clean else 9092
+                try:
+                    import socket
+                    socket.getaddrinfo(host, port)
+                    resolvable = True
+                    break
+                except Exception as dns_exc:
+                    resolvable = False
+                    unresolved_err = f"{host}: {dns_exc}"
+
+            if not resolvable:
+                logger.warning(
+                    "Kafka broker DNS resolution failed (%s). "
+                    "Skipping Kafka consumer background task to prevent connection spam. "
+                    "Verify your Aiven/Kafka broker hostname in Render or set KAFKA_ENABLED=false.",
+                    unresolved_err,
                 )
-            except Exception as exc:
-                logger.error("Failed to start Kafka consumer: %s", exc)
+            else:
+                try:
+                    consumer = IngestRawConsumer()
+                    trigger = DagsterTrigger()
+                    consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
+                    await consumer.start()
+                    logger.info(
+                        "Kafka consumer started",
+                        topic=settings.kafka_topic_ingest_raw,
+                        bootstrap_servers=settings.kafka_bootstrap_servers,
+                    )
+                except Exception as exc:
+                    logger.error("Failed to start Kafka consumer: %s", exc)
     else:
         logger.info("Kafka consumer disabled (set KAFKA_ENABLED=true to enable)")
 
