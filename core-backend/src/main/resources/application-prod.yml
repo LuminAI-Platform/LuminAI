@@ -56,10 +56,10 @@ spring:
 
   # ── Neo4j — graph database for resolved entities ──────────────────
   neo4j:
-    uri: ${NEO4J_URI}
+    uri: ${NEO4J_URI:bolt://localhost:7687}
     authentication:
-      username: ${NEO4J_USERNAME}
-      password: ${NEO4J_PASSWORD}
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:neo4j}
 
   # ── Kafka — Aiven (SASL/SCRAM over TLS) ──────────────────────────
   kafka:

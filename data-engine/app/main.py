@@ -8,6 +8,7 @@ Responsibilities:
   - Expose FastAPI metadata for Swagger /docs auto-generation.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
@@ -55,18 +56,27 @@ async def lifespan(app: FastAPI):
     # Start Kafka consumer if enabled
     consumer = None
     if settings.kafka_enabled:
-        consumer = IngestRawConsumer()
-
-        # Wire pipeline trigger to batch-complete signals
-        trigger = DagsterTrigger()
-        consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
-
-        await consumer.start()
-        logger.info(
-            "Kafka consumer started",
-            topic=settings.kafka_topic_ingest_raw,
-            bootstrap_servers=settings.kafka_bootstrap_servers,
-        )
+        is_cloud = bool(os.environ.get("RENDER") or os.environ.get("PORT") or settings.is_production)
+        is_localhost = "localhost" in settings.kafka_bootstrap_servers or "127.0.0.1" in settings.kafka_bootstrap_servers
+        if is_cloud and is_localhost:
+            logger.warning(
+                "KAFKA_ENABLED is true, but KAFKA_BOOTSTRAP_SERVERS is pointing to '%s' in a cloud/Render environment. "
+                "Skipping Kafka consumer startup to avoid connection loop. Set a valid remote broker or KAFKA_ENABLED=false.",
+                settings.kafka_bootstrap_servers,
+            )
+        else:
+            try:
+                consumer = IngestRawConsumer()
+                trigger = DagsterTrigger()
+                consumer.on_batch_complete = trigger.trigger_cleaning_pipeline
+                await consumer.start()
+                logger.info(
+                    "Kafka consumer started",
+                    topic=settings.kafka_topic_ingest_raw,
+                    bootstrap_servers=settings.kafka_bootstrap_servers,
+                )
+            except Exception as exc:
+                logger.error("Failed to start Kafka consumer: %s", exc)
     else:
         logger.info("Kafka consumer disabled (set KAFKA_ENABLED=true to enable)")
 
