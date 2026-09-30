@@ -149,11 +149,37 @@ class Settings(BaseSettings):
 
     @property
     def postgres_driver_dsn(self) -> str:
-        """Connection DSN with explicit pg8000 driver."""
+        """Connection DSN with explicit pg8000 driver and sanitized query parameters.
+
+        Strips libpq/psycopg2 query parameters (such as sslmode, channel_binding)
+        that pg8000.connect() rejects as unexpected keyword arguments.
+        """
         if self.database_url:
-            if self.database_url.startswith("postgresql://"):
-                return self.database_url.replace("postgresql://", "postgresql+pg8000://", 1)
-            return self.database_url
+            url = self.database_url
+            if url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+pg8000://", 1)
+            elif url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+pg8000://", 1)
+
+            from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+            parsed = urlparse(url)
+            if parsed.query:
+                query_params = parse_qs(parsed.query)
+                for param in [
+                    "sslmode",
+                    "channel_binding",
+                    "sslrootcert",
+                    "sslcert",
+                    "sslkey",
+                    "gssencmode",
+                    "target_session_attrs",
+                ]:
+                    query_params.pop(param, None)
+                new_query = urlencode(query_params, doseq=True)
+                url = urlunparse(parsed._replace(query=new_query))
+            return url
+
         return (
             f"postgresql+pg8000://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"

@@ -23,3 +23,13 @@ def test_health_contains_service_name():
     response = client.get("/health")
     data = response.json()
     assert data["service"] == "LuminAI Data Engine"
+
+
+def test_root_returns_ok():
+    """GET / and HEAD / return 200 for Render health probes."""
+    get_res = client.get("/")
+    assert get_res.status_code == 200
+    assert get_res.json()["status"] == "ok"
+
+    head_res = client.head("/")
+    assert head_res.status_code == 200
