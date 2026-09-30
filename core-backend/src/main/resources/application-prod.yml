@@ -98,7 +98,7 @@ spring:
       ack-mode: manual_immediate
       concurrency: 3
       observation-enabled: true
-      auto-startup: ${KAFKA_AUTO_STARTUP:true}
+      auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:${KAFKA_AUTO_STARTUP:true}}
     admin:
       auto-create: false
       properties:
@@ -107,9 +107,11 @@ spring:
   # ── Redis — Upstash (TLS) ─────────────────────────────────────────
   data:
     redis:
-      url: ${REDIS_URL:}
+      host: ${SPRING_DATA_REDIS_HOST:${REDIS_HOST:localhost}}
+      port: ${SPRING_DATA_REDIS_PORT:${REDIS_PORT:6379}}
+      password: ${SPRING_DATA_REDIS_PASSWORD:${REDIS_PASSWORD:}}
       ssl:
-        enabled: true
+        enabled: ${SPRING_DATA_REDIS_SSL_ENABLED:true}
 
   # ── Security — Keycloak OIDC (JWT validation) ──────────────────────
   security:
