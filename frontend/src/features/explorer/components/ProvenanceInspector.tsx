@@ -76,9 +76,34 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
           `/api/v1/explorer/entities/${entityId}/provenance`,
         );
         if (res.ok) {
-          const data: ProvenanceLine[] = await res.json();
+          const raw = (await res.json()) as Array<Record<string, unknown>>;
           if (isMounted) {
-            setProvenanceLines(Array.isArray(data) ? data : []);
+            const mapped: ProvenanceLine[] = (
+              Array.isArray(raw) ? raw : []
+            ).map((item: Record<string, unknown>) => ({
+              propertyKey: String(item.propertyKey ?? item.fieldName ?? ""),
+              sourceDataset: String(
+                item.sourceDataset ?? item.sourceName ?? "Primary System",
+              ),
+              sourceField: String(
+                item.sourceField ??
+                  (item.sourceRecordId
+                    ? `ID: ${item.sourceRecordId}`
+                    : (item.fieldName ?? "")),
+              ),
+              ingestedAt: String(
+                item.ingestedAt ?? item.occurredAt ?? new Date().toISOString(),
+              ),
+              confidence:
+                (item.confidence as ProvenanceLine["confidence"]) ?? "high",
+              fieldName: item.fieldName as string | undefined,
+              sourceName: item.sourceName as string | undefined,
+              sourceRecordId: item.sourceRecordId as string | undefined,
+              contributedValue: item.contributedValue,
+              action: item.action as string | undefined,
+              occurredAt: item.occurredAt as string | undefined,
+            }));
+            setProvenanceLines(mapped);
           }
         } else {
           if (isMounted) setProvenanceLines([]);
@@ -97,7 +122,9 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
   }, [isOpen, entityId]);
 
   const lines: ProvenanceLine[] = propertyKey
-    ? provenanceLines.filter((l) => l.propertyKey === propertyKey)
+    ? provenanceLines.filter(
+        (l) => (l.propertyKey || l.fieldName) === propertyKey,
+      )
     : provenanceLines;
 
   return (

@@ -7,6 +7,12 @@ export interface ProvenanceLine {
   sourceField: string;
   ingestedAt: string;
   confidence: "high" | "medium" | "low";
+  fieldName?: string;
+  sourceName?: string;
+  sourceRecordId?: string;
+  contributedValue?: unknown;
+  action?: string;
+  occurredAt?: string;
 }
 
 interface EntityPropertyTableProps {
@@ -77,9 +83,14 @@ export const EntityPropertyTable: React.FC<EntityPropertyTableProps> = ({
       {/* Table Rows */}
       <div className="divide-y divide-zinc-900/80">
         {entries.map(([key, val], idx) => {
-          const prov = provenance.find((p) => p.propertyKey === key);
+          const prov = provenance.find(
+            (p) => (p.propertyKey || p.fieldName) === key,
+          );
           const isActive = activeKey === key;
-          const confStyle = prov ? CONFIDENCE_STYLES[prov.confidence] : null;
+          const confidence = prov?.confidence ?? "high";
+          const confStyle = prov
+            ? (CONFIDENCE_STYLES[confidence] ?? CONFIDENCE_STYLES.high)
+            : null;
 
           return (
             <div

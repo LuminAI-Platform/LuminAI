@@ -26,9 +26,14 @@ public class DataEngineClient {
 
   public DataEngineClient(
       @Value("${data-engine.base-url:http://localhost:8000}") String baseUrl,
+      @Value("${data-engine.api-key:}") String apiKey,
       RestClient.Builder restClientBuilder) {
     this.baseUrl = baseUrl;
-    this.restClient = restClientBuilder.baseUrl(baseUrl).build();
+    RestClient.Builder builder = restClientBuilder.baseUrl(baseUrl);
+    if (apiKey != null && !apiKey.isBlank()) {
+      builder.defaultHeader("X-API-Key", apiKey);
+    }
+    this.restClient = builder.build();
   }
 
   public DataEngineHealthDto checkHealth() {
@@ -156,7 +161,7 @@ public class DataEngineClient {
   public Map<String, Object> cleanData(Object requestPayload) {
     return restClient
         .post()
-        .uri("/process/clean")
+        .uri("/process/trigger")
         .contentType(MediaType.APPLICATION_JSON)
         .body(requestPayload)
         .accept(MediaType.APPLICATION_JSON)
@@ -167,7 +172,7 @@ public class DataEngineClient {
   public Map<String, Object> resolveEntities(Object requestPayload) {
     return restClient
         .post()
-        .uri("/process/resolve")
+        .uri("/process/er/trigger")
         .contentType(MediaType.APPLICATION_JSON)
         .body(requestPayload)
         .accept(MediaType.APPLICATION_JSON)
@@ -178,7 +183,7 @@ public class DataEngineClient {
   public Map<String, Object> getJobStatus(String jobId) {
     return restClient
         .get()
-        .uri("/process/jobs/{jobId}", jobId)
+        .uri("/process/status/{jobId}", jobId)
         .accept(MediaType.APPLICATION_JSON)
         .retrieve()
         .body(MAP_TYPE);

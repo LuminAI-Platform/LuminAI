@@ -9,7 +9,15 @@ GET  /process/status/{run_id}  →  Poll the status of a queued run.
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel, Field
 
 from app.kafka.quarantine import get_quarantine_manager
@@ -24,6 +32,7 @@ router = APIRouter()
 
 
 # Request / Response Models
+
 
 class TriggerRequest(BaseModel):
     """Request payload schema for triggering a data pipeline execution."""
@@ -90,12 +99,22 @@ class ReconciliationRequest(BaseModel):
 class SchemaValidationRequest(BaseModel):
     """Request payload schema for pre-flight validation and schema auto-detection."""
 
-    file_path: Optional[str] = Field(default=None, description="Local or absolute file path to inspect.")
-    object_key: Optional[str] = Field(default=None, description="MinIO/S3 object key to inspect.")
+    file_path: Optional[str] = Field(
+        default=None, description="Local or absolute file path to inspect."
+    )
+    object_key: Optional[str] = Field(
+        default=None, description="MinIO/S3 object key to inspect."
+    )
     bucket: Optional[str] = Field(default=None, description="MinIO/S3 bucket name.")
-    content: Optional[str] = Field(default=None, description="Raw text content of the CSV or JSON file.")
-    file_name: Optional[str] = Field(default="upload.csv", description="File name indicating format extension.")
-    tenant_id: Optional[str] = Field(default="acme", description="Tenant scoping identifier.")
+    content: Optional[str] = Field(
+        default=None, description="Raw text content of the CSV or JSON file."
+    )
+    file_name: Optional[str] = Field(
+        default="upload.csv", description="File name indicating format extension."
+    )
+    tenant_id: Optional[str] = Field(
+        default="acme", description="Tenant scoping identifier."
+    )
     reject_on_violation: bool = Field(
         default=True,
         description="Whether to reject with HTTP 422 if null percentage exceeds 50%.",
@@ -253,11 +272,18 @@ class StatusResponse(BaseModel):
 
 # Endpoints
 
+
 @router.post(
     "/trigger",
     response_model=TriggerResponse,
     summary="Trigger a data cleaning pipeline run",
     status_code=202,
+)
+@router.post(
+    "/clean",
+    response_model=TriggerResponse,
+    status_code=202,
+    include_in_schema=False,
 )
 async def trigger_pipeline(
     request: TriggerRequest,
@@ -273,7 +299,11 @@ async def trigger_pipeline(
         source_id=request.source_id,
         total_steps=5,
         message=f"Cleaning pipeline queued for source '{request.source_id}' (tenant: {request.tenant_id}).",
-        metadata={"options": request.options, "tenant_id": request.tenant_id, "source_id": request.source_id},
+        metadata={
+            "options": request.options,
+            "tenant_id": request.tenant_id,
+            "source_id": request.source_id,
+        },
     )
 
     trigger = DagsterTrigger()
@@ -297,6 +327,12 @@ async def trigger_pipeline(
     response_model=TriggerResponse,
     summary="Trigger an Entity Resolution pipeline run",
     status_code=202,
+)
+@router.post(
+    "/resolve",
+    response_model=TriggerResponse,
+    status_code=202,
+    include_in_schema=False,
 )
 async def trigger_er_pipeline(
     request: ErTriggerRequest,
@@ -353,6 +389,11 @@ async def execute_reconciliation(
     "/status/{run_id}",
     response_model=StatusResponse,
     summary="Get pipeline run status",
+)
+@router.get(
+    "/jobs/{run_id}",
+    response_model=StatusResponse,
+    include_in_schema=False,
 )
 async def get_pipeline_status(run_id: str) -> StatusResponse:
     """Retrieve the current progress and status of an active pipeline run."""
@@ -436,6 +477,7 @@ async def retry_pipeline_run(
 
 
 # --- Dead-Letter Queue (DLQ) & Quarantine Models & Endpoints ---
+
 
 class QuarantineListRequest(BaseModel):
     """Filter parameters for querying quarantined messages."""
@@ -594,6 +636,7 @@ async def discard_quarantined_messages(
 
 # --- Golden Record Versioning & Rollback Schemas & Endpoints ---
 
+
 class GoldenRecordResponse(BaseModel):
     """Canonical Golden Record state."""
 
@@ -632,7 +675,9 @@ class GoldenRecordHistoryResponse(BaseModel):
 class RollbackRequest(BaseModel):
     """Request payload to restore a prior Golden Record version."""
 
-    target_version: int = Field(..., ge=1, description="Historical version number to restore.")
+    target_version: int = Field(
+        ..., ge=1, description="Historical version number to restore."
+    )
 
 
 class RollbackResponse(BaseModel):
@@ -649,7 +694,9 @@ class RollbackResponse(BaseModel):
 )
 async def get_golden_record_endpoint(
     golden_id: str,
-    tenant_id: Optional[str] = Query(default=None, description="Optional tenant scoping filter"),
+    tenant_id: Optional[str] = Query(
+        default=None, description="Optional tenant scoping filter"
+    ),
 ) -> GoldenRecordResponse:
     """Retrieve the current state, version, and attributes of a canonical Golden Record."""
     from app.processing.er.golden_record import get_golden_record
@@ -670,7 +717,9 @@ async def get_golden_record_endpoint(
 )
 async def get_golden_record_history_endpoint(
     golden_id: str,
-    tenant_id: Optional[str] = Query(default=None, description="Optional tenant scoping filter"),
+    tenant_id: Optional[str] = Query(
+        default=None, description="Optional tenant scoping filter"
+    ),
 ) -> GoldenRecordHistoryResponse:
     """Retrieve complete historical audit trail and point-in-time snapshots for a Golden Record."""
     from app.processing.er.golden_record import get_golden_record_history
@@ -696,7 +745,9 @@ async def get_golden_record_history_endpoint(
 async def rollback_golden_record_endpoint(
     golden_id: str,
     request: RollbackRequest,
-    tenant_id: Optional[str] = Query(default=None, description="Optional tenant scoping filter"),
+    tenant_id: Optional[str] = Query(
+        default=None, description="Optional tenant scoping filter"
+    ),
 ) -> RollbackResponse:
     """Restore a Golden Record to a prior historical version snapshot."""
     from app.processing.er.golden_record import rollback_golden_record
@@ -716,10 +767,13 @@ async def rollback_golden_record_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        )
 
 
 # Ingest Schema Auto-Detection and Pre-Flight Validation
+
 
 @router.post(
     "/validate-schema",
@@ -789,7 +843,9 @@ async def validate_schema_endpoint(
 )
 async def validate_schema_upload_endpoint(
     file: UploadFile = File(...),
-    reject_on_violation: bool = Query(default=True, description="Whether to reject with 422 if nulls exceed 50%"),
+    reject_on_violation: bool = Query(
+        default=True, description="Whether to reject with 422 if nulls exceed 50%"
+    ),
 ) -> SchemaValidationResponse:
     """
     Direct file upload endpoint for schema auto-detection and pre-flight validation.
@@ -798,7 +854,9 @@ async def validate_schema_upload_endpoint(
 
     detector = get_schema_detector()
     data_bytes = await file.read()
-    report = detector.validate_file_bytes(data_bytes, file_name=file.filename or "upload.csv")
+    report = detector.validate_file_bytes(
+        data_bytes, file_name=file.filename or "upload.csv"
+    )
 
     if reject_on_violation and not report.is_valid:
         raise HTTPException(
@@ -807,4 +865,3 @@ async def validate_schema_upload_endpoint(
         )
 
     return SchemaValidationResponse(**report.to_dict())
-

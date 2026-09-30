@@ -62,6 +62,15 @@ public class ConnectionProducer {
    */
   public void publishRows(
       UUID tenantId, UUID connectionId, String source, List<Map<String, Object>> rows) {
+    publishRows(tenantId, connectionId, source, rows, true);
+  }
+
+  public void publishRows(
+      UUID tenantId,
+      UUID connectionId,
+      String source,
+      List<Map<String, Object>> rows,
+      boolean batchComplete) {
 
     if (rows == null || rows.isEmpty()) {
       log.warn("publishRows called with empty rows for connection '{}' — skipping", connectionId);
@@ -76,7 +85,8 @@ public class ConnectionProducer {
             source,
             Instant.now().toString(),
             rows.size(),
-            rows);
+            rows,
+            batchComplete);
 
     String payload = serialize(event);
     String messageKey = tenantId.toString();
@@ -132,6 +142,7 @@ public class ConnectionProducer {
    * @param ingestedAt ISO-8601 timestamp of ingestion
    * @param totalRows number of rows in this batch
    * @param rows the parsed row data
+   * @param batchComplete flag indicating whether this event completes an ingestion batch
    */
   public record IngestEvent(
       String eventId,
@@ -140,7 +151,20 @@ public class ConnectionProducer {
       String source,
       String ingestedAt,
       int totalRows,
-      List<Map<String, Object>> rows) {}
+      List<Map<String, Object>> rows,
+      @com.fasterxml.jackson.annotation.JsonProperty("batch_complete") boolean batchComplete) {
+
+    public IngestEvent(
+        String eventId,
+        String tenantId,
+        String connectionId,
+        String source,
+        String ingestedAt,
+        int totalRows,
+        List<Map<String, Object>> rows) {
+      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true);
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Private helpers

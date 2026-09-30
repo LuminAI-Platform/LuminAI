@@ -74,8 +74,9 @@ export const GraphPage: React.FC = () => {
           headers: { "X-Suppress-Toast": "true" },
         });
         const data = await res.json();
-        if (data && data.content && data.content.length > 0) {
-          return data.content[0].id as string;
+        const items = data?.items ?? data?.content ?? [];
+        if (items.length > 0 && items[0]?.id) {
+          return items[0].id as string;
         }
       } catch {
         // Fallback gracefully

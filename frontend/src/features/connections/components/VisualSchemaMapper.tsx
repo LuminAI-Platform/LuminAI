@@ -70,6 +70,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   );
   const [showPayload, setShowPayload] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Refs to measure card positions for SVG connector lines
   const sourceRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -195,40 +196,50 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         connectionId,
       );
-    const effectiveConnectorId = isUuid
-      ? connectionId
-      : "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d";
+
+    setSaveError(null);
 
     try {
-      // Send individual mapping records matching backend SchemaMappingDto.CreateRequest
-      for (const m of mappings) {
-        const sourceCol =
-          sourceColumns.find((c) => c.id === m.sourceColumnId)?.name ??
-          m.sourceColumnId;
-        const targetProp =
-          ontologyProperties.find((p) => p.id === m.ontologyPropertyId)?.name ??
-          m.ontologyPropertyId;
+      if (isUuid) {
+        // Send individual mapping records matching backend SchemaMappingDto.CreateRequest
+        for (const m of mappings) {
+          const sourceCol =
+            sourceColumns.find((c) => c.id === m.sourceColumnId)?.name ??
+            m.sourceColumnId;
+          const targetProp =
+            ontologyProperties.find((p) => p.id === m.ontologyPropertyId)
+              ?.name ?? m.ontologyPropertyId;
 
-        await apiFetch("/api/v1/schema-mappings", {
-          method: "POST",
-          body: JSON.stringify({
-            connectorId: effectiveConnectorId,
-            name: `${sourceTable} - ${sourceCol} Map`,
-            sourceColumn: sourceCol,
-            targetEntityType: targetEntityName,
-            targetProperty: targetProp,
-            transformation: "NONE",
-          }),
-        });
+          const res = await apiFetch("/api/v1/schema-mappings", {
+            method: "POST",
+            body: JSON.stringify({
+              connectorId: connectionId,
+              name: `${sourceTable} - ${sourceCol} Map`,
+              sourceColumn: sourceCol,
+              targetEntityType: targetEntityName,
+              targetProperty: targetProp,
+              transformation: "NONE",
+            }),
+          });
+          if (!res.ok) {
+            throw new Error(`Failed to save schema mapping: ${res.statusText}`);
+          }
+        }
+      } else {
+        localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
       }
-    } catch {
-      // Graceful fallback to localStorage if backend is offline/unreachable
+      setSavedPayload(payload);
+      setSaveSuccess(true);
+      onSave?.(payload);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } catch (err: unknown) {
+      console.error("Schema mapping persistence error:", err);
+      const msg =
+        err instanceof Error ? err.message : "Failed to persist mapping";
+      setSaveError(msg);
       localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
+      setTimeout(() => setSaveError(null), 4000);
     }
-    setSavedPayload(payload);
-    setSaveSuccess(true);
-    onSave?.(payload);
-    setTimeout(() => setSaveSuccess(false), 2500);
   };
 
   const unmappedCount = sourceColumns.length - mappings.length;
@@ -273,6 +284,11 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
           >
             {showPayload ? "Hide" : "View"} Payload
           </button>
+          {saveError && (
+            <span className="text-[11px] text-rose-400 font-medium px-2 py-1 bg-rose-500/10 border border-rose-500/20 rounded-lg">
+              {saveError}
+            </span>
+          )}
           <button
             id="schema-mapper-save"
             onClick={handleSave}
