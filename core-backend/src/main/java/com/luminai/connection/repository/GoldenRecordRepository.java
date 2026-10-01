@@ -22,16 +22,16 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
 
   @Query(
       value =
-          "SELECT * FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:entityType IS NULL OR :entityType = '' OR :entityType = 'ALL' OR LOWER(COALESCE(NULLIF(g.properties ->> 'entity_type', ''), 'Person')) = LOWER(:entityType))",
+          "SELECT * FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:entityType IS NULL OR :entityType = '' OR :entityType = 'ALL' OR LOWER(COALESCE(NULLIF(g.entity_type, ''), 'Person')) = LOWER(:entityType))",
       countQuery =
-          "SELECT count(*) FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:entityType IS NULL OR :entityType = '' OR :entityType = 'ALL' OR LOWER(COALESCE(NULLIF(g.properties ->> 'entity_type', ''), 'Person')) = LOWER(:entityType))",
+          "SELECT count(*) FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:entityType IS NULL OR :entityType = '' OR :entityType = 'ALL' OR LOWER(COALESCE(NULLIF(g.entity_type, ''), 'Person')) = LOWER(:entityType))",
       nativeQuery = true)
   Page<GoldenRecord> searchByPropertiesAndType(
       @Param("query") String query, @Param("entityType") String entityType, Pageable pageable);
 
   @Query(
       value =
-          "SELECT COALESCE(NULLIF(g.properties ->> 'entity_type', ''), 'Person') as entityType, COUNT(*) as cnt FROM golden_records g GROUP BY COALESCE(NULLIF(g.properties ->> 'entity_type', ''), 'Person')",
+          "SELECT COALESCE(NULLIF(g.entity_type, ''), 'Person') as entityType, COUNT(*) as cnt FROM golden_records g GROUP BY COALESCE(NULLIF(g.entity_type, ''), 'Person')",
       nativeQuery = true)
   List<Object[]> countByEntityType();
 }

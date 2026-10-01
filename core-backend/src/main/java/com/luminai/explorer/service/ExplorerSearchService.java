@@ -43,7 +43,7 @@ public class ExplorerSearchService {
   @Cacheable(
       value = CacheConfig.CACHE_EXPLORER_SEARCH,
       key =
-          "T(com.luminai.common.tenant.TenantContext).getTenantId() + ':' + #query + ':' + #entityType + ':' + #page + ':' + #size",
+          "T(com.luminai.common.tenant.TenantContext).getTenantSlug() + ':' + #query + ':' + #entityType + ':' + #page + ':' + #size",
       unless = "#result == null")
   public SearchResponseDto.Response search(
       String query, String entityType, int page, int size, String sortBy, String sortDirection) {
@@ -250,7 +250,7 @@ public class ExplorerSearchService {
   @Transactional(readOnly = true)
   @Cacheable(
       value = CacheConfig.CACHE_EXPLORER_ENTITIES,
-      key = "T(com.luminai.common.tenant.TenantContext).getTenantId() + ':' + #id",
+      key = "T(com.luminai.common.tenant.TenantContext).getTenantSlug() + ':' + #id",
       unless = "#result == null")
   public EntityDetailDto.Response getEntityById(UUID id) {
     GoldenRecord gr =

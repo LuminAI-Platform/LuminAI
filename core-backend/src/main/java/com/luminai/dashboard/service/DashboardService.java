@@ -68,9 +68,12 @@ public class DashboardService {
             .orElse(null);
 
     // 2. Pipeline execution counters
-    long runningPipelines = pipelineRunRepository.countByStatus("RUNNING");
-    long completedPipelines = pipelineRunRepository.countByStatus("COMPLETED");
-    long failedPipelines = pipelineRunRepository.countByStatus("FAILED");
+    long runningPipelines =
+        pipelineRunRepository.countByStatus(PipelineRun.PipelineRunStatus.RUNNING);
+    long completedPipelines =
+        pipelineRunRepository.countByStatus(PipelineRun.PipelineRunStatus.COMPLETED);
+    long failedPipelines =
+        pipelineRunRepository.countByStatus(PipelineRun.PipelineRunStatus.FAILED);
     long totalPipelines = pipelineRunRepository.count();
 
     DashboardSummaryDto.PipelineHealthDto pipelineHealth =

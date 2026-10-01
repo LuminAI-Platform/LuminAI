@@ -1,12 +1,16 @@
 package com.luminai.connection.model;
 
+import com.luminai.connection.converter.ConnectionStatusConverter;
+import com.luminai.connection.converter.ConnectionTypeConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 /**
  * JPA entity representing a data source connection metadata entry (maps to table `connectors`).
@@ -32,9 +36,10 @@ public class Connection {
 
   @NotNull
   @Column(nullable = false, length = 50)
-  @Enumerated(EnumType.STRING)
+  @Convert(converter = ConnectionTypeConverter.class)
   private Type type;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb")
   private String config = "{}";
 
@@ -43,7 +48,7 @@ public class Connection {
 
   @NotNull
   @Column(nullable = false, length = 20)
-  @Enumerated(EnumType.STRING)
+  @Convert(converter = ConnectionStatusConverter.class)
   private Status status = Status.ACTIVE;
 
   @Column(name = "last_sync_at")

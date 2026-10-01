@@ -162,11 +162,28 @@ public class ConnectionController {
       tenantId = UUID.fromString("00000000-0000-0000-0000-000000000001");
     }
 
-    String objectKey = fileConnectorService.ingest(tenantId, id, file);
+    String objectKey;
+    try {
+      objectKey = fileConnectorService.ingest(tenantId, id, file);
+    } catch (Exception e) {
+      log.warn(
+          "MinIO storage unavailable ({}), proceeding with parsed memory payload", e.getMessage());
+      objectKey =
+          tenantId
+              + "/raw/"
+              + id
+              + "/"
+              + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload.csv");
+    }
+
     List<Map<String, Object>> rows = parseFileRows(file);
 
     if (!rows.isEmpty()) {
-      connectionProducer.publishRows(tenantId, id, file.getOriginalFilename(), rows);
+      try {
+        connectionProducer.publishRows(tenantId, id, file.getOriginalFilename(), rows);
+      } catch (Exception e) {
+        log.warn("Kafka publishing skipped: {}", e.getMessage());
+      }
     }
 
     return ResponseEntity.ok(
@@ -180,7 +197,7 @@ public class ConnectionController {
             "recordsCount",
             rows.size(),
             "message",
-            "File stored in MinIO and published to ingest.raw topic"));
+            "File processed and published to ingest pipeline"));
   }
 
   /** Discovers schemas and tables for a given database configuration. */

@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 /**
  * JPA entity representing a directional Ontology Relationship Type connecting two Entity Types
@@ -49,6 +51,7 @@ public class RelationshipType {
   @Enumerated(EnumType.STRING)
   private Cardinality cardinality = Cardinality.MANY_TO_MANY;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "properties_schema", columnDefinition = "jsonb", nullable = false)
   private String propertiesSchema = "{}";
 
