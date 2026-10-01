@@ -125,19 +125,32 @@ export const ConnectionsPage: React.FC = () => {
             } catch {
               // ignore parse errors
             }
+          } else if (item.config && typeof item.config === "object") {
+            parsedConfig = item.config as Record<string, unknown>;
           }
 
           if (String(item.type || "").toUpperCase() === "FILE") {
+            let sizeDisplay = "1.2 MB";
+            if (typeof parsedConfig.fileSize === "number") {
+              sizeDisplay = `${(Number(parsedConfig.fileSize) / (1024 * 1024)).toFixed(2)} MB`;
+            } else if (typeof parsedConfig.fileSize === "string") {
+              sizeDisplay = parsedConfig.fileSize;
+            }
+
+            const rowCount = Number(
+              parsedConfig.rowsCount ??
+                parsedConfig.recordsCount ??
+                parsedConfig.rows ??
+                0,
+            );
+
             fileItems.push({
               id: String(item.id || Math.random().toString(36).substring(7)),
               name: String(
                 item.name || parsedConfig.fileName || "File Ingestion",
               ),
-              size:
-                typeof parsedConfig.fileSize === "number"
-                  ? `${(Number(parsedConfig.fileSize) / (1024 * 1024)).toFixed(2)} MB`
-                  : "1.2 MB",
-              recordsCount: Number(parsedConfig.rowsCount ?? 0),
+              size: sizeDisplay,
+              recordsCount: rowCount,
               status: item.status === "FAILED" ? "Failed" : "Synced",
               createdAt:
                 typeof item.createdAt === "string"
@@ -181,8 +194,26 @@ export const ConnectionsPage: React.FC = () => {
           }
         });
 
+        // Merge with local cache so newly uploaded files are immediately visible
+        let localFiles: IngestedFile[] = [];
+        try {
+          const cached = localStorage.getItem("local_ingested_files");
+          if (cached) {
+            localFiles = JSON.parse(cached);
+          }
+        } catch {
+          // ignore
+        }
+
+        const mergedFiles = [...fileItems];
+        localFiles.forEach((lf) => {
+          if (!mergedFiles.some((f) => f.id === lf.id || f.name === lf.name)) {
+            mergedFiles.push(lf);
+          }
+        });
+
         setCustomConnectors(dbItems);
-        setIngestedFiles(fileItems);
+        setIngestedFiles(mergedFiles);
       } else {
         setCustomConnectors([]);
         setIngestedFiles([]);
@@ -195,7 +226,16 @@ export const ConnectionsPage: React.FC = () => {
           : "Failed to load registered connections";
       setError(msg);
       setCustomConnectors([]);
-      setIngestedFiles([]);
+      try {
+        const cached = localStorage.getItem("local_ingested_files");
+        if (cached) {
+          setIngestedFiles(JSON.parse(cached));
+        } else {
+          setIngestedFiles([]);
+        }
+      } catch {
+        setIngestedFiles([]);
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -635,7 +675,19 @@ export const ConnectionsPage: React.FC = () => {
 
         {/* Tab 2: Uploaded Files */}
         {activeTab === "files" && (
-          <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/60">
+          <div className="flex flex-col gap-4">
+            {error && (
+              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center justify-between font-medium">
+                <span>{error}</span>
+                <button
+                  onClick={() => loadConnectors(true)}
+                  className="underline hover:text-red-300 cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/60">
             <div className="grid grid-cols-12 bg-zinc-900/50 p-4 font-semibold border-b border-zinc-800/80 text-xs text-zinc-400 select-none">
               <div className="col-span-4">File Name</div>
               <div className="col-span-2">Size</div>
@@ -798,7 +850,8 @@ export const ConnectionsPage: React.FC = () => {
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
       </div>
 
       {/* Sync pipeline monitoring panels */}

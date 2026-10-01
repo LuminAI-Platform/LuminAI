@@ -144,6 +144,19 @@ public class GlobalExceptionHandler {
         .body(ApiError.of(409, "CONFLICT", ex.getMessage(), getPath(request)));
   }
 
+  @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+  public ResponseEntity<ApiError> handleDataIntegrityViolation(
+      org.springframework.dao.DataIntegrityViolationException ex, HttpServletRequest request) {
+    log.warn("Data integrity violation on path '{}': {}", getPath(request), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(
+            ApiError.of(
+                409,
+                "CONFLICT",
+                "Data integrity violation: constraint was violated or referenced resource does not exist",
+                getPath(request)));
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiError> handleGeneral(Exception ex, HttpServletRequest request) {
     log.error("Unhandled exception on path '{}': {}", getPath(request), ex.getMessage(), ex);

@@ -4,6 +4,7 @@ import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
 import com.luminai.connection.dto.SchemaMappingDto;
 import com.luminai.connection.model.SchemaMapping;
+import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.SchemaMappingRepository;
 import java.util.List;
 import java.util.UUID;
@@ -25,11 +26,15 @@ public class SchemaMappingService {
   private static final Logger log = LoggerFactory.getLogger(SchemaMappingService.class);
 
   private final SchemaMappingRepository repository;
+  private final ConnectionRepository connectionRepository;
   private final JwtClaimsExtractor claimsExtractor;
 
   public SchemaMappingService(
-      SchemaMappingRepository repository, JwtClaimsExtractor claimsExtractor) {
+      SchemaMappingRepository repository,
+      ConnectionRepository connectionRepository,
+      JwtClaimsExtractor claimsExtractor) {
     this.repository = repository;
+    this.connectionRepository = connectionRepository;
     this.claimsExtractor = claimsExtractor;
   }
 
@@ -37,6 +42,15 @@ public class SchemaMappingService {
   @Transactional
   public SchemaMappingDto.Response create(SchemaMappingDto.CreateRequest request) {
     UUID tenantId = getCurrentTenantId();
+
+    if (!connectionRepository.existsByIdAndTenantId(request.connectorId(), tenantId)) {
+      log.warn(
+          "Connector '{}' does not exist for tenant '{}' when creating schema mapping '{}'",
+          request.connectorId(),
+          tenantId,
+          request.name());
+      throw new ResourceNotFoundException("Connection", request.connectorId());
+    }
 
     SchemaMapping mapping =
         new SchemaMapping(
