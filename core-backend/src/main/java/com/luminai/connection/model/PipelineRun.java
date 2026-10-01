@@ -1,5 +1,6 @@
 package com.luminai.connection.model;
 
+import com.luminai.connection.converter.PipelineRunStatusConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -33,7 +34,7 @@ public class PipelineRun {
   @Column(name = "pipeline_type", nullable = false, length = 50)
   private String pipelineType;
 
-  @Enumerated(EnumType.STRING)
+  @Convert(converter = PipelineRunStatusConverter.class)
   @Column(name = "status", nullable = false, length = 20)
   private PipelineRunStatus status = PipelineRunStatus.PENDING;
 

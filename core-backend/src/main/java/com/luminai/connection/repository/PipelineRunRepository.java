@@ -16,11 +16,11 @@ public interface PipelineRunRepository extends JpaRepository<PipelineRun, UUID> 
 
   List<PipelineRun> findByConnectionId(UUID connectionId);
 
-  Page<PipelineRun> findByStatus(String status, Pageable pageable);
+  Page<PipelineRun> findByStatus(PipelineRun.PipelineRunStatus status, Pageable pageable);
 
   Page<PipelineRun> findAllByOrderByStartedAtDesc(Pageable pageable);
 
-  long countByStatus(String status);
+  long countByStatus(PipelineRun.PipelineRunStatus status);
 
   @Query("select coalesce(sum(p.recordsOutput), 0) from PipelineRun p")
   long sumRecordsOutput();

@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 /**
  * JPA entity representing a dynamic Ontology Entity Type definition (maps to table `entity_types`).
@@ -45,6 +47,7 @@ public class EntityType {
   @Column(columnDefinition = "TEXT")
   private String description;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "properties_schema", columnDefinition = "jsonb", nullable = false)
   private String propertiesSchema = "{}";
 

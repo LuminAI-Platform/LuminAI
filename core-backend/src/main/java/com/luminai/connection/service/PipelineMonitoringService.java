@@ -41,9 +41,17 @@ public class PipelineMonitoringService {
    * the top-50 window.
    */
   public Page<PipelineRunDto> listPipelineRuns(String statusFilter, Pageable pageable) {
+    PipelineRun.PipelineRunStatus statusEnum = null;
+    if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
+      try {
+        statusEnum = PipelineRun.PipelineRunStatus.valueOf(statusFilter.trim().toUpperCase());
+      } catch (IllegalArgumentException ignored) {
+      }
+    }
+
     Page<PipelineRun> runs =
-        (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter))
-            ? pipelineRunRepository.findByStatus(statusFilter.toUpperCase(), pageable)
+        statusEnum != null
+            ? pipelineRunRepository.findByStatus(statusEnum, pageable)
             : pipelineRunRepository.findAllByOrderByStartedAtDesc(pageable);
 
     Map<UUID, Connection> connectionMap = loadConnectionsFor(runs);
@@ -71,7 +79,7 @@ public class PipelineMonitoringService {
   public PipelineMetricsDto getPipelineMetrics() {
     long totalCleaned = pipelineRunRepository.sumRecordsOutput();
     long totalFailed = pipelineRunRepository.sumRecordsFailed();
-    long activeJobs = pipelineRunRepository.countByStatus("RUNNING");
+    long activeJobs = pipelineRunRepository.countByStatus(PipelineRun.PipelineRunStatus.RUNNING);
     long totalResolved = erCandidateRepository.countByStatus(CandidateStatus.ACCEPTED);
     long totalRuns = pipelineRunRepository.count();
 

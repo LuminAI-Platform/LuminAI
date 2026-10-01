@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * JPA entity representing an enterprise audit log entry (maps to {@code audit_log}).
@@ -45,6 +47,7 @@ public class AuditLog {
   @Column(name = "resource_id")
   private UUID resourceId;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb")
   private String changes;
 

@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * JPA entity representing an immutable or draft Ontology Version snapshot (maps to table
@@ -35,6 +37,7 @@ public class OntologyVersion {
   @Column(columnDefinition = "TEXT")
   private String changelog;
 
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "schema_snapshot", columnDefinition = "jsonb")
   private String schemaSnapshot = "{}";
 
