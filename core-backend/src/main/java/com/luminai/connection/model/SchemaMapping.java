@@ -48,7 +48,7 @@ public class SchemaMapping {
   private String targetProperty;
 
   @Column(nullable = false, length = 50)
-  @Enumerated(EnumType.STRING)
+  @Convert(converter = com.luminai.connection.converter.SchemaMappingTransformationConverter.class)
   private Transformation transformation = Transformation.NONE;
 
   @Column(name = "is_active", nullable = false)
@@ -71,7 +71,19 @@ public class SchemaMapping {
     UPPERCASE,
     LOWERCASE,
     TRIM,
-    DATE_PARSE
+    DATE_PARSE;
+
+    @com.fasterxml.jackson.annotation.JsonCreator
+    public static Transformation fromString(String value) {
+      if (value == null || value.isBlank()) {
+        return NONE;
+      }
+      try {
+        return Transformation.valueOf(value.trim().toUpperCase());
+      } catch (IllegalArgumentException e) {
+        return NONE;
+      }
+    }
   }
 
   // ----------------------------------------------------------------

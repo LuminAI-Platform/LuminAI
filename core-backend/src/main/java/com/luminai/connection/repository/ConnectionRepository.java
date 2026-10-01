@@ -24,4 +24,7 @@ public interface ConnectionRepository extends JpaRepository<Connection, UUID> {
 
   /** Delete a connection by ID, scoped to a specific tenant. Returns count of deleted rows. */
   long deleteByIdAndTenantId(UUID id, UUID tenantId);
+
+  /** Check if a connection exists by ID and tenant ID. */
+  boolean existsByIdAndTenantId(UUID id, UUID tenantId);
 }

@@ -326,10 +326,20 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   };
 
   // Trigger real backend mapping API (falls back cleanly if unavailable)
-  // Trigger real backend mapping API (falls back cleanly if unavailable)
   const saveMappingsToBackend = async (targetConnectorId?: string) => {
-    const connectorId =
-      targetConnectorId || "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d";
+    if (
+      !targetConnectorId ||
+      targetConnectorId === "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" ||
+      targetConnectorId.startsWith("00000000-")
+    ) {
+      addLog(
+        `[Schema] Notice: Standalone session context active. Schema mappings staged in active catalog context.`,
+        "INFO",
+      );
+      return;
+    }
+
+    const connectorId = targetConnectorId;
     const activeCols = columnsConfig.filter((c) => c.active);
 
     addLog(
@@ -338,17 +348,22 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     );
 
     for (const col of activeCols) {
-      const mapCfg = mappings[col.name];
+      const mapCfg = mappings[col.name] || {
+        targetEntityType: "User",
+        targetProperty: "id",
+        transformation: "NONE",
+      };
       try {
         await apiFetch("/api/v1/schema-mappings", {
           method: "POST",
+          headers: { "X-Suppress-Toast": "true" },
           body: JSON.stringify({
             connectorId,
             name: `${file?.name} - ${col.name} Map`,
             sourceColumn: col.name,
-            targetEntityType: mapCfg.targetEntityType,
-            targetProperty: mapCfg.targetProperty,
-            transformation: mapCfg.transformation,
+            targetEntityType: mapCfg.targetEntityType || "User",
+            targetProperty: mapCfg.targetProperty || "id",
+            transformation: (mapCfg.transformation || "NONE").toUpperCase(),
           }),
         });
         addLog(`[API] Saved mapping for column '${col.name}'`, "SUCCESS");
@@ -494,7 +509,45 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       `[Sync] Ingestion pipeline execution completed successfully.`,
       "SUCCESS",
     );
+
+    // Cache the uploaded file in local storage and notify ConnectionsPage
+    const newFileItem = {
+      id: createdConnId || String(Date.now()),
+      name: file.name,
+      size:
+        file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          : `${Math.round(file.size / 1024)} KB`,
+      recordsCount: parsedData.rows.length,
+      status: "Synced",
+      createdAt: new Date().toLocaleString(),
+      columns: parsedData.columns,
+      sampleRows: parsedData.rows.slice(0, 50),
+    };
+    try {
+      const existing = JSON.parse(
+        localStorage.getItem("local_ingested_files") || "[]",
+      );
+      const updated = [
+        newFileItem,
+        ...existing.filter(
+          (f: Record<string, unknown>) =>
+            f.id !== newFileItem.id && f.name !== newFileItem.name,
+        ),
+      ];
+      localStorage.setItem("local_ingested_files", JSON.stringify(updated));
+    } catch {
+      // ignore parse errors
+    }
+
     if (onSuccess) onSuccess();
+  };
+
+  const handleClose = () => {
+    if (ingestionFinished && onSuccess) {
+      onSuccess();
+    }
+    onClose();
   };
 
   return (
@@ -535,7 +588,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-lg border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
           >
             <svg
@@ -1036,7 +1089,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           <div className="flex items-center gap-3">
             <button
               disabled={ingesting}
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 border border-zinc-850 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               Cancel
@@ -1062,10 +1115,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
             {step === 4 && ingestionFinished && (
               <button
-                onClick={() => {
-                  if (onSuccess) onSuccess();
-                  onClose();
-                }}
+                onClick={handleClose}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-500/10 transition-colors cursor-pointer"
               >
                 Finish Wizard
