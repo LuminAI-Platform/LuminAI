@@ -60,7 +60,9 @@ export const DashboardPage: React.FC = () => {
       });
       return res.json();
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   // 2. Fetch time-series telemetry for charts
@@ -79,7 +81,9 @@ export const DashboardPage: React.FC = () => {
       );
       return res.json();
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   // 3. Fetch recent platform activity
@@ -95,7 +99,9 @@ export const DashboardPage: React.FC = () => {
       });
       return res.json();
     },
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   const handleManualRefresh = () => {

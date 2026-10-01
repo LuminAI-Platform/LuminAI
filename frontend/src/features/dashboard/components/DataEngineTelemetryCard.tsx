@@ -56,7 +56,9 @@ export const DataEngineTelemetryCard: React.FC = () => {
         });
         return res.json();
       },
-      refetchInterval: 15000,
+      refetchInterval: 60000,
+      refetchOnWindowFocus: false,
+      retry: 1,
     });
 
   const health = data?.engineHealth;

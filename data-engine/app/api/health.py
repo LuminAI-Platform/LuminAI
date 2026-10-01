@@ -33,7 +33,7 @@ class HealthResponse(BaseModel):
 
 
 @router.api_route("/", methods=["GET", "HEAD"], response_model=HealthResponse, summary="Root health check", include_in_schema=False)
-@router.get("/health", response_model=HealthResponse, summary="Liveness check")
+@router.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse, summary="Liveness check")
 async def health_check() -> HealthResponse:
     """Retrieve the current operational health of the Data Engine.
 
