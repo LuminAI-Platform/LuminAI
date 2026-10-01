@@ -688,96 +688,50 @@ export const ConnectionsPage: React.FC = () => {
               </div>
             )}
             <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/60">
-            <div className="grid grid-cols-12 bg-zinc-900/50 p-4 font-semibold border-b border-zinc-800/80 text-xs text-zinc-400 select-none">
-              <div className="col-span-4">File Name</div>
-              <div className="col-span-2">Size</div>
-              <div className="col-span-2">Records Count</div>
-              <div className="col-span-2">Date Ingested</div>
-              <div className="col-span-1 text-center">Status</div>
-              <div className="col-span-1 text-right">Actions</div>
-            </div>
-
-            {ingestedFiles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center select-none">
-                <svg
-                  width="36"
-                  height="36"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-zinc-600 mb-3"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                <span className="text-sm font-semibold text-zinc-400">
-                  No flat files uploaded yet
-                </span>
-                <span className="text-xs text-zinc-500 mt-1">
-                  Click Ingest File to upload CSV/JSON datasets
-                </span>
+              <div className="grid grid-cols-12 bg-zinc-900/50 p-4 font-semibold border-b border-zinc-800/80 text-xs text-zinc-400 select-none">
+                <div className="col-span-4">File Name</div>
+                <div className="col-span-2">Size</div>
+                <div className="col-span-2">Records Count</div>
+                <div className="col-span-2">Date Ingested</div>
+                <div className="col-span-1 text-center">Status</div>
+                <div className="col-span-1 text-right">Actions</div>
               </div>
-            ) : (
-              <div className="divide-y divide-zinc-900">
-                {ingestedFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    className="grid grid-cols-12 p-4 text-xs items-center hover:bg-zinc-900/10"
+
+              {ingestedFiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 text-center select-none">
+                  <svg
+                    width="36"
+                    height="36"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-zinc-600 mb-3"
                   >
-                    <button
-                      onClick={() => setPreviewingFile(file)}
-                      className="col-span-4 font-semibold text-zinc-200 flex items-center gap-2 hover:text-emerald-400 text-left transition-colors cursor-pointer group"
-                      title="Click to preview file data"
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span className="text-sm font-semibold text-zinc-400">
+                    No flat files uploaded yet
+                  </span>
+                  <span className="text-xs text-zinc-500 mt-1">
+                    Click Ingest File to upload CSV/JSON datasets
+                  </span>
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-900">
+                  {ingestedFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="grid grid-cols-12 p-4 text-xs items-center hover:bg-zinc-900/10"
                     >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="text-zinc-400 group-hover:text-emerald-400 transition-colors"
-                      >
-                        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                      </svg>
-                      <span className="underline decoration-zinc-700 underline-offset-2 group-hover:decoration-emerald-400">
-                        {file.name}
-                      </span>
-                    </button>
-                    <div className="col-span-2 font-mono text-zinc-400">
-                      {file.size}
-                    </div>
-                    <div className="col-span-2 font-mono text-zinc-400">
-                      {file.recordsCount.toLocaleString()} rows
-                    </div>
-                    <div className="col-span-2 text-zinc-500">
-                      {formatRelativeTime(file.createdAt)}
-                    </div>
-                    <div className="col-span-1 flex justify-center select-none">
-                      {(() => {
-                        const fileBadge = getHealthStatusBadge(file.status);
-                        return (
-                          <span
-                            className={`border px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1.5 ${fileBadge.badgeStyle}`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${fileBadge.dotColor}`}
-                            />
-                            {file.status}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                    <div className="col-span-1 flex items-center justify-end gap-1.5 select-none">
                       <button
                         onClick={() => setPreviewingFile(file)}
-                        className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
-                        title="Preview File Records"
+                        className="col-span-4 font-semibold text-zinc-200 flex items-center gap-2 hover:text-emerald-400 text-left transition-colors cursor-pointer group"
+                        title="Click to preview file data"
                       >
                         <svg
                           width="14"
@@ -786,72 +740,118 @@ export const ConnectionsPage: React.FC = () => {
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
+                          className="text-zinc-400 group-hover:text-emerald-400 transition-colors"
                         >
-                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                          <circle cx="12" cy="12" r="3" />
+                          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                          <path d="M14 2v4a2 2 0 0 0 2 2h4" />
                         </svg>
+                        <span className="underline decoration-zinc-700 underline-offset-2 group-hover:decoration-emerald-400">
+                          {file.name}
+                        </span>
                       </button>
-                      <Link
-                        to="/explorer"
-                        className="p-1.5 hover:bg-zinc-900 hover:text-blue-400 text-zinc-400 rounded transition-colors cursor-pointer"
-                        title="View Cleaned & Resolved Golden Records in Entity Explorer"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
+                      <div className="col-span-2 font-mono text-zinc-400">
+                        {file.size}
+                      </div>
+                      <div className="col-span-2 font-mono text-zinc-400">
+                        {file.recordsCount.toLocaleString()} rows
+                      </div>
+                      <div className="col-span-2 text-zinc-500">
+                        {formatRelativeTime(file.createdAt)}
+                      </div>
+                      <div className="col-span-1 flex justify-center select-none">
+                        {(() => {
+                          const fileBadge = getHealthStatusBadge(file.status);
+                          return (
+                            <span
+                              className={`border px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1.5 ${fileBadge.badgeStyle}`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${fileBadge.dotColor}`}
+                              />
+                              {file.status}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      <div className="col-span-1 flex items-center justify-end gap-1.5 select-none">
+                        <button
+                          onClick={() => setPreviewingFile(file)}
+                          className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
+                          title="Preview File Records"
                         >
-                          <circle cx="11" cy="11" r="8" />
-                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                      </Link>
-                      <Link
-                        to="/connections/schema-map"
-                        className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
-                        title="Map File Schema to Ontology"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                        <Link
+                          to="/explorer"
+                          className="p-1.5 hover:bg-zinc-900 hover:text-blue-400 text-zinc-400 rounded transition-colors cursor-pointer"
+                          title="View Cleaned & Resolved Golden Records in Entity Explorer"
                         >
-                          <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                          <polyline points="2 17 12 22 22 17" />
-                          <polyline points="2 12 12 17 22 12" />
-                        </svg>
-                      </Link>
-                      <button
-                        onClick={() => deleteFile(file.id)}
-                        className="p-1.5 hover:bg-zinc-900 hover:text-red-400 text-zinc-500 rounded transition-colors cursor-pointer"
-                        title="Delete record"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
+                        </Link>
+                        <Link
+                          to="/connections/schema-map"
+                          className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
+                          title="Map File Schema to Ontology"
                         >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                      </button>
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                            <polyline points="2 17 12 22 22 17" />
+                            <polyline points="2 12 12 17 22 12" />
+                          </svg>
+                        </Link>
+                        <button
+                          onClick={() => deleteFile(file.id)}
+                          className="p-1.5 hover:bg-zinc-900 hover:text-red-400 text-zinc-500 rounded transition-colors cursor-pointer"
+                          title="Delete record"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
 
       {/* Sync pipeline monitoring panels */}
