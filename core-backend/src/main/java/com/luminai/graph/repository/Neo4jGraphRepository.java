@@ -49,21 +49,29 @@ public class Neo4jGraphRepository {
 
   @PostConstruct
   void ensureIndexes() {
-    try {
-      neo4jClient
-          .query("CREATE INDEX entity_id_index IF NOT EXISTS FOR (e:Entity) ON (e.id)")
-          .run();
-      neo4jClient
-          .query("CREATE INDEX entity_tenant_index IF NOT EXISTS FOR (e:Entity) ON (e.tenant_id)")
-          .run();
-      log.info("Ensured Neo4j indexes on :Entity(id) and :Entity(tenant_id)");
-    } catch (Exception e) {
-      // Don't fail application startup over index creation — sync will just be slower without
-      // them, not incorrect, since correctness comes from the MERGE pattern, not the index.
-      log.warn(
-          "Could not ensure Neo4j indexes on :Entity — continuing without them: {}",
-          e.getMessage());
-    }
+    Thread.ofVirtual()
+        .name("neo4j-index-init")
+        .start(
+            () -> {
+              try {
+                neo4jClient
+                    .query("CREATE INDEX entity_id_index IF NOT EXISTS FOR (e:Entity) ON (e.id)")
+                    .run();
+                neo4jClient
+                    .query(
+                        "CREATE INDEX entity_tenant_index IF NOT EXISTS FOR (e:Entity) ON"
+                            + " (e.tenant_id)")
+                    .run();
+                log.info("Ensured Neo4j indexes on :Entity(id) and :Entity(tenant_id)");
+              } catch (Exception e) {
+                // Don't fail application startup over index creation — sync will just be slower
+                // without them, not incorrect, since correctness comes from the MERGE pattern, not
+                // the index.
+                log.warn(
+                    "Could not ensure Neo4j indexes on :Entity — continuing without them: {}",
+                    e.getMessage());
+              }
+            });
   }
 
   /**

@@ -91,20 +91,39 @@ public class SecurityConfig {
   @Value("${spring.profiles.active:}")
   private String activeProfiles;
 
+  private final java.util.concurrent.atomic.AtomicReference<JwtDecoder> cachedDecoder =
+      new java.util.concurrent.atomic.AtomicReference<>();
+
+  private JwtDecoder resolveDecoder() {
+    JwtDecoder existing = cachedDecoder.get();
+    if (existing != null) {
+      return existing;
+    }
+    synchronized (cachedDecoder) {
+      existing = cachedDecoder.get();
+      if (existing != null) {
+        return existing;
+      }
+      JwtDecoder created = null;
+      try {
+        if (jwkSetUri != null && !jwkSetUri.isBlank()) {
+          created = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        } else if (issuerUri != null && !issuerUri.isBlank()) {
+          created = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
+        }
+      } catch (Exception e) {
+        org.slf4j.LoggerFactory.getLogger(SecurityConfig.class)
+            .warn("Could not lazily initialize NimbusJwtDecoder: {}", e.getMessage());
+      }
+      if (created != null) {
+        cachedDecoder.set(created);
+      }
+      return created;
+    }
+  }
+
   @Bean
   public JwtDecoder jwtDecoder() {
-    JwtDecoder realDecoder = null;
-    try {
-      if (jwkSetUri != null && !jwkSetUri.isBlank()) {
-        realDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
-      } else if (issuerUri != null && !issuerUri.isBlank()) {
-        realDecoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
-      }
-    } catch (Exception ignored) {
-    }
-
-    final JwtDecoder delegate = realDecoder;
-
     return token -> {
       if (token == null || token.isBlank()) {
         throw new org.springframework.security.oauth2.jwt.BadJwtException(
@@ -135,6 +154,7 @@ public class SecurityConfig {
             .build();
       }
 
+      JwtDecoder delegate = resolveDecoder();
       if (delegate == null) {
         throw new org.springframework.security.oauth2.jwt.BadJwtException(
             "OAuth2 JWT decoder not configured or Keycloak JWKS endpoint is unreachable");

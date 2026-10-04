@@ -3,7 +3,7 @@ import { apiFetch } from "../../lib/api";
 import { SearchBar } from "../../features/explorer/components/SearchBar";
 import { EntityCard } from "../../features/explorer/components/EntityCard";
 import { FacetFilterSidebar } from "../../features/explorer/components/FacetFilterSidebar";
-import { HelpCircle, RefreshCw, Layers } from "lucide-react";
+import { HelpCircle, RefreshCw, Layers, Download } from "lucide-react";
 import type { EntityType } from "../../features/ontology/components/EntityTypeEditor";
 
 interface SearchResponse {
@@ -93,7 +93,77 @@ export const ExplorerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [isExporting, setIsExporting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("query", query.trim());
+      if (selectedTypes.length > 0) params.set("entityType", selectedTypes[0]);
+
+      const res = await fetch(
+        `/api/v1/explorer/export/csv?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          },
+        },
+      );
+
+      if (!res.ok) {
+        // Fallback: client-side export from current searchData if backend endpoint fails
+        if (searchData && searchData.content && searchData.content.length > 0) {
+          const rows = searchData.content.map((item) => ({
+            id: item.id,
+            canonicalName: item.canonicalName,
+            entityType: item.entityType,
+            createdAt: item.createdAt,
+            ...item.properties,
+          }));
+          const headers = Array.from(
+            new Set(rows.flatMap((r) => Object.keys(r))),
+          );
+          const csvLines = [headers.join(",")];
+          rows.forEach((r) => {
+            csvLines.push(
+              headers
+                .map(
+                  (h) =>
+                    `"${String(r[h as keyof typeof r] ?? "").replace(/"/g, '""')}"`,
+                )
+                .join(","),
+            );
+          });
+          const blob = new Blob([csvLines.join("\r\n")], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "luminai-golden-records.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          return;
+        }
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "luminai-golden-records.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Export clean CSV error:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // 1. Fetch Ontology Entity Types
   useEffect(() => {
@@ -262,6 +332,21 @@ export const ExplorerPage: React.FC = () => {
           <p className="text-xs text-zinc-500 mt-1">
             Search, filter, and inspect canonical graph entities and metadata.
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportCsv}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-850 hover:border-zinc-700 text-xs font-semibold text-zinc-200 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            title="Download clean canonical records matching current query as CSV"
+          >
+            <Download
+              className={`w-3.5 h-3.5 text-emerald-400 ${
+                isExporting ? "animate-bounce" : ""
+              }`}
+            />
+            <span>{isExporting ? "Exporting..." : "Export Clean CSV"}</span>
+          </button>
         </div>
       </div>
 

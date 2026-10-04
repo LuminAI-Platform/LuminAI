@@ -351,4 +351,70 @@ public class ExplorerSearchService {
         + "</em>"
         + text.substring(end);
   }
+
+  /** Streams canonical golden records matching filters as an RFC-4180 CSV file. */
+  @Transactional(readOnly = true)
+  public void exportCsv(String query, String entityType, java.io.Writer writer)
+      throws java.io.IOException {
+    org.springframework.data.domain.Page<GoldenRecord> page =
+        goldenRecordRepository.searchByPropertiesAndType(
+            (query != null && !query.isBlank()) ? query.trim() : null,
+            (entityType != null
+                    && !entityType.isBlank()
+                    && !"ALL".equalsIgnoreCase(entityType.trim()))
+                ? entityType.trim()
+                : null,
+            org.springframework.data.domain.PageRequest.of(
+                0,
+                5000,
+                org.springframework.data.domain.Sort.by(
+                    org.springframework.data.domain.Sort.Direction.DESC, "created_at")));
+
+    List<GoldenRecord> records = page.getContent();
+    Set<String> propertyKeys = new LinkedHashSet<>();
+    for (GoldenRecord gr : records) {
+      if (gr.getProperties() != null) {
+        propertyKeys.addAll(gr.getProperties().keySet());
+      }
+    }
+
+    List<String> headers = new ArrayList<>();
+    headers.add("id");
+    headers.add("canonical_name");
+    headers.add("entity_type");
+    headers.add("confidence_score");
+    headers.add("source_count");
+    headers.add("created_at");
+    headers.addAll(propertyKeys);
+
+    writer.write(String.join(",", headers) + "\r\n");
+
+    for (GoldenRecord gr : records) {
+      List<String> row = new ArrayList<>();
+      row.add(escapeCsv(gr.getId() != null ? gr.getId().toString() : ""));
+      row.add(escapeCsv(gr.getCanonicalName()));
+      row.add(escapeCsv(gr.getEntityType()));
+      row.add(
+          escapeCsv(
+              gr.getConfidenceScore() != null ? gr.getConfidenceScore().toString() : "1.0000"));
+      row.add(String.valueOf(gr.getSourceCount()));
+      row.add(escapeCsv(gr.getCreatedAt() != null ? gr.getCreatedAt().toString() : ""));
+
+      Map<String, Object> props = gr.getProperties();
+      for (String k : propertyKeys) {
+        Object v = props != null ? props.get(k) : null;
+        row.add(escapeCsv(v != null ? v.toString() : ""));
+      }
+      writer.write(String.join(",", row) + "\r\n");
+    }
+    writer.flush();
+  }
+
+  private String escapeCsv(String val) {
+    if (val == null) return "";
+    if (val.contains(",") || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
+      return "\"" + val.replace("\"", "\"\"") + "\"";
+    }
+    return val;
+  }
 }

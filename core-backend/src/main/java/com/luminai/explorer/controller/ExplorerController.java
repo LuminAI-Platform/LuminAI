@@ -79,4 +79,24 @@ public class ExplorerController {
 
     return ResponseEntity.ok(searchService.getProvenance(id, property));
   }
+
+  @GetMapping(value = "/export/csv", produces = "text/csv")
+  @Operation(
+      summary = "Export entities to CSV",
+      description = "Streams canonical golden records matching filters as an RFC-4180 CSV file")
+  public void exportCsv(
+      @RequestParam(name = "query", required = false, defaultValue = "") String query,
+      @RequestParam(name = "entityType", required = false) List<String> entityType,
+      jakarta.servlet.http.HttpServletResponse response)
+      throws java.io.IOException {
+
+    response.setContentType("text/csv; charset=UTF-8");
+    response.setHeader(
+        "Content-Disposition", "attachment; filename=\"luminai-golden-records.csv\"");
+
+    String combinedEntityType =
+        (entityType != null && !entityType.isEmpty()) ? String.join(",", entityType) : null;
+
+    searchService.exportCsv(query, combinedEntityType, response.getWriter());
+  }
 }

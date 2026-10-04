@@ -94,6 +94,9 @@ public class KafkaConfig {
     configs.put(
         org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
         bootstrapServers);
+    configs.put(org.apache.kafka.clients.admin.AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 3000);
+    configs.put(
+        org.apache.kafka.clients.admin.AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, 5000);
     applySaslConfig(configs);
     KafkaAdmin admin = new KafkaAdmin(configs);
     admin.setFatalIfBrokerNotAvailable(false);
