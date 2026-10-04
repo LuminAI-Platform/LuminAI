@@ -29,7 +29,12 @@ public class DataEngineClient {
       @Value("${data-engine.api-key:}") String apiKey,
       RestClient.Builder restClientBuilder) {
     this.baseUrl = baseUrl;
-    RestClient.Builder builder = restClientBuilder.baseUrl(baseUrl);
+    org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory =
+        new org.springframework.http.client.SimpleClientHttpRequestFactory();
+    requestFactory.setConnectTimeout(java.time.Duration.ofMillis(3000));
+    requestFactory.setReadTimeout(java.time.Duration.ofMillis(3000));
+
+    RestClient.Builder builder = restClientBuilder.baseUrl(baseUrl).requestFactory(requestFactory);
     if (apiKey != null && !apiKey.isBlank()) {
       builder.defaultHeader("X-API-Key", apiKey);
     }

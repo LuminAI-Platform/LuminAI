@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
   Outlet,
   RouterProvider,
@@ -9,20 +10,84 @@ import { AppShell } from "./components/layout/AppShell";
 import { AdminRoute, ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
-import { ConnectionsPage } from "./pages/connections/ConnectionsPage";
-import { SchemaMapPage } from "./pages/connections/SchemaMapPage";
-import { PipelinePage } from "./pages/connections/PipelinePage";
-import { MergeReviewPage } from "./pages/connections/MergeReviewPage";
-import { OntologyPage } from "./pages/ontology/OntologyPage";
-import { ExplorerPage } from "./pages/explorer/ExplorerPage";
-import { EntityDetailPage } from "./pages/explorer/EntityDetailPage";
-import { UserRegistrationPage } from "./features/admin/UserRegistrationPage";
-import { TenantRegistrationPage } from "./features/admin/TenantRegistrationPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import { GraphPage } from "./pages/graph/GraphPage";
-import { SettingsPage } from "./pages/settings/SettingsPage";
+
+const PageLoadingFallback = () => (
+  <div className="flex h-64 w-full items-center justify-center text-sm text-slate-400">
+    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+    Loading...
+  </div>
+);
+
+const lazyComponent = <T extends Record<string, unknown>>(
+  importer: () => Promise<T>,
+  exportName: keyof T,
+) => {
+  const LazyComp = lazy(() =>
+    importer().then((module) => ({
+      default: module[exportName] as React.ComponentType<
+        Record<string, unknown>
+      >,
+    })),
+  );
+  return function LazyWrapper(props: Record<string, unknown>) {
+    return (
+      <Suspense fallback={<PageLoadingFallback />}>
+        <LazyComp {...props} />
+      </Suspense>
+    );
+  };
+};
+
+const DashboardPage = lazyComponent(
+  () => import("./pages/dashboard/DashboardPage"),
+  "DashboardPage",
+);
+const ExplorerPage = lazyComponent(
+  () => import("./pages/explorer/ExplorerPage"),
+  "ExplorerPage",
+);
+const EntityDetailPage = lazyComponent(
+  () => import("./pages/explorer/EntityDetailPage"),
+  "EntityDetailPage",
+);
+const ConnectionsPage = lazyComponent(
+  () => import("./pages/connections/ConnectionsPage"),
+  "ConnectionsPage",
+);
+const SchemaMapPage = lazyComponent(
+  () => import("./pages/connections/SchemaMapPage"),
+  "SchemaMapPage",
+);
+const PipelinePage = lazyComponent(
+  () => import("./pages/connections/PipelinePage"),
+  "PipelinePage",
+);
+const MergeReviewPage = lazyComponent(
+  () => import("./pages/connections/MergeReviewPage"),
+  "MergeReviewPage",
+);
+const OntologyPage = lazyComponent(
+  () => import("./pages/ontology/OntologyPage"),
+  "OntologyPage",
+);
+const GraphPage = lazyComponent(
+  () => import("./pages/graph/GraphPage"),
+  "GraphPage",
+);
+const SettingsPage = lazyComponent(
+  () => import("./pages/settings/SettingsPage"),
+  "SettingsPage",
+);
+const UserRegistrationPage = lazyComponent(
+  () => import("./features/admin/UserRegistrationPage"),
+  "UserRegistrationPage",
+);
+const TenantRegistrationPage = lazyComponent(
+  () => import("./features/admin/TenantRegistrationPage"),
+  "TenantRegistrationPage",
+);
 
 // 1. Root Route
 const rootRoute = createRootRoute({

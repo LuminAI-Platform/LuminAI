@@ -88,7 +88,10 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     if run_id:
         cached = cp_mgr.load_checkpoint(run_id, "staged_records_for_er")
         if cached is not None:
-            context.log.info("⏩ Reusing checkpoint for staged_records_for_er (%d rows)", cached.height)
+            context.log.info(
+                "⏩ Reusing checkpoint for staged_records_for_er (%d rows)",
+                cached.height,
+            )
             return cached
 
     context.log.info("🔍 staged_records_for_er: fetching staged records for ER…")
@@ -120,10 +123,14 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
             query_params = {"tenant_id": tenant_id}
     else:
         if safe_limit:
-            query = text("SELECT id, tenant_id, source_id, raw_id, data FROM staging_records LIMIT :limit_val;")
+            query = text(
+                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records LIMIT :limit_val;"
+            )
             query_params = {"limit_val": safe_limit}
         else:
-            query = text("SELECT id, tenant_id, source_id, raw_id, data FROM staging_records;")
+            query = text(
+                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records;"
+            )
             query_params = {}
 
     records: List[Dict[str, Any]] = []
@@ -134,17 +141,28 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
         with engine.connect() as conn:
             res = conn.execute(query, query_params)
             for row in res:
-                data_dict = json.loads(row.data) if isinstance(row.data, str) else dict(row.data)
+                data_dict = (
+                    json.loads(row.data)
+                    if isinstance(row.data, str)
+                    else dict(row.data)
+                )
                 data_dict["id"] = str(row.id)
                 data_dict["raw_id"] = str(row.raw_id)
                 data_dict["source_id"] = str(row.source_id)
                 data_dict["tenant_id"] = str(row.tenant_id)
                 records.append(data_dict)
         if records:
-            context.log.info("Loaded %d staged records from PostgreSQL (tenant: %s)", len(records), tenant_id or "all")
+            context.log.info(
+                "Loaded %d staged records from PostgreSQL (tenant: %s)",
+                len(records),
+                tenant_id or "all",
+            )
             return pl.DataFrame(records)
     except Exception as exc:
-        context.log.debug("PostgreSQL staging unavailable (%s). Checking SQLite or synthetic fallback.", exc)
+        context.log.debug(
+            "PostgreSQL staging unavailable (%s). Checking SQLite or synthetic fallback.",
+            exc,
+        )
 
     # Check SQLite fallback
     sqlite_path = os.path.join("storage", "sqlite", "staging.db")
@@ -154,14 +172,22 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
             with sqlite_engine.connect() as conn:
                 res = conn.execute(query, query_params)
                 for row in res:
-                    data_dict = json.loads(row.data) if isinstance(row.data, str) else dict(row.data)
+                    data_dict = (
+                        json.loads(row.data)
+                        if isinstance(row.data, str)
+                        else dict(row.data)
+                    )
                     data_dict["id"] = str(row.id)
                     data_dict["raw_id"] = str(row.raw_id)
                     data_dict["source_id"] = str(row.source_id)
                     data_dict["tenant_id"] = str(row.tenant_id)
                     records.append(data_dict)
             if records:
-                context.log.info("Loaded %d staged records from SQLite staging (tenant: %s)", len(records), tenant_id or "all")
+                context.log.info(
+                    "Loaded %d staged records from SQLite staging (tenant: %s)",
+                    len(records),
+                    tenant_id or "all",
+                )
                 return pl.DataFrame(records)
         except Exception as sqle:
             context.log.debug("SQLite staging error: %s", sqle)
@@ -243,7 +269,11 @@ def staged_records_for_er(context: AssetExecutionContext) -> pl.DataFrame:
     for r in synthetic_records:
         r["tenant_id"] = active_tenant
 
-    context.log.info("staged_records_for_er: loaded %d records for ER analysis (tenant: %s)", len(synthetic_records), active_tenant)
+    context.log.info(
+        "staged_records_for_er: loaded %d records for ER analysis (tenant: %s)",
+        len(synthetic_records),
+        active_tenant,
+    )
     res_df = pl.DataFrame(synthetic_records)
     if run_id:
         cp_mgr.save_checkpoint(run_id, "staged_records_for_er", res_df)
@@ -269,7 +299,9 @@ def er_blocked_pairs(
     if run_id:
         cached = cp_mgr.load_checkpoint(run_id, "er_blocked_pairs")
         if cached is not None:
-            context.log.info("⏩ Reusing checkpoint for er_blocked_pairs (%d rows)", cached.height)
+            context.log.info(
+                "⏩ Reusing checkpoint for er_blocked_pairs (%d rows)", cached.height
+            )
             return cached
 
     context.log.info("🧱 er_blocked_pairs: generating candidate pairs…")
@@ -288,7 +320,9 @@ def er_blocked_pairs(
             country_col="country",
             entity_type_col="entity_type",
         )
-        record_er_metrics(tenant_id=tenant_id, candidate_pairs_count=candidate_pairs.height)
+        record_er_metrics(
+            tenant_id=tenant_id, candidate_pairs_count=candidate_pairs.height
+        )
         context.log.info(
             "🧱 Blocking reduced search space — %d candidate pairs generated from %d records",
             candidate_pairs.height,
@@ -317,12 +351,20 @@ def er_scored_pairs(
     if run_id:
         cached = cp_mgr.load_checkpoint(run_id, "er_scored_pairs")
         if cached is not None:
-            context.log.info("⏩ Reusing checkpoint for er_scored_pairs (%d rows)", cached.height)
+            context.log.info(
+                "⏩ Reusing checkpoint for er_scored_pairs (%d rows)", cached.height
+            )
             return cached
 
-    context.log.info("📊 er_scored_pairs: evaluating similarity for %d candidate pairs…", er_blocked_pairs.height)
+    context.log.info(
+        "📊 er_scored_pairs: evaluating similarity for %d candidate pairs…",
+        er_blocked_pairs.height,
+    )
     scored = compare_candidate_pairs(er_blocked_pairs)
-    context.log.info("📊 Pairwise comparison complete — avg confidence=%.4f", scored["confidence_score"].mean() if scored.height > 0 else 0.0)
+    context.log.info(
+        "📊 Pairwise comparison complete — avg confidence=%.4f",
+        scored["confidence_score"].mean() if scored.height > 0 else 0.0,
+    )
     if run_id:
         cp_mgr.save_checkpoint(run_id, "er_scored_pairs", scored)
     return scored
@@ -347,10 +389,16 @@ def er_classified_pairs(
     if run_id:
         cached = cp_mgr.load_checkpoint(run_id, "er_classified_pairs")
         if cached is not None:
-            context.log.info("⏩ Reusing checkpoint for er_classified_pairs (%d rows)", cached.height)
+            context.log.info(
+                "⏩ Reusing checkpoint for er_classified_pairs (%d rows)", cached.height
+            )
             return cached
 
-    context.log.info("⚖️ er_classified_pairs: classifying %d pairs (tenant: %s)…", er_scored_pairs.height, tenant_id)
+    context.log.info(
+        "⚖️ er_classified_pairs: classifying %d pairs (tenant: %s)…",
+        er_scored_pairs.height,
+        tenant_id,
+    )
 
     with trace_span(
         "er.classification",
@@ -359,7 +407,9 @@ def er_classified_pairs(
             "pairs.input": int(er_scored_pairs.height),
         },
     ):
-        matches_df, review_df, non_matches_df = classify_candidate_pairs(er_scored_pairs)
+        matches_df, review_df, non_matches_df = classify_candidate_pairs(
+            er_scored_pairs
+        )
 
         record_er_metrics(
             tenant_id=tenant_id,
@@ -377,7 +427,11 @@ def er_classified_pairs(
 
         if review_df.height > 0:
             persisted = persist_review_candidates(review_df, tenant_id=tenant_id)
-            context.log.info("⚖️ Persisted %d review candidates to er_candidates table (tenant: %s)", persisted, tenant_id)
+            context.log.info(
+                "⚖️ Persisted %d review candidates to er_candidates table (tenant: %s)",
+                persisted,
+                tenant_id,
+            )
 
         if run_id:
             cp_mgr.save_checkpoint(run_id, "er_classified_pairs", matches_df)
@@ -405,10 +459,15 @@ def er_golden_records(
     if run_id:
         cached = cp_mgr.load_checkpoint(run_id, "er_golden_records")
         if cached is not None:
-            context.log.info("⏩ Reusing checkpoint for er_golden_records (%d rows)", cached.height)
+            context.log.info(
+                "⏩ Reusing checkpoint for er_golden_records (%d rows)", cached.height
+            )
             return cached
 
-    context.log.info("👑 er_golden_records: clustering matches and synthesizing Golden Records (tenant: %s)…", tenant_id)
+    context.log.info(
+        "👑 er_golden_records: clustering matches and synthesizing Golden Records (tenant: %s)…",
+        tenant_id,
+    )
 
     with trace_span(
         "er.golden_records",
@@ -418,7 +477,9 @@ def er_golden_records(
         },
     ):
         records_list = staged_records_for_er.to_dicts()
-        clusters = cluster_record_dictionaries(er_classified_pairs, records_list, id_col="id")
+        clusters = cluster_record_dictionaries(
+            er_classified_pairs, records_list, id_col="id"
+        )
 
         context.log.info(
             "👑 Graph clustering resolved %d distinct clusters from %d input records",
@@ -427,11 +488,17 @@ def er_golden_records(
         )
 
         # Synthesize Golden Records
-        golden_records_df = merge_clusters_to_golden_records(clusters, tenant_id=tenant_id)
+        golden_records_df = merge_clusters_to_golden_records(
+            clusters, tenant_id=tenant_id
+        )
 
         # Persist Golden Records to DB
         persisted_gr = persist_golden_records(golden_records_df, tenant_id=tenant_id)
-        context.log.info("👑 Successfully persisted %d Golden Records to database (tenant: %s)", persisted_gr, tenant_id)
+        context.log.info(
+            "👑 Successfully persisted %d Golden Records to database (tenant: %s)",
+            persisted_gr,
+            tenant_id,
+        )
 
         pipeline_entity_type = tags.get("entity_type") or "Person"
 
@@ -455,16 +522,29 @@ def er_golden_records(
                 (
                     gr
                     for gr in golden_records_df.to_dicts()
-                    if any(str(r.get("id")) in gr.get("source_record_ids", []) for r in cluster_records)
+                    if any(
+                        str(r.get("id")) in gr.get("source_record_ids", [])
+                        for r in cluster_records
+                    )
                 ),
                 None,
             )
 
             if golden_rec:
-                resolved_entity_type = str(golden_rec.get("entity_type") or pipeline_entity_type)
-                prov_entries = track_field_provenance(golden_rec, cluster_records, tenant_id=tenant_id)
+                resolved_entity_type = str(
+                    golden_rec.get("entity_type") or pipeline_entity_type
+                )
+                prov_entries = track_field_provenance(
+                    golden_rec, cluster_records, tenant_id=tenant_id
+                )
                 all_provenance_entries.extend(prov_entries)
 
+                source_identifier = str(
+                    tags.get("source_id")
+                    or tags.get("connection_id")
+                    or tags.get("connectionId")
+                    or "er-engine"
+                )
                 # Publish entity.resolved Kafka event
                 try:
                     producer.publish_resolved_entity(
@@ -472,16 +552,49 @@ def er_golden_records(
                         golden_id=str(golden_rec.get("golden_id")),
                         entity_type=resolved_entity_type,
                         payload=golden_rec,
+                        source_id=source_identifier,
                     )
                 except Exception as exc:
-                    context.log.warning("Could not publish entity.resolved Kafka event: %s", exc)
+                    context.log.warning(
+                        "Could not publish entity.resolved Kafka event: %s", exc
+                    )
 
         if all_provenance_entries:
-            persisted_prov = persist_provenance_records(all_provenance_entries, tenant_id=tenant_id)
-            context.log.info("👑 Successfully persisted %d field provenance records (tenant: %s)", persisted_prov, tenant_id)
+            persisted_prov = persist_provenance_records(
+                all_provenance_entries, tenant_id=tenant_id
+            )
+            context.log.info(
+                "👑 Successfully persisted %d field provenance records (tenant: %s)",
+                persisted_prov,
+                tenant_id,
+            )
 
-        context.log.info("✅ er_golden_records: pipeline finished with %d canonical Golden Records", golden_records_df.height)
+        context.log.info(
+            "✅ er_golden_records: pipeline finished with %d canonical Golden Records",
+            golden_records_df.height,
+        )
+
+        # Publish batch completion event to entity.resolved topic
+        try:
+            conn_id = (
+                tags.get("connection_id")
+                or tags.get("connectionId")
+                or tags.get("source_id")
+            )
+            if conn_id and conn_id not in ("er-engine", "default-source"):
+                producer.publish_batch_completion(
+                    tenant_id=tenant_id,
+                    connection_id=str(conn_id),
+                    resolved_entities=int(persisted_gr),
+                )
+                context.log.info(
+                    "📡 Published batch completion event for connection '%s' (%d entities)",
+                    conn_id,
+                    persisted_gr,
+                )
+        except Exception as exc:
+            context.log.warning("Could not publish batch completion event: %s", exc)
+
         if run_id:
             cp_mgr.save_checkpoint(run_id, "er_golden_records", golden_records_df)
         return golden_records_df
-

@@ -192,20 +192,24 @@ public class DashboardService {
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
     long currentEntities = goldenRecordRepository.count();
 
+    Instant startWindow = today.minusDays(days - 1).atStartOfDay().toInstant(ZoneOffset.UTC);
+    Map<String, Long> runsByDate = new HashMap<>();
+    try {
+      List<Instant> runTimestamps = pipelineRunRepository.findStartedAtSince(startWindow);
+      for (Instant ts : runTimestamps) {
+        if (ts != null) {
+          String dateStr = ts.atZone(ZoneOffset.UTC).toLocalDate().toString();
+          runsByDate.put(dateStr, runsByDate.getOrDefault(dateStr, 0L) + 1L);
+        }
+      }
+    } catch (Exception e) {
+      log.debug("Telemetry bulk query unavailable: {}", e.getMessage());
+    }
+
     List<TimeSeriesPointDto> points = new ArrayList<>();
     for (int i = days - 1; i >= 0; i--) {
-      LocalDate date = today.minusDays(i);
-      String dateStr = date.toString();
-      Instant startOfDay = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-      Instant endOfDay = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-
-      long dayRuns = 0L;
-      try {
-        dayRuns = pipelineRunRepository.countByStartedAtBetween(startOfDay, endOfDay);
-      } catch (Exception e) {
-        log.debug("Telemetry query for date {} unavailable: {}", dateStr, e.getMessage());
-      }
-
+      String dateStr = today.minusDays(i).toString();
+      long dayRuns = runsByDate.getOrDefault(dateStr, 0L);
       points.add(new TimeSeriesPointDto(dateStr, currentEntities, dayRuns));
     }
 

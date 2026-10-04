@@ -32,4 +32,8 @@ public interface PipelineRunRepository extends JpaRepository<PipelineRun, UUID> 
   long countByStartedAtBetween(
       @org.springframework.data.repository.query.Param("start") java.time.Instant start,
       @org.springframework.data.repository.query.Param("end") java.time.Instant end);
+
+  @Query("select p.startedAt from PipelineRun p where p.startedAt >= :start")
+  List<java.time.Instant> findStartedAtSince(
+      @org.springframework.data.repository.query.Param("start") java.time.Instant start);
 }

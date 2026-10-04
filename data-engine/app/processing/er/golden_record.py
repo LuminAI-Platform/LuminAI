@@ -240,9 +240,17 @@ def persist_golden_records(
     now_utc = datetime.now(timezone.utc)
     persisted_count = 0
 
+    schema_name = (
+        f"tenant_{tenant_id}"
+        if not str(tenant_id).startswith("tenant_")
+        else str(tenant_id)
+    )
+
     with engine.connect() as conn:
         try:
-            conn.execute(text("SET search_path TO tenant_default, public;"))
+            conn.execute(
+                text(f"SET search_path TO {schema_name}, tenant_default, public;")
+            )
         except Exception:
             pass
         inspector = inspect(conn)
@@ -250,12 +258,20 @@ def persist_golden_records(
         try:
             cols = {
                 c["name"]
-                for c in inspector.get_columns(
-                    "golden_records", schema="tenant_default"
-                )
+                for c in inspector.get_columns("golden_records", schema=schema_name)
             }
         except Exception:
             pass
+        if not cols:
+            try:
+                cols = {
+                    c["name"]
+                    for c in inspector.get_columns(
+                        "golden_records", schema="tenant_default"
+                    )
+                }
+            except Exception:
+                pass
         if not cols:
             try:
                 cols = {c["name"] for c in inspector.get_columns("golden_records")}
@@ -269,7 +285,9 @@ def persist_golden_records(
 
     with engine.begin() as conn:
         try:
-            conn.execute(text("SET search_path TO tenant_default, public;"))
+            conn.execute(
+                text(f"SET search_path TO {schema_name}, tenant_default, public;")
+            )
         except Exception:
             pass
 
