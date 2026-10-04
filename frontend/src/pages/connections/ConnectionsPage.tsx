@@ -471,10 +471,7 @@ export const ConnectionsPage: React.FC = () => {
         rows: raw.rows.map((r, i) => ({
           id: `clean_${i + 1}`,
           canonicalName: String(
-            r.full_name ||
-              r.name ||
-              r.user_id ||
-              `Canonical Entity ${i + 1}`,
+            r.full_name || r.name || r.user_id || `Canonical Entity ${i + 1}`,
           ),
           entityType: file.name.toLowerCase().includes("user")
             ? "Person"
@@ -1229,10 +1226,7 @@ export const ConnectionsPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() =>
-                    downloadCleanCsv(
-                      cleanPreviewFile.id,
-                      cleanPreviewFile.name,
-                    )
+                    downloadCleanCsv(cleanPreviewFile.id, cleanPreviewFile.name)
                   }
                   className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-900/30 cursor-pointer"
                   title="Download RFC-4180 Clean CSV"
@@ -1286,7 +1280,9 @@ export const ConnectionsPage: React.FC = () => {
                 </div>
                 <div className="text-xl font-bold text-blue-400 font-mono mt-1">
                   {cleanData?.duplicatesMerged?.toLocaleString() ??
-                    Math.round(cleanPreviewFile.recordsCount * 0.18).toLocaleString()}
+                    Math.round(
+                      cleanPreviewFile.recordsCount * 0.18,
+                    ).toLocaleString()}
                   <span className="text-xs font-normal text-zinc-400 ml-1.5">
                     ({cleanData?.compressionRatio ?? "18.0%"})
                   </span>
@@ -1323,7 +1319,8 @@ export const ConnectionsPage: React.FC = () => {
                 />
               </div>
               <div className="text-xs text-zinc-400 hidden sm:block">
-                Displaying reconciled fields ready for pipeline transformations & ontology queries
+                Displaying reconciled fields ready for pipeline transformations
+                & ontology queries
               </div>
             </div>
 
@@ -1342,7 +1339,9 @@ export const ConnectionsPage: React.FC = () => {
                     if (!cleanSearchFilter.trim()) return true;
                     const f = cleanSearchFilter.toLowerCase();
                     return Object.values(row).some((val) =>
-                      String(val ?? "").toLowerCase().includes(f),
+                      String(val ?? "")
+                        .toLowerCase()
+                        .includes(f),
                     );
                   });
 
