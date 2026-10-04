@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,16 +53,23 @@ public class DataEngineController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getMetrics() {
     String tenantSlug = TenantContext.getTenantSlug();
-    DataEngineHealthDto health = dataEngineClient.checkHealth();
-    Map<String, Object> pipelineStats = dataEngineClient.getPipelineStats(tenantSlug);
-    Map<String, Object> dataQuality = dataEngineClient.getDataQuality(tenantSlug);
-    Map<String, Object> entityStats = dataEngineClient.getEntityStats(tenantSlug);
+    CompletableFuture<DataEngineHealthDto> healthFuture =
+        CompletableFuture.supplyAsync(() -> dataEngineClient.checkHealth());
+    CompletableFuture<Map<String, Object>> pipelineStatsFuture =
+        CompletableFuture.supplyAsync(() -> dataEngineClient.getPipelineStats(tenantSlug));
+    CompletableFuture<Map<String, Object>> dataQualityFuture =
+        CompletableFuture.supplyAsync(() -> dataEngineClient.getDataQuality(tenantSlug));
+    CompletableFuture<Map<String, Object>> entityStatsFuture =
+        CompletableFuture.supplyAsync(() -> dataEngineClient.getEntityStats(tenantSlug));
+
+    CompletableFuture.allOf(healthFuture, pipelineStatsFuture, dataQualityFuture, entityStatsFuture)
+        .join();
 
     Map<String, Object> response = new HashMap<>();
-    response.put("engineHealth", health);
-    response.put("pipelineStats", pipelineStats);
-    response.put("dataQuality", dataQuality);
-    response.put("entityStats", entityStats);
+    response.put("engineHealth", healthFuture.join());
+    response.put("pipelineStats", pipelineStatsFuture.join());
+    response.put("dataQuality", dataQualityFuture.join());
+    response.put("entityStats", entityStatsFuture.join());
 
     return ResponseEntity.ok(response);
   }

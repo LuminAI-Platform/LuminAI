@@ -9,7 +9,10 @@ import com.luminai.connection.service.ConnectionService;
 import com.luminai.connection.service.FileConnectorService;
 import com.luminai.connection.service.PostgresConnectorService;
 import jakarta.validation.Valid;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -239,42 +242,73 @@ public class ConnectionController {
     return ResponseEntity.ok(schemas);
   }
 
+  private static List<String> parseCsvLine(String line) {
+    List<String> tokens = new ArrayList<>();
+    StringBuilder sb = new StringBuilder();
+    boolean inQuotes = false;
+    for (int i = 0; i < line.length(); i++) {
+      char c = line.charAt(i);
+      if (c == '"') {
+        if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+          sb.append('"');
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c == ',' && !inQuotes) {
+        tokens.add(sb.toString().trim());
+        sb.setLength(0);
+      } else {
+        sb.append(c);
+      }
+    }
+    tokens.add(sb.toString().trim());
+    return tokens;
+  }
+
   private List<Map<String, Object>> parseFileRows(MultipartFile file) {
     List<Map<String, Object>> rows = new ArrayList<>();
-    try {
-      String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-      String filename =
-          file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
-      if (filename.endsWith(".csv") || (!filename.endsWith(".json") && content.contains(","))) {
-        String[] lines = content.split("\\r?\\n");
-        if (lines.length > 1) {
-          String[] headers = lines[0].split(",");
-          for (int i = 1; i < lines.length && i <= 1000; i++) {
-            if (lines[i].isBlank()) continue;
-            String[] vals = lines[i].split(",");
-            Map<String, Object> row = new LinkedHashMap<>();
-            for (int h = 0; h < headers.length; h++) {
-              String key = headers[h].trim();
-              String val = h < vals.length ? vals[h].trim() : "";
-              row.put(key, val);
-            }
-            rows.add(row);
-          }
-        }
-      } else if (filename.endsWith(".json")) {
+    String filename =
+        file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+
+    try (InputStream is = file.getInputStream()) {
+      if (filename.endsWith(".json")) {
         ObjectMapper mapper = new ObjectMapper();
-        Object parsed = mapper.readValue(content, Object.class);
+        Object parsed = mapper.readValue(is, Object.class);
         if (parsed instanceof List<?> list) {
           for (Object item : list) {
             if (item instanceof Map<?, ?> m) {
               @SuppressWarnings("unchecked")
               Map<String, Object> typedMap = (Map<String, Object>) m;
               rows.add(typedMap);
+              if (rows.size() >= 1000) break;
+            }
+          }
+        }
+      } else {
+        try (BufferedReader reader =
+            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+          String headerLine = reader.readLine();
+          if (headerLine != null && !headerLine.isBlank()) {
+            List<String> headers = parseCsvLine(headerLine);
+            String line;
+            while ((line = reader.readLine()) != null && rows.size() < 1000) {
+              if (line.isBlank()) continue;
+              List<String> vals = parseCsvLine(line);
+              Map<String, Object> row = new LinkedHashMap<>();
+              for (int h = 0; h < headers.size(); h++) {
+                String key = headers.get(h);
+                String val = h < vals.size() ? vals.get(h) : "";
+                row.put(key, val);
+              }
+              rows.add(row);
             }
           }
         }
       }
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      log.warn(
+          "Failed to parse uploaded file '{}': {}", file.getOriginalFilename(), e.getMessage());
     }
     return rows;
   }

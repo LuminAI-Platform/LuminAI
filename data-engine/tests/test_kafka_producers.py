@@ -25,7 +25,9 @@ class TestIngestValidProducer:
         assert res is True
 
     @patch("app.kafka.producers.Producer")
-    def test_publish_active_producer_succeeds_first_attempt(self, mock_kafka_producer_cls):
+    def test_publish_active_producer_succeeds_first_attempt(
+        self, mock_kafka_producer_cls
+    ):
         mock_instance = MagicMock()
         mock_kafka_producer_cls.return_value = mock_instance
 
@@ -113,7 +115,9 @@ class TestIngestValidProducer:
                 dead_letter_producer=mock_dlq,
                 sleep_fn=mock_sleep,
             )
-            success = producer.publish("acme", "Person", {"count": 10}, source_id="src-999")
+            success = producer.publish(
+                "acme", "Person", {"count": 10}, source_id="src-999"
+            )
 
             assert success is False
             assert mock_instance.produce.call_count == 3
@@ -204,7 +208,9 @@ class TestEntityResolvedProducer:
             assert call_kwargs["key"] == b"acme:gr-100"
 
     @patch("app.kafka.producers.Producer")
-    def test_publish_resolved_entity_exhausts_retries_and_routes_to_dlq(self, mock_kafka_producer_cls):
+    def test_publish_resolved_entity_exhausts_retries_and_routes_to_dlq(
+        self, mock_kafka_producer_cls
+    ):
         mock_instance = MagicMock()
         mock_kafka_producer_cls.return_value = mock_instance
         mock_instance.produce.side_effect = Exception("Kafka broker disconnected")
@@ -237,6 +243,15 @@ class TestEntityResolvedProducer:
             assert dlq_kwargs["tenant_id"] == "acme"
             assert dlq_kwargs["original_topic"] == "entity.resolved"
             assert dlq_kwargs["original_key"] == "acme:gr-200"
+
+    def test_publish_batch_completion_dry_run(self):
+        producer = EntityResolvedProducer()
+        success = producer.publish_batch_completion(
+            tenant_id="acme",
+            connection_id="00000000-0000-0000-0000-000000000001",
+            resolved_entities=42,
+        )
+        assert success is True
 
 
 class TestIngestRawProducer:
@@ -291,7 +306,9 @@ class TestDeadLetterProducer:
         assert producer.enabled is False
 
     @patch("app.kafka.producers.Producer")
-    def test_dead_letter_retries_and_does_not_infinite_loop(self, mock_kafka_producer_cls):
+    def test_dead_letter_retries_and_does_not_infinite_loop(
+        self, mock_kafka_producer_cls
+    ):
         mock_instance = MagicMock()
         mock_kafka_producer_cls.return_value = mock_instance
         # Terminal failure on DLQ

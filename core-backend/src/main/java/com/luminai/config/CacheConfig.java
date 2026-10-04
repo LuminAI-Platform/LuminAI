@@ -46,6 +46,7 @@ public class CacheConfig implements CachingConfigurer {
   public static final String CACHE_EXPLORER_ENTITIES = "explorer_entities";
   public static final String CACHE_ONTOLOGY = "ontology_cache";
   public static final String CACHE_DASHBOARD = "dashboard_cache";
+  public static final String CACHE_TENANT_RESOLUTION = "tenant_resolution";
 
   private GenericJackson2JsonRedisSerializer createRedisSerializer() {
     ObjectMapper mapper = new ObjectMapper();
@@ -87,6 +88,7 @@ public class CacheConfig implements CachingConfigurer {
                 CACHE_EXPLORER_ENTITIES, config.entryTtl(Duration.ofSeconds(60)))
             .withCacheConfiguration(CACHE_ONTOLOGY, config.entryTtl(Duration.ofMinutes(5)))
             .withCacheConfiguration(CACHE_DASHBOARD, config.entryTtl(Duration.ofSeconds(30)))
+            .withCacheConfiguration(CACHE_TENANT_RESOLUTION, config.entryTtl(Duration.ofMinutes(5)))
             .build();
       }
     } catch (Exception exc) {
@@ -97,7 +99,11 @@ public class CacheConfig implements CachingConfigurer {
 
     log.info("Using in-memory ConcurrentMapCacheManager for cache operations");
     return new ConcurrentMapCacheManager(
-        CACHE_EXPLORER_SEARCH, CACHE_EXPLORER_ENTITIES, CACHE_ONTOLOGY, CACHE_DASHBOARD);
+        CACHE_EXPLORER_SEARCH,
+        CACHE_EXPLORER_ENTITIES,
+        CACHE_ONTOLOGY,
+        CACHE_DASHBOARD,
+        CACHE_TENANT_RESOLUTION);
   }
 
   @Override

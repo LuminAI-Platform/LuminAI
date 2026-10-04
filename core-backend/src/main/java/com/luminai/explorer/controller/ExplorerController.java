@@ -38,15 +38,18 @@ public class ExplorerController {
   @ApiResponse(responseCode = "200", description = "Paginated search results with facet counts")
   public ResponseEntity<SearchResponseDto.Response> search(
       @RequestParam(name = "query", required = false, defaultValue = "") String query,
-      @RequestParam(name = "entityType", required = false) String entityType,
+      @RequestParam(name = "entityType", required = false) List<String> entityType,
       @RequestParam(name = "page", required = false, defaultValue = "0") int page,
       @RequestParam(name = "size", required = false, defaultValue = "20") int size,
       @RequestParam(name = "sortBy", required = false, defaultValue = "createdAt") String sortBy,
       @RequestParam(name = "sortDirection", required = false, defaultValue = "DESC")
           String sortDirection) {
 
+    String combinedEntityType =
+        (entityType != null && !entityType.isEmpty()) ? String.join(",", entityType) : null;
+
     return ResponseEntity.ok(
-        searchService.search(query, entityType, page, size, sortBy, sortDirection));
+        searchService.search(query, combinedEntityType, page, size, sortBy, sortDirection));
   }
 
   @GetMapping("/entities/{id}")

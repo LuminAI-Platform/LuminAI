@@ -70,7 +70,9 @@ def _produce_with_exponential_backoff(
                     callback=callback,
                 )
                 producer.poll(0)
-                luminai_kafka_messages_produced_total.labels(topic=topic, status="success").inc()
+                luminai_kafka_messages_produced_total.labels(
+                    topic=topic, status="success"
+                ).inc()
                 logger.info(
                     "📡 Successfully produced message to topic '%s' (attempt %d/%d)",
                     topic,
@@ -89,7 +91,9 @@ def _produce_with_exponential_backoff(
                     exc,
                 )
                 if attempt < max_retries:
-                    luminai_kafka_messages_produced_total.labels(topic=topic, status="retry").inc()
+                    luminai_kafka_messages_produced_total.labels(
+                        topic=topic, status="retry"
+                    ).inc()
                     # If local queue is full, poll to drain queue
                     if isinstance(exc, BufferError):
                         producer.poll(0.2)
@@ -98,7 +102,6 @@ def _produce_with_exponential_backoff(
 
         luminai_kafka_messages_produced_total.labels(topic=topic, status="failed").inc()
         return False, last_exc
-
 
 
 def _extract_retry_settings(
@@ -110,8 +113,16 @@ def _extract_retry_settings(
     """Safely extract retry settings with fallback defaults resistant to MagicMock objects."""
     # Retries
     retries = 3
-    val = max_retries if max_retries is not None else getattr(settings, "kafka_producer_max_retries", 3)
-    if isinstance(val, int) and not isinstance(val, bool) and not hasattr(val, "_mock_return_value"):
+    val = (
+        max_retries
+        if max_retries is not None
+        else getattr(settings, "kafka_producer_max_retries", 3)
+    )
+    if (
+        isinstance(val, int)
+        and not isinstance(val, bool)
+        and not hasattr(val, "_mock_return_value")
+    ):
         retries = val
     elif isinstance(val, (str, bytes)):
         try:
@@ -126,7 +137,11 @@ def _extract_retry_settings(
         if initial_backoff is not None
         else getattr(settings, "kafka_producer_initial_backoff", 0.5)
     )
-    if isinstance(val_b, (int, float)) and not isinstance(val_b, bool) and not hasattr(val_b, "_mock_return_value"):
+    if (
+        isinstance(val_b, (int, float))
+        and not isinstance(val_b, bool)
+        and not hasattr(val_b, "_mock_return_value")
+    ):
         backoff = float(val_b)
     elif isinstance(val_b, (str, bytes)):
         try:
@@ -141,7 +156,11 @@ def _extract_retry_settings(
         if backoff_multiplier is not None
         else getattr(settings, "kafka_producer_backoff_multiplier", 2.0)
     )
-    if isinstance(val_m, (int, float)) and not isinstance(val_m, bool) and not hasattr(val_m, "_mock_return_value"):
+    if (
+        isinstance(val_m, (int, float))
+        and not isinstance(val_m, bool)
+        and not hasattr(val_m, "_mock_return_value")
+    ):
         multiplier = float(val_m)
     elif isinstance(val_m, (str, bytes)):
         try:
@@ -150,7 +169,6 @@ def _extract_retry_settings(
             multiplier = 2.0
 
     return retries, backoff, multiplier
-
 
 
 class DeadLetterProducer:
@@ -167,8 +185,10 @@ class DeadLetterProducer:
         self.topic = settings.kafka_topic_ingest_dead_letter
         self.bootstrap_servers = settings.kafka_bootstrap_servers
         self.enabled = settings.kafka_enabled
-        self.max_retries, self.initial_backoff, self.backoff_multiplier = _extract_retry_settings(
-            settings, max_retries, initial_backoff, backoff_multiplier
+        self.max_retries, self.initial_backoff, self.backoff_multiplier = (
+            _extract_retry_settings(
+                settings, max_retries, initial_backoff, backoff_multiplier
+            )
         )
         self._sleep_fn = sleep_fn
         self._producer: Producer | None = None
@@ -186,13 +206,21 @@ class DeadLetterProducer:
                 logger.error("❌ Failed to create DeadLetterProducer: %s", e)
                 self._producer = None
         else:
-            logger.info("DeadLetterProducer initialised in dry-run mode. Would publish to '%s'", self.topic)
+            logger.info(
+                "DeadLetterProducer initialised in dry-run mode. Would publish to '%s'",
+                self.topic,
+            )
 
     def _delivery_report(self, err: Any, msg: Any) -> None:
         if err is not None:
             logger.error("❌ Dead-letter delivery failed: %s", err)
         else:
-            logger.info("💀 Dead-letter delivered to %s [%d] at offset %d", msg.topic(), msg.partition(), msg.offset())
+            logger.info(
+                "💀 Dead-letter delivered to %s [%d] at offset %d",
+                msg.topic(),
+                msg.partition(),
+                msg.offset(),
+            )
 
     def publish_dead_letter(
         self,
@@ -236,10 +264,17 @@ class DeadLetterProducer:
                     last_exc,
                 )
                 return False
-            logger.info("💀 Published dead-letter event to '%s' with key '%s'", self.topic, key)
+            logger.info(
+                "💀 Published dead-letter event to '%s' with key '%s'", self.topic, key
+            )
             return True
         else:
-            logger.info("[DRY-RUN] Would publish dead letter to %s — key=%s error=%s", self.topic, key, error)
+            logger.info(
+                "[DRY-RUN] Would publish dead letter to %s — key=%s error=%s",
+                self.topic,
+                key,
+                error,
+            )
             return True
 
     def flush(self, timeout: float = 1.0) -> None:
@@ -266,8 +301,10 @@ class IngestValidProducer:
         self.topic = settings.kafka_topic_ingest_valid
         self.bootstrap_servers = settings.kafka_bootstrap_servers
         self.enabled = settings.kafka_enabled
-        self.max_retries, self.initial_backoff, self.backoff_multiplier = _extract_retry_settings(
-            settings, max_retries, initial_backoff, backoff_multiplier
+        self.max_retries, self.initial_backoff, self.backoff_multiplier = (
+            _extract_retry_settings(
+                settings, max_retries, initial_backoff, backoff_multiplier
+            )
         )
         self._sleep_fn = sleep_fn
         self._dlq_producer = dead_letter_producer
@@ -357,7 +394,9 @@ class IngestValidProducer:
                     error=f"ProduceError after {self.max_retries} attempts: {last_exc}",
                 )
                 return False
-            logger.info("📡 Published message to topic '%s' with key '%s'", self.topic, key)
+            logger.info(
+                "📡 Published message to topic '%s' with key '%s'", self.topic, key
+            )
             return True
         else:
             logger.info(
@@ -393,8 +432,10 @@ class EntityResolvedProducer:
         self.topic = settings.kafka_topic_entity_resolved
         self.bootstrap_servers = settings.kafka_bootstrap_servers
         self.enabled = settings.kafka_enabled
-        self.max_retries, self.initial_backoff, self.backoff_multiplier = _extract_retry_settings(
-            settings, max_retries, initial_backoff, backoff_multiplier
+        self.max_retries, self.initial_backoff, self.backoff_multiplier = (
+            _extract_retry_settings(
+                settings, max_retries, initial_backoff, backoff_multiplier
+            )
         )
         self._sleep_fn = sleep_fn
         self._dlq_producer = dead_letter_producer
@@ -459,6 +500,8 @@ class EntityResolvedProducer:
             "golden_id": golden_id,
             "entity_type": entity_type,
             "data": payload,
+            "source_id": source_id,
+            "connectionId": source_id,
         }
         value_bytes = json.dumps(event_body).encode("utf-8")
 
@@ -490,11 +533,73 @@ class EntityResolvedProducer:
                     error=f"ProduceError after {self.max_retries} attempts: {last_exc}",
                 )
                 return False
-            logger.info("📡 Published resolved entity to topic '%s' with key '%s'", self.topic, key)
+            logger.info(
+                "📡 Published resolved entity to topic '%s' with key '%s'",
+                self.topic,
+                key,
+            )
             return True
         else:
             logger.info(
                 "[DRY-RUN] Would publish to %s — key=%s payload_keys=%s",
+                self.topic,
+                key,
+                list(event_body.keys()),
+            )
+            return True
+
+    def publish_batch_completion(
+        self,
+        tenant_id: str,
+        connection_id: str,
+        resolved_entities: int,
+    ) -> bool:
+        """Publish a batch completion event for entity resolution so consumers can mark the run completed."""
+        key = f"{tenant_id}:{connection_id}"
+        event_body = {
+            "tenant_id": tenant_id,
+            "connectionId": connection_id,
+            "source_id": connection_id,
+            "resolvedEntities": resolved_entities,
+            "status": "COMPLETED",
+        }
+        value_bytes = json.dumps(event_body).encode("utf-8")
+
+        if self._producer is not None:
+            success, last_exc = _produce_with_exponential_backoff(
+                producer=self._producer,
+                topic=self.topic,
+                key=key.encode("utf-8"),
+                value=value_bytes,
+                callback=self._delivery_report,
+                max_retries=self.max_retries,
+                initial_backoff=self.initial_backoff,
+                backoff_multiplier=self.backoff_multiplier,
+                sleep_fn=self._sleep_fn,
+            )
+            if not success:
+                logger.error(
+                    "🚨 CRITICAL ALERT: Kafka produce batch completion to '%s' failed after %d attempts: %s. Routing to dead-letter queue.",
+                    self.topic,
+                    self.max_retries,
+                    last_exc,
+                )
+                self._get_dlq_producer().publish_dead_letter(
+                    tenant_id=tenant_id,
+                    source_id=connection_id,
+                    original_topic=self.topic,
+                    original_key=key,
+                    original_payload=json.dumps(event_body),
+                    error=f"ProduceError after {self.max_retries} attempts: {last_exc}",
+                )
+                return False
+            logger.info(
+                "📡 Published batch completion to '%s' with key '%s'", self.topic, key
+            )
+            return True
+        else:
+            logger.info(
+                "[DRY-RUN] Would publish batch completion to %s — key=%s payload_keys=%s",
                 self.topic,
                 key,
                 list(event_body.keys()),
@@ -521,8 +626,10 @@ class IngestRawProducer:
         self.topic = settings.kafka_topic_ingest_raw
         self.bootstrap_servers = settings.kafka_bootstrap_servers
         self.enabled = settings.kafka_enabled
-        self.max_retries, self.initial_backoff, self.backoff_multiplier = _extract_retry_settings(
-            settings, max_retries, initial_backoff, backoff_multiplier
+        self.max_retries, self.initial_backoff, self.backoff_multiplier = (
+            _extract_retry_settings(
+                settings, max_retries, initial_backoff, backoff_multiplier
+            )
         )
         self._sleep_fn = sleep_fn
         self._dlq_producer = dead_letter_producer
@@ -541,7 +648,10 @@ class IngestRawProducer:
                 logger.error("❌ Failed to create IngestRawProducer: %s", e)
                 self._producer = None
         else:
-            logger.info("IngestRawProducer initialised in dry-run mode. Would publish to '%s'", self.topic)
+            logger.info(
+                "IngestRawProducer initialised in dry-run mode. Would publish to '%s'",
+                self.topic,
+            )
 
     def _get_dlq_producer(self) -> DeadLetterProducer:
         if self._dlq_producer is None:
@@ -557,7 +667,12 @@ class IngestRawProducer:
         if err is not None:
             logger.error("❌ IngestRaw replay delivery failed: %s", err)
         else:
-            logger.info("🔁 IngestRaw replayed to %s [%d] at offset %d", msg.topic(), msg.partition(), msg.offset())
+            logger.info(
+                "🔁 IngestRaw replayed to %s [%d] at offset %d",
+                msg.topic(),
+                msg.partition(),
+                msg.offset(),
+            )
 
     def publish_raw(
         self,
@@ -604,10 +719,14 @@ class IngestRawProducer:
                     error=f"ProduceError after {self.max_retries} attempts: {last_exc}",
                 )
                 return False
-            logger.info("🔁 Published raw message to '%s' with key '%s'", self.topic, key)
+            logger.info(
+                "🔁 Published raw message to '%s' with key '%s'", self.topic, key
+            )
             return True
         else:
-            logger.info("[DRY-RUN] Would replay raw message to %s — key=%s", self.topic, key)
+            logger.info(
+                "[DRY-RUN] Would replay raw message to %s — key=%s", self.topic, key
+            )
             return True
 
     def flush(self, timeout: float = 1.0) -> None:

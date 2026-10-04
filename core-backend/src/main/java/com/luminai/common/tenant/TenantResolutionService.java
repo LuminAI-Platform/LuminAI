@@ -3,10 +3,13 @@ package com.luminai.common.tenant;
 import com.luminai.auth.model.Tenant;
 import com.luminai.auth.model.User;
 import com.luminai.auth.repository.UserRepository;
+import com.luminai.config.CacheConfig;
+import java.io.Serializable;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -43,6 +46,10 @@ public class TenantResolutionService {
    *     is deactivated, or the user's tenant is not active. Callers must treat all of these as
    *     "reject the request" — none of them fall back to a default tenant.
    */
+  @Cacheable(
+      value = CacheConfig.CACHE_TENANT_RESOLUTION,
+      key = "#keycloakId",
+      unless = "#result == null or !#result.isPresent()")
   @Transactional(readOnly = true)
   public Optional<ResolvedTenant> resolveForKeycloakUser(String keycloakId) {
     if (!StringUtils.hasText(keycloakId)) {
@@ -76,5 +83,5 @@ public class TenantResolutionService {
   }
 
   /** The result of a tenant resolution: the tenant's primary key and its schema slug. */
-  public record ResolvedTenant(UUID tenantId, String slug) {}
+  public record ResolvedTenant(UUID tenantId, String slug) implements Serializable {}
 }

@@ -78,12 +78,24 @@ public class EntityResolvedConsumer {
         return;
       }
 
-      UUID connectionId = UUID.fromString((String) rawConnId);
+      UUID connectionId;
+      try {
+        connectionId = UUID.fromString(String.valueOf(rawConnId));
+      } catch (IllegalArgumentException e) {
+        log.debug(
+            "entity.resolved event with non-UUID connectionId '{}' — acknowledging message",
+            rawConnId);
+        ack.acknowledge();
+        return;
+      }
+
       long resolvedEntities =
           toLong(
               payload.get("resolvedEntities") != null
                   ? payload.get("resolvedEntities")
-                  : payload.getOrDefault("record_count", 0));
+                  : payload.get("resolved_entities") != null
+                      ? payload.get("resolved_entities")
+                      : payload.getOrDefault("record_count", 0));
 
       // Validate resolvedEntities is non-negative
       if (resolvedEntities < 0) {
@@ -144,12 +156,18 @@ public class EntityResolvedConsumer {
             .filter(
                 run ->
                     run.getStatus() == PipelineRunStatus.VALIDATED
-                        || run.getStatus() == PipelineRunStatus.CLEANED)
+                        || run.getStatus() == PipelineRunStatus.CLEANED
+                        || run.getStatus() == PipelineRunStatus.RUNNING
+                        || run.getStatus() == PipelineRunStatus.INGESTING
+                        || run.getStatus() == PipelineRunStatus.PENDING)
             .findFirst()
             .ifPresentOrElse(
                 run -> {
                   run.setStatus(COMPLETED_STATUS);
                   run.setCompletedAt(Instant.now());
+                  if (resolvedEntities > 0) {
+                    run.setRecordsOutput(resolvedEntities);
+                  }
                   // Use long value directly — safe from injection since it's a numeric type
                   run.setMetadata("{\"resolvedEntities\":" + resolvedEntities + "}");
                   pipelineRunRepository.save(run);

@@ -1,6 +1,7 @@
 package com.luminai.auth.controller;
 
 import com.luminai.common.tenant.TenantContext;
+import java.util.HashMap;
 import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -18,12 +19,15 @@ public class AuthController {
 
   @GetMapping("/me")
   public Map<String, Object> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
-    return Map.of(
-        "userId", jwt.getSubject(),
-        "email", jwt.getClaimAsString("email"),
-        "name", jwt.getClaimAsString("preferred_username"),
-        "tenantId", TenantContext.getTenantUuid().toString(),
-        "tenantSlug", TenantContext.getTenantSlug(),
-        "roles", jwt.getClaimAsMap("realm_access"));
+    Map<String, Object> response = new HashMap<>();
+    response.put("userId", jwt.getSubject());
+    response.put("email", jwt.getClaimAsString("email"));
+    response.put("name", jwt.getClaimAsString("preferred_username"));
+    response.put(
+        "tenantId",
+        TenantContext.getTenantUuid() != null ? TenantContext.getTenantUuid().toString() : null);
+    response.put("tenantSlug", TenantContext.getTenantSlug());
+    response.put("roles", jwt.getClaimAsMap("realm_access"));
+    return response;
   }
 }
