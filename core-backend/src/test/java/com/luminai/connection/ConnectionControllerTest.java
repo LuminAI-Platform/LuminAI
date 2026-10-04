@@ -20,6 +20,7 @@ import com.luminai.connection.dto.ConnectionDto;
 import com.luminai.connection.model.Connection;
 import com.luminai.connection.producer.ConnectionProducer;
 import com.luminai.connection.repository.ConnectionPreviewService;
+import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.connection.service.ConnectionService;
 import com.luminai.connection.service.FileConnectorService;
 import java.time.Instant;
@@ -46,6 +47,7 @@ class ConnectionControllerTest {
   @Mock private FileConnectorService fileConnectorService;
   @Mock private ConnectionProducer connectionProducer;
   @Mock private com.luminai.connection.service.PostgresConnectorService postgresConnectorService;
+  @Mock private GoldenRecordRepository goldenRecordRepository;
 
   @InjectMocks private ConnectionController controller;
 
