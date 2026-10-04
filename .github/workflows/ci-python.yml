@@ -1,7 +1,17 @@
 name: CI - Data Engine (Python)
 
 on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'data-engine/**'
+      - '.github/workflows/ci-python.yml'
   pull_request:
+    branches:
+      - main
+      - dev
     paths:
       - 'data-engine/**'
       - '.github/workflows/ci-python.yml'
