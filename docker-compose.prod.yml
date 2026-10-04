@@ -144,3 +144,11 @@ services:
         limits:
           memory: 1g
           cpus: "1.0"
+
+  frontend:
+    ports: []
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"

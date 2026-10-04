@@ -1,7 +1,17 @@
 name: CI - Java Backend
 
 on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'core-backend/**'
+      - '.github/workflows/ci-java.yml'
   pull_request:
+    branches:
+      - main
+      - dev
     paths:
       - 'core-backend/**'
       - '.github/workflows/ci-java.yml'
@@ -27,13 +37,17 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('core-backend/**/*.gradle*', 'core-backend/**/*.java') }}
 
+      - name: Make Gradle wrapper executable
+        working-directory: core-backend
+        run: chmod +x gradlew
+
       - name: Check code formatting
         working-directory: core-backend
-        run: gradle spotlessCheck
+        run: ./gradlew spotlessCheck
 
       - name: Run tests
         working-directory: core-backend
-        run: gradle test --stacktrace
+        run: ./gradlew test --stacktrace
 
       - name: Upload test report (on failure)
         if: failure()

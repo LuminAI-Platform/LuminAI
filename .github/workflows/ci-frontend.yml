@@ -1,7 +1,17 @@
 name: CI - Frontend
 
 on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/ci-frontend.yml'
   pull_request:
+    branches:
+      - main
+      - dev
     paths:
       - 'frontend/**'
       - '.github/workflows/ci-frontend.yml'
