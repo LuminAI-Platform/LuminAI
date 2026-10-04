@@ -13,6 +13,7 @@ import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/ToastProvider";
+import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
 
 export interface RecordSnapshot {
   recordId: string;
@@ -165,57 +166,54 @@ export const MergeReviewPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full gap-4 pb-6 select-none overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-zinc-100 tracking-tight flex items-center gap-2">
-              <GitMerge className="w-5 h-5 text-indigo-400" />
-              <span>Entity Resolution & Fusion Review</span>
-            </h1>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              Palantir Fusion Engine
-            </span>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Review probabilistic duplicate candidate pairs, inspect property
-            conflicts, and merge into Golden Records.
-          </p>
-        </div>
+      {/* Foundry Page Header */}
+      <FoundryPageHeader
+        breadcrumbs={[
+          { label: "Data Pipelines", to: "/connections" },
+          { label: "Fusion Review" },
+        ]}
+        title="Entity Resolution & Fusion Review"
+        description="Review probabilistic duplicate candidate pairs, inspect property conflicts, and merge into unified Golden Records."
+        icon={<GitMerge className="w-5 h-5 text-indigo-400" />}
+        badge={{
+          label: "Fusion Engine",
+          variant: "purple",
+        }}
+        actions={
+          <div className="flex items-center gap-2">
+            {/* Status Tabs */}
+            <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs">
+              {["PENDING", "ACCEPTED", "REJECTED", "ALL"].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                    statusFilter === s
+                      ? "bg-zinc-800 text-zinc-100 shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
 
-        <div className="flex items-center gap-2">
-          {/* Status Tabs */}
-          <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs">
-            {["PENDING", "ACCEPTED", "REJECTED", "ALL"].map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${
-                  statusFilter === s
-                    ? "bg-zinc-800 text-zinc-100 shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              leftIcon={
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
+                />
+              }
+            >
+              Refresh
+            </Button>
           </div>
-
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            leftIcon={
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
-              />
-            }
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main Split Layout */}
       <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { History, Layers } from "lucide-react";
 import { apiFetch } from "../../lib/api";
+import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
 import {
   VisualSchemaMapper,
   type SourceColumn,
@@ -617,36 +619,31 @@ export const SchemaMapPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* ── Page Header ── */}
-      <div className="flex items-start justify-between mb-5 flex-shrink-0 select-none">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-100">
-            Schema Mapping
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Visually connect raw source columns to ontology properties to
-            generate mapping configs
-          </p>
-        </div>
-        <button
-          id="schema-map-history-toggle"
-          onClick={() => setShowHistory((h) => !h)}
-          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-            <path d="M12 7v5l4 2" />
-          </svg>
-          History ({savedMappings.length})
-        </button>
+      {/* Foundry Page Header */}
+      <div className="mb-4 shrink-0">
+        <FoundryPageHeader
+          breadcrumbs={[
+            { label: "Data Pipelines", to: "/connections" },
+            { label: "Schema Studio" },
+          ]}
+          title="Schema Studio & Transformation Engine"
+          description="Visually map source schema columns to core ontology properties and configure data transformation rules."
+          icon={<Layers className="w-5 h-5 text-blue-400" />}
+          badge={{
+            label: "Transformation Engine",
+            variant: "blue",
+          }}
+          actions={
+            <button
+              id="schema-map-history-toggle"
+              onClick={() => setShowHistory((h) => !h)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-zinc-100 hover:border-zinc-700 transition-all cursor-pointer"
+            >
+              <History className="w-3.5 h-3.5 text-zinc-400" />
+              <span>History ({savedMappings.length})</span>
+            </button>
+          }
+        />
       </div>
 
       {/* ── Source / Target Selectors ── */}

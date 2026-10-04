@@ -4,6 +4,7 @@ import { AlertCircle, RefreshCw, Network } from "lucide-react";
 import type { Core } from "cytoscape";
 import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
+import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
 import {
   GraphCanvas,
   type GraphElements,
@@ -175,61 +176,59 @@ export const GraphPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full gap-4 pb-4">
-      {/* Top Header & Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-zinc-100 tracking-tight">
-              Knowledge Graph Explorer
-            </h1>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              Neo4j Mesh
-            </span>
+      {/* Foundry Page Header */}
+      <FoundryPageHeader
+        breadcrumbs={[
+          { label: "Operational Mesh", to: "/" },
+          { label: "Knowledge Graph" },
+        ]}
+        title="Knowledge Graph Explorer"
+        description="Explore 2D semantic entity neighbourhoods, shortest paths, and topological degree centrality."
+        icon={<Network className="w-5 h-5 text-purple-400" />}
+        badge={{
+          label: "Neo4j Mesh Synced",
+          variant: "purple",
+        }}
+        actions={
+          <div className="flex items-center gap-3">
+            <GraphSearchBar
+              onSearch={(id) => {
+                setSelectedEntityId(id);
+                setSelectedNode(null);
+              }}
+              isLoading={isLoading}
+            />
+
+            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 text-xs gap-1.5">
+              <span className="text-zinc-500 text-[11px] px-1 font-medium">
+                Depth
+              </span>
+              {[1, 2, 3, 4].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDepth(d)}
+                  className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
+                    depth === d
+                      ? "bg-blue-600 text-white"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => refetch()}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              Reload
+            </Button>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Explore 2D semantic entity neighbourhoods, shortest paths, and
-            topological degree centrality
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <GraphSearchBar
-            onSearch={(id) => {
-              setSelectedEntityId(id);
-              setSelectedNode(null);
-            }}
-            isLoading={isLoading}
-          />
-
-          <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 text-xs gap-1.5">
-            <span className="text-zinc-500 text-[11px] px-1 font-medium">
-              Depth
-            </span>
-            {[1, 2, 3, 4].map((d) => (
-              <button
-                key={d}
-                onClick={() => setDepth(d)}
-                className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
-                  depth === d
-                    ? "bg-blue-600 text-white"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => refetch()}
-            leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
-          >
-            Reload
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Backend connection error banner */}
       {error && (

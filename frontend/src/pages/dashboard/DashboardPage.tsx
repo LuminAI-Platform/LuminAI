@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   RefreshCw,
   ArrowRight,
-  Sparkles,
   GitBranch,
   Layers,
   AlertCircle,
@@ -23,6 +22,7 @@ import {
 } from "./components/PipelineTimelineChart";
 import { ActivityFeed, type ActivityItem } from "./components/ActivityFeed";
 import { DataEngineTelemetryCard } from "../../features/dashboard/components/DataEngineTelemetryCard";
+import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
 
 interface DashboardSummary {
   totalEntities: number;
@@ -112,49 +112,44 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-8">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-zinc-100 tracking-tight">
-              Platform Overview
-            </h1>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              Live Mesh
-            </span>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Real-time entity resolution telemetry, pipeline health, and data
-            infrastructure metrics
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleManualRefresh}
-            isLoading={isRefetching}
-            leftIcon={
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
-              />
-            }
-          >
-            Refresh
-          </Button>
-
-          <Link to="/connections">
+      {/* Foundry Header */}
+      <FoundryPageHeader
+        breadcrumbs={[{ label: "Compass" }, { label: "Platform Overview" }]}
+        title="Platform Overview"
+        description="Real-time entity resolution telemetry, pipeline health, and data infrastructure metrics"
+        icon={<Layers className="w-5 h-5 text-blue-400" />}
+        badge={{
+          label: "Live Mesh Active",
+          variant: "emerald",
+          pulse: true,
+        }}
+        actions={
+          <>
             <Button
-              variant="primary"
+              variant="secondary"
               size="sm"
-              leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+              onClick={handleManualRefresh}
+              isLoading={isRefetching}
+              leftIcon={
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
+                />
+              }
             >
-              Ingest Data
+              Refresh Telemetry
             </Button>
-          </Link>
-        </div>
-      </div>
+            <Link to="/connections">
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Database className="w-3.5 h-3.5" />}
+              >
+                Ingest Data
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* Error state if backend endpoint is unavailable */}
       {summaryError && (

@@ -12,11 +12,15 @@ import {
   ArrowRight,
   Search,
   X,
+  Database,
+  Plus,
+  Radio,
 } from "lucide-react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
+import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
 import { apiFetch } from "../../lib/api";
 
 interface IngestedFile {
@@ -300,133 +304,20 @@ export const ConnectionsPage: React.FC = () => {
   const getPreviewData = (
     file: IngestedFile,
   ): { columns: string[]; rows: Record<string, unknown>[] } => {
-    if (file.columns && file.sampleRows && file.sampleRows.length > 0) {
-      return { columns: file.columns, rows: file.sampleRows };
+    // 1. Return actual parsed rows from file ingestion if available
+    if (file.sampleRows && file.sampleRows.length > 0) {
+      const cols =
+        file.columns && file.columns.length > 0
+          ? file.columns
+          : Object.keys(file.sampleRows[0]);
+      return { columns: cols, rows: file.sampleRows };
     }
-    if (file.name.toLowerCase().includes("user")) {
-      const columns = [
-        "user_id",
-        "email_address",
-        "full_name",
-        "account_status",
-        "monthly_spend",
-        "country_code",
-      ];
-      const rows = [
-        {
-          user_id: "usr_8f2k91",
-          email_address: "alice@corp.io",
-          full_name: "Alice Mensah",
-          account_status: "active",
-          monthly_spend: "$1,250.00",
-          country_code: "GH",
-        },
-        {
-          user_id: "usr_9k3x12",
-          email_address: "kwame.b@innov.com",
-          full_name: "Kwame Boateng",
-          account_status: "active",
-          monthly_spend: "$3,400.50",
-          country_code: "GH",
-        },
-        {
-          user_id: "usr_2m8p45",
-          email_address: "sarah.j@apex.org",
-          full_name: "Sarah Jenkins",
-          account_status: "pending",
-          monthly_spend: "$890.00",
-          country_code: "US",
-        },
-        {
-          user_id: "usr_5v1n77",
-          email_address: "elena.r@fin.eu",
-          full_name: "Elena Rostova",
-          account_status: "active",
-          monthly_spend: "$4,120.00",
-          country_code: "DE",
-        },
-      ];
-      return { columns, rows };
+    // 2. If columns are configured but rows not yet cached locally
+    if (file.columns && file.columns.length > 0) {
+      return { columns: file.columns, rows: [] };
     }
-    if (
-      file.name.toLowerCase().includes("sale") ||
-      file.name.toLowerCase().includes("transaction")
-    ) {
-      const columns = [
-        "transaction_id",
-        "user_id",
-        "amount",
-        "currency",
-        "payment_method",
-        "timestamp",
-        "status",
-      ];
-      const rows = [
-        {
-          transaction_id: "txn_91a0c4",
-          user_id: "usr_8f2k91",
-          amount: "$450.00",
-          currency: "USD",
-          payment_method: "Credit Card",
-          timestamp: "2024-03-01 14:22:10",
-          status: "completed",
-        },
-        {
-          transaction_id: "txn_82b1d3",
-          user_id: "usr_9k3x12",
-          amount: "$1,200.00",
-          currency: "USD",
-          payment_method: "Wire Transfer",
-          timestamp: "2024-03-01 15:40:02",
-          status: "completed",
-        },
-        {
-          transaction_id: "txn_73c2e2",
-          user_id: "usr_2m8p45",
-          amount: "$89.50",
-          currency: "USD",
-          payment_method: "Debit Card",
-          timestamp: "2024-03-02 09:12:45",
-          status: "refunded",
-        },
-      ];
-      return { columns, rows };
-    }
-    const columns = [
-      "record_id",
-      "name",
-      "category",
-      "value",
-      "created_at",
-      "status",
-    ];
-    const rows = [
-      {
-        record_id: "rec_001",
-        name: "Sample Item Alpha",
-        category: "Standard",
-        value: "100",
-        created_at: "2024-02-15",
-        status: "synced",
-      },
-      {
-        record_id: "rec_002",
-        name: "Sample Item Beta",
-        category: "Enterprise",
-        value: "250",
-        created_at: "2024-02-18",
-        status: "synced",
-      },
-      {
-        record_id: "rec_003",
-        name: "Sample Item Gamma",
-        category: "Standard",
-        value: "75",
-        created_at: "2024-02-20",
-        status: "synced",
-      },
-    ];
-    return { columns, rows };
+    // 3. Fallback to schema structure without fabricating false records
+    return { columns: ["id", "status", "created_at"], rows: [] };
   };
 
   const openCleanPreview = async (file: IngestedFile) => {
@@ -445,43 +336,23 @@ export const ConnectionsPage: React.FC = () => {
       }
     } catch (e) {
       console.warn(
-        "Could not load backend clean preview, using normalized schema fallback",
+        "Could not load backend clean preview, checking local sample cache",
         e,
       );
       const raw = getPreviewData(file);
       setCleanData({
         connectionId: file.id,
         totalRawRecords: file.recordsCount || raw.rows.length,
-        totalCleanRecords: Math.max(
-          1,
-          Math.round((file.recordsCount || raw.rows.length) * 0.82),
-        ),
-        duplicatesMerged: Math.round(
-          (file.recordsCount || raw.rows.length) * 0.18,
-        ),
-        compressionRatio: "18.0%",
-        dataQualityScore: 98.4,
-        status: "RESOLVED_GOLDEN_RECORDS",
-        columns: [
-          "canonicalName",
-          "entityType",
-          "confidenceScore",
-          ...raw.columns,
-        ],
-        rows: raw.rows.map((r, i) => ({
-          id: `clean_${i + 1}`,
-          canonicalName: String(
-            r.full_name || r.name || r.user_id || `Canonical Entity ${i + 1}`,
-          ),
-          entityType: file.name.toLowerCase().includes("user")
-            ? "Person"
-            : file.name.toLowerCase().includes("transaction")
-              ? "Transaction"
-              : "Organization",
-          confidenceScore: 0.98,
-          sourceCount: 1,
-          ...r,
-        })),
+        totalCleanRecords: raw.rows.length,
+        duplicatesMerged: 0,
+        compressionRatio: "0%",
+        dataQualityScore: raw.rows.length > 0 ? 100 : 0,
+        status:
+          raw.rows.length > 0
+            ? "RAW_SAMPLE_CACHED"
+            : "AWAITING_INGESTION_CLEAN",
+        columns: raw.columns,
+        rows: raw.rows,
       });
     } finally {
       setIsCleanDataLoading(false);
@@ -557,80 +428,54 @@ export const ConnectionsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-6">
-      {/* Top Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Connections</h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Manage database connectors, file ingestions, and mappings
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* MVP-16 Auto-refresh indicator */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Auto-refresh (15s)</span>
-            <span className="text-zinc-600">·</span>
-            <span className="text-zinc-300">
-              Refreshed {formatRelativeTime(lastRefreshedAt)}
-            </span>
-          </div>
-
-          {/* MVP-16 Manual refresh button */}
-          <button
-            onClick={() => loadConnectors(false)}
-            disabled={isRefreshing || isLoading}
-            className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-black/10 hover:shadow-black/20 disabled:opacity-50"
-            title="Manual refresh connections list"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${
-                isRefreshing || isLoading ? "animate-spin text-blue-400" : ""
-              }`}
-            />
-            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-          </button>
-
-          <button
-            onClick={handleOpenWizard}
-            className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500/35 px-4 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
+      {/* Foundry Page Header */}
+      <FoundryPageHeader
+        breadcrumbs={[
+          { label: "Data Pipelines", to: "/connections" },
+          { label: "Data Connections" },
+        ]}
+        title="Data Connections & Ingestion"
+        description="Manage heterogeneous database connectors, flat file ingestions (CSV/JSON), and live Kafka ingestion topics."
+        icon={<Database className="w-5 h-5 text-blue-400" />}
+        badge={{
+          label: `Mesh Synced · ${formatRelativeTime(lastRefreshedAt)}`,
+          variant: "emerald",
+          pulse: true,
+        }}
+        actions={
+          <>
+            <button
+              onClick={() => loadConnectors(false)}
+              disabled={isRefreshing || isLoading}
+              className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              title="Manual refresh connections list"
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            Ingest File
-          </button>
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${
+                  isRefreshing || isLoading ? "animate-spin text-blue-400" : ""
+                }`}
+              />
+              <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+            </button>
 
-          <button
-            onClick={() => setIsDbModalOpen(true)}
-            className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-850 px-4 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-black/10 hover:shadow-black/20"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
+            <button
+              onClick={handleOpenWizard}
+              className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500/35 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-md shadow-blue-500/10 transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="12" x2="14" y2="12" />
-            </svg>
-            Connect Database
-          </button>
-        </div>
-      </div>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Ingest File</span>
+            </button>
+
+            <button
+              onClick={() => setIsDbModalOpen(true)}
+              className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 px-3.5 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Radio className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Connect DB</span>
+            </button>
+          </>
+        }
+      />
 
       {/* Tabs Menu */}
       <div className="flex border-b border-zinc-800/80 select-none">
@@ -1075,9 +920,50 @@ export const ConnectionsPage: React.FC = () => {
             </div>
 
             {/* Modal Content / Data Table */}
-            <div className="p-5 overflow-auto flex-1">
+            <div className="p-5 overflow-auto flex-1 min-h-0">
               {(() => {
                 const { columns, rows } = getPreviewData(previewingFile);
+                if (rows.length === 0) {
+                  return (
+                    <div className="py-12 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-xl border border-zinc-800/80">
+                      <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 mb-3">
+                        <Layers className="w-6 h-6 text-zinc-400" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-zinc-200">
+                        No Raw Sample Rows Cached
+                      </h4>
+                      <p className="text-xs text-zinc-500 max-w-md mt-1 mb-4 leading-relaxed">
+                        This dataset connection was registered with schema
+                        metadata. You can inspect its schema structure or view
+                        reconciled golden records processed by the Data Engine.
+                      </p>
+                      {columns.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 justify-center max-w-lg mb-5">
+                          {columns.map((col) => (
+                            <span
+                              key={col}
+                              className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono text-[11px]"
+                            >
+                              {col}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          const file = previewingFile;
+                          setPreviewingFile(null);
+                          openCleanPreview(file);
+                        }}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 shadow-md shadow-emerald-950 transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Inspect Clean Golden Records</span>
+                      </button>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="border border-zinc-800 rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">

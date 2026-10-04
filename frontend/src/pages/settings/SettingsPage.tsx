@@ -18,6 +18,7 @@ import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { useToast } from "../../components/ui/ToastProvider";
+import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
 
 interface AuthMeResponse {
   userId?: string;
@@ -154,28 +155,31 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-10 max-w-5xl">
-      {/* Page Header */}
-      <div className="flex items-center justify-between select-none">
-        <div>
-          <h1 className="text-xl font-bold text-zinc-100 tracking-tight">
-            Account & System Settings
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Manage your authenticated user profile, multi-tenant isolation, and
-            data-engine API keys
-          </p>
-        </div>
-
-        <Button
-          variant="danger"
-          size="sm"
-          onClick={handleLogout}
-          leftIcon={<LogOut className="w-3.5 h-3.5" />}
-        >
-          Sign Out
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-10 w-full">
+      {/* Foundry Page Header */}
+      <FoundryPageHeader
+        breadcrumbs={[
+          { label: "System Architecture", to: "/settings" },
+          { label: "Workspace Settings" },
+        ]}
+        title="Workspace & Tenant Configuration"
+        description="Manage authenticated operator identity, multi-tenant boundaries, role-based access control, and engine API keys."
+        icon={<Sliders className="w-5 h-5 text-blue-400" />}
+        badge={{
+          label: "Multi-Tenant Realm",
+          variant: "zinc",
+        }}
+        actions={
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={handleLogout}
+            leftIcon={<LogOut className="w-3.5 h-3.5" />}
+          >
+            Sign Out
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* 1. User Profile Section */}
