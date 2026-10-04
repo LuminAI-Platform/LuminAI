@@ -1,5 +1,6 @@
 package com.luminai.common.tenant;
 
+import com.luminai.config.CacheConfig;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,7 @@ public class TenantProvisioningService {
    * @throws TenantProvisioningException if provisioning fails at any step
    */
   @Transactional
+  @CacheEvict(value = CacheConfig.CACHE_TENANT_RESOLUTION, allEntries = true)
   public UUID provisionTenant(String name, String slug) {
     validateSlug(slug);
     String schemaName = TenantContext.SCHEMA_PREFIX + slug;

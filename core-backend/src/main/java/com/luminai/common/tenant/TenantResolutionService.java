@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,6 +81,18 @@ public class TenantResolutionService {
     }
 
     return Optional.of(new ResolvedTenant(tenant.getId(), tenant.getSlug()));
+  }
+
+  /** Evicts all cached tenant resolution entries. */
+  @CacheEvict(value = CacheConfig.CACHE_TENANT_RESOLUTION, allEntries = true)
+  public void evictAll() {
+    log.info("Evicted all entries from tenant resolution cache");
+  }
+
+  /** Evicts a specific keycloakId tenant resolution cache entry. */
+  @CacheEvict(value = CacheConfig.CACHE_TENANT_RESOLUTION, key = "#keycloakId")
+  public void evict(String keycloakId) {
+    log.info("Evicted tenant resolution cache entry for keycloakId: {}", keycloakId);
   }
 
   /** The result of a tenant resolution: the tenant's primary key and its schema slug. */

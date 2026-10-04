@@ -9,8 +9,10 @@ import com.luminai.auth.repository.TenantRepository;
 import com.luminai.auth.repository.UserRepository;
 import com.luminai.common.exception.ConflictException;
 import com.luminai.common.exception.ResourceNotFoundException;
+import com.luminai.config.CacheConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +53,7 @@ public class UserProvisioningService {
    *     Keycloak already has an account with this email/username.
    */
   @Transactional
+  @CacheEvict(value = CacheConfig.CACHE_TENANT_RESOLUTION, allEntries = true)
   public CreateUserResponse provisionUser(CreateUserRequest request) {
     Tenant tenant =
         tenantRepository
