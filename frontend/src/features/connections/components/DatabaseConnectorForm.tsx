@@ -280,7 +280,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-xs z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-xs z-[99999] p-4">
       <div
         className="w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col max-h-[85vh] overflow-hidden shadow-2xl relative"
         onClick={(e) => e.stopPropagation()}
