@@ -48,11 +48,12 @@ class ConnectionControllerTest {
   @Mock private ConnectionProducer connectionProducer;
   @Mock private com.luminai.connection.service.PostgresConnectorService postgresConnectorService;
   @Mock private GoldenRecordRepository goldenRecordRepository;
+  @Mock private com.luminai.connection.repository.ConnectionRepository connectionRepository;
+  @org.mockito.Spy private ObjectMapper objectMapper = new ObjectMapper();
 
   @InjectMocks private ConnectionController controller;
 
   private MockMvc mockMvc;
-  private ObjectMapper objectMapper;
 
   @BeforeEach
   void setUp() {

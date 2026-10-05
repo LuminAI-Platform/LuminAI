@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -70,6 +71,7 @@ public class ConnectionController {
   private final ConnectionRepository connectionRepository;
   private final ObjectMapper objectMapper;
 
+  @Autowired
   public ConnectionController(
       ConnectionService connectionService,
       ConnectionPreviewService connectionPreviewService,
@@ -87,24 +89,6 @@ public class ConnectionController {
     this.goldenRecordRepository = goldenRecordRepository;
     this.connectionRepository = connectionRepository;
     this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
-  }
-
-  public ConnectionController(
-      ConnectionService connectionService,
-      ConnectionPreviewService connectionPreviewService,
-      FileConnectorService fileConnectorService,
-      ConnectionProducer connectionProducer,
-      PostgresConnectorService postgresConnectorService,
-      GoldenRecordRepository goldenRecordRepository) {
-    this(
-        connectionService,
-        connectionPreviewService,
-        fileConnectorService,
-        connectionProducer,
-        postgresConnectorService,
-        goldenRecordRepository,
-        null,
-        new ObjectMapper());
   }
 
   // ----------------------------------------------------------------
