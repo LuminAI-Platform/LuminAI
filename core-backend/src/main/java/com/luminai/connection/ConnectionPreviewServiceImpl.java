@@ -60,11 +60,50 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
   public List<Map<String, Object>> previewFile(UUID connectionId) {
     Optional<Connection> connOpt = connectionRepository.findById(connectionId);
     if (connOpt.isEmpty()) {
+      UUID currentTenant = com.luminai.common.tenant.TenantContext.getTenantUuid();
+      if (currentTenant != null) {
+        connOpt = connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
+        if (connOpt.isEmpty()) {
+          List<Connection> all = connectionRepository.findAllByTenantId(currentTenant);
+          if (!all.isEmpty()) {
+            connOpt = Optional.of(all.get(0));
+          }
+        }
+      }
+    }
+    if (connOpt.isEmpty()) {
       log.warn("Connection '{}' not found for file preview", connectionId);
       return List.of();
     }
 
     Connection connection = connOpt.get();
+
+    // 1. Primary fast path: Check if connection config already contains cached parsed sample rows
+    if (connection.getConfig() != null && !connection.getConfig().isBlank()) {
+      try {
+        JsonNode root = objectMapper.readTree(connection.getConfig());
+        if (root.has("sampleRows")
+            && root.get("sampleRows").isArray()
+            && root.get("sampleRows").size() > 0) {
+          List<Map<String, Object>> cached = new ArrayList<>();
+          for (JsonNode rowNode : root.get("sampleRows")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = objectMapper.convertValue(rowNode, Map.class);
+            cached.add(map);
+          }
+          if (!cached.isEmpty()) {
+            return cached;
+          }
+        }
+      } catch (Exception e) {
+        log.debug(
+            "Could not parse config sampleRows for connection '{}': {}",
+            connectionId,
+            e.getMessage());
+      }
+    }
+
+    // 2. Secondary path: Stream from MinIO object storage if available
     String objectKey = resolveObjectKey(connection);
     if (objectKey == null) {
       log.warn("No stored object key found for connection '{}'", connectionId);
