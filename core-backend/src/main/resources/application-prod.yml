@@ -60,6 +60,7 @@ spring:
     authentication:
       username: ${NEO4J_USERNAME:neo4j}
       password: ${NEO4J_PASSWORD:neo4j}
+    database: ${NEO4J_DATABASE:neo4j}
 
   # ── Kafka — Aiven (SASL/SCRAM over TLS) ──────────────────────────
   kafka:

@@ -122,6 +122,12 @@ class Settings(BaseSettings):
             conf["sasl.password"] = self.kafka_password
         return conf
 
+    # Neo4j Configuration
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_username: str = "neo4j"
+    neo4j_password: str = "luminai_dev_password"
+    neo4j_database: str = "neo4j"
+
     # Database & Redis Configuration
     database_url: str | None = None
     redis_url: str | None = None

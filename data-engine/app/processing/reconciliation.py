@@ -209,16 +209,20 @@ class CrossStoreReconciler:
         try:
             import neo4j  # type: ignore
 
-            uri = "bolt://localhost:7687"
-            auth = ("neo4j", "luminai_dev_password")
+            settings = get_settings()
+            uri = getattr(settings, "neo4j_uri", os.getenv("NEO4J_URI", "bolt://localhost:7687"))
+            username = getattr(settings, "neo4j_username", os.getenv("NEO4J_USERNAME", "neo4j"))
+            password = getattr(settings, "neo4j_password", os.getenv("NEO4J_PASSWORD", "luminai_dev_password"))
+            auth = (username, password)
             records: List[StoreEntityRecord] = []
 
             with neo4j.GraphDatabase.driver(uri, auth=auth) as driver:
                 with driver.session() as session:
                     cypher_query = """
-                    MATCH (n:Entity {tenantId: $tenantId})
-                    RETURN n.goldenId AS goldenId, properties(n) AS props
-                    ORDER BY n.goldenId ASC
+                    MATCH (n:Entity)
+                    WHERE (n.tenant_id = $tenantId OR n.tenantId = $tenantId)
+                    RETURN coalesce(n.id, n.goldenId) AS goldenId, properties(n) AS props
+                    ORDER BY goldenId ASC
                     """
                     result = session.run(cypher_query, tenantId=self.tenant_id)
                     for record in result:
