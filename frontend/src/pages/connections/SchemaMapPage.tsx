@@ -647,9 +647,9 @@ export const SchemaMapPage: React.FC = () => {
       </div>
 
       {/* ── Source / Target Selectors ── */}
-      <div className="grid grid-cols-2 gap-4 mb-4 flex-shrink-0 select-none">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 shrink-0 select-none">
         {/* Source selector */}
-        <div className="p-4 bg-zinc-900/60 border border-zinc-800/80 rounded-xl">
+        <div className="p-3.5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl">
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">
             Source Table
           </p>
@@ -672,7 +672,7 @@ export const SchemaMapPage: React.FC = () => {
         </div>
 
         {/* Ontology selector */}
-        <div className="p-4 bg-zinc-900/60 border border-zinc-800/80 rounded-xl">
+        <div className="p-3.5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl">
           <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2">
             Target Ontology Entity
           </p>

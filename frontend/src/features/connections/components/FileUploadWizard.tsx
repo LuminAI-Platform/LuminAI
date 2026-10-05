@@ -596,7 +596,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       aria-labelledby="file-wizard-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity"
     >
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-[90vh] max-h-[850px] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-[96vw] max-w-7xl h-[92vh] max-h-[920px] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
           <div className="flex items-center gap-3">
@@ -752,145 +752,150 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </div>
 
               {/* Mappings Grid */}
-              <div className="flex-1 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950">
-                <div className="grid grid-cols-12 bg-zinc-900/60 border-b border-zinc-800/80 p-3.5 text-xs font-semibold text-zinc-400 select-none">
-                  <div className="col-span-1 text-center">Active</div>
-                  <div className="col-span-3">Source Column</div>
-                  <div className="col-span-2">Inferred Type</div>
-                  <div className="col-span-3">Target Entity Mapping</div>
-                  <div className="col-span-3">Transformation</div>
-                </div>
+              <div className="flex-1 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950 shadow-inner">
+                <div className="overflow-x-auto min-w-0">
+                  <div className="min-w-[760px]">
+                    <div className="grid grid-cols-12 bg-zinc-900/60 border-b border-zinc-800/80 p-3.5 text-xs font-semibold text-zinc-400 select-none">
+                      <div className="col-span-1 text-center">Active</div>
+                      <div className="col-span-3">Source Column</div>
+                      <div className="col-span-2">Inferred Type</div>
+                      <div className="col-span-3">Target Entity Mapping</div>
+                      <div className="col-span-3">Transformation</div>
+                    </div>
 
-                <div className="divide-y divide-zinc-900 max-h-[45vh] overflow-y-auto">
-                  {columnsConfig.map((col) => {
-                    const colMap = mappings[col.name] || {
-                      targetEntityType: "User",
-                      targetProperty: "id",
-                      transformation: "NONE",
-                    };
-                    return (
-                      <div
-                        key={col.name}
-                        className={`grid grid-cols-12 p-3 items-center text-xs transition-colors ${
-                          col.active
-                            ? "hover:bg-zinc-900/20"
-                            : "bg-zinc-900/10 opacity-60"
-                        }`}
-                      >
-                        {/* Toggle active checkbox */}
-                        <div className="col-span-1 flex justify-center">
-                          <input
-                            type="checkbox"
-                            checked={col.active}
-                            onChange={() => toggleColumn(col.name)}
-                            className="w-4 h-4 rounded border-zinc-800 bg-zinc-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </div>
-
-                        {/* Col name */}
-                        <div className="col-span-3 font-mono font-semibold text-zinc-200 truncate pr-4">
-                          {col.name}
-                        </div>
-
-                        {/* Inferred Type Dropdown */}
-                        <div className="col-span-2 pr-4">
-                          <select
-                            disabled={!col.active}
-                            value={col.type}
-                            onChange={(e) =>
-                              updateColumnType(
-                                col.name,
-                                e.target.value as ColumnConfig["type"],
-                              )
-                            }
-                            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    <div className="divide-y divide-zinc-900 max-h-[45vh] overflow-y-auto">
+                      {columnsConfig.map((col) => {
+                        const colMap = mappings[col.name] || {
+                          targetEntityType: "User",
+                          targetProperty: "id",
+                          transformation: "NONE",
+                        };
+                        return (
+                          <div
+                            key={col.name}
+                            className={`grid grid-cols-12 p-3 items-center text-xs transition-colors ${
+                              col.active
+                                ? "hover:bg-zinc-900/20"
+                                : "bg-zinc-900/10 opacity-60"
+                            }`}
                           >
-                            {[
-                              "String",
-                              "Integer",
-                              "Double",
-                              "Boolean",
-                              "Timestamp",
-                            ].map((t) => (
-                              <option key={t} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                            {/* Toggle active checkbox */}
+                            <div className="col-span-1 flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={col.active}
+                                onChange={() => toggleColumn(col.name)}
+                                className="w-4 h-4 rounded border-zinc-800 bg-zinc-900 text-blue-500 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </div>
 
-                        {/* Ontology Target Selector */}
-                        <div className="col-span-3 flex gap-2 pr-4">
-                          <select
-                            disabled={!col.active}
-                            value={colMap.targetEntityType}
-                            onChange={(e) =>
-                              updateMapping(
-                                col.name,
-                                "targetEntityType",
-                                e.target.value,
-                              )
-                            }
-                            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
-                          >
-                            {ontologyEntityTypes.map((entity) => (
-                              <option key={entity} value={entity}>
-                                {entity}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            disabled={!col.active}
-                            value={colMap.targetProperty}
-                            onChange={(e) =>
-                              updateMapping(
-                                col.name,
-                                "targetProperty",
-                                e.target.value,
-                              )
-                            }
-                            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
-                          >
-                            {(
-                              ontologyProperties[colMap.targetEntityType] || []
-                            ).map((prop) => (
-                              <option key={prop} value={prop}>
-                                {prop}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                            {/* Col name */}
+                            <div className="col-span-3 font-mono font-semibold text-zinc-200 truncate pr-4">
+                              {col.name}
+                            </div>
 
-                        {/* Transformation */}
-                        <div className="col-span-3">
-                          <select
-                            disabled={!col.active}
-                            value={colMap.transformation}
-                            onChange={(e) =>
-                              updateMapping(
-                                col.name,
-                                "transformation",
-                                e.target.value,
-                              )
-                            }
-                            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50"
-                          >
-                            {[
-                              "NONE",
-                              "UPPERCASE",
-                              "LOWERCASE",
-                              "TRIM",
-                              "DATE_PARSE",
-                            ].map((tx) => (
-                              <option key={tx} value={tx}>
-                                {tx === "NONE" ? "None (Pass through)" : tx}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    );
-                  })}
+                            {/* Inferred Type Dropdown */}
+                            <div className="col-span-2 pr-4">
+                              <select
+                                disabled={!col.active}
+                                value={col.type}
+                                onChange={(e) =>
+                                  updateColumnType(
+                                    col.name,
+                                    e.target.value as ColumnConfig["type"],
+                                  )
+                                }
+                                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {[
+                                  "String",
+                                  "Integer",
+                                  "Double",
+                                  "Boolean",
+                                  "Timestamp",
+                                ].map((t) => (
+                                  <option key={t} value={t}>
+                                    {t}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Ontology Target Selector */}
+                            <div className="col-span-3 flex gap-2 pr-4">
+                              <select
+                                disabled={!col.active}
+                                value={colMap.targetEntityType}
+                                onChange={(e) =>
+                                  updateMapping(
+                                    col.name,
+                                    "targetEntityType",
+                                    e.target.value,
+                                  )
+                                }
+                                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
+                              >
+                                {ontologyEntityTypes.map((entity) => (
+                                  <option key={entity} value={entity}>
+                                    {entity}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                disabled={!col.active}
+                                value={colMap.targetProperty}
+                                onChange={(e) =>
+                                  updateMapping(
+                                    col.name,
+                                    "targetProperty",
+                                    e.target.value,
+                                  )
+                                }
+                                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
+                              >
+                                {(
+                                  ontologyProperties[colMap.targetEntityType] ||
+                                  []
+                                ).map((prop) => (
+                                  <option key={prop} value={prop}>
+                                    {prop}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Transformation */}
+                            <div className="col-span-3">
+                              <select
+                                disabled={!col.active}
+                                value={colMap.transformation}
+                                onChange={(e) =>
+                                  updateMapping(
+                                    col.name,
+                                    "transformation",
+                                    e.target.value,
+                                  )
+                                }
+                                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50"
+                              >
+                                {[
+                                  "NONE",
+                                  "UPPERCASE",
+                                  "LOWERCASE",
+                                  "TRIM",
+                                  "DATE_PARSE",
+                                ].map((tx) => (
+                                  <option key={tx} value={tx}>
+                                    {tx === "NONE" ? "None (Pass through)" : tx}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
