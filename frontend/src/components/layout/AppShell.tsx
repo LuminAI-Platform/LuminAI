@@ -17,7 +17,14 @@ interface PerformanceWithMemory extends Performance {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("luminai_sidebar_collapsed");
+      if (stored !== null) return stored === "true";
+      return window.innerWidth < 1280;
+    }
+    return false;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // 1. Hardware concurrency initialized via lazy state (prevents cascading re-renders)
@@ -92,12 +99,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         <TopBar onMenuClick={() => setMobileOpen(true)} />
 
         {/* Scrollable View Container */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 relative min-w-0">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7 relative min-w-0">
           {/* Subtle dotted background grid */}
           <div className="absolute inset-0 bg-grid-dots pointer-events-none z-0" />
 
           {/* Children views container */}
-          <div className="relative z-10 max-w-6xl mx-auto w-full">
+          <div className="relative z-10 max-w-[1720px] mx-auto w-full">
             {children}
           </div>
         </main>
@@ -138,7 +145,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </span>
           </div>
           <div className="hidden sm:block text-zinc-600">
-            LuminAI Operational Intelligence
+            LuminAI Data Platform
           </div>
         </footer>
       </div>

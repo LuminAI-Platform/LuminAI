@@ -68,19 +68,58 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Predefined ontology values
-  const ontologyEntityTypes = [
+  // Dynamic ontology values loaded from live backend
+  const [ontologyEntityTypes, setOntologyEntityTypes] = useState<string[]>([
     "User",
     "Product",
     "Transaction",
     "Organization",
-  ];
-  const ontologyProperties: Record<string, string[]> = {
+  ]);
+  const [ontologyProperties, setOntologyProperties] = useState<
+    Record<string, string[]>
+  >({
     User: ["id", "name", "email", "created_at", "role", "status"],
     Product: ["id", "sku", "name", "price", "stock_quantity", "category"],
     Transaction: ["id", "amount", "timestamp", "user_id", "status"],
     Organization: ["id", "name", "industry", "employee_count", "country"],
-  };
+  });
+
+  useEffect(() => {
+    const fetchOntology = async () => {
+      try {
+        const res = await apiFetch("/api/v1/ontology/entity-types");
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) {
+            const types: string[] = [];
+            const propsMap: Record<string, string[]> = {};
+            list.forEach(
+              (item: {
+                name?: string;
+                label?: string;
+                properties?: Array<{ name: string }>;
+              }) => {
+                const name = item.name || item.label;
+                if (name) {
+                  types.push(name);
+                  propsMap[name] = Array.isArray(item.properties)
+                    ? item.properties.map((p) => p.name)
+                    : ["id", "name", "created_at"];
+                }
+              },
+            );
+            if (types.length > 0) {
+              setOntologyEntityTypes(types);
+              setOntologyProperties(propsMap);
+            }
+          }
+        }
+      } catch {
+        // Retain defaults
+      }
+    };
+    fetchOntology();
+  }, []);
 
   // Helper to log in step 4 console
   const addLog = (message: string, level: IngestionLog["level"] = "INFO") => {
@@ -555,9 +594,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="file-wizard-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/75 backdrop-blur-md transition-opacity"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity"
     >
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-[90vh] max-h-[850px] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
           <div className="flex items-center gap-3">
@@ -870,7 +909,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   {columnsConfig.length} columns active
                 </span>
               </div>
-              <div className="flex-1 min-h-[350px]">
+              <div className="flex-1 min-h-0 overflow-hidden">
                 <DataPreviewTable
                   columns={columnsConfig}
                   rows={parsedData.rows}
@@ -882,7 +921,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
           {/* STEP 4: SUMMARY & INGESTION SIMULATOR */}
           {step === 4 && (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full min-h-[350px]">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full min-h-0 overflow-y-auto">
               {/* Left pane: file summary */}
               <div className="md:col-span-2 flex flex-col gap-4">
                 <div className="bg-zinc-950/40 border border-zinc-800 p-5 rounded-xl flex flex-col gap-4">

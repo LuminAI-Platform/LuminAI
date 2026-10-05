@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
 
 interface TopBarProps {
@@ -69,7 +70,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         <input
           type="text"
           className="bg-transparent border-none outline-none text-zinc-100 placeholder-zinc-500 text-xs w-full"
-          placeholder="Search ontology, pipelines, or clusters..."
+          placeholder="Search entities, connections, or pipelines..."
         />
         <span className="bg-zinc-900 border border-zinc-800 text-zinc-500 text-[9px] px-1.5 py-0.5 rounded font-mono hidden sm:inline-block shrink-0">
           CMD K
@@ -124,10 +125,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         {/* Divider */}
         <div className="w-px h-5 bg-zinc-800 mx-1 hidden sm:block" />
 
-        {/* Deploy Action */}
-        <button
-          type="button"
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2 rounded-lg cursor-pointer transition-all flex items-center gap-1.5 shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 shrink-0"
+        {/* New Connection Action */}
+        <Link
+          to="/connections"
+          className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs shadow-blue-500/20 shrink-0 cursor-pointer"
         >
           <svg
             width="13"
@@ -139,11 +140,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Deploy
-        </button>
+          New Connection
+        </Link>
 
         {/* Divider */}
         <div className="w-px h-5 bg-zinc-800 mx-1 hidden sm:block" />

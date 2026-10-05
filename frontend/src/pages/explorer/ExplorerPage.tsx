@@ -5,6 +5,7 @@ import { EntityCard } from "../../features/explorer/components/EntityCard";
 import { FacetFilterSidebar } from "../../features/explorer/components/FacetFilterSidebar";
 import { HelpCircle, RefreshCw, Layers, Download } from "lucide-react";
 import type { EntityType } from "../../features/ontology/components/EntityTypeEditor";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 interface SearchResponse {
   content: Array<{
@@ -323,17 +324,19 @@ export const ExplorerPage: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 select-none">
       {/* Page Header */}
-      <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-zinc-100 flex items-center gap-2.5">
-            <Layers className="w-5 h-5 text-blue-500" />
-            <span>Entity Explorer</span>
-          </h1>
-          <p className="text-xs text-zinc-500 mt-1">
-            Search, filter, and inspect canonical graph entities and metadata.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHeader
+        breadcrumbs={[
+          { label: "Explore & Overview", to: "/" },
+          { label: "Entity Explorer" },
+        ]}
+        title="Entity Explorer"
+        description="Search, filter, and inspect canonical records, properties, and entity indexes."
+        icon={<Layers className="w-5 h-5 text-blue-400" />}
+        badge={{
+          label: "Search Active",
+          variant: "emerald",
+        }}
+        actions={
           <button
             onClick={handleExportCsv}
             disabled={isExporting}
@@ -347,8 +350,8 @@ export const ExplorerPage: React.FC = () => {
             />
             <span>{isExporting ? "Exporting..." : "Export Clean CSV"}</span>
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Search Input Bar Row */}
       <div className="flex justify-center md:justify-start">

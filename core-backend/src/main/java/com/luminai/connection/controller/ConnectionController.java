@@ -158,8 +158,8 @@ public class ConnectionController {
   }
 
   /**
-   * Returns cleaned and resolved golden records for the connection with Palantir Foundry-style data
-   * quality indicators and deduplication compression metrics.
+   * Returns cleaned and resolved golden records for the connection with comprehensive data quality
+   * indicators and deduplication compression metrics.
    */
   @GetMapping("/{id}/clean-preview")
   @org.springframework.security.access.prepost.PreAuthorize(

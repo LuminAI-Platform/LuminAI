@@ -248,21 +248,20 @@ export const LoginPage: React.FC = () => {
                   </span>
                 </div>
                 <span className="text-[10px] font-mono tracking-widest text-zinc-400 uppercase mt-1 font-medium">
-                  ENTERPRISE DATA OPERATING SYSTEM
+                  ENTERPRISE DATA PLATFORM
                 </span>
               </div>
             </div>
 
             <div className="space-y-3 mt-2">
               <h1 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-[1.15]">
-                The Unified Semantic
+                The Unified Data
                 <br />
-                Data Environment
+                Platform
               </h1>
               <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed max-w-xl">
-                Connect raw pipelines, define enterprise-wide semantic models,
-                map ontology schemas, and deploy production-grade agent
-                endpoints.
+                Connect data sources, define unified schemas, explore entity
+                relationships, and monitor automated pipelines.
               </p>
             </div>
           </div>
@@ -320,7 +319,7 @@ export const LoginPage: React.FC = () => {
                 <div className="flex items-center gap-1.5 h-3 mt-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
                   <span className="text-emerald-400 text-[10px] font-mono font-medium">
-                    Sub-quantum SLA
+                    Operational SLA
                   </span>
                 </div>
               </div>
@@ -331,11 +330,11 @@ export const LoginPage: React.FC = () => {
               <div className="flex items-center justify-between text-[10px] font-mono">
                 <div className="flex items-center gap-2 text-zinc-400 tracking-wider">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  <span>ACTIVE SCHEMA TOPOLOGY</span>
+                  <span>CONNECTED DATA SOURCES</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <span>99.99% Fabric Health</span>
+                  <span>System Operational</span>
                 </div>
               </div>
 
@@ -367,7 +366,9 @@ export const LoginPage: React.FC = () => {
                 <span className="text-zinc-300">us-east-prod-1</span>
               </span>
             </div>
-            <span className="text-zinc-400">Encrypted Key Broker Active</span>
+            <span className="text-zinc-400">
+              Secure OIDC Session Management
+            </span>
           </div>
         </div>
 
@@ -391,16 +392,16 @@ export const LoginPage: React.FC = () => {
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              Zero Trust Auth Gateway
+              Single Sign-On
             </div>
 
             <div className="mt-5 space-y-2">
               <h2 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">
-                Secure Client Access
+                Account Sign In
               </h2>
               <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                Single Sign-On gateway for enterprise tenants and authenticated
-                engineers.
+                Sign in with your enterprise account to access connections,
+                pipelines, and entity graphs.
               </p>
             </div>
           </div>
