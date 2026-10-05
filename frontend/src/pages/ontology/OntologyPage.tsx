@@ -600,106 +600,110 @@ export const OntologyPage: React.FC = () => {
                 }
               />
             ) : (
-              <div className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-950/40">
-                <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                  <div className="col-span-3">Name</div>
-                  <div className="col-span-4">Endpoints</div>
-                  <div className="col-span-2">Cardinality</div>
-                  <div className="col-span-2">Direction</div>
-                  <div className="col-span-1 text-right">Actions</div>
-                </div>
-                <div className="divide-y divide-zinc-900">
-                  {relationships.map((rel) => (
-                    <div
-                      key={rel.id ?? rel.name}
-                      className="group grid grid-cols-12 px-5 py-3.5 items-center hover:bg-zinc-900/30 transition-all text-xs"
-                    >
-                      <div className="col-span-3">
-                        <span className="font-bold font-mono text-purple-400">
-                          {rel.name}
-                        </span>
-                        <span className="block text-[10px] text-zinc-500 mt-0.5">
-                          {rel.label}
-                        </span>
-                      </div>
-                      <div className="col-span-4 flex items-center gap-2">
-                        <span className="font-semibold text-zinc-300 text-[11px]">
-                          {entityName(rel.sourceEntityTypeId)}
-                        </span>
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          className="text-purple-500 shrink-0"
+              <div className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-950/40 shadow-inner">
+                <div className="overflow-x-auto min-w-0">
+                  <div className="min-w-[680px]">
+                    <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                      <div className="col-span-3">Name</div>
+                      <div className="col-span-4">Endpoints</div>
+                      <div className="col-span-2">Cardinality</div>
+                      <div className="col-span-2">Direction</div>
+                      <div className="col-span-1 text-right">Actions</div>
+                    </div>
+                    <div className="divide-y divide-zinc-900">
+                      {relationships.map((rel) => (
+                        <div
+                          key={rel.id ?? rel.name}
+                          className="group grid grid-cols-12 px-5 py-3.5 items-center hover:bg-zinc-900/30 transition-all text-xs"
                         >
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                          <polyline points="13 6 19 12 13 18" />
-                        </svg>
-                        <span className="font-semibold text-zinc-300 text-[11px]">
-                          {entityName(rel.targetEntityTypeId)}
-                        </span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="font-mono font-bold text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                          {rel.cardinality.replace(/_/g, ":")}
-                        </span>
-                      </div>
-                      <div className="col-span-2">
-                        <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${rel.directed ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}
-                        >
-                          {rel.directed ? "Directed" : "Undirected"}
-                        </span>
-                      </div>
-                      <div className="col-span-1 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          id={`edit-rel-${rel.id}`}
-                          type="button"
-                          onClick={() => {
-                            setEditingRel(rel);
-                            setRelFormOpen(true);
-                          }}
-                          className="p-1.5 text-zinc-500 hover:text-purple-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-                        >
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        {rel.id && (
-                          <button
-                            id={`delete-rel-${rel.id}`}
-                            type="button"
-                            onClick={() => deleteRelationship(rel.id!)}
-                            className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-                          >
+                          <div className="col-span-3">
+                            <span className="font-bold font-mono text-purple-400">
+                              {rel.name}
+                            </span>
+                            <span className="block text-[10px] text-zinc-500 mt-0.5">
+                              {rel.label}
+                            </span>
+                          </div>
+                          <div className="col-span-4 flex items-center gap-2">
+                            <span className="font-semibold text-zinc-300 text-[11px]">
+                              {entityName(rel.sourceEntityTypeId)}
+                            </span>
                             <svg
-                              width="12"
-                              height="12"
+                              width="14"
+                              height="14"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="2"
+                              className="text-purple-500 shrink-0"
                             >
-                              <path d="M3 6h18" />
-                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                              <polyline points="13 6 19 12 13 18" />
                             </svg>
-                          </button>
-                        )}
-                      </div>
+                            <span className="font-semibold text-zinc-300 text-[11px]">
+                              {entityName(rel.targetEntityTypeId)}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-mono font-bold text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                              {rel.cardinality.replace(/_/g, ":")}
+                            </span>
+                          </div>
+                          <div className="col-span-2">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${rel.directed ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}
+                            >
+                              {rel.directed ? "Directed" : "Undirected"}
+                            </span>
+                          </div>
+                          <div className="col-span-1 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              id={`edit-rel-${rel.id}`}
+                              type="button"
+                              onClick={() => {
+                                setEditingRel(rel);
+                                setRelFormOpen(true);
+                              }}
+                              className="p-1.5 text-zinc-500 hover:text-purple-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </button>
+                            {rel.id && (
+                              <button
+                                id={`delete-rel-${rel.id}`}
+                                type="button"
+                                onClick={() => deleteRelationship(rel.id!)}
+                                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
+                              >
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -728,43 +732,47 @@ export const OntologyPage: React.FC = () => {
                 sub='Click "Publish Version" to snapshot the current ontology schema'
               />
             ) : (
-              <div className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-950/40">
-                <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                  <div className="col-span-3">Version</div>
-                  <div className="col-span-4">Published At</div>
-                  <div className="col-span-3">Published By</div>
-                  <div className="col-span-2">Status</div>
-                </div>
-                <div className="divide-y divide-zinc-900">
-                  {versions.map((v) => (
-                    <div
-                      key={v.id}
-                      className="grid grid-cols-12 px-5 py-3.5 items-center text-xs hover:bg-zinc-900/30 transition-all"
-                    >
-                      <div className="col-span-3 font-bold font-mono text-zinc-200">
-                        {v.version}
-                      </div>
-                      <div className="col-span-4 text-zinc-500">
-                        {v.publishedAt}
-                      </div>
-                      <div className="col-span-3 text-zinc-400">
-                        {v.publishedBy}
-                      </div>
-                      <div className="col-span-2">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                            v.status === "PUBLISHED"
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : v.status === "DEPRECATED"
-                                ? "bg-red-500/10 text-red-400 border-red-500/20"
-                                : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                          }`}
-                        >
-                          {v.status}
-                        </span>
-                      </div>
+              <div className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-950/40 shadow-inner">
+                <div className="overflow-x-auto min-w-0">
+                  <div className="min-w-[680px]">
+                    <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                      <div className="col-span-3">Version</div>
+                      <div className="col-span-4">Published At</div>
+                      <div className="col-span-3">Published By</div>
+                      <div className="col-span-2">Status</div>
                     </div>
-                  ))}
+                    <div className="divide-y divide-zinc-900">
+                      {versions.map((v) => (
+                        <div
+                          key={v.id}
+                          className="grid grid-cols-12 px-5 py-3.5 items-center text-xs hover:bg-zinc-900/30 transition-all"
+                        >
+                          <div className="col-span-3 font-bold font-mono text-zinc-200">
+                            {v.version}
+                          </div>
+                          <div className="col-span-4 text-zinc-500">
+                            {v.publishedAt}
+                          </div>
+                          <div className="col-span-3 text-zinc-400">
+                            {v.publishedBy}
+                          </div>
+                          <div className="col-span-2">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                v.status === "PUBLISHED"
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : v.status === "DEPRECATED"
+                                    ? "bg-red-500/10 text-red-400 border-red-500/20"
+                                    : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                              }`}
+                            >
+                              {v.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

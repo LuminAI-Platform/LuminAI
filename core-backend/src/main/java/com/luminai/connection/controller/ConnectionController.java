@@ -210,50 +210,33 @@ public class ConnectionController {
       rawCount = cleanCount + mergedCount;
     } else {
       List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-      if (rawRows.isEmpty()) {
-        rawRows =
-            List.of(
-                Map.of(
-                    "name", "Acme Corporation",
-                    "email", "info@acme.com",
-                    "status", "ACTIVE",
-                    "country", "US"),
-                Map.of(
-                    "name", "Global Logistics Ltd",
-                    "email", "ops@globallogistics.com",
-                    "status", "ACTIVE",
-                    "country", "UK"),
-                Map.of(
-                    "name", "Apex Healthcare",
-                    "email", "support@apexhealth.org",
-                    "status", "VERIFIED",
-                    "country", "DE"));
-      }
-      rawCount = rawRows.size();
-      for (Map<String, Object> raw : rawRows) {
-        Map<String, Object> clean = new LinkedHashMap<>();
-        String name =
-            raw.containsKey("name")
-                ? String.valueOf(raw.get("name"))
-                : (raw.containsKey("full_name")
-                    ? String.valueOf(raw.get("full_name"))
-                    : "Entity " + UUID.randomUUID().toString().substring(0, 8));
-        clean.put("id", UUID.randomUUID().toString());
-        clean.put("canonicalName", name.trim());
-        clean.put("entityType", "Organization");
-        clean.put("confidenceScore", 0.98);
-        clean.put("sourceCount", 1);
+      if (!rawRows.isEmpty()) {
+        rawCount = rawRows.size();
+        for (Map<String, Object> raw : rawRows) {
+          Map<String, Object> clean = new LinkedHashMap<>();
+          String name =
+              raw.containsKey("name")
+                  ? String.valueOf(raw.get("name"))
+                  : (raw.containsKey("full_name")
+                      ? String.valueOf(raw.get("full_name"))
+                      : "Entity " + UUID.randomUUID().toString().substring(0, 8));
+          clean.put("id", UUID.randomUUID().toString());
+          clean.put("canonicalName", name.trim());
+          clean.put("entityType", "Organization");
+          clean.put("confidenceScore", 0.98);
+          clean.put("sourceCount", 1);
 
-        for (Map.Entry<String, Object> e : raw.entrySet()) {
-          String k = e.getKey().trim();
-          columnSet.add(k);
-          Object v = e.getValue();
-          clean.put(k, v != null ? String.valueOf(v).trim() : "");
+          for (Map.Entry<String, Object> e : raw.entrySet()) {
+            String k = e.getKey().trim();
+            columnSet.add(k);
+            Object v = e.getValue();
+            clean.put(k, v != null ? String.valueOf(v).trim() : "");
+          }
+          cleanRows.add(clean);
         }
-        cleanRows.add(clean);
+        cleanCount = cleanRows.size();
+        mergedCount = Math.max(0, (long) (rawCount * 0.15));
       }
-      cleanCount = cleanRows.size();
-      mergedCount = Math.max(0, (long) (rawCount * 0.15));
     }
 
     Map<String, Object> response = new LinkedHashMap<>();
@@ -299,29 +282,11 @@ public class ConnectionController {
       writeRecordsToCsv(goldenRecords, writer);
     } else {
       List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-      if (rawRows.isEmpty()) {
-        rawRows =
-            List.of(
-                Map.of(
-                    "id", "1",
-                    "canonical_name", "Acme Corporation",
-                    "entity_type", "Organization",
-                    "email", "info@acme.com",
-                    "status", "ACTIVE"),
-                Map.of(
-                    "id", "2",
-                    "canonical_name", "Global Logistics Ltd",
-                    "entity_type", "Organization",
-                    "email", "ops@globallogistics.com",
-                    "status", "ACTIVE"),
-                Map.of(
-                    "id", "3",
-                    "canonical_name", "Apex Healthcare",
-                    "entity_type", "Organization",
-                    "email", "support@apexhealth.org",
-                    "status", "VERIFIED"));
+      if (!rawRows.isEmpty()) {
+        writeMapsToCsv(rawRows, writer);
+      } else {
+        writer.println("id,canonical_name,entity_type,confidence_score,status");
       }
-      writeMapsToCsv(rawRows, writer);
     }
   }
 

@@ -105,7 +105,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
       </div>
 
       {/* Main Table viewport */}
-      <div className="flex-1 overflow-x-auto min-h-[300px]">
+      <div className="flex-1 min-h-0 overflow-auto">
         {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center select-none">
             <svg
@@ -131,16 +131,16 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
             </span>
           </div>
         ) : (
-          <table className="w-full text-left border-collapse table-auto text-xs">
-            <thead>
-              <tr className="border-b border-zinc-800/80 bg-zinc-900/30 text-zinc-400 select-none">
-                <th className="py-3 px-4 font-semibold text-zinc-500 w-12 text-center">
+          <table className="w-full text-left border-collapse table-auto text-xs font-mono">
+            <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-xs">
+              <tr className="text-zinc-400 select-none">
+                <th className="py-2.5 px-3 font-semibold text-zinc-400 w-12 text-center sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800/80 shadow-xs">
                   #
                 </th>
                 {columns.map((col) => (
                   <th
                     key={col.name}
-                    className={`py-3 px-4 font-semibold transition-all ${
+                    className={`py-2.5 px-4 font-semibold whitespace-nowrap min-w-[130px] border-r border-zinc-800/60 transition-all ${
                       col.active
                         ? "text-zinc-200"
                         : "text-zinc-600 bg-zinc-950/40 opacity-50"
@@ -203,9 +203,9 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
                 return (
                   <tr
                     key={index}
-                    className="hover:bg-zinc-900/30 transition-colors group"
+                    className="even:bg-zinc-900/20 hover:bg-zinc-850/40 transition-colors group"
                   >
-                    <td className="py-2.5 px-4 text-center font-mono text-zinc-600 bg-zinc-900/10 select-none">
+                    <td className="py-2 px-3 text-center font-mono text-zinc-500 bg-zinc-950 sticky left-0 z-10 border-r border-zinc-800/80 shadow-xs select-none">
                       {globalIndex}
                     </td>
                     {columns.map((col) => {
@@ -222,11 +222,12 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
                       return (
                         <td
                           key={col.name}
-                          className={`py-2.5 px-4 font-mono text-zinc-300 max-w-[240px] truncate ${
+                          className={`py-2 px-4 font-mono text-zinc-300 whitespace-nowrap max-w-[280px] truncate border-r border-zinc-900/60 ${
                             col.active
                               ? ""
                               : "text-zinc-600 bg-zinc-950/20 opacity-40 line-through"
                           }`}
+                          title={value !== null ? formattedValue : "null"}
                         >
                           {value === null ? (
                             <span className="text-[10px] text-zinc-500 font-semibold italic bg-zinc-900 px-1 py-0.5 rounded">
