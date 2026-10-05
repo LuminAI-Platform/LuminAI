@@ -594,7 +594,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="file-wizard-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity"
     >
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-[96vw] max-w-7xl h-[92vh] max-h-[920px] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
         {/* Top Header */}
