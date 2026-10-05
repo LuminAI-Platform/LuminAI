@@ -7,7 +7,7 @@ export interface BreadcrumbItem {
   to?: string;
 }
 
-export interface FoundryPageHeaderProps {
+export interface PageHeaderProps {
   breadcrumbs: BreadcrumbItem[];
   title: string;
   description: string;
@@ -36,7 +36,7 @@ const DOT_COLORS = {
   zinc: "bg-zinc-400",
 };
 
-export const FoundryPageHeader: React.FC<FoundryPageHeaderProps> = ({
+export const PageHeader: React.FC<PageHeaderProps> = ({
   breadcrumbs,
   title,
   description,
@@ -48,7 +48,7 @@ export const FoundryPageHeader: React.FC<FoundryPageHeaderProps> = ({
 
   return (
     <div className="flex flex-col gap-2 pb-2 select-none border-b border-zinc-800/80">
-      {/* Foundry Breadcrumbs */}
+      {/* Navigation Breadcrumbs */}
       <nav
         aria-label="Breadcrumb"
         className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-500"

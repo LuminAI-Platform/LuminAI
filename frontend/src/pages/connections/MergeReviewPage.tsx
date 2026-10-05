@@ -13,7 +13,7 @@ import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/ToastProvider";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 export interface RecordSnapshot {
   recordId: string;
@@ -42,7 +42,7 @@ interface PageData {
 }
 
 /**
- * Palantir-style Entity Resolution (ER) & Object Fusion Review Console
+ * Entity Resolution (ER) & Record Fusion Review Console
  */
 export const MergeReviewPage: React.FC = () => {
   const toast = useToast();
@@ -166,17 +166,17 @@ export const MergeReviewPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full gap-4 pb-6 select-none overflow-hidden">
-      {/* Foundry Page Header */}
-      <FoundryPageHeader
+      {/* Page Header */}
+      <PageHeader
         breadcrumbs={[
-          { label: "Data Pipelines", to: "/connections" },
+          { label: "Data Integration", to: "/connections" },
           { label: "Fusion Review" },
         ]}
         title="Entity Resolution & Fusion Review"
-        description="Review probabilistic duplicate candidate pairs, inspect property conflicts, and merge into unified Golden Records."
+        description="Review duplicate candidate pairs, inspect property conflicts, and merge into unified Golden Records."
         icon={<GitMerge className="w-5 h-5 text-indigo-400" />}
         badge={{
-          label: "Fusion Engine",
+          label: "Resolution Active",
           variant: "purple",
         }}
         actions={

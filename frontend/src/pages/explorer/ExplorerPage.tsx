@@ -5,7 +5,7 @@ import { EntityCard } from "../../features/explorer/components/EntityCard";
 import { FacetFilterSidebar } from "../../features/explorer/components/FacetFilterSidebar";
 import { HelpCircle, RefreshCw, Layers, Download } from "lucide-react";
 import type { EntityType } from "../../features/ontology/components/EntityTypeEditor";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 interface SearchResponse {
   content: Array<{
@@ -323,17 +323,17 @@ export const ExplorerPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 select-none">
-      {/* Foundry Page Header */}
-      <FoundryPageHeader
+      {/* Page Header */}
+      <PageHeader
         breadcrumbs={[
-          { label: "Operational Mesh", to: "/" },
+          { label: "Explore & Overview", to: "/" },
           { label: "Entity Explorer" },
         ]}
-        title="Entity Explorer & Canonical Search"
-        description="Search, filter, and inspect canonical graph entities, properties, and inverted index facets."
+        title="Entity Explorer"
+        description="Search, filter, and inspect canonical records, properties, and entity indexes."
         icon={<Layers className="w-5 h-5 text-blue-400" />}
         badge={{
-          label: "OpenSearch Synced",
+          label: "Search Active",
           variant: "emerald",
         }}
         actions={

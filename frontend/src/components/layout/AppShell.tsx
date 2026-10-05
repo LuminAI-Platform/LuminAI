@@ -145,7 +145,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </span>
           </div>
           <div className="hidden sm:block text-zinc-600">
-            LuminAI Operational Intelligence
+            LuminAI Data Platform
           </div>
         </footer>
       </div>

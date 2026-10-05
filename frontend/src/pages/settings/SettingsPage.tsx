@@ -18,7 +18,7 @@ import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { useToast } from "../../components/ui/ToastProvider";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 interface AuthMeResponse {
   userId?: string;
@@ -156,17 +156,17 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-10 w-full">
-      {/* Foundry Page Header */}
-      <FoundryPageHeader
+      {/* Page Header */}
+      <PageHeader
         breadcrumbs={[
-          { label: "System Architecture", to: "/settings" },
+          { label: "Configuration", to: "/settings" },
           { label: "Workspace Settings" },
         ]}
-        title="Workspace & Tenant Configuration"
-        description="Manage authenticated operator identity, multi-tenant boundaries, role-based access control, and engine API keys."
+        title="Workspace & Tenant Settings"
+        description="Manage authenticated user identity, multi-tenant boundaries, access control roles, and API configuration."
         icon={<Sliders className="w-5 h-5 text-blue-400" />}
         badge={{
-          label: "Multi-Tenant Realm",
+          label: "Tenant Settings",
           variant: "zinc",
         }}
         actions={

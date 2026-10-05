@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Boxes } from "lucide-react";
 import { apiFetch } from "../../lib/api";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 import {
   EntityTypeEditor,
   EntityIcon,
@@ -165,18 +165,18 @@ export const OntologyPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-0 h-full overflow-hidden">
-      {/* Foundry Page Header */}
+      {/* Page Header */}
       <div className="pb-4 shrink-0">
-        <FoundryPageHeader
+        <PageHeader
           breadcrumbs={[
-            { label: "System Architecture", to: "/ontology" },
+            { label: "Configuration", to: "/ontology" },
             { label: "Ontology Manager" },
           ]}
-          title="Ontology Schema & Topology Manager"
-          description="Define entity types, typed properties, validation constraints, and directional relationships for the graph mesh."
+          title="Ontology Schema Manager"
+          description="Define entity types, typed properties, validation constraints, and directional relationships."
           icon={<Boxes className="w-5 h-5 text-indigo-400" />}
           badge={{
-            label: "Schema Registry",
+            label: "Active Schema",
             variant: "purple",
           }}
           actions={

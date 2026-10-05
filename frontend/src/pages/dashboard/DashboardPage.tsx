@@ -22,7 +22,7 @@ import {
 } from "./components/PipelineTimelineChart";
 import { ActivityFeed, type ActivityItem } from "./components/ActivityFeed";
 import { DataEngineTelemetryCard } from "../../features/dashboard/components/DataEngineTelemetryCard";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 
 interface DashboardSummary {
   totalEntities: number;
@@ -112,14 +112,14 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-8">
-      {/* Foundry Header */}
-      <FoundryPageHeader
-        breadcrumbs={[{ label: "Compass" }, { label: "Platform Overview" }]}
+      {/* Standard Page Header */}
+      <PageHeader
+        breadcrumbs={[{ label: "Dashboard" }]}
         title="Platform Overview"
-        description="Real-time entity resolution telemetry, pipeline health, and data infrastructure metrics"
+        description="System status, connected data sources, pipeline executions, and resolved records."
         icon={<Layers className="w-5 h-5 text-blue-400" />}
         badge={{
-          label: "Live Mesh Active",
+          label: "System Healthy",
           variant: "emerald",
           pulse: true,
         }}
@@ -136,7 +136,7 @@ export const DashboardPage: React.FC = () => {
                 />
               }
             >
-              Refresh Telemetry
+              Refresh
             </Button>
             <Link to="/connections">
               <Button
@@ -144,7 +144,7 @@ export const DashboardPage: React.FC = () => {
                 size="sm"
                 leftIcon={<Database className="w-3.5 h-3.5" />}
               >
-                Ingest Data
+                Add Connection
               </Button>
             </Link>
           </>
@@ -307,7 +307,7 @@ export const DashboardPage: React.FC = () => {
           />
         </div>
 
-        {/* Command Center Quick Actions (1 col) */}
+        {/* Quick Actions (1 col) */}
         <div className="flex flex-col gap-3">
           <Link
             to="/connections"
@@ -320,10 +320,10 @@ export const DashboardPage: React.FC = () => {
               <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
             </div>
             <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-blue-300 transition-colors">
-              Data Ingestion Hub
+              Data Connections
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Connect PostgreSQL, S3, MinIO, or upload CSV/JSON files.
+              Connect external databases or upload flat files (CSV, JSON).
             </p>
           </Link>
 
@@ -338,11 +338,10 @@ export const DashboardPage: React.FC = () => {
               <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
             </div>
             <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-purple-300 transition-colors">
-              Knowledge Graph Explorer
+              Knowledge Graph
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Visualize semantic entity neighbourhoods and shortest paths in 2D
-              mesh.
+              Explore interconnected records and semantic relationships.
             </p>
           </Link>
 
@@ -357,11 +356,10 @@ export const DashboardPage: React.FC = () => {
               <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
             </div>
             <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-emerald-300 transition-colors">
-              Semantic Schema Studio
+              Data Model & Ontology
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Define entity types, property schemas, and publish ontology
-              versions.
+              Manage entity types, field properties, and relationship schemas.
             </p>
           </Link>
         </div>

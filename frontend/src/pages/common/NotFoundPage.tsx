@@ -15,12 +15,11 @@ export const NotFoundPage: React.FC = () => {
       </span>
 
       <h1 className="text-3xl font-bold text-zinc-100 tracking-tight mb-2">
-        Lost in the Semantic Mesh?
+        Page Not Found
       </h1>
 
       <p className="text-sm text-zinc-400 max-w-md mb-8 leading-relaxed">
-        The entity, node, or route you are attempting to access does not exist
-        or has been moved to a different namespace.
+        The page you are looking for does not exist or may have been moved.
       </p>
 
       <div className="flex items-center gap-3">

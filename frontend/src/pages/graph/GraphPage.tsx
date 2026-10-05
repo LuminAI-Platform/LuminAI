@@ -4,7 +4,7 @@ import { AlertCircle, RefreshCw, Network } from "lucide-react";
 import type { Core } from "cytoscape";
 import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 import {
   GraphCanvas,
   type GraphElements,
@@ -176,17 +176,17 @@ export const GraphPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full gap-4 pb-4">
-      {/* Foundry Page Header */}
-      <FoundryPageHeader
+      {/* Page Header */}
+      <PageHeader
         breadcrumbs={[
-          { label: "Operational Mesh", to: "/" },
+          { label: "Explore & Overview", to: "/" },
           { label: "Knowledge Graph" },
         ]}
         title="Knowledge Graph Explorer"
-        description="Explore 2D semantic entity neighbourhoods, shortest paths, and topological degree centrality."
+        description="Explore entity relationships, connected graph clusters, and relationship pathways."
         icon={<Network className="w-5 h-5 text-purple-400" />}
         badge={{
-          label: "Neo4j Mesh Synced",
+          label: "Graph Connected",
           variant: "purple",
         }}
         actions={

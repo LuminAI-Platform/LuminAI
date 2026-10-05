@@ -20,7 +20,7 @@ import { FileUploadWizard } from "../../features/connections/components/FileUplo
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 import { apiFetch } from "../../lib/api";
 
 interface IngestedFile {
@@ -428,17 +428,17 @@ export const ConnectionsPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-6">
-      {/* Foundry Page Header */}
-      <FoundryPageHeader
+      {/* Page Header */}
+      <PageHeader
         breadcrumbs={[
-          { label: "Data Pipelines", to: "/connections" },
+          { label: "Data Integration", to: "/connections" },
           { label: "Data Connections" },
         ]}
         title="Data Connections & Ingestion"
-        description="Manage heterogeneous database connectors, flat file ingestions (CSV/JSON), and live Kafka ingestion topics."
+        description="Manage database connectors, file ingestions (CSV/JSON), and live data pipelines."
         icon={<Database className="w-5 h-5 text-blue-400" />}
         badge={{
-          label: `Mesh Synced · ${formatRelativeTime(lastRefreshedAt)}`,
+          label: `Connected · ${formatRelativeTime(lastRefreshedAt)}`,
           variant: "emerald",
           pulse: true,
         }}
@@ -1069,7 +1069,7 @@ export const ConnectionsPage: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Foundry-Style Clean Dataset Preview & Quality Scorecard Modal */}
+      {/* Clean Dataset Preview & Quality Scorecard Modal */}
       {cleanPreviewFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1129,7 +1129,7 @@ export const ConnectionsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Foundry Metric KPI Cards Bar */}
+            {/* Metric KPI Cards Bar */}
             <div className="p-4 bg-zinc-900/20 border-b border-zinc-800 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
               <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl">
                 <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
@@ -1325,7 +1325,7 @@ export const ConnectionsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Modal Footer with Foundry Navigation */}
+            {/* Modal Footer with Actions */}
             <div className="p-4 border-t border-zinc-800 bg-zinc-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2 text-xs text-zinc-400">
                 <Layers className="w-4 h-4 text-emerald-400 shrink-0" />

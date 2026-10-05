@@ -157,7 +157,7 @@ export const EntityDetailPage: React.FC = () => {
       />
 
       {/* ── Page content ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-6 select-none max-w-5xl">
+      <div className="flex flex-col gap-6 select-none w-full">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           <Link

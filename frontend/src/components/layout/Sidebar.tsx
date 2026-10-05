@@ -18,7 +18,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  // OPERATIONAL MESH
+  // EXPLORE & OVERVIEW
   {
     label: "Dashboard",
     to: "/",
@@ -265,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   LuminAI
                 </span>
                 <span className="text-[9px] font-mono font-semibold text-zinc-500 tracking-widest uppercase mt-0.5">
-                  Foundry Platform
+                  Data Platform
                 </span>
               </div>
             )}
@@ -295,10 +295,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Navigation list */}
         <nav className="flex-1 py-4 px-3 flex flex-col gap-1 overflow-y-auto min-h-0">
-          {/* Section: Operational Mesh */}
+          {/* Section: Explore & Overview */}
           {!collapsed && (
             <div className="px-2 pt-1 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-              Operational Mesh
+              Explore & Overview
             </div>
           )}
           {navItems
@@ -332,10 +332,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </SidebarTooltip>
             ))}
 
-          {/* Section: Data Pipelines */}
+          {/* Section: Data Integration */}
           {!collapsed && (
             <div className="px-2 pt-4 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-              Data Pipelines
+              Data Integration
             </div>
           )}
           {navItems
@@ -369,10 +369,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </SidebarTooltip>
             ))}
 
-          {/* Section: System & Architecture */}
+          {/* Section: Configuration */}
           {!collapsed && (
             <div className="px-2 pt-4 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-              System Architecture
+              Configuration
             </div>
           )}
           {navItems

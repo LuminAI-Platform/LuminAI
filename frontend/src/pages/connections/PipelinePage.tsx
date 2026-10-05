@@ -1,23 +1,23 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
 import { Activity, ArrowRight, Database } from "lucide-react";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 import { PipelineMonitor } from "../../features/connections/components/PipelineMonitor";
 
 export const PipelinePage: React.FC = () => {
   return (
     <div className="flex flex-col gap-5 h-full overflow-y-auto pr-2 pb-6">
-      {/* Foundry Page Header */}
-      <FoundryPageHeader
+      {/* Page Header */}
+      <PageHeader
         breadcrumbs={[
-          { label: "Data Pipelines", to: "/connections" },
+          { label: "Data Integration", to: "/connections" },
           { label: "Pipeline Monitor" },
         ]}
         title="Pipeline Health & Stream Monitor"
-        description="Monitor distributed Kafka ingest topics, DuckDB cleaning stage throughput, and real-time execution telemetry."
+        description="Monitor ingest topics, data cleaning stage throughput, and real-time execution telemetry."
         icon={<Activity className="w-5 h-5 text-emerald-400" />}
         badge={{
-          label: "Streams Healthy",
+          label: "Streams Active",
           variant: "emerald",
           pulse: true,
         }}

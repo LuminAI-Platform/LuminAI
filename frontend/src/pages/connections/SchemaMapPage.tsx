@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { History, Layers } from "lucide-react";
 import { apiFetch } from "../../lib/api";
-import { FoundryPageHeader } from "../../components/layout/FoundryPageHeader";
+import { PageHeader } from "../../components/layout/PageHeader";
 import {
   VisualSchemaMapper,
   type SourceColumn,
@@ -619,18 +619,18 @@ export const SchemaMapPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Foundry Page Header */}
+      {/* Page Header */}
       <div className="mb-4 shrink-0">
-        <FoundryPageHeader
+        <PageHeader
           breadcrumbs={[
-            { label: "Data Pipelines", to: "/connections" },
+            { label: "Data Integration", to: "/connections" },
             { label: "Schema Studio" },
           ]}
-          title="Schema Studio & Transformation Engine"
-          description="Visually map source schema columns to core ontology properties and configure data transformation rules."
+          title="Schema Studio & Mapping"
+          description="Map source schema columns to core ontology properties and configure data transformation rules."
           icon={<Layers className="w-5 h-5 text-blue-400" />}
           badge={{
-            label: "Transformation Engine",
+            label: "Active Schema",
             variant: "blue",
           }}
           actions={
