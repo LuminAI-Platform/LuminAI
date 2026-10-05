@@ -266,93 +266,119 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Metrics & Topology Section */}
-          <div className="space-y-6">
-            {/* Stat cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[#111525]/80 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col justify-between min-h-[90px]">
-                <span className="text-zinc-400 text-[10px] font-mono uppercase tracking-wider font-semibold">
-                  DEPLOYMENTS
-                </span>
-                <div className="mt-1">
-                  <span className="text-lg font-bold text-white">1.2k+</span>
-                  <span className="text-zinc-400 text-xs font-normal ml-0.5">
-                    /day
-                  </span>
-                </div>
-                <div className="flex items-end gap-1 h-3 mt-2">
-                  <div className="w-2.5 h-1.5 bg-blue-600/40 rounded-xs"></div>
-                  <div className="w-2.5 h-2.5 bg-blue-500/60 rounded-xs"></div>
-                  <div className="w-2.5 h-2 bg-blue-500/80 rounded-xs"></div>
-                  <div className="w-2.5 h-3 bg-blue-500 rounded-xs"></div>
-                  <div className="w-2.5 h-3.5 bg-blue-400 rounded-xs"></div>
-                </div>
+          {/* Platform Capabilities Overview */}
+          <div className="space-y-3.5">
+            <div className="bg-[#111525]/80 border border-zinc-800/80 rounded-xl p-4 flex items-start gap-3.5">
+              <div className="w-8 h-8 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
               </div>
-
-              <div className="bg-[#111525]/80 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col justify-between min-h-[90px]">
-                <span className="text-zinc-400 text-[10px] font-mono uppercase tracking-wider font-semibold">
-                  INGESTION
-                </span>
-                <div className="mt-1">
-                  <span className="text-lg font-bold text-white">2.4</span>
-                  <span className="text-blue-400 text-sm font-bold ml-1">
-                    PB
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 h-3 mt-2">
-                  <div className="w-3.5 h-3 bg-indigo-600/80 rounded-xs"></div>
-                  <div className="w-3.5 h-3 bg-indigo-500/80 rounded-xs"></div>
-                  <div className="w-3.5 h-3 bg-indigo-400/90 rounded-xs"></div>
-                </div>
-              </div>
-
-              <div className="bg-[#111525]/80 border border-zinc-800/80 rounded-xl p-3.5 flex flex-col justify-between min-h-[90px]">
-                <span className="text-zinc-400 text-[10px] font-mono uppercase tracking-wider font-semibold">
-                  SYNC LATENCY
-                </span>
-                <div className="mt-1">
-                  <span className="text-lg font-bold text-emerald-400">14</span>
-                  <span className="text-emerald-400 text-xs font-bold ml-1">
-                    ms
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 h-3 mt-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
-                  <span className="text-emerald-400 text-[10px] font-mono font-medium">
-                    Operational SLA
-                  </span>
-                </div>
+              <div>
+                <h2 className="text-xs font-semibold text-zinc-200">
+                  Data Ingestion & Connectors
+                </h2>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                  Ingest structured tabular files (CSV, JSON) and connect
+                  relational databases into staged raw storage.
+                </p>
               </div>
             </div>
 
-            {/* Topology Widget */}
-            <div className="bg-[#111525]/50 border border-zinc-800/80 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between text-[10px] font-mono">
-                <div className="flex items-center gap-2 text-zinc-400 tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  <span>CONNECTED DATA SOURCES</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <span>System Operational</span>
-                </div>
+            <div className="bg-[#111525]/80 border border-zinc-800/80 rounded-xl p-4 flex items-start gap-3.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                  <polyline points="2 17 12 22 22 17" />
+                  <polyline points="2 12 12 17 22 12" />
+                </svg>
               </div>
+              <div>
+                <h2 className="text-xs font-semibold text-zinc-200">
+                  Schema Studio & Ontology Models
+                </h2>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                  Map raw columns to typed ontology properties and configure
+                  validation rules visually.
+                </p>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {[
-                  { name: "Snowflake" },
-                  { name: "Kafka Bus" },
-                  { name: "PostgreSQL" },
-                  { name: "AWS S3" },
-                ].map((item) => (
-                  <div
-                    key={item.name}
-                    className="bg-[#090b14] border border-zinc-800/80 rounded-lg px-3 py-2 flex items-center justify-between text-xs text-zinc-300 font-medium"
-                  >
-                    <span>{item.name}</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
-                  </div>
-                ))}
+            <div className="bg-[#111525]/80 border border-zinc-800/80 rounded-xl p-4 flex items-start gap-3.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="18" cy="18" r="3" />
+                  <circle cx="6" cy="6" r="3" />
+                  <path d="M6 21V9a9 9 0 0 0 9 9" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xs font-semibold text-zinc-200">
+                  Entity Resolution & Golden Records
+                </h2>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                  Identify duplicate records, resolve attribute conflicts, and
+                  maintain canonical golden records with provenance.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-[#111525]/80 border border-zinc-800/80 rounded-xl p-4 flex items-start gap-3.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-600/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xs font-semibold text-zinc-200">
+                  Knowledge Graph & Search
+                </h2>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
+                  Perform multi-hop relationship traversals in Neo4j and
+                  full-text faceted entity search in OpenSearch.
+                </p>
               </div>
             </div>
           </div>
@@ -360,15 +386,10 @@ export const LoginPage: React.FC = () => {
           {/* Left Footer Bar */}
           <div className="border-t border-zinc-800/60 pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-zinc-400 font-mono gap-2">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
-              <span>
-                Global Cluster:{" "}
-                <span className="text-zinc-300">us-east-prod-1</span>
-              </span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+              <span>Multi-Tenant Architecture</span>
             </div>
-            <span className="text-zinc-400">
-              Secure OIDC Session Management
-            </span>
+            <span className="text-zinc-500">Keycloak OIDC Ready</span>
           </div>
         </div>
 
@@ -495,22 +516,15 @@ export const LoginPage: React.FC = () => {
 
           {/* Card Footer Badges */}
           <div className="text-[11px] text-zinc-500 font-mono text-center tracking-wide pt-4">
-            • 256-bit TLS Encryption • Multi-Tenant Isolation • SOC2 Type II
+            Protected by OpenID Connect (OIDC) Single Sign-On
           </div>
         </div>
       </div>
 
-      {/* Bottom Footer Links */}
-      <div className="w-full max-w-[1240px] mx-auto mt-4 pt-2 pb-4 flex items-center gap-6 text-xs text-zinc-600 font-mono">
-        <a href="#" className="hover:text-zinc-400 transition-colors">
-          Security Policy
-        </a>
-        <a href="#" className="hover:text-zinc-400 transition-colors">
-          System Status
-        </a>
-        <a href="#" className="hover:text-zinc-400 transition-colors">
-          Agent API Reference
-        </a>
+      {/* Bottom Footer Notice */}
+      <div className="w-full max-w-[1240px] mx-auto mt-4 pt-2 pb-4 flex items-center justify-between text-xs text-zinc-600 font-mono">
+        <span>LuminAI Enterprise Data Platform</span>
+        <span>Version 1.0.0</span>
       </div>
     </div>
   );
