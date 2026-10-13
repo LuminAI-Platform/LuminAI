@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
-import { Database, Network, Cpu, Share2, Shield, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import {
+  Database,
+  Network,
+  Cpu,
+  Share2,
+  Shield,
+  ArrowRight,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 
 // Animated Particle Mesh & Connected Node Lattice canvas background component
 const ParticleMeshCanvas: React.FC = () => {
@@ -181,10 +190,8 @@ export const LoginPage: React.FC = () => {
 
       {/* Main Container */}
       <div className="w-full max-w-[1240px] mx-auto my-auto py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10 items-stretch">
-
         {/* Left Column: Visual branding and system details */}
         <div className="lg:col-span-7 bg-[#0b0d14]/90 border border-zinc-800/80 rounded-xl p-7 lg:p-9 flex flex-col justify-between gap-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-
           {/* Top Thin Accent Line */}
           <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-blue-500/10 via-blue-400/70 to-blue-500/10 pointer-events-none" />
 
@@ -192,27 +199,16 @@ export const LoginPage: React.FC = () => {
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
-
                 <svg
-
                   width="22"
-
                   height="22"
-
                   viewBox="0 0 24 24"
-
                   fill="none"
-
                   stroke="currentColor"
-
                   strokeWidth="2.5"
-
                   strokeLinecap="round"
-
                   strokeLinejoin="round"
-
                 >
-
                   <rect x="3" y="3" width="7" height="7" rx="1" />
 
                   <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -220,9 +216,7 @@ export const LoginPage: React.FC = () => {
                   <rect x="14" y="14" width="7" height="7" rx="1" />
 
                   <rect x="3" y="14" width="7" height="7" rx="1" />
-
                 </svg>
-
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5 leading-none">
@@ -244,7 +238,8 @@ export const LoginPage: React.FC = () => {
                 The Unified Data Platform
               </h1>
               <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed max-w-xl">
-                Connect data sources, define unified schemas, explore entity relationships, and monitor automated pipelines.
+                Connect data sources, define unified schemas, explore entity
+                relationships, and monitor automated pipelines.
               </p>
             </div>
           </div>
@@ -260,7 +255,8 @@ export const LoginPage: React.FC = () => {
                   Data Ingestion & Connectors
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                  Ingest structured tabular files (CSV, JSON) and connect relational databases into staged raw storage.
+                  Ingest structured tabular files (CSV, JSON) and connect
+                  relational databases into staged raw storage.
                 </p>
               </div>
             </div>
@@ -274,7 +270,8 @@ export const LoginPage: React.FC = () => {
                   Schema Studio & Ontology Models
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                  Map raw columns to typed ontology properties and configure validation rules visually.
+                  Map raw columns to typed ontology properties and configure
+                  validation rules visually.
                 </p>
               </div>
             </div>
@@ -288,7 +285,8 @@ export const LoginPage: React.FC = () => {
                   Entity Resolution & Golden Records
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                  Identify duplicate records, resolve attribute conflicts, and maintain canonical golden records with provenance.
+                  Identify duplicate records, resolve attribute conflicts, and
+                  maintain canonical golden records with provenance.
                 </p>
               </div>
             </div>
@@ -302,7 +300,8 @@ export const LoginPage: React.FC = () => {
                   Knowledge Graph & Search
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                  Perform multi-hop relationship traversals in Neo4j and full-text faceted entity search in OpenSearch.
+                  Perform multi-hop relationship traversals in Neo4j and
+                  full-text faceted entity search in OpenSearch.
                 </p>
               </div>
             </div>
@@ -320,7 +319,6 @@ export const LoginPage: React.FC = () => {
 
         {/* Right Column: Keycloak SSO Card */}
         <div className="lg:col-span-5 bg-[#0b0d14]/90 border border-zinc-800/80 rounded-xl p-7 lg:p-9 flex flex-col justify-between backdrop-blur-xl shadow-2xl min-h-[460px] relative overflow-hidden">
-
           {/* Top Thin Accent Line */}
           <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-blue-500/10 via-blue-400/70 to-blue-500/10 pointer-events-none" />
 
@@ -336,7 +334,8 @@ export const LoginPage: React.FC = () => {
                 Account Sign In
               </h2>
               <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                Sign in with your enterprise account to access connections, pipelines, and entity graphs.
+                Sign in with your enterprise account to access connections,
+                pipelines, and entity graphs.
               </p>
             </div>
           </div>
