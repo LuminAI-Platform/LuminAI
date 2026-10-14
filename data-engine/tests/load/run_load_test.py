@@ -100,7 +100,10 @@ async def benchmark_async(
 
     start_total = time.perf_counter()
 
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://testserver"
+    ) as client:
+
         async def make_request(method: str, path: str, json_body: Optional[dict]):
             async with semaphore:
                 t0 = time.perf_counter()
@@ -133,11 +136,15 @@ async def benchmark_async(
     overall_rps = round(total_reqs / duration_sec, 2) if duration_sec > 0 else 0.0
 
     print("[*] BENCHMARK RESULTS SUMMARY")
-    print("-----------------------------------------------------------------------------------------------------")
+    print(
+        "-----------------------------------------------------------------------------------------------------"
+    )
     print(
         f"{'Endpoint':<35} | {'Reqs':<6} | {'Errs':<5} | {'Min (ms)':<8} | {'p50 (ms)':<8} | {'p95 (ms)':<8} | {'p99 (ms)':<8} | {'Max (ms)':<8}"
     )
-    print("-----------------------------------------------------------------------------------------------------")
+    print(
+        "-----------------------------------------------------------------------------------------------------"
+    )
 
     for path, lats in latencies_by_endpoint.items():
         stats = calculate_percentiles(lats)
@@ -147,11 +154,15 @@ async def benchmark_async(
         )
 
     overall_stats = calculate_percentiles(all_latencies)
-    print("-----------------------------------------------------------------------------------------------------")
+    print(
+        "-----------------------------------------------------------------------------------------------------"
+    )
     print(
         f"{'OVERALL':<35} | {total_reqs:<6} | {total_errs:<5} | {overall_stats['min']:<8.2f} | {overall_stats['p50']:<8.2f} | {overall_stats['p95']:<8.2f} | {overall_stats['p99']:<8.2f} | {overall_stats['max']:<8.2f}"
     )
-    print(f"\n[OK] Total Duration: {duration_sec:.2f}s | Throughput: {overall_rps} req/sec | Error Rate: {total_errs / total_reqs * 100:.1f}%\n")
+    print(
+        f"\n[OK] Total Duration: {duration_sec:.2f}s | Throughput: {overall_rps} req/sec | Error Rate: {total_errs / total_reqs * 100:.1f}%\n"
+    )
 
     return 0 if total_errs == 0 else 1
 
@@ -187,20 +198,54 @@ def run_locust_cli(
 
 def main():
     parser = argparse.ArgumentParser(description="LuminAI Data Engine Load Test Runner")
-    parser.add_argument("--locust", action="store_true", help="Run via headless Locust against live server")
-    parser.add_argument("--users", type=int, default=10, help="Number of concurrent users (Locust mode)")
-    parser.add_argument("--spawn-rate", type=int, default=2, help="User spawn rate per second (Locust mode)")
-    parser.add_argument("--duration", type=str, default="15s", help="Test duration (e.g. 10s, 1m) (Locust mode)")
-    parser.add_argument("--host", type=str, default="http://localhost:8001", help="Target host URL")
-    parser.add_argument("--concurrency", type=int, default=5, help="Async concurrency (In-process mode)")
-    parser.add_argument("--requests", type=int, default=20, help="Requests per endpoint (In-process mode)")
+    parser.add_argument(
+        "--locust",
+        action="store_true",
+        help="Run via headless Locust against live server",
+    )
+    parser.add_argument(
+        "--users", type=int, default=10, help="Number of concurrent users (Locust mode)"
+    )
+    parser.add_argument(
+        "--spawn-rate",
+        type=int,
+        default=2,
+        help="User spawn rate per second (Locust mode)",
+    )
+    parser.add_argument(
+        "--duration",
+        type=str,
+        default="15s",
+        help="Test duration (e.g. 10s, 1m) (Locust mode)",
+    )
+    parser.add_argument(
+        "--host", type=str, default="http://localhost:8001", help="Target host URL"
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=5, help="Async concurrency (In-process mode)"
+    )
+    parser.add_argument(
+        "--requests",
+        type=int,
+        default=20,
+        help="Requests per endpoint (In-process mode)",
+    )
 
     args = parser.parse_args()
 
     if args.locust:
-        sys.exit(run_locust_cli(users=args.users, spawn_rate=args.spawn_rate, duration=args.duration, host=args.host))
+        sys.exit(
+            run_locust_cli(
+                users=args.users,
+                spawn_rate=args.spawn_rate,
+                duration=args.duration,
+                host=args.host,
+            )
+        )
     else:
-        exit_code = asyncio.run(benchmark_async(total_requests=args.requests, concurrency=args.concurrency))
+        exit_code = asyncio.run(
+            benchmark_async(total_requests=args.requests, concurrency=args.concurrency)
+        )
         sys.exit(exit_code)
 
 

@@ -23,13 +23,24 @@ from prometheus_client import (
 logger = logging.getLogger(__name__)
 
 
-def _get_or_create_metric(collector_cls: type, name: str, documentation: str, labelnames: tuple[str, ...], registry: CollectorRegistry, **kwargs: Any) -> Any:
+def _get_or_create_metric(
+    collector_cls: type,
+    name: str,
+    documentation: str,
+    labelnames: tuple[str, ...],
+    registry: CollectorRegistry,
+    **kwargs: Any,
+) -> Any:
     """Safely get or register a metric in the registry without throwing AlreadyRegisteredError."""
     try:
-        return collector_cls(name, documentation, labelnames=labelnames, registry=registry, **kwargs)
+        return collector_cls(
+            name, documentation, labelnames=labelnames, registry=registry, **kwargs
+        )
     except ValueError:
         # Already registered in this registry
-        return registry._names_to_collectors.get(name) or registry._names_to_collectors.get(f"{name}_total")
+        return registry._names_to_collectors.get(
+            name
+        ) or registry._names_to_collectors.get(f"{name}_total")
 
 
 # 1. Records Processed Counter
@@ -131,7 +142,9 @@ def record_records_processed(
         logger.debug("Failed to update records processed metric: %s", exc)
 
 
-def record_pipeline_duration(pipeline: str, duration_seconds: float, status: str = "success") -> None:
+def record_pipeline_duration(
+    pipeline: str, duration_seconds: float, status: str = "success"
+) -> None:
     """Record pipeline execution duration in seconds."""
     try:
         luminai_pipeline_duration_seconds.labels(
@@ -156,14 +169,22 @@ def record_er_metrics(
     try:
         t_id = str(tenant_id)
         if candidate_pairs_count > 0:
-            luminai_er_candidate_pairs_total.labels(tenant_id=t_id).inc(candidate_pairs_count)
+            luminai_er_candidate_pairs_total.labels(tenant_id=t_id).inc(
+                candidate_pairs_count
+            )
 
         if matches_count > 0:
-            luminai_er_classifications_total.labels(tenant_id=t_id, decision="match").inc(matches_count)
+            luminai_er_classifications_total.labels(
+                tenant_id=t_id, decision="match"
+            ).inc(matches_count)
         if review_count > 0:
-            luminai_er_classifications_total.labels(tenant_id=t_id, decision="review").inc(review_count)
+            luminai_er_classifications_total.labels(
+                tenant_id=t_id, decision="review"
+            ).inc(review_count)
         if non_matches_count > 0:
-            luminai_er_classifications_total.labels(tenant_id=t_id, decision="non_match").inc(non_matches_count)
+            luminai_er_classifications_total.labels(
+                tenant_id=t_id, decision="non_match"
+            ).inc(non_matches_count)
 
         total_compared = matches_count + review_count + non_matches_count
         if total_compared > 0:
@@ -174,6 +195,8 @@ def record_er_metrics(
             luminai_er_clusters_total.labels(tenant_id=t_id).inc(clusters_count)
 
         if golden_records_count > 0:
-            luminai_er_golden_records_total.labels(tenant_id=t_id, entity_type=str(entity_type)).inc(golden_records_count)
+            luminai_er_golden_records_total.labels(
+                tenant_id=t_id, entity_type=str(entity_type)
+            ).inc(golden_records_count)
     except Exception as exc:
         logger.debug("Failed to record ER metrics: %s", exc)

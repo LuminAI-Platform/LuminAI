@@ -257,7 +257,10 @@ def evaluate_referential_integrity(
             passed=True,
             severity=AssetCheckSeverity.WARN,
             description="Empty golden records dataset; referential integrity check bypassed.",
-            metadata={"golden_records_count": 0, "staging_records_count": staging_df.height},
+            metadata={
+                "golden_records_count": 0,
+                "staging_records_count": staging_df.height,
+            },
         )
 
     # Collect all available staging record IDs
@@ -281,9 +284,14 @@ def evaluate_referential_integrity(
             id_list = [str(i) for i in source_ids]
         elif isinstance(source_ids, str):
             import json
+
             try:
                 parsed = json.loads(source_ids)
-                id_list = [str(i) for i in parsed] if isinstance(parsed, list) else [source_ids]
+                id_list = (
+                    [str(i) for i in parsed]
+                    if isinstance(parsed, list)
+                    else [source_ids]
+                )
             except Exception:
                 id_list = [source_ids]
         else:

@@ -64,7 +64,9 @@ class ReconciliationReport(BaseModel):
     checksum_match: bool
     checksums: Dict[str, str] = Field(default_factory=dict)
     drift_details: List[Dict[str, Any]] = Field(default_factory=list)
-    reconciled_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    reconciled_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
 
 
 def compute_record_hash(record_data: Dict[str, Any]) -> str:
@@ -153,7 +155,11 @@ class CrossStoreReconciler:
                 for row in result:
                     gid = str(row.golden_id)
                     attrs_raw = row.attributes
-                    attrs = json.loads(attrs_raw) if isinstance(attrs_raw, str) else (attrs_raw or {})
+                    attrs = (
+                        json.loads(attrs_raw)
+                        if isinstance(attrs_raw, str)
+                        else (attrs_raw or {})
+                    )
                     rec_hash = compute_record_hash(attrs)
                     records.append(
                         StoreEntityRecord(
@@ -164,10 +170,16 @@ class CrossStoreReconciler:
                             raw_data=attrs,
                         )
                     )
-            logger.info("Fetched %d records from PostgreSQL for tenant %s", len(records), self.tenant_id)
+            logger.info(
+                "Fetched %d records from PostgreSQL for tenant %s",
+                len(records),
+                self.tenant_id,
+            )
             return records
         except Exception as exc:
-            logger.warning("Could not query PostgreSQL (%s). Trying local SQLite fallback.", exc)
+            logger.warning(
+                "Could not query PostgreSQL (%s). Trying local SQLite fallback.", exc
+            )
 
         # SQLite fallback for dev / tests
         sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
@@ -179,7 +191,11 @@ class CrossStoreReconciler:
                     for row in result:
                         gid = str(row.golden_id)
                         attrs_raw = row.attributes
-                        attrs = json.loads(attrs_raw) if isinstance(attrs_raw, str) else (attrs_raw or {})
+                        attrs = (
+                            json.loads(attrs_raw)
+                            if isinstance(attrs_raw, str)
+                            else (attrs_raw or {})
+                        )
                         rec_hash = compute_record_hash(attrs)
                         records.append(
                             StoreEntityRecord(
@@ -190,7 +206,11 @@ class CrossStoreReconciler:
                                 raw_data=attrs,
                             )
                         )
-                logger.info("Fetched %d records from SQLite for tenant %s", len(records), self.tenant_id)
+                logger.info(
+                    "Fetched %d records from SQLite for tenant %s",
+                    len(records),
+                    self.tenant_id,
+                )
                 return records
             except Exception as sqle:
                 logger.warning("SQLite query failed: %s", sqle)
@@ -210,9 +230,17 @@ class CrossStoreReconciler:
             import neo4j  # type: ignore
 
             settings = get_settings()
-            uri = getattr(settings, "neo4j_uri", os.getenv("NEO4J_URI", "bolt://localhost:7687"))
-            username = getattr(settings, "neo4j_username", os.getenv("NEO4J_USERNAME", "neo4j"))
-            password = getattr(settings, "neo4j_password", os.getenv("NEO4J_PASSWORD", "luminai_dev_password"))
+            uri = getattr(
+                settings, "neo4j_uri", os.getenv("NEO4J_URI", "bolt://localhost:7687")
+            )
+            username = getattr(
+                settings, "neo4j_username", os.getenv("NEO4J_USERNAME", "neo4j")
+            )
+            password = getattr(
+                settings,
+                "neo4j_password",
+                os.getenv("NEO4J_PASSWORD", "luminai_dev_password"),
+            )
             auth = (username, password)
             records: List[StoreEntityRecord] = []
 
@@ -238,7 +266,11 @@ class CrossStoreReconciler:
                                 raw_data=props,
                             )
                         )
-            logger.info("Fetched %d records from Neo4j for tenant %s", len(records), self.tenant_id)
+            logger.info(
+                "Fetched %d records from Neo4j for tenant %s",
+                len(records),
+                self.tenant_id,
+            )
             return records
         except Exception as exc:
             logger.debug("Neo4j connection skipped/unavailable: %s", exc)
@@ -266,7 +298,9 @@ class CrossStoreReconciler:
                     hits = res.json().get("hits", {}).get("hits", [])
                     for hit in hits:
                         source = hit.get("_source", {})
-                        gid = str(source.get("goldenId") or source.get("id") or hit.get("_id"))
+                        gid = str(
+                            source.get("goldenId") or source.get("id") or hit.get("_id")
+                        )
                         rec_hash = compute_record_hash(source)
                         records.append(
                             StoreEntityRecord(
@@ -277,13 +311,19 @@ class CrossStoreReconciler:
                                 raw_data=source,
                             )
                         )
-            logger.info("Fetched %d records from OpenSearch for tenant %s", len(records), self.tenant_id)
+            logger.info(
+                "Fetched %d records from OpenSearch for tenant %s",
+                len(records),
+                self.tenant_id,
+            )
             return records
         except Exception as exc:
             logger.debug("OpenSearch connection skipped/unavailable: %s", exc)
             return []
 
-    def _normalize_records(self, raw_records: List[Dict[str, Any]]) -> List[StoreEntityRecord]:
+    def _normalize_records(
+        self, raw_records: List[Dict[str, Any]]
+    ) -> List[StoreEntityRecord]:
         """Convert a list of generic record dictionaries to normalized StoreEntityRecord instances."""
         normalized = []
         for r in raw_records:
@@ -316,7 +356,9 @@ class CrossStoreReconciler:
         # Fetch from all three storage engines
         pg_records = self.fetch_postgres_records(override_records=pg_override)
         neo4j_records = self.fetch_neo4j_records(override_records=neo4j_override)
-        opensearch_records = self.fetch_opensearch_records(override_records=opensearch_override)
+        opensearch_records = self.fetch_opensearch_records(
+            override_records=opensearch_override
+        )
 
         pg_ids = {r.entity_id for r in pg_records}
         neo4j_ids = {r.entity_id for r in neo4j_records}
@@ -333,14 +375,10 @@ class CrossStoreReconciler:
         missing_in_postgres = sorted(list((neo4j_ids | opensearch_ids) - pg_ids))
 
         # Check count consistency
-        counts_match = (
-            len(pg_records) == len(neo4j_records) == len(opensearch_records)
-        )
+        counts_match = len(pg_records) == len(neo4j_records) == len(opensearch_records)
 
         # Check checksum consistency
-        checksums_match = (
-            pg_checksum == neo4j_checksum == opensearch_checksum
-        )
+        checksums_match = pg_checksum == neo4j_checksum == opensearch_checksum
 
         # Check attribute level drifts for entities present in multiple stores
         drift_details: List[Dict[str, Any]] = []
@@ -365,20 +403,22 @@ class CrossStoreReconciler:
             has_attribute_drift = len(distinct_hashes) > 1
 
             if has_missing or has_attribute_drift:
-                drift_details.append({
-                    "entity_id": eid,
-                    "presence": {
-                        "postgres": pg_rec is not None,
-                        "neo4j": n4j_rec is not None,
-                        "opensearch": os_rec is not None,
-                    },
-                    "attribute_hashes": hashes,
-                    "drift_type": (
-                        "MISSING_ACROSS_STORES"
-                        if has_missing
-                        else "ATTRIBUTE_CONTENT_MISMATCH"
-                    ),
-                })
+                drift_details.append(
+                    {
+                        "entity_id": eid,
+                        "presence": {
+                            "postgres": pg_rec is not None,
+                            "neo4j": n4j_rec is not None,
+                            "opensearch": os_rec is not None,
+                        },
+                        "attribute_hashes": hashes,
+                        "drift_type": (
+                            "MISSING_ACROSS_STORES"
+                            if has_missing
+                            else "ATTRIBUTE_CONTENT_MISMATCH"
+                        ),
+                    }
+                )
 
         # Final health evaluation
         is_healthy = counts_match and checksums_match and len(drift_details) == 0

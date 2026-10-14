@@ -48,7 +48,9 @@ class TestPipelineRunTrackerLifecycle:
         assert rec.message == "Starting now..."
 
     def test_update_step_progress(self, temp_tracker):
-        temp_tracker.init_run("run-3", "cleaning_pipeline", "acme", "crm-1", total_steps=5)
+        temp_tracker.init_run(
+            "run-3", "cleaning_pipeline", "acme", "crm-1", total_steps=5
+        )
         temp_tracker.start_run("run-3")
 
         # Step 1: 1 / 5 = 20%
@@ -93,7 +95,9 @@ class TestPipelineRunTrackerPersistence:
 
         try:
             tracker1 = PipelineRunTracker(db_path=temp_path)
-            tracker1.init_run("run-persist", "er_pipeline", "acme", "crm", total_steps=5)
+            tracker1.init_run(
+                "run-persist", "er_pipeline", "acme", "crm", total_steps=5
+            )
             tracker1.start_run("run-persist")
             tracker1.update_step("run-persist", "staged_records_for_er")
 

@@ -25,20 +25,35 @@ from app.config import Settings, get_settings
 logger = logging.getLogger("data-engine.security")
 
 # Security Schemes for OpenAPI / Swagger UI
-api_key_header_scheme = APIKeyHeader(name="X-API-Key", auto_error=False, description="Internal Service API Key")
-http_bearer_scheme = HTTPBearer(auto_error=False, description="Keycloak OIDC JWT Bearer Token or Service API Key")
+api_key_header_scheme = APIKeyHeader(
+    name="X-API-Key", auto_error=False, description="Internal Service API Key"
+)
+http_bearer_scheme = HTTPBearer(
+    auto_error=False, description="Keycloak OIDC JWT Bearer Token or Service API Key"
+)
 
 
 class AuthIdentity(BaseModel):
     """Represents an authenticated principal (user, service, or sandbox)."""
 
     user_id: Optional[str] = Field(default=None, description="Unique subject ID (sub)")
-    username: str = Field(default="anonymous", description="Principal username or service name")
+    username: str = Field(
+        default="anonymous", description="Principal username or service name"
+    )
     email: Optional[str] = Field(default=None, description="User email address")
-    roles: List[str] = Field(default_factory=list, description="Assigned roles (prefixed with ROLE_)")
-    tenant_id: Optional[str] = Field(default=None, description="Scoping tenant identifier")
-    is_service: bool = Field(default=False, description="True if authenticated via API key")
-    auth_method: str = Field(default="none", description="Method used: api_key, keycloak_jwt, mock_token, dev_bypass")
+    roles: List[str] = Field(
+        default_factory=list, description="Assigned roles (prefixed with ROLE_)"
+    )
+    tenant_id: Optional[str] = Field(
+        default=None, description="Scoping tenant identifier"
+    )
+    is_service: bool = Field(
+        default=False, description="True if authenticated via API key"
+    )
+    auth_method: str = Field(
+        default="none",
+        description="Method used: api_key, keycloak_jwt, mock_token, dev_bypass",
+    )
 
     def has_role(self, role: str) -> bool:
         """Check if identity has a specific role (case-insensitive, optional ROLE_ prefix)."""
@@ -64,7 +79,9 @@ class KeycloakTokenValidator:
         self._jwks_client: Optional[PyJWKClient] = None
         if not self.public_key:
             try:
-                self._jwks_client = PyJWKClient(self.jwks_url, cache_keys=True, max_cached_keys=16)
+                self._jwks_client = PyJWKClient(
+                    self.jwks_url, cache_keys=True, max_cached_keys=16
+                )
             except Exception as e:
                 logger.warning("Could not initialize Keycloak JWKS client: %s", e)
 
@@ -79,11 +96,14 @@ class KeycloakTokenValidator:
         )
         if is_mock_token:
             if not self.settings.mock_auth_allowed:
-                logger.warning("Security alert: Rejected mock/sandbox token in production environment: %s", token[:16])
+                logger.warning(
+                    "Security alert: Rejected mock/sandbox token in production environment: %s",
+                    token[:16],
+                )
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Mock and sandbox authentication tokens are prohibited in production mode.",
-                    headers={"WWW-Authenticate": "Bearer error=\"invalid_token\""},
+                    headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
                 )
             return {
                 "sub": "sandbox-admin-id",
@@ -134,32 +154,40 @@ class KeycloakTokenValidator:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired",
-                headers={"WWW-Authenticate": "Bearer error=\"invalid_token\", error_description=\"The token has expired\""},
+                headers={
+                    "WWW-Authenticate": 'Bearer error="invalid_token", error_description="The token has expired"'
+                },
             ) from e
         except jwt.InvalidIssuerError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token issuer",
-                headers={"WWW-Authenticate": "Bearer error=\"invalid_token\", error_description=\"Invalid token issuer\""},
+                headers={
+                    "WWW-Authenticate": 'Bearer error="invalid_token", error_description="Invalid token issuer"'
+                },
             ) from e
         except jwt.InvalidAudienceError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token audience",
-                headers={"WWW-Authenticate": "Bearer error=\"invalid_token\", error_description=\"Invalid token audience\""},
+                headers={
+                    "WWW-Authenticate": 'Bearer error="invalid_token", error_description="Invalid token audience"'
+                },
             ) from e
         except jwt.PyJWTError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid token: {str(e)}",
-                headers={"WWW-Authenticate": "Bearer error=\"invalid_token\""},
+                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
             ) from e
 
 
 _validators: Dict[str, KeycloakTokenValidator] = {}
 
 
-def get_keycloak_validator(settings: Settings = Depends(get_settings)) -> KeycloakTokenValidator:
+def get_keycloak_validator(
+    settings: Settings = Depends(get_settings),
+) -> KeycloakTokenValidator:
     """Return a cached KeycloakTokenValidator instance keyed by realm configuration."""
     cache_key = f"{settings.keycloak_jwks_url}:{settings.keycloak_public_key or ''}"
     if cache_key not in _validators:
@@ -167,7 +195,9 @@ def get_keycloak_validator(settings: Settings = Depends(get_settings)) -> Keyclo
     return _validators[cache_key]
 
 
-def extract_roles_from_claims(claims: Dict[str, Any], client_id: Optional[str] = None) -> List[str]:
+def extract_roles_from_claims(
+    claims: Dict[str, Any], client_id: Optional[str] = None
+) -> List[str]:
     """Extract and normalize roles from Keycloak JWT claims into Spring-compatible format."""
     roles_set = set()
 
@@ -177,7 +207,11 @@ def extract_roles_from_claims(claims: Dict[str, Any], client_id: Optional[str] =
         for role in realm_access.get("roles", []):
             if isinstance(role, str):
                 role_upper = role.upper()
-                roles_set.add(f"ROLE_{role_upper}" if not role_upper.startswith("ROLE_") else role_upper)
+                roles_set.add(
+                    f"ROLE_{role_upper}"
+                    if not role_upper.startswith("ROLE_")
+                    else role_upper
+                )
 
     # Client/Resource roles: resource_access.<client_id>.roles
     resource_access = claims.get("resource_access")
@@ -187,14 +221,20 @@ def extract_roles_from_claims(claims: Dict[str, Any], client_id: Optional[str] =
             for role in client_access.get("roles", []):
                 if isinstance(role, str):
                     role_upper = role.upper()
-                    roles_set.add(f"ROLE_{role_upper}" if not role_upper.startswith("ROLE_") else role_upper)
+                    roles_set.add(
+                        f"ROLE_{role_upper}"
+                        if not role_upper.startswith("ROLE_")
+                        else role_upper
+                    )
 
     return sorted(list(roles_set))
 
 
 async def get_current_identity(
     api_key_header: Optional[str] = Security(api_key_header_scheme),
-    bearer_credentials: Optional[HTTPAuthorizationCredentials] = Security(http_bearer_scheme),
+    bearer_credentials: Optional[HTTPAuthorizationCredentials] = Security(
+        http_bearer_scheme
+    ),
     settings: Settings = Depends(get_settings),
     validator: KeycloakTokenValidator = Depends(get_keycloak_validator),
 ) -> AuthIdentity:
@@ -253,7 +293,11 @@ async def get_current_identity(
         # Validate as Keycloak JWT
         claims = validator.validate_token(token)
         roles = extract_roles_from_claims(claims, settings.keycloak_client_id)
-        tenant_id = claims.get("tenant_id") or claims.get("tenant") or claims.get("organization")
+        tenant_id = (
+            claims.get("tenant_id")
+            or claims.get("tenant")
+            or claims.get("organization")
+        )
 
         return AuthIdentity(
             user_id=claims.get("sub"),
@@ -262,7 +306,9 @@ async def get_current_identity(
             roles=roles,
             tenant_id=tenant_id,
             is_service=False,
-            auth_method="mock_token" if "sandbox" in str(claims.get("sub")) else "keycloak_jwt",
+            auth_method="mock_token"
+            if "sandbox" in str(claims.get("sub"))
+            else "keycloak_jwt",
         )
 
     # 4. No credentials provided
@@ -276,7 +322,9 @@ async def get_current_identity(
 def require_role(*required_roles: str):
     """Dependency factory ensuring the authenticated identity holds at least one of the required roles."""
 
-    async def _role_checker(identity: AuthIdentity = Depends(get_current_identity)) -> AuthIdentity:
+    async def _role_checker(
+        identity: AuthIdentity = Depends(get_current_identity),
+    ) -> AuthIdentity:
         for role in required_roles:
             if identity.has_role(role):
                 return identity

@@ -76,9 +76,15 @@ class TestQuarantineManager:
 
     def test_list_and_filter_messages(self, temp_quarantine_mgr):
         """Messages can be filtered by tenant and status with pagination."""
-        temp_quarantine_mgr.record_failure("ingest.raw", "acme:s1", "err1", "err", tenant_id="acme")
-        temp_quarantine_mgr.record_failure("ingest.raw", "acme:s2", "err2", "err", tenant_id="acme")
-        temp_quarantine_mgr.record_failure("ingest.raw", "other:s1", "err3", "err", tenant_id="other")
+        temp_quarantine_mgr.record_failure(
+            "ingest.raw", "acme:s1", "err1", "err", tenant_id="acme"
+        )
+        temp_quarantine_mgr.record_failure(
+            "ingest.raw", "acme:s2", "err2", "err", tenant_id="acme"
+        )
+        temp_quarantine_mgr.record_failure(
+            "ingest.raw", "other:s1", "err3", "err", tenant_id="other"
+        )
 
         # Filter by tenant
         acme_msgs, total = temp_quarantine_mgr.list_messages(tenant_id="acme")
@@ -86,7 +92,9 @@ class TestQuarantineManager:
         assert len(acme_msgs) == 2
 
         # Filter all
-        all_msgs, total = temp_quarantine_mgr.list_messages(tenant_id=None, status="all")
+        all_msgs, total = temp_quarantine_mgr.list_messages(
+            tenant_id=None, status="all"
+        )
         assert total == 3
 
     def test_replay_message(self, temp_quarantine_mgr):
@@ -176,8 +184,12 @@ class TestConsumerQuarantineIntegration:
                 return mock_msg
 
             consumer._consumer.poll.side_effect = fake_poll
-            consumer._consumer.consume.side_effect = lambda num_messages=100, timeout=1.0: [fake_poll(timeout)]
-            with patch.object(consumer, "_create_consumer", return_value=consumer._consumer):
+            consumer._consumer.consume.side_effect = (
+                lambda num_messages=100, timeout=1.0: [fake_poll(timeout)]
+            )
+            with patch.object(
+                consumer, "_create_consumer", return_value=consumer._consumer
+            ):
                 consumer._poll_loop()
 
             mock_mgr.record_failure.assert_called_once()

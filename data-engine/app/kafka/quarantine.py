@@ -111,7 +111,9 @@ class QuarantineManager:
             try:
                 parsed = json.loads(raw_payload)
                 if isinstance(parsed, dict):
-                    tenant_id = parsed.get("tenant_id") or parsed.get("tenantId") or tenant_id
+                    tenant_id = (
+                        parsed.get("tenant_id") or parsed.get("tenantId") or tenant_id
+                    )
                     source_id = (
                         parsed.get("source_id")
                         or parsed.get("connectionId")
@@ -234,7 +236,9 @@ class QuarantineManager:
         with self._lock, sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM quarantined_messages WHERE message_id = ?", (message_id,))
+            cursor.execute(
+                "SELECT * FROM quarantined_messages WHERE message_id = ?", (message_id,)
+            )
             row = cursor.fetchone()
             if row:
                 return QuarantinedMessage(
@@ -288,7 +292,11 @@ class QuarantineManager:
             msg.retry_count = new_retry_count
             msg.last_replayed_at = now
             replayed.append(msg)
-            logger.info("🔁 Replayed quarantined message id=%s (attempt #%d)", msg_id, new_retry_count)
+            logger.info(
+                "🔁 Replayed quarantined message id=%s (attempt #%d)",
+                msg_id,
+                new_retry_count,
+            )
 
         return replayed
 

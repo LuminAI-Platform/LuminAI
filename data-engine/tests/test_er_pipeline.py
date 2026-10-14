@@ -21,9 +21,24 @@ class TestERPipelineExecution:
         context = build_asset_context()
         records_df = pl.DataFrame(
             [
-                {"id": "1", "name": "Alice Smith", "country": "UK", "entity_type": "Person"},
-                {"id": "2", "name": "Alice Smyth", "country": "UK", "entity_type": "Person"},
-                {"id": "3", "name": "Carol White", "country": "US", "entity_type": "Person"},
+                {
+                    "id": "1",
+                    "name": "Alice Smith",
+                    "country": "UK",
+                    "entity_type": "Person",
+                },
+                {
+                    "id": "2",
+                    "name": "Alice Smyth",
+                    "country": "UK",
+                    "entity_type": "Person",
+                },
+                {
+                    "id": "3",
+                    "name": "Carol White",
+                    "country": "US",
+                    "entity_type": "Person",
+                },
             ]
         )
         pairs_df = er_pipeline.er_blocked_pairs(context, records_df)
@@ -72,9 +87,24 @@ class TestERPipelineExecution:
         matches_df = pl.DataFrame([{"id_a": "rec-1", "id_b": "rec-2"}])
         staged_df = pl.DataFrame(
             [
-                {"id": "rec-1", "name": "Alice", "country": "UK", "email": "alice@example.com"},
-                {"id": "rec-2", "name": "Alice Smith", "country": "UK", "email": "alice@example.com"},
-                {"id": "rec-3", "name": "Carol White", "country": "US", "email": "carol@example.com"},
+                {
+                    "id": "rec-1",
+                    "name": "Alice",
+                    "country": "UK",
+                    "email": "alice@example.com",
+                },
+                {
+                    "id": "rec-2",
+                    "name": "Alice Smith",
+                    "country": "UK",
+                    "email": "alice@example.com",
+                },
+                {
+                    "id": "rec-3",
+                    "name": "Carol White",
+                    "country": "US",
+                    "email": "carol@example.com",
+                },
             ]
         )
 
@@ -112,8 +142,20 @@ class TestERPipelineExecution:
         matches_df = pl.DataFrame([{"id_a": "rec-1", "id_b": "rec-2"}])
         staged_df = pl.DataFrame(
             [
-                {"id": "rec-1", "tenant_id": custom_tenant, "name": "Alice", "country": "UK", "email": "alice@example.com"},
-                {"id": "rec-2", "tenant_id": custom_tenant, "name": "Alice Smith", "country": "UK", "email": "alice@example.com"},
+                {
+                    "id": "rec-1",
+                    "tenant_id": custom_tenant,
+                    "name": "Alice",
+                    "country": "UK",
+                    "email": "alice@example.com",
+                },
+                {
+                    "id": "rec-2",
+                    "tenant_id": custom_tenant,
+                    "name": "Alice Smith",
+                    "country": "UK",
+                    "email": "alice@example.com",
+                },
             ]
         )
         golden_records = er_pipeline.er_golden_records(context, matches_df, staged_df)
@@ -121,4 +163,3 @@ class TestERPipelineExecution:
         assert "tenant_id" in golden_records.columns
         for t in golden_records["tenant_id"].to_list():
             assert t == custom_tenant
-

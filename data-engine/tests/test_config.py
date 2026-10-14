@@ -36,7 +36,10 @@ def test_postgres_dsn():
         postgres_password="testpass",
         postgres_db="testdb",
     )
-    assert settings.postgres_dsn == "postgresql://testuser:testpass@db.example.com:5433/testdb"
+    assert (
+        settings.postgres_dsn
+        == "postgresql://testuser:testpass@db.example.com:5433/testdb"
+    )
 
 
 def test_database_url_override():
@@ -72,7 +75,10 @@ def test_keycloak_urls():
         keycloak_url="https://auth.luminai.com/",
         keycloak_realm="luminai",
     )
-    assert settings.keycloak_jwks_url == "https://auth.luminai.com/realms/luminai/protocol/openid-connect/certs"
+    assert (
+        settings.keycloak_jwks_url
+        == "https://auth.luminai.com/realms/luminai/protocol/openid-connect/certs"
+    )
     assert settings.keycloak_issuer == "https://auth.luminai.com/realms/luminai"
 
 
@@ -96,8 +102,5 @@ def test_cors_origins_defaults():
 
 def test_cors_origins_normalization():
     """CORS origins strip trailing slashes and parse comma-separated strings."""
-    settings = Settings(
-        cors_origins="https://app.example.com/, http://localhost:3000/"
-    )
+    settings = Settings(cors_origins="https://app.example.com/, http://localhost:3000/")
     assert settings.cors_origins == ["https://app.example.com", "http://localhost:3000"]
-

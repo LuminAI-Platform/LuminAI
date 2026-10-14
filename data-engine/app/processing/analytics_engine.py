@@ -45,7 +45,14 @@ INTERVAL_MAP = {
     "yearly": "year",
 }
 
-GOLDEN_COLUMNS = {"golden_id", "tenant_id", "cluster_size", "source_record_ids", "attributes", "created_at"}
+GOLDEN_COLUMNS = {
+    "golden_id",
+    "tenant_id",
+    "cluster_size",
+    "source_record_ids",
+    "attributes",
+    "created_at",
+}
 STAGING_COLUMNS = {"id", "tenant_id", "source_id", "raw_id", "data", "staged_at"}
 
 
@@ -64,6 +71,7 @@ class DuckDBAnalyticsEngine:
     def _get_pg_engine(self):
         """Return pooled SQLAlchemy engine for PostgreSQL."""
         from app.db import get_engine
+
         return get_engine()
 
     def load_table_dataframe(self, table_name: str, tenant_id: str) -> pl.DataFrame:
@@ -71,25 +79,35 @@ class DuckDBAnalyticsEngine:
         if self.override_df is not None:
             return self.override_df
 
-        target_table = "golden_records" if "golden" in table_name.lower() else "staging_records"
+        target_table = (
+            "golden_records" if "golden" in table_name.lower() else "staging_records"
+        )
         records: List[Dict[str, Any]] = []
 
         # 1. Try PostgreSQL
         try:
             engine = self._get_pg_engine()
             with engine.connect() as conn:
-                query = text(f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id")
+                query = text(
+                    f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id"
+                )
                 result = conn.execute(query, {"tenant_id": tenant_id})
                 for row in result.mappings():
                     records.append(dict(row))
             if records:
-                logger.debug("Loaded %d rows for tenant %s from PostgreSQL %s", len(records), tenant_id, target_table)
+                logger.debug(
+                    "Loaded %d rows for tenant %s from PostgreSQL %s",
+                    len(records),
+                    tenant_id,
+                    target_table,
+                )
                 return pl.DataFrame(records)
         except Exception as exc:
             logger.debug("PostgreSQL query failed (%s). Checking SQLite fallback.", exc)
 
         # 2. Try SQLite Fallback
         from app.db import get_sqlite_engine
+
         sqlite_candidates = (
             [
                 os.path.join("storage", "sqlite", "er_staging.db"),
@@ -107,12 +125,19 @@ class DuckDBAnalyticsEngine:
                 try:
                     sqlite_engine = get_sqlite_engine(sqlite_path)
                     with sqlite_engine.connect() as conn:
-                        query = text(f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id")
+                        query = text(
+                            f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id"
+                        )
                         result = conn.execute(query, {"tenant_id": tenant_id})
                         for row in result.mappings():
                             records.append(dict(row))
                     if records:
-                        logger.debug("Loaded %d rows for tenant %s from SQLite %s", len(records), tenant_id, sqlite_path)
+                        logger.debug(
+                            "Loaded %d rows for tenant %s from SQLite %s",
+                            len(records),
+                            tenant_id,
+                            sqlite_path,
+                        )
                         return pl.DataFrame(records)
                 except Exception as sqle:
                     logger.debug("SQLite check failed for %s: %s", sqlite_path, sqle)
@@ -167,7 +192,9 @@ class DuckDBAnalyticsEngine:
         # Dynamic filters
         for key, val in filters.items():
             if not IDENTIFIER_RE.match(key):
-                raise ValueError(f"Invalid filter field name: '{key}'. Must be alphanumeric identifier.")
+                raise ValueError(
+                    f"Invalid filter field name: '{key}'. Must be alphanumeric identifier."
+                )
 
             if key in known_cols:
                 # Top level table column
@@ -176,15 +203,18 @@ class DuckDBAnalyticsEngine:
             else:
                 # Nested JSON field
                 if isinstance(val, bool):
-                    conditions.append(f"TRY_CAST(json_extract({json_col}, '$.{key}') AS BOOLEAN) = ?")
+                    conditions.append(
+                        f"TRY_CAST(json_extract({json_col}, '$.{key}') AS BOOLEAN) = ?"
+                    )
                     params.append(True if val else False)
                 elif isinstance(val, (int, float)):
-                    conditions.append(f"TRY_CAST(json_extract({json_col}, '$.{key}') AS DOUBLE) = ?")
+                    conditions.append(
+                        f"TRY_CAST(json_extract({json_col}, '$.{key}') AS DOUBLE) = ?"
+                    )
                     params.append(float(val))
                 else:
                     conditions.append(f"json_extract_string({json_col}, '$.{key}') = ?")
                     params.append(str(val))
-
 
         where_clause = " WHERE " + " AND ".join(conditions)
         return where_clause, params
@@ -231,7 +261,9 @@ class DuckDBAnalyticsEngine:
             field = field.strip()
 
             if not IDENTIFIER_RE.match(field):
-                raise ValueError(f"Invalid field name '{field}' in aggregation '{agg_clean}'.")
+                raise ValueError(
+                    f"Invalid field name '{field}' in aggregation '{agg_clean}'."
+                )
 
             if op not in {"avg", "sum", "min", "max", "distinct", "count_distinct"}:
                 raise ValueError(
@@ -249,16 +281,24 @@ class DuckDBAnalyticsEngine:
             )
 
             if op == "avg":
-                select_exprs.append(f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}")
+                select_exprs.append(
+                    f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}"
+                )
                 res_keys.append(f"avg_{field}")
             elif op == "sum":
-                select_exprs.append(f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}")
+                select_exprs.append(
+                    f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}"
+                )
                 res_keys.append(f"sum_{field}")
             elif op == "min":
-                select_exprs.append(f"MIN(TRY_CAST({target_ref} AS DOUBLE)) as min_{field}")
+                select_exprs.append(
+                    f"MIN(TRY_CAST({target_ref} AS DOUBLE)) as min_{field}"
+                )
                 res_keys.append(f"min_{field}")
             elif op == "max":
-                select_exprs.append(f"MAX(TRY_CAST({target_ref} AS DOUBLE)) as max_{field}")
+                select_exprs.append(
+                    f"MAX(TRY_CAST({target_ref} AS DOUBLE)) as max_{field}"
+                )
                 res_keys.append(f"max_{field}")
             elif op in {"distinct", "count_distinct"}:
                 select_exprs.append(f"COUNT(DISTINCT {target_ref}) as distinct_{field}")
@@ -282,7 +322,9 @@ class DuckDBAnalyticsEngine:
             )
 
             # 2. Calculate matching row count
-            count_query = f"SELECT COUNT(*) as row_count FROM source_table {where_clause}"
+            count_query = (
+                f"SELECT COUNT(*) as row_count FROM source_table {where_clause}"
+            )
             count_res = con.execute(count_query, params).fetchone()
             row_count = int(count_res[0]) if count_res else 0
 
@@ -290,13 +332,19 @@ class DuckDBAnalyticsEngine:
                 # If no matching rows, return zero/empty aggregation payload
                 empty_result: Dict[str, Any] = {}
                 for key in res_keys:
-                    if key == "count" or key.startswith("sum_") or key.startswith("distinct_"):
+                    if (
+                        key == "count"
+                        or key.startswith("sum_")
+                        or key.startswith("distinct_")
+                    ):
                         empty_result[key] = 0
                     else:
                         empty_result[key] = None
                 return empty_result, 0
 
-            agg_sql = f"SELECT {', '.join(select_exprs)} FROM source_table {where_clause}"
+            agg_sql = (
+                f"SELECT {', '.join(select_exprs)} FROM source_table {where_clause}"
+            )
             agg_row = con.execute(agg_sql, params).fetchone()
 
             result_payload: Dict[str, Any] = {}
@@ -333,11 +381,19 @@ class DuckDBAnalyticsEngine:
             agg_clean = agg.strip()
             if agg_clean.lower() not in {"count", "count(*)"} and ":" in agg_clean:
                 op, field = agg_clean.split(":", 1)
-                target_ref = field if field in known_cols else f"json_extract({json_col}, '$.{field}')"
+                target_ref = (
+                    field
+                    if field in known_cols
+                    else f"json_extract({json_col}, '$.{field}')"
+                )
                 if op == "avg":
-                    select_exprs.append(f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}")
+                    select_exprs.append(
+                        f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}"
+                    )
                 elif op == "sum":
-                    select_exprs.append(f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}")
+                    select_exprs.append(
+                        f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}"
+                    )
 
         df = self.load_table_dataframe(table_name, tenant_id)
         con = duckdb.connect()
@@ -423,9 +479,13 @@ class DuckDBAnalyticsEngine:
                 elif m_op == "max":
                     metric_sql = f"MAX(TRY_CAST({val_ref} AS DOUBLE))"
                 else:
-                    raise ValueError(f"Unsupported metric operation '{m_op}'. Supported: count, sum, avg, min, max")
+                    raise ValueError(
+                        f"Unsupported metric operation '{m_op}'. Supported: count, sum, avg, min, max"
+                    )
             else:
-                raise ValueError(f"Invalid metric specification '{metric}'. Use 'count' or 'op:field'")
+                raise ValueError(
+                    f"Invalid metric specification '{metric}'. Use 'count' or 'op:field'"
+                )
 
             where_clause, params = self._build_where_clause(
                 table_name=table_name,

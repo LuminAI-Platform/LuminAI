@@ -47,7 +47,6 @@ def generate_blocking_key(
             except Exception:
                 meta_code = "EMPTY"
 
-
     # Normalize country
     if not country or not isinstance(country, str) or not country.strip():
         norm_country = "GLOBAL"
@@ -138,13 +137,23 @@ def generate_candidate_pairs(
     )
 
     if informative_df.height < 2:
-        logger.info("Not enough records with valid blocking keys to generate candidate pairs.")
-        dummy_cols = [f"{c}_a" for c in df.columns] + [f"{c}_b" for c in df.columns] + ["block_key"]
+        logger.info(
+            "Not enough records with valid blocking keys to generate candidate pairs."
+        )
+        dummy_cols = (
+            [f"{c}_a" for c in df.columns]
+            + [f"{c}_b" for c in df.columns]
+            + ["block_key"]
+        )
         return pl.DataFrame(schema={c: pl.Utf8 for c in dummy_cols})
 
     # Perform self-join on block_key
-    left_df = informative_df.select([pl.col(col).alias(f"{col}_a") for col in df.columns])
-    right_df = informative_df.select([pl.col(col).alias(f"{col}_b") for col in df.columns])
+    left_df = informative_df.select(
+        [pl.col(col).alias(f"{col}_a") for col in df.columns]
+    )
+    right_df = informative_df.select(
+        [pl.col(col).alias(f"{col}_b") for col in df.columns]
+    )
 
     # Join where block_key_a == block_key_b and id_a < id_b
     joined = left_df.join(
@@ -168,7 +177,9 @@ def generate_candidate_pairs(
     return candidate_pairs
 
 
-def calculate_blocking_reduction_ratio(total_records: int, candidate_pairs_count: int) -> float:
+def calculate_blocking_reduction_ratio(
+    total_records: int, candidate_pairs_count: int
+) -> float:
     """Calculate the reduction ratio of candidate pairs compared to full O(N^2) comparison space.
 
     Total possible pairs: N * (N - 1) / 2

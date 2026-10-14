@@ -25,8 +25,16 @@ class TestChecksumComputation:
 
     def test_hash_excludes_volatile_metadata(self):
         """Created_at, updated_at, and internal timestamps are ignored during checksum hashing."""
-        rec1 = {"name": "Alice Smith", "email": "alice@example.com", "created_at": "2024-01-01T00:00:00Z"}
-        rec2 = {"name": "Alice Smith", "email": "alice@example.com", "created_at": "2026-08-27T12:00:00Z"}
+        rec1 = {
+            "name": "Alice Smith",
+            "email": "alice@example.com",
+            "created_at": "2024-01-01T00:00:00Z",
+        }
+        rec2 = {
+            "name": "Alice Smith",
+            "email": "alice@example.com",
+            "created_at": "2026-08-27T12:00:00Z",
+        }
 
         assert compute_record_hash(rec1) == compute_record_hash(rec2)
 
@@ -55,9 +63,24 @@ class TestCrossStoreReconciliationScenarios:
     def test_healthy_state_when_all_stores_synced(self):
         """When PG, Neo4j, and OpenSearch contain identical entities, status is HEALTHY."""
         records = [
-            {"golden_id": "gr-001", "name": "Alice Smith", "email": "alice@example.com", "country": "UK"},
-            {"golden_id": "gr-002", "name": "Bob Jones", "email": "bob@example.com", "country": "US"},
-            {"golden_id": "gr-003", "name": "Carol White", "email": "carol@example.com", "country": "CA"},
+            {
+                "golden_id": "gr-001",
+                "name": "Alice Smith",
+                "email": "alice@example.com",
+                "country": "UK",
+            },
+            {
+                "golden_id": "gr-002",
+                "name": "Bob Jones",
+                "email": "bob@example.com",
+                "country": "US",
+            },
+            {
+                "golden_id": "gr-003",
+                "name": "Carol White",
+                "email": "carol@example.com",
+                "country": "CA",
+            },
         ]
 
         report = run_cross_store_reconciliation(
@@ -81,12 +104,24 @@ class TestCrossStoreReconciliationScenarios:
     def test_drift_detected_when_neo4j_is_missing_entities(self):
         """Detects when Neo4j is missing golden records synced to PostgreSQL."""
         pg_records = [
-            {"golden_id": "gr-001", "name": "Alice Smith", "email": "alice@example.com"},
+            {
+                "golden_id": "gr-001",
+                "name": "Alice Smith",
+                "email": "alice@example.com",
+            },
             {"golden_id": "gr-002", "name": "Bob Jones", "email": "bob@example.com"},
-            {"golden_id": "gr-003", "name": "Carol White", "email": "carol@example.com"},
+            {
+                "golden_id": "gr-003",
+                "name": "Carol White",
+                "email": "carol@example.com",
+            },
         ]
         neo4j_records = [
-            {"golden_id": "gr-001", "name": "Alice Smith", "email": "alice@example.com"},
+            {
+                "golden_id": "gr-001",
+                "name": "Alice Smith",
+                "email": "alice@example.com",
+            },
             # gr-002 and gr-003 missing in Neo4j
         ]
         opensearch_records = list(pg_records)
@@ -135,13 +170,25 @@ class TestCrossStoreReconciliationScenarios:
     def test_attribute_content_drift_with_equal_counts(self):
         """Detects content/attribute mismatch even when record counts are identical."""
         pg_records = [
-            {"golden_id": "gr-001", "name": "Alice Smith", "email": "alice@updated.com"},
+            {
+                "golden_id": "gr-001",
+                "name": "Alice Smith",
+                "email": "alice@updated.com",
+            },
         ]
         neo4j_records = [
-            {"golden_id": "gr-001", "name": "Alice Smith", "email": "alice@old.com"},  # Stale data
+            {
+                "golden_id": "gr-001",
+                "name": "Alice Smith",
+                "email": "alice@old.com",
+            },  # Stale data
         ]
         opensearch_records = [
-            {"golden_id": "gr-001", "name": "Alice Smith", "email": "alice@updated.com"},
+            {
+                "golden_id": "gr-001",
+                "name": "Alice Smith",
+                "email": "alice@updated.com",
+            },
         ]
 
         report = run_cross_store_reconciliation(

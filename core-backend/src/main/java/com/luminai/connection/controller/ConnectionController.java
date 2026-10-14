@@ -71,6 +71,43 @@ public class ConnectionController {
   private final ConnectionRepository connectionRepository;
   private final ObjectMapper objectMapper;
 
+  @Autowired(required = false)
+  private com.luminai.graph.repository.Neo4jGraphRepository neo4jGraphRepository;
+
+  private void syncNodeToNeo4j(
+      UUID tenantId, UUID goldenId, String canonicalName, String entityType) {
+    if (neo4jGraphRepository == null) return;
+    try {
+      String slug = TenantContext.getTenantSlug();
+      String primaryTenant = (slug != null && !slug.isBlank()) ? slug : tenantId.toString();
+      neo4jGraphRepository.mergeEntityNode(
+          primaryTenant, goldenId.toString(), canonicalName, entityType);
+      if (slug != null && !slug.isBlank() && !slug.equals(tenantId.toString())) {
+        neo4jGraphRepository.mergeEntityNode(
+            tenantId.toString(), goldenId.toString(), canonicalName, entityType);
+      }
+    } catch (Exception e) {
+      log.debug("Direct Neo4j node sync skipped: {}", e.getMessage());
+    }
+  }
+
+  private void syncRelationshipToNeo4j(
+      UUID tenantId, UUID sourceId, UUID targetId, String relType) {
+    if (neo4jGraphRepository == null) return;
+    try {
+      String slug = TenantContext.getTenantSlug();
+      String primaryTenant = (slug != null && !slug.isBlank()) ? slug : tenantId.toString();
+      neo4jGraphRepository.mergeRelationship(
+          primaryTenant, sourceId.toString(), targetId.toString(), relType, "OUTGOING");
+      if (slug != null && !slug.isBlank() && !slug.equals(tenantId.toString())) {
+        neo4jGraphRepository.mergeRelationship(
+            tenantId.toString(), sourceId.toString(), targetId.toString(), relType, "OUTGOING");
+      }
+    } catch (Exception e) {
+      log.debug("Direct Neo4j relationship sync skipped: {}", e.getMessage());
+    }
+  }
+
   @Autowired
   public ConnectionController(
       ConnectionService connectionService,
@@ -364,8 +401,7 @@ public class ConnectionController {
               Math.min(
                   0.99,
                   Math.max(
-                      0.82,
-                      Math.round((0.90 + boost * 0.5 + avgQuality * 0.06) * 100.0) / 100.0));
+                      0.82, Math.round((0.90 + boost * 0.5 + avgQuality * 0.06) * 100.0) / 100.0));
 
           Map<String, Object> row = new LinkedHashMap<>();
           row.put("id", UUID.randomUUID().toString());
@@ -390,6 +426,7 @@ public class ConnectionController {
             if (currentTenant == null) {
               currentTenant = UUID.fromString("00000000-0000-0000-0000-000000000001");
             }
+            List<GoldenRecord> savedList = new ArrayList<>();
             for (Map<String, Object> cRow : cleanRows) {
               GoldenRecord gr = GoldenRecord.newStandalone();
               gr.setTenantId(currentTenant);
@@ -405,9 +442,25 @@ public class ConnectionController {
               props.remove("confidenceScore");
               props.remove("sourceCount");
               gr.getProperties().putAll(props);
-              goldenRecordRepository.save(gr);
+              GoldenRecord saved = goldenRecordRepository.save(gr);
+              savedList.add(saved);
+
+              syncNodeToNeo4j(
+                  currentTenant, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
             }
-            log.info("Persisted {} resolved golden records for tenant {}", cleanRows.size(), currentTenant);
+
+            for (int i = 0; i < savedList.size() - 1 && i < 20; i++) {
+              GoldenRecord a = savedList.get(i);
+              GoldenRecord b = savedList.get(i + 1);
+              if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
+                syncRelationshipToNeo4j(currentTenant, a.getId(), b.getId(), "SAME_CATEGORY");
+              }
+            }
+
+            log.info(
+                "Persisted and graph-synced {} resolved golden records for tenant {}",
+                cleanRows.size(),
+                currentTenant);
           } catch (Exception e) {
             log.debug(
                 "Auto-persistence of golden records in clean-preview skipped: {}", e.getMessage());
@@ -540,6 +593,7 @@ public class ConnectionController {
     if (!rows.isEmpty() && goldenRecordRepository != null) {
       try {
         int toPersist = Math.min(rows.size(), 100);
+        List<GoldenRecord> savedUploads = new ArrayList<>();
         for (int i = 0; i < toPersist; i++) {
           Map<String, Object> row = rows.get(i);
           GoldenRecord gr = GoldenRecord.newStandalone();
@@ -549,9 +603,24 @@ public class ConnectionController {
           gr.setConfidenceScore(java.math.BigDecimal.valueOf(0.9800));
           gr.setSourceCount(1);
           gr.getProperties().putAll(row);
-          goldenRecordRepository.save(gr);
+          GoldenRecord saved = goldenRecordRepository.save(gr);
+          savedUploads.add(saved);
+
+          syncNodeToNeo4j(tenantId, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
         }
-        log.info("Persisted {} preliminary golden records for tenant {}", toPersist, tenantId);
+
+        for (int i = 0; i < savedUploads.size() - 1 && i < 15; i++) {
+          GoldenRecord a = savedUploads.get(i);
+          GoldenRecord b = savedUploads.get(i + 1);
+          if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
+            syncRelationshipToNeo4j(tenantId, a.getId(), b.getId(), "RELATED_TO");
+          }
+        }
+
+        log.info(
+            "Persisted and graph-synced {} preliminary golden records for tenant {}",
+            toPersist,
+            tenantId);
       } catch (Exception e) {
         log.warn("Could not auto-seed golden records from uploaded file: {}", e.getMessage());
       }

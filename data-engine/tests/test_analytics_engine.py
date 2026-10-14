@@ -11,124 +11,144 @@ from app.processing.analytics_engine import DuckDBAnalyticsEngine
 @pytest.fixture
 def sample_golden_df() -> pl.DataFrame:
     """Sample Polars DataFrame simulating golden_records table."""
-    return pl.DataFrame([
-        {
-            "golden_id": "gr-1",
-            "tenant_id": "acme",
-            "cluster_size": 2,
-            "source_record_ids": json.dumps(["src-1", "src-2"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "Alice Smith",
-                "age": 30,
-                "salary": 60000,
-                "country": "UK",
-                "active": True,
-            }),
-            "created_at": datetime(2024, 1, 1, 10, 0),
-        },
-        {
-            "golden_id": "gr-2",
-            "tenant_id": "acme",
-            "cluster_size": 1,
-            "source_record_ids": json.dumps(["src-3"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "Bob Jones",
-                "age": 40,
-                "salary": 80000,
-                "country": "UK",
-                "active": True,
-            }),
-            "created_at": datetime(2024, 1, 2, 11, 0),
-        },
-        {
-            "golden_id": "gr-3",
-            "tenant_id": "acme",
-            "cluster_size": 3,
-            "source_record_ids": json.dumps(["src-4", "src-5", "src-6"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "Charlie Brown",
-                "age": 50,
-                "salary": 100000,
-                "country": "US",
-                "active": False,
-            }),
-            "created_at": datetime(2024, 1, 3, 9, 0),
-        },
-        {
-            "golden_id": "gr-4",
-            "tenant_id": "other_tenant",
-            "cluster_size": 1,
-            "source_record_ids": json.dumps(["src-7"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "David Miller",
-                "age": 25,
-                "salary": 50000,
-                "country": "UK",
-                "active": True,
-            }),
-            "created_at": datetime(2024, 1, 4, 14, 0),
-        },
-        {
-            "golden_id": "gr-5",
-            "tenant_id": "acme",
-            "cluster_size": 1,
-            "source_record_ids": json.dumps(["src-8"]),
-            "attributes": json.dumps({
-                "entity_type": "Company",
-                "name": "Acme Corp",
-                "employees": 500,
-                "country": "UK",
-            }),
-            "created_at": datetime(2024, 1, 5, 8, 0),
-        },
-    ])
+    return pl.DataFrame(
+        [
+            {
+                "golden_id": "gr-1",
+                "tenant_id": "acme",
+                "cluster_size": 2,
+                "source_record_ids": json.dumps(["src-1", "src-2"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "Alice Smith",
+                        "age": 30,
+                        "salary": 60000,
+                        "country": "UK",
+                        "active": True,
+                    }
+                ),
+                "created_at": datetime(2024, 1, 1, 10, 0),
+            },
+            {
+                "golden_id": "gr-2",
+                "tenant_id": "acme",
+                "cluster_size": 1,
+                "source_record_ids": json.dumps(["src-3"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "Bob Jones",
+                        "age": 40,
+                        "salary": 80000,
+                        "country": "UK",
+                        "active": True,
+                    }
+                ),
+                "created_at": datetime(2024, 1, 2, 11, 0),
+            },
+            {
+                "golden_id": "gr-3",
+                "tenant_id": "acme",
+                "cluster_size": 3,
+                "source_record_ids": json.dumps(["src-4", "src-5", "src-6"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "Charlie Brown",
+                        "age": 50,
+                        "salary": 100000,
+                        "country": "US",
+                        "active": False,
+                    }
+                ),
+                "created_at": datetime(2024, 1, 3, 9, 0),
+            },
+            {
+                "golden_id": "gr-4",
+                "tenant_id": "other_tenant",
+                "cluster_size": 1,
+                "source_record_ids": json.dumps(["src-7"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "David Miller",
+                        "age": 25,
+                        "salary": 50000,
+                        "country": "UK",
+                        "active": True,
+                    }
+                ),
+                "created_at": datetime(2024, 1, 4, 14, 0),
+            },
+            {
+                "golden_id": "gr-5",
+                "tenant_id": "acme",
+                "cluster_size": 1,
+                "source_record_ids": json.dumps(["src-8"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Company",
+                        "name": "Acme Corp",
+                        "employees": 500,
+                        "country": "UK",
+                    }
+                ),
+                "created_at": datetime(2024, 1, 5, 8, 0),
+            },
+        ]
+    )
 
 
 @pytest.fixture
 def sample_staging_df() -> pl.DataFrame:
     """Sample Polars DataFrame simulating staging_records table."""
-    return pl.DataFrame([
-        {
-            "id": "stg-1",
-            "tenant_id": "acme",
-            "source_id": "crm",
-            "raw_id": "raw-1",
-            "data": json.dumps({
-                "entity_type": "Transaction",
-                "amount": 100.50,
-                "status": "completed",
-            }),
-            "staged_at": datetime(2024, 1, 10, 10, 0),
-        },
-        {
-            "id": "stg-2",
-            "tenant_id": "acme",
-            "source_id": "crm",
-            "raw_id": "raw-2",
-            "data": json.dumps({
-                "entity_type": "Transaction",
-                "amount": 250.00,
-                "status": "completed",
-            }),
-            "staged_at": datetime(2024, 1, 10, 15, 0),
-        },
-        {
-            "id": "stg-3",
-            "tenant_id": "acme",
-            "source_id": "erp",
-            "raw_id": "raw-3",
-            "data": json.dumps({
-                "entity_type": "Transaction",
-                "amount": 50.00,
-                "status": "pending",
-            }),
-            "staged_at": datetime(2024, 1, 11, 12, 0),
-        },
-    ])
+    return pl.DataFrame(
+        [
+            {
+                "id": "stg-1",
+                "tenant_id": "acme",
+                "source_id": "crm",
+                "raw_id": "raw-1",
+                "data": json.dumps(
+                    {
+                        "entity_type": "Transaction",
+                        "amount": 100.50,
+                        "status": "completed",
+                    }
+                ),
+                "staged_at": datetime(2024, 1, 10, 10, 0),
+            },
+            {
+                "id": "stg-2",
+                "tenant_id": "acme",
+                "source_id": "crm",
+                "raw_id": "raw-2",
+                "data": json.dumps(
+                    {
+                        "entity_type": "Transaction",
+                        "amount": 250.00,
+                        "status": "completed",
+                    }
+                ),
+                "staged_at": datetime(2024, 1, 10, 15, 0),
+            },
+            {
+                "id": "stg-3",
+                "tenant_id": "acme",
+                "source_id": "erp",
+                "raw_id": "raw-3",
+                "data": json.dumps(
+                    {
+                        "entity_type": "Transaction",
+                        "amount": 50.00,
+                        "status": "pending",
+                    }
+                ),
+                "staged_at": datetime(2024, 1, 11, 12, 0),
+            },
+        ]
+    )
 
 
 class TestDuckDBAnalyticsEngineQuery:

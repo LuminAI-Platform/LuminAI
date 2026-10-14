@@ -43,21 +43,29 @@ async def lifespan(app: FastAPI):
         port=settings.app_port,
     )
 
-
     # Run database schema migration/table verification if enabled
     if settings.auto_migrate:
         try:
             from app.db import ensure_tables_exist
+
             ensure_tables_exist()
             logger.info("Database schema verified")
         except Exception as exc:
-            logger.warning("Database migration check encountered error (DB may be offline): %s", exc)
+            logger.warning(
+                "Database migration check encountered error (DB may be offline): %s",
+                exc,
+            )
 
     # Start Kafka consumer if enabled
     consumer = None
     if settings.kafka_enabled:
-        is_cloud = bool(os.environ.get("RENDER") or os.environ.get("PORT") or settings.is_production)
-        is_localhost = "localhost" in settings.kafka_bootstrap_servers or "127.0.0.1" in settings.kafka_bootstrap_servers
+        is_cloud = bool(
+            os.environ.get("RENDER") or os.environ.get("PORT") or settings.is_production
+        )
+        is_localhost = (
+            "localhost" in settings.kafka_bootstrap_servers
+            or "127.0.0.1" in settings.kafka_bootstrap_servers
+        )
         if is_cloud and is_localhost:
             logger.warning(
                 "KAFKA_ENABLED is true, but KAFKA_BOOTSTRAP_SERVERS is pointing to '%s' in a cloud/Render environment. "
@@ -68,13 +76,18 @@ async def lifespan(app: FastAPI):
             # Check if broker host is resolvable before starting consumer (prevents rdkafka stderr flood)
             resolvable = True
             unresolved_err = ""
-            brokers = [b.strip() for b in settings.kafka_bootstrap_servers.split(",") if b.strip()]
+            brokers = [
+                b.strip()
+                for b in settings.kafka_bootstrap_servers.split(",")
+                if b.strip()
+            ]
             for broker in brokers:
                 b_clean = broker.split("://")[-1]
                 host = b_clean.split(":")[0]
                 port = int(b_clean.split(":")[1]) if ":" in b_clean else 9092
                 try:
                     import socket
+
                     socket.getaddrinfo(host, port)
                     resolvable = True
                     break
@@ -113,6 +126,7 @@ async def lifespan(app: FastAPI):
         logger.info("Kafka consumer stopped")
 
     from app.db import get_db_manager
+
     get_db_manager().dispose_all()
     logger.info("Database connection pools disposed")
     shutdown_telemetry()
@@ -161,7 +175,6 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(metrics.router)
 
-
     # Protected endpoints (require API key or Keycloak JWT)
     app.include_router(
         processing.router,
@@ -186,4 +199,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

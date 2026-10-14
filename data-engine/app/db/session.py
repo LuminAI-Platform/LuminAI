@@ -48,6 +48,7 @@ class DatabaseManager:
                     db_url = self.settings.postgres_driver_dsn
                     if db_url.startswith("sqlite"):
                         from sqlalchemy.pool import StaticPool
+
                         self._pg_engine = create_engine(
                             db_url,
                             connect_args={"check_same_thread": False},
@@ -90,7 +91,9 @@ class DatabaseManager:
             with self._lock:
                 if norm_path not in self._sqlite_engines:
                     os.makedirs(os.path.dirname(norm_path), exist_ok=True)
-                    logger.debug("Initializing persistent SQLite engine", path=norm_path)
+                    logger.debug(
+                        "Initializing persistent SQLite engine", path=norm_path
+                    )
                     engine = create_engine(
                         f"sqlite:///{norm_path}",
                         connect_args={"check_same_thread": False},

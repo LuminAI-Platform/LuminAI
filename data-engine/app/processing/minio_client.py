@@ -24,14 +24,16 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 MULTIPART_THRESHOLD: int = 100 * 1024 * 1024  # 100MB threshold
-DEFAULT_PART_SIZE: int = 10 * 1024 * 1024     # 10MB parts
+DEFAULT_PART_SIZE: int = 10 * 1024 * 1024  # 10MB parts
 
 
 def _sign(key: bytes, msg: str) -> bytes:
     return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
 
 
-def get_signature_key(key: str, date_stamp: str, region_name: str, service_name: str) -> bytes:
+def get_signature_key(
+    key: str, date_stamp: str, region_name: str, service_name: str
+) -> bytes:
     k_date = _sign(("AWS4" + key).encode("utf-8"), date_stamp)
     k_region = _sign(k_date, region_name)
     k_service = _sign(k_region, service_name)
@@ -60,7 +62,9 @@ class MinioRawStorageClient:
         self.local_fallback_dir = local_fallback_dir or os.path.join("storage", "raw")
 
         proto = "https" if self.secure else "http"
-        endpoint_clean = self.endpoint.replace("http://", "").replace("https://", "").rstrip("/")
+        endpoint_clean = (
+            self.endpoint.replace("http://", "").replace("https://", "").rstrip("/")
+        )
         self.base_url = f"{proto}://{endpoint_clean}"
         self.host_header = endpoint_clean
 
@@ -87,7 +91,9 @@ class MinioRawStorageClient:
             headers_to_sign["content-type"] = content_type
 
         signed_headers = ";".join(sorted(headers_to_sign.keys()))
-        canonical_headers = "".join(f"{k}:{headers_to_sign[k]}\n" for k in sorted(headers_to_sign.keys()))
+        canonical_headers = "".join(
+            f"{k}:{headers_to_sign[k]}\n" for k in sorted(headers_to_sign.keys())
+        )
 
         # Clean canonical URI
         encoded_path = urllib.parse.quote(path, safe="/-_.~")
@@ -109,7 +115,9 @@ class MinioRawStorageClient:
         )
 
         signing_key = get_signature_key(self.secret_key, date_stamp, self.region, "s3")
-        signature = hmac.new(signing_key, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
+        signature = hmac.new(
+            signing_key, string_to_sign.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
 
         authorization_header = (
             f"AWS4-HMAC-SHA256 "
@@ -141,12 +149,23 @@ class MinioRawStorageClient:
             with httpx.Client(timeout=5.0) as client:
                 resp = client.get(url, headers=headers)
                 if resp.status_code == 200:
-                    logger.debug("Successfully fetched %d bytes from MinIO: s3://%s/%s", len(resp.content), bucket, clean_key)
+                    logger.debug(
+                        "Successfully fetched %d bytes from MinIO: s3://%s/%s",
+                        len(resp.content),
+                        bucket,
+                        clean_key,
+                    )
                     return resp.content
                 elif resp.status_code != 404:
-                    logger.debug("MinIO returned status %d for %s", resp.status_code, url)
+                    logger.debug(
+                        "MinIO returned status %d for %s", resp.status_code, url
+                    )
         except Exception as exc:
-            logger.debug("Could not reach MinIO at %s (%s). Checking local storage fallback.", url, exc)
+            logger.debug(
+                "Could not reach MinIO at %s (%s). Checking local storage fallback.",
+                url,
+                exc,
+            )
 
         # 2. Check local storage fallbacks
         candidates = [
@@ -166,7 +185,7 @@ class MinioRawStorageClient:
         )
 
     MULTIPART_THRESHOLD: int = 100 * 1024 * 1024  # 100MB threshold
-    DEFAULT_PART_SIZE: int = 10 * 1024 * 1024     # 10MB parts
+    DEFAULT_PART_SIZE: int = 10 * 1024 * 1024  # 10MB parts
 
     def put_object_multipart(
         self,
@@ -212,10 +231,16 @@ class MinioRawStorageClient:
         try:
             with httpx.Client(timeout=30.0) as client:
                 # Step 1: Initiate multipart upload
-                init_headers = self._build_sigv4_headers("POST", f"{path}?uploads", payload=b"", content_type=content_type)
+                init_headers = self._build_sigv4_headers(
+                    "POST", f"{path}?uploads", payload=b"", content_type=content_type
+                )
                 init_resp = client.post(f"{url}?uploads", headers=init_headers)
                 if init_resp.status_code not in (200, 201):
-                    logger.warning("MinIO InitiateMultipartUpload failed (%s): %s", init_resp.status_code, init_resp.text)
+                    logger.warning(
+                        "MinIO InitiateMultipartUpload failed (%s): %s",
+                        init_resp.status_code,
+                        init_resp.text,
+                    )
                     return True  # Fallback cached locally
 
                 upload_id = None
@@ -229,7 +254,9 @@ class MinioRawStorageClient:
                     pass
 
                 if not upload_id:
-                    logger.warning("Could not extract UploadId from MinIO response. Using local cache.")
+                    logger.warning(
+                        "Could not extract UploadId from MinIO response. Using local cache."
+                    )
                     return True
 
                 # Step 2: Upload parts
@@ -240,33 +267,62 @@ class MinioRawStorageClient:
                     part_bytes = data[start:end]
 
                     part_path = f"{path}?partNumber={part_num}&uploadId={upload_id}"
-                    part_headers = self._build_sigv4_headers("PUT", part_path, payload=part_bytes)
-                    part_resp = client.put(f"{url}?partNumber={part_num}&uploadId={upload_id}", headers=part_headers, content=part_bytes)
+                    part_headers = self._build_sigv4_headers(
+                        "PUT", part_path, payload=part_bytes
+                    )
+                    part_resp = client.put(
+                        f"{url}?partNumber={part_num}&uploadId={upload_id}",
+                        headers=part_headers,
+                        content=part_bytes,
+                    )
 
                     if part_resp.status_code not in (200, 201):
-                        logger.warning("Part %d upload failed: %s", part_num, part_resp.status_code)
+                        logger.warning(
+                            "Part %d upload failed: %s", part_num, part_resp.status_code
+                        )
                         return True
 
                     etag = part_resp.headers.get("ETag", f'"{part_num}"').strip('"')
                     parts_info.append((part_num, etag))
 
                 # Step 3: Complete multipart upload
-                complete_xml = "<CompleteMultipartUpload>" + "".join(
-                    f"<Part><PartNumber>{pn}</PartNumber><ETag>\"{etag}\"</ETag></Part>"
-                    for pn, etag in parts_info
-                ) + "</CompleteMultipartUpload>"
+                complete_xml = (
+                    "<CompleteMultipartUpload>"
+                    + "".join(
+                        f'<Part><PartNumber>{pn}</PartNumber><ETag>"{etag}"</ETag></Part>'
+                        for pn, etag in parts_info
+                    )
+                    + "</CompleteMultipartUpload>"
+                )
                 complete_payload = complete_xml.encode("utf-8")
 
                 complete_path = f"{path}?uploadId={upload_id}"
-                complete_headers = self._build_sigv4_headers("POST", complete_path, payload=complete_payload, content_type="application/xml")
-                comp_resp = client.post(f"{url}?uploadId={upload_id}", headers=complete_headers, content=complete_payload)
+                complete_headers = self._build_sigv4_headers(
+                    "POST",
+                    complete_path,
+                    payload=complete_payload,
+                    content_type="application/xml",
+                )
+                comp_resp = client.post(
+                    f"{url}?uploadId={upload_id}",
+                    headers=complete_headers,
+                    content=complete_payload,
+                )
 
                 if comp_resp.status_code in (200, 201):
-                    logger.info("Successfully completed MinIO multipart upload: s3://%s/%s", bucket, clean_key)
+                    logger.info(
+                        "Successfully completed MinIO multipart upload: s3://%s/%s",
+                        bucket,
+                        clean_key,
+                    )
                     return True
 
         except Exception as exc:
-            logger.debug("MinIO multipart upload failed (%s). Local file cached at %s", exc, local_path)
+            logger.debug(
+                "MinIO multipart upload failed (%s). Local file cached at %s",
+                exc,
+                local_path,
+            )
 
         return True
 
@@ -282,7 +338,9 @@ class MinioRawStorageClient:
         Automatically uses multipart upload protocol when size exceeds MULTIPART_THRESHOLD (100MB).
         """
         if len(data) >= self.MULTIPART_THRESHOLD:
-            return self.put_object_multipart(bucket, object_key, data, content_type=content_type)
+            return self.put_object_multipart(
+                bucket, object_key, data, content_type=content_type
+            )
 
         clean_key = object_key.lstrip("/")
         path = f"/{bucket}/{clean_key}"
@@ -299,14 +357,22 @@ class MinioRawStorageClient:
 
         # 2. Try MinIO HTTP PUT
         try:
-            headers = self._build_sigv4_headers("PUT", path, payload=data, content_type=content_type)
+            headers = self._build_sigv4_headers(
+                "PUT", path, payload=data, content_type=content_type
+            )
             with httpx.Client(timeout=5.0) as client:
                 resp = client.put(url, headers=headers, content=data)
                 if resp.status_code in (200, 201):
-                    logger.info("Successfully uploaded object to MinIO: s3://%s/%s", bucket, clean_key)
+                    logger.info(
+                        "Successfully uploaded object to MinIO: s3://%s/%s",
+                        bucket,
+                        clean_key,
+                    )
                     return True
         except Exception as exc:
-            logger.debug("MinIO PUT failed (%s). Local file cached at %s", exc, local_path)
+            logger.debug(
+                "MinIO PUT failed (%s). Local file cached at %s", exc, local_path
+            )
 
         return True
 
@@ -362,7 +428,7 @@ class MinioRawStorageClient:
         cols_lower = [c.lower() for c in df.columns]
         if "id" not in cols_lower and "rec_id" not in cols_lower:
             # Generate deterministic record ID
-            record_ids = [f"rec-{i+1:04d}" for i in range(df.height)]
+            record_ids = [f"rec-{i + 1:04d}" for i in range(df.height)]
             df = df.with_columns(pl.Series("id", record_ids))
 
         logger.info(

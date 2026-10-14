@@ -108,7 +108,9 @@ class IngestRawConsumer:
                 "batch.complete": bool(value.get("batch_complete", False)),
             },
         ):
-            luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="success").inc()
+            luminai_kafka_messages_consumed_total.labels(
+                topic=self.topic, status="success"
+            ).inc()
 
             logger.info(
                 "Received ingest.raw — tenant=%s, source=%s, rows=%d",
@@ -134,7 +136,6 @@ class IngestRawConsumer:
                             tenant_id,
                             source_id,
                         )
-
 
     def consume_batch(
         self,
@@ -196,10 +197,16 @@ class IngestRawConsumer:
             raw_value = "{}"
             try:
                 key = msg.key().decode("utf-8") if msg.key() else None
-                raw_value = msg.value().decode("utf-8", errors="replace") if msg.value() else "{}"
+                raw_value = (
+                    msg.value().decode("utf-8", errors="replace")
+                    if msg.value()
+                    else "{}"
+                )
                 value = json.loads(raw_value)
             except Exception as exc:
-                luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="malformed").inc()
+                luminai_kafka_messages_consumed_total.labels(
+                    topic=self.topic, status="malformed"
+                ).inc()
                 logger.warning(
                     "Failed to deserialize message at offset %d: %s",
                     msg.offset(),
@@ -214,7 +221,9 @@ class IngestRawConsumer:
                         error=f"DeserializationError: {str(exc)}",
                     )
                 except Exception as q_exc:
-                    logger.error("Failed to quarantine deserialization failure: %s", q_exc)
+                    logger.error(
+                        "Failed to quarantine deserialization failure: %s", q_exc
+                    )
                 if not self._running:
                     break
                 continue
@@ -224,7 +233,9 @@ class IngestRawConsumer:
                 self.handle(key, value)
                 processed_batch.append((key, value))
             except Exception as exc:
-                luminai_kafka_messages_consumed_total.labels(topic=self.topic, status="error").inc()
+                luminai_kafka_messages_consumed_total.labels(
+                    topic=self.topic, status="error"
+                ).inc()
                 logger.exception(
                     "Unhandled error processing message at offset %d",
                     msg.offset(),
@@ -249,7 +260,10 @@ class IngestRawConsumer:
         if processed_batch:
             try:
                 self._consumer.commit(asynchronous=False)
-                logger.debug("Committed Kafka offsets for batch of %d messages", len(processed_batch))
+                logger.debug(
+                    "Committed Kafka offsets for batch of %d messages",
+                    len(processed_batch),
+                )
             except Exception as commit_exc:
                 logger.warning("Failed to commit Kafka offsets: %s", commit_exc)
 

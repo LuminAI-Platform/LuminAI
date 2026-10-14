@@ -49,7 +49,13 @@ LAST_NAMES = [
 ]
 
 COUNTRIES = ["US", "UK", "CA", "DE", "FR", "AU", "ZA", "NG", "JP", "IN"]
-SOURCES = ["salesforce_crm", "stripe_billing", "workday_hr", "zendesk_support", "hubspot"]
+SOURCES = [
+    "salesforce_crm",
+    "stripe_billing",
+    "workday_hr",
+    "zendesk_support",
+    "hubspot",
+]
 
 CURRENCY_TEMPLATES = [
     "${amount:,.2f}",
@@ -83,7 +89,9 @@ def introduce_noise(text: str, noise_prob: float = 0.2) -> str:
         elif random.random() < 0.8:
             return text.upper()
         else:
-            return "".join(c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(text))
+            return "".join(
+                c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(text)
+            )
     elif variant == "whitespace":
         prefix = " " * random.randint(1, 3)
         suffix = " " * random.randint(1, 3)
@@ -103,7 +111,9 @@ def generate_messy_dataset(
     rows: list[dict[str, str]] = []
     base_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
 
-    print(f"Generating ~{num_entities} distinct entities with {duplicate_ratio:.0%} duplicate cluster rate...")
+    print(
+        f"Generating ~{num_entities} distinct entities with {duplicate_ratio:.0%} duplicate cluster rate..."
+    )
 
     record_counter = 1
     for entity_idx in range(1, num_entities + 1):
@@ -113,7 +123,9 @@ def generate_messy_dataset(
         country_canon = random.choice(COUNTRIES)
         domain = random.choice(["acme.com", "global.org", "enterprise.co", "tech.io"])
         email_base = f"{fname_canon.lower()}.{lname_canon.lower()}@{domain}"
-        dob_dt = datetime(random.randint(1960, 2003), random.randint(1, 12), random.randint(1, 28))
+        dob_dt = datetime(
+            random.randint(1960, 2003), random.randint(1, 12), random.randint(1, 28)
+        )
         base_salary = float(random.randint(35000, 180000))
 
         # Decide cluster size (1 = single record, 2-4 = duplicates across systems)
@@ -124,7 +136,7 @@ def generate_messy_dataset(
 
         for copy_idx in range(cluster_size):
             source = random.choice(SOURCES)
-            rec_id = f"{source[:4]}-{entity_idx:06d}-{copy_idx+1}"
+            rec_id = f"{source[:4]}-{entity_idx:06d}-{copy_idx + 1}"
 
             # Name variations
             if copy_idx == 0:
@@ -156,7 +168,9 @@ def generate_messy_dataset(
                 country = country_canon
 
             # Date variation
-            updated_dt = base_date + timedelta(days=random.randint(1, 300), hours=random.randint(1, 23))
+            updated_dt = base_date + timedelta(
+                days=random.randint(1, 300), hours=random.randint(1, 23)
+            )
             fmt = random.choice(DATE_FORMATS)
             updated_at_str = updated_dt.strftime(fmt)
 
@@ -171,30 +185,42 @@ def generate_messy_dataset(
                 salary_str = curr_tpl.format(amount=salary_val)
 
             # Age
-            age_val = (datetime.now().year - dob_dt.year)
+            age_val = datetime.now().year - dob_dt.year
             age_str = str(age_val) if random.random() > 0.1 else ""
 
             # Adversarial CSV formula injection (1 in 500 records)
             if random.random() < 0.002:
                 full_name = f"=SUM(1+1)-{full_name}"
 
-            rows.append({
-                "id": rec_id,
-                "source_id": source,
-                "name": full_name,
-                "email": email,
-                "country": country,
-                "entity_type": "Person",
-                "salary": salary_str,
-                "joined_at": updated_at_str,
-                "age": age_str,
-            })
+            rows.append(
+                {
+                    "id": rec_id,
+                    "source_id": source,
+                    "name": full_name,
+                    "email": email,
+                    "country": country,
+                    "entity_type": "Person",
+                    "salary": salary_str,
+                    "joined_at": updated_at_str,
+                    "age": age_str,
+                }
+            )
             record_counter += 1
 
     # Shuffle records so duplicates aren't directly adjacent
     random.shuffle(rows)
 
-    fieldnames = ["id", "source_id", "name", "email", "country", "entity_type", "salary", "joined_at", "age"]
+    fieldnames = [
+        "id",
+        "source_id",
+        "name",
+        "email",
+        "country",
+        "entity_type",
+        "salary",
+        "joined_at",
+        "age",
+    ]
     with open(output_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -206,10 +232,27 @@ def generate_messy_dataset(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate Production-Grade Dirty Test Data for LuminAI Data Engine")
-    parser.add_argument("--entities", type=int, default=10000, help="Number of distinct entities to simulate (Default: 10,000)")
-    parser.add_argument("--dup-rate", type=float, default=0.35, help="Duplicate clustering probability (Default: 0.35)")
-    parser.add_argument("--out", type=str, default="storage/test_datasets/production_dirty_50k.csv", help="Output CSV path")
+    parser = argparse.ArgumentParser(
+        description="Generate Production-Grade Dirty Test Data for LuminAI Data Engine"
+    )
+    parser.add_argument(
+        "--entities",
+        type=int,
+        default=10000,
+        help="Number of distinct entities to simulate (Default: 10,000)",
+    )
+    parser.add_argument(
+        "--dup-rate",
+        type=float,
+        default=0.35,
+        help="Duplicate clustering probability (Default: 0.35)",
+    )
+    parser.add_argument(
+        "--out",
+        type=str,
+        default="storage/test_datasets/production_dirty_50k.csv",
+        help="Output CSV path",
+    )
     args = parser.parse_args()
 
     generate_messy_dataset(

@@ -46,7 +46,9 @@ class TestAssetRetryPolicies:
     def test_cleaning_pipeline_assets_have_retry_policy(self, asset_fn):
         """Every cleaning pipeline asset must configure max_retries=3 with exponential backoff."""
         policy = asset_fn.op.retry_policy
-        assert policy is not None, f"Asset '{asset_fn.key.to_user_string()}' missing retry_policy"
+        assert policy is not None, (
+            f"Asset '{asset_fn.key.to_user_string()}' missing retry_policy"
+        )
         assert policy.max_retries == 3
         assert policy.backoff == Backoff.EXPONENTIAL
 
@@ -63,7 +65,9 @@ class TestAssetRetryPolicies:
     def test_er_pipeline_assets_have_retry_policy(self, asset_fn):
         """Every ER pipeline asset must configure max_retries=3 with exponential backoff."""
         policy = asset_fn.op.retry_policy
-        assert policy is not None, f"Asset '{asset_fn.key.to_user_string()}' missing retry_policy"
+        assert policy is not None, (
+            f"Asset '{asset_fn.key.to_user_string()}' missing retry_policy"
+        )
         assert policy.max_retries == 3
         assert policy.backoff == Backoff.EXPONENTIAL
 
@@ -92,7 +96,9 @@ class TestRunTrackerRetryLogic:
         tracker.init_run(run_id, "cleaning_pipeline", "acme", "src-1")
         tracker.start_run(run_id)
 
-        tracker.record_step_error(run_id, "cleaned_ingestion_data", "Type coercion error: invalid int")
+        tracker.record_step_error(
+            run_id, "cleaned_ingestion_data", "Type coercion error: invalid int"
+        )
         rec = tracker.get_status(run_id)
 
         assert rec.failed_step == "cleaned_ingestion_data"
@@ -129,7 +135,9 @@ class TestRunTrackerRetryLogic:
         run_id = "test-run-retry-1"
         tracker.init_run(run_id, "cleaning_pipeline", "acme", "src-1")
         tracker.start_run(run_id)
-        tracker.fail_run(run_id, error="MinIO timeout", failed_step="staged_ingestion_data")
+        tracker.fail_run(
+            run_id, error="MinIO timeout", failed_step="staged_ingestion_data"
+        )
 
         # First retry
         rec1 = tracker.retry_run(run_id)
@@ -139,7 +147,9 @@ class TestRunTrackerRetryLogic:
         assert "attempt 1" in rec1.message
 
         # Second retry
-        tracker.fail_run(run_id, error="Network glitch", failed_step="staged_ingestion_data")
+        tracker.fail_run(
+            run_id, error="Network glitch", failed_step="staged_ingestion_data"
+        )
         rec2 = tracker.retry_run(run_id)
         assert rec2.retry_count == 2
         assert rec2.status == "running"
@@ -150,8 +160,12 @@ class TestRunTrackerRetryLogic:
         run_id = "test-run-persist-retry"
         tracker.init_run(run_id, "er_pipeline", "tenant-alpha", "src-alpha")
         tracker.start_run(run_id)
-        tracker.record_step_error(run_id, "er_scored_pairs", "OutOfMemoryError in blocking")
-        tracker.fail_run(run_id, error="Blocking stage failed", failed_step="er_blocked_pairs")
+        tracker.record_step_error(
+            run_id, "er_scored_pairs", "OutOfMemoryError in blocking"
+        )
+        tracker.fail_run(
+            run_id, error="Blocking stage failed", failed_step="er_blocked_pairs"
+        )
         tracker.retry_run(run_id)
 
         # Reload from second tracker instance on same DB
@@ -193,11 +207,18 @@ class TestQuarantineFailureCapture:
             ingest_raw_producer=mock_raw,
         )
 
-        test_data = pl.DataFrame({
-            "id": ["valid-1", "", "valid-3", "valid-4"],
-            "name": ["Alice Smith", "Bob Jones", "", "David Brown"],
-            "email": ["alice@example.com", "bob@example.com", "carol@example.com", "no-at-sign.com"],
-        })
+        test_data = pl.DataFrame(
+            {
+                "id": ["valid-1", "", "valid-3", "valid-4"],
+                "name": ["Alice Smith", "Bob Jones", "", "David Brown"],
+                "email": [
+                    "alice@example.com",
+                    "bob@example.com",
+                    "carol@example.com",
+                    "no-at-sign.com",
+                ],
+            }
+        )
 
         context = build_asset_context(
             run_tags={
@@ -242,11 +263,13 @@ class TestCheckpointManager:
         """Saved DataFrame can be retrieved identically via load_checkpoint."""
         run_id = "test-cp-run-1"
         step = "cleaned_ingestion_data"
-        df = pl.DataFrame({
-            "id": ["1", "2", "3"],
-            "name": ["Alice", "Bob", "Charlie"],
-            "score": [95.5, 88.0, 72.3],
-        })
+        df = pl.DataFrame(
+            {
+                "id": ["1", "2", "3"],
+                "name": ["Alice", "Bob", "Charlie"],
+                "score": [95.5, 88.0, 72.3],
+            }
+        )
 
         path = cp_mgr.save_checkpoint(run_id, step, df)
         assert path is not None
@@ -312,7 +335,9 @@ class TestRetryApiEndpoint:
         """Retrying a failed run returns 200 with running status and incremented retry_count."""
         run_id = setup_failed_run
 
-        with patch("app.processing.trigger.DagsterTrigger.retry_pipeline") as mock_retry:
+        with patch(
+            "app.processing.trigger.DagsterTrigger.retry_pipeline"
+        ) as mock_retry:
             response = client.post(f"/process/retry/{run_id}")
             assert response.status_code == 200
             data = response.json()

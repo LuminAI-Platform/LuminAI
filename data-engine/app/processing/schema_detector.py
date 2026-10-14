@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # Max null threshold allowed for any column (50%)
 MAX_NULL_PERCENTAGE_THRESHOLD: float = 50.0
 
+
 # Supported detected types
 class ColumnType(str, Enum):
     STRING = "string"
@@ -36,9 +37,7 @@ class ColumnType(str, Enum):
 
 
 # Regex patterns for type identification
-EMAIL_REGEX = re.compile(
-    r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-)
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 PHONE_REGEX = re.compile(
     r"^\+?[0-9]{1,4}?[-.\s]?\(?[0-9]{1,4}?\)?[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,9}$"
@@ -65,11 +64,27 @@ COMMON_DATE_FORMATS = [
 ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
     "Person": {
         "id": {
-            "aliases": ["id", "rec_id", "user_id", "person_id", "uuid", "uid", "customer_id"],
+            "aliases": [
+                "id",
+                "rec_id",
+                "user_id",
+                "person_id",
+                "uuid",
+                "uid",
+                "customer_id",
+            ],
             "expected_type": ColumnType.STRING,
         },
         "name": {
-            "aliases": ["name", "full_name", "first_name", "last_name", "contact_name", "username", "customer_name"],
+            "aliases": [
+                "name",
+                "full_name",
+                "first_name",
+                "last_name",
+                "contact_name",
+                "username",
+                "customer_name",
+            ],
             "expected_type": ColumnType.STRING,
         },
         "email": {
@@ -77,7 +92,15 @@ ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
             "expected_type": ColumnType.EMAIL,
         },
         "phone": {
-            "aliases": ["phone", "telephone", "mobile", "cell", "phone_number", "contact_phone", "tel"],
+            "aliases": [
+                "phone",
+                "telephone",
+                "mobile",
+                "cell",
+                "phone_number",
+                "contact_phone",
+                "tel",
+            ],
             "expected_type": ColumnType.PHONE,
         },
         "age": {
@@ -85,11 +108,25 @@ ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
             "expected_type": ColumnType.NUMBER,
         },
         "country": {
-            "aliases": ["country", "nation", "country_code", "location_country", "nationality", "residence"],
+            "aliases": [
+                "country",
+                "nation",
+                "country_code",
+                "location_country",
+                "nationality",
+                "residence",
+            ],
             "expected_type": ColumnType.STRING,
         },
         "joined_at": {
-            "aliases": ["joined_at", "created_at", "signup_date", "registered_at", "registration_date", "start_date"],
+            "aliases": [
+                "joined_at",
+                "created_at",
+                "signup_date",
+                "registered_at",
+                "registration_date",
+                "start_date",
+            ],
             "expected_type": ColumnType.DATE,
         },
         "score": {
@@ -107,7 +144,13 @@ ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
             "expected_type": ColumnType.STRING,
         },
         "name": {
-            "aliases": ["name", "org_name", "company_name", "business_name", "firm_name"],
+            "aliases": [
+                "name",
+                "org_name",
+                "company_name",
+                "business_name",
+                "firm_name",
+            ],
             "expected_type": ColumnType.STRING,
         },
         "industry": {
@@ -115,7 +158,14 @@ ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
             "expected_type": ColumnType.STRING,
         },
         "employee_count": {
-            "aliases": ["employee_count", "employees", "size", "headcount", "staff", "num_employees"],
+            "aliases": [
+                "employee_count",
+                "employees",
+                "size",
+                "headcount",
+                "staff",
+                "num_employees",
+            ],
             "expected_type": ColumnType.NUMBER,
         },
         "country": {
@@ -141,7 +191,14 @@ ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
             "expected_type": ColumnType.NUMBER,
         },
         "stock_quantity": {
-            "aliases": ["stock_quantity", "stock", "quantity", "inventory", "inventory_count", "qty"],
+            "aliases": [
+                "stock_quantity",
+                "stock",
+                "quantity",
+                "inventory",
+                "inventory_count",
+                "qty",
+            ],
             "expected_type": ColumnType.NUMBER,
         },
         "category": {
@@ -159,7 +216,14 @@ ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
             "expected_type": ColumnType.NUMBER,
         },
         "timestamp": {
-            "aliases": ["timestamp", "tx_date", "date", "created_at", "transacted_at", "transaction_date"],
+            "aliases": [
+                "timestamp",
+                "tx_date",
+                "date",
+                "created_at",
+                "transacted_at",
+                "transaction_date",
+            ],
             "expected_type": ColumnType.DATE,
         },
         "user_id": {
@@ -167,7 +231,13 @@ ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
             "expected_type": ColumnType.STRING,
         },
         "status": {
-            "aliases": ["status", "tx_status", "payment_status", "state", "order_status"],
+            "aliases": [
+                "status",
+                "tx_status",
+                "payment_status",
+                "state",
+                "order_status",
+            ],
             "expected_type": ColumnType.STRING,
         },
     },
@@ -319,7 +389,9 @@ class SchemaDetector:
             return False
         return True
 
-    def detect_column_type(self, raw_values: List[Any]) -> Tuple[ColumnType, Dict[str, float]]:
+    def detect_column_type(
+        self, raw_values: List[Any]
+    ) -> Tuple[ColumnType, Dict[str, float]]:
         """
         Analyze a list of values to determine the predominant column type and type distribution.
 
@@ -364,7 +436,11 @@ class SchemaDetector:
         dist: Dict[str, float] = {}
         for ctype, count in counts.items():
             dist[ctype.value] = round((count / non_null_count) * 100.0, 2)
-        dist["null"] = round(((total_count - non_null_count) / total_count) * 100.0, 2) if total_count > 0 else 0.0
+        dist["null"] = (
+            round(((total_count - non_null_count) / total_count) * 100.0, 2)
+            if total_count > 0
+            else 0.0
+        )
 
         # Determine predominant type (threshold >= 60% of non-null values)
         for ctype in (
@@ -477,7 +553,10 @@ class SchemaDetector:
             is_str_col = df.schema[col_name] in (pl.Utf8, pl.String)
             if is_str_col:
                 null_count = df.select(
-                    (pl.col(col_name).is_null() | (pl.col(col_name).str.strip_chars() == "")).sum()
+                    (
+                        pl.col(col_name).is_null()
+                        | (pl.col(col_name).str.strip_chars() == "")
+                    ).sum()
                 ).item()
             else:
                 null_count = df.select(pl.col(col_name).is_null().sum()).item()
@@ -488,19 +567,25 @@ class SchemaDetector:
             try:
                 unique_count = df.select(pl.col(col_name).n_unique()).item()
             except Exception:
-                unique_count = len(set(str(v) for v in raw_values if not self._is_null_or_empty(v)))
+                unique_count = len(
+                    set(str(v) for v in raw_values if not self._is_null_or_empty(v))
+                )
             unique_pct = round((unique_count / total_rows) * 100.0, 2)
 
             # Detect type
             detected_type, type_dist = self.detect_column_type(raw_values)
 
             # Ontology suggestions
-            sugg_entity, sugg_prop, conf = self.suggest_ontology_mapping(col_name, detected_type)
+            sugg_entity, sugg_prop, conf = self.suggest_ontology_mapping(
+                col_name, detected_type
+            )
             if sugg_entity and conf >= 0.70:
                 entity_votes[sugg_entity] = entity_votes.get(sugg_entity, 0.0) + conf
 
             # Sample values for preview (up to 5 non-null values)
-            non_null_samples = [v for v in raw_values if not self._is_null_or_empty(v)][:5]
+            non_null_samples = [v for v in raw_values if not self._is_null_or_empty(v)][
+                :5
+            ]
 
             # Rejection check (>50% null)
             is_rejected = null_pct > self.max_null_pct
@@ -536,7 +621,9 @@ class SchemaDetector:
         primary_entity: Optional[str] = None
         entity_conf = 0.0
         if entity_votes:
-            sorted_votes = sorted(entity_votes.items(), key=lambda x: x[1], reverse=True)
+            sorted_votes = sorted(
+                entity_votes.items(), key=lambda x: x[1], reverse=True
+            )
             primary_entity, total_weight = sorted_votes[0]
             entity_conf = round(min(1.0, total_weight / max(1, len(columns_report))), 2)
 
@@ -545,9 +632,7 @@ class SchemaDetector:
         error_msg = None
         if not is_valid:
             col_list_str = ", ".join(f"'{c}'" for c in rejected_cols)
-            error_msg = (
-                f"File rejected: Columns ({col_list_str}) exceed the maximum allowable null threshold of {self.max_null_pct:.1f}%."
-            )
+            error_msg = f"File rejected: Columns ({col_list_str}) exceed the maximum allowable null threshold of {self.max_null_pct:.1f}%."
 
         return PreflightValidationReport(
             is_valid=is_valid,

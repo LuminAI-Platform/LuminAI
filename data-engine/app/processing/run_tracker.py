@@ -95,17 +95,30 @@ class PipelineRunTracker:
                     """
                 )
                 # Ensure new columns exist if table was previously created with older schema
-                existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(pipeline_runs)").fetchall()}
+                existing_cols = {
+                    row[1]
+                    for row in conn.execute(
+                        "PRAGMA table_info(pipeline_runs)"
+                    ).fetchall()
+                }
                 if "retry_count" not in existing_cols:
-                    conn.execute("ALTER TABLE pipeline_runs ADD COLUMN retry_count INTEGER DEFAULT 0")
+                    conn.execute(
+                        "ALTER TABLE pipeline_runs ADD COLUMN retry_count INTEGER DEFAULT 0"
+                    )
                 if "failed_step" not in existing_cols:
-                    conn.execute("ALTER TABLE pipeline_runs ADD COLUMN failed_step TEXT")
+                    conn.execute(
+                        "ALTER TABLE pipeline_runs ADD COLUMN failed_step TEXT"
+                    )
                 if "error_history" not in existing_cols:
-                    conn.execute("ALTER TABLE pipeline_runs ADD COLUMN error_history TEXT")
+                    conn.execute(
+                        "ALTER TABLE pipeline_runs ADD COLUMN error_history TEXT"
+                    )
                 if "metadata" not in existing_cols:
                     conn.execute("ALTER TABLE pipeline_runs ADD COLUMN metadata TEXT")
         except Exception as exc:
-            logger.warning("Could not initialize SQLite run storage at %s: %s", self.db_path, exc)
+            logger.warning(
+                "Could not initialize SQLite run storage at %s: %s", self.db_path, exc
+            )
 
     def _persist_to_db(self, record: RunRecord) -> None:
         """Write or update record in SQLite."""
@@ -152,7 +165,9 @@ class PipelineRunTracker:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                cur = conn.execute("SELECT * FROM pipeline_runs WHERE run_id = ?", (run_id,))
+                cur = conn.execute(
+                    "SELECT * FROM pipeline_runs WHERE run_id = ?", (run_id,)
+                )
                 row = cur.fetchone()
                 if row:
                     row_keys = row.keys()
@@ -172,10 +187,18 @@ class PipelineRunTracker:
                         completed_at=row["completed_at"],
                         dagster_run_id=row["dagster_run_id"],
                         logs=json.loads(row["logs"] or "[]"),
-                        retry_count=int(row["retry_count"]) if "retry_count" in row_keys and row["retry_count"] is not None else 0,
-                        failed_step=row["failed_step"] if "failed_step" in row_keys else None,
-                        error_history=json.loads(row["error_history"] or "[]") if "error_history" in row_keys and row["error_history"] else [],
-                        metadata=json.loads(row["metadata"] or "{}") if "metadata" in row_keys and row["metadata"] else {},
+                        retry_count=int(row["retry_count"])
+                        if "retry_count" in row_keys and row["retry_count"] is not None
+                        else 0,
+                        failed_step=row["failed_step"]
+                        if "failed_step" in row_keys
+                        else None,
+                        error_history=json.loads(row["error_history"] or "[]")
+                        if "error_history" in row_keys and row["error_history"]
+                        else [],
+                        metadata=json.loads(row["metadata"] or "{}")
+                        if "metadata" in row_keys and row["metadata"]
+                        else {},
                     )
         except Exception as exc:
             logger.debug("Failed to read run %s from SQLite: %s", run_id, exc)
@@ -200,7 +223,8 @@ class PipelineRunTracker:
             status="queued",
             progress_pct=0,
             total_steps=total_steps,
-            message=message or f"{pipeline_name} queued for source '{source_id}' (tenant: {tenant_id}).",
+            message=message
+            or f"{pipeline_name} queued for source '{source_id}' (tenant: {tenant_id}).",
             metadata=metadata or {},
         )
         with self._lock:
@@ -257,8 +281,12 @@ class PipelineRunTracker:
             completed_count = len(rec.steps_completed)
             calc_pct = int((completed_count / max(rec.total_steps, 1)) * 100)
             rec.progress_pct = min(calc_pct, 99)
-            rec.message = message or f"Completed step '{step_name}' ({rec.progress_pct}%)."
-            rec.logs.append(f"[{datetime.now(timezone.utc).isoformat()}] Step: {step_name}")
+            rec.message = (
+                message or f"Completed step '{step_name}' ({rec.progress_pct}%)."
+            )
+            rec.logs.append(
+                f"[{datetime.now(timezone.utc).isoformat()}] Step: {step_name}"
+            )
             self._runs[run_id] = rec
             self._persist_to_db(rec)
             return rec
@@ -310,12 +338,16 @@ class PipelineRunTracker:
             rec.failed_step = step_name
             rec.error = error
             now_iso = datetime.now(timezone.utc).isoformat()
-            rec.error_history.append({
-                "step": step_name,
-                "error": error,
-                "timestamp": now_iso,
-                "retry_count": rec.retry_count if retry_count is None else retry_count,
-            })
+            rec.error_history.append(
+                {
+                    "step": step_name,
+                    "error": error,
+                    "timestamp": now_iso,
+                    "retry_count": rec.retry_count
+                    if retry_count is None
+                    else retry_count,
+                }
+            )
             rec.logs.append(f"[{now_iso}] Step '{step_name}' failed: {error}")
             self._runs[run_id] = rec
             self._persist_to_db(rec)
@@ -351,12 +383,14 @@ class PipelineRunTracker:
             rec.logs.append(f"[{now_iso}] Error: {error}")
 
             if not rec.error_history or rec.error_history[-1].get("error") != error:
-                rec.error_history.append({
-                    "step": rec.failed_step or "pipeline",
-                    "error": error,
-                    "timestamp": now_iso,
-                    "retry_count": rec.retry_count,
-                })
+                rec.error_history.append(
+                    {
+                        "step": rec.failed_step or "pipeline",
+                        "error": error,
+                        "timestamp": now_iso,
+                        "retry_count": rec.retry_count,
+                    }
+                )
 
             self._runs[run_id] = rec
             self._persist_to_db(rec)
@@ -414,7 +448,9 @@ class PipelineRunTracker:
             }
         }
         """
-        payload = json.dumps({"query": query, "variables": {"runId": run_id}}).encode("utf-8")
+        payload = json.dumps({"query": query, "variables": {"runId": run_id}}).encode(
+            "utf-8"
+        )
         req = urllib.request.Request(
             url,
             data=payload,
@@ -444,7 +480,11 @@ class PipelineRunTracker:
                         s["stepKey"] for s in step_stats if s.get("status") == "SUCCESS"
                     ]
                     total_steps = len(step_stats) or 5
-                    pct = 100 if status == "completed" else min(int((len(steps_completed) / total_steps) * 100), 99)
+                    pct = (
+                        100
+                        if status == "completed"
+                        else min(int((len(steps_completed) / total_steps) * 100), 99)
+                    )
 
                     return RunRecord(
                         run_id=run_id,
@@ -459,7 +499,9 @@ class PipelineRunTracker:
                         message=f"Dagster run status: {raw_status}",
                     )
         except Exception as exc:
-            logger.debug("Dagster GraphQL query unreachable for run %s (%s)", run_id, exc)
+            logger.debug(
+                "Dagster GraphQL query unreachable for run %s (%s)", run_id, exc
+            )
         return None
 
     def get_status(self, run_id: str) -> RunRecord:

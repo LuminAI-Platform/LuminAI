@@ -158,7 +158,10 @@ class TestCorsMiddleware:
             headers={"Origin": "http://localhost:5173"},
         )
         assert response.status_code == 200
-        assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+        assert (
+            response.headers.get("access-control-allow-origin")
+            == "http://localhost:5173"
+        )
 
     def test_cors_allows_frontend_origin(self):
         """CORS headers are present for production frontend Vercel origin."""
@@ -167,7 +170,10 @@ class TestCorsMiddleware:
             headers={"Origin": "https://luminai-sand.vercel.app"},
         )
         assert response.status_code == 200
-        assert response.headers.get("access-control-allow-origin") == "https://luminai-sand.vercel.app"
+        assert (
+            response.headers.get("access-control-allow-origin")
+            == "https://luminai-sand.vercel.app"
+        )
 
     def test_cors_allows_backend_origin(self):
         """CORS headers are present for Core Backend origin."""
@@ -176,7 +182,10 @@ class TestCorsMiddleware:
             headers={"Origin": "https://luminai-api.onrender.com"},
         )
         assert response.status_code == 200
-        assert response.headers.get("access-control-allow-origin") == "https://luminai-api.onrender.com"
+        assert (
+            response.headers.get("access-control-allow-origin")
+            == "https://luminai-api.onrender.com"
+        )
 
     def test_cors_allows_data_origin(self):
         """CORS headers are present for Data Engine origin."""
@@ -185,7 +194,10 @@ class TestCorsMiddleware:
             headers={"Origin": "https://luminai-data.onrender.com"},
         )
         assert response.status_code == 200
-        assert response.headers.get("access-control-allow-origin") == "https://luminai-data.onrender.com"
+        assert (
+            response.headers.get("access-control-allow-origin")
+            == "https://luminai-data.onrender.com"
+        )
 
     def test_cors_blocks_unauthorized_origin(self):
         """Unauthorized origins do not receive access-control-allow-origin header."""

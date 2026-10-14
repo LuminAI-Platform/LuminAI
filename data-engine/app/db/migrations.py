@@ -19,7 +19,9 @@ logger = structlog.get_logger(__name__)
 
 def get_alembic_config(db_url: Optional[str] = None) -> Config:
     """Return configured Alembic Config instance."""
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    base_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
     ini_path = os.path.join(base_dir, "alembic.ini")
 
     if not os.path.exists(ini_path):
@@ -38,7 +40,11 @@ def run_migrations(
 ) -> None:
     """Run Alembic database migrations up to the target revision (default: head)."""
     settings = get_settings()
-    url = db_url or (engine.url.render_as_string(hide_password=False) if engine else settings.postgres_driver_dsn)
+    url = db_url or (
+        engine.url.render_as_string(hide_password=False)
+        if engine
+        else settings.postgres_driver_dsn
+    )
 
     logger.info("Running database migrations", target_revision=target_revision)
     alembic_cfg = get_alembic_config(url)
@@ -60,7 +66,11 @@ def run_downgrade(
 ) -> None:
     """Downgrade Alembic database migrations down to target revision (default: base)."""
     settings = get_settings()
-    url = db_url or (engine.url.render_as_string(hide_password=False) if engine else settings.postgres_driver_dsn)
+    url = db_url or (
+        engine.url.render_as_string(hide_password=False)
+        if engine
+        else settings.postgres_driver_dsn
+    )
 
     logger.info("Rolling back database migrations", target_revision=target_revision)
     alembic_cfg = get_alembic_config(url)
@@ -87,14 +97,23 @@ def ensure_tables_exist(engine: Optional[Engine] = None) -> None:
     # Align pre-existing golden_records table columns if needed
     try:
         from sqlalchemy import inspect, text
+
         inspector = inspect(target_engine)
         if "golden_records" in inspector.get_table_names():
             columns = {col["name"] for col in inspector.get_columns("golden_records")}
             with target_engine.begin() as conn:
                 if "version" not in columns:
-                    conn.execute(text("ALTER TABLE golden_records ADD COLUMN version INTEGER DEFAULT 1 NOT NULL"))
+                    conn.execute(
+                        text(
+                            "ALTER TABLE golden_records ADD COLUMN version INTEGER DEFAULT 1 NOT NULL"
+                        )
+                    )
                 if "updated_at" not in columns:
-                    conn.execute(text("ALTER TABLE golden_records ADD COLUMN updated_at DATETIME"))
+                    conn.execute(
+                        text(
+                            "ALTER TABLE golden_records ADD COLUMN updated_at DATETIME"
+                        )
+                    )
     except Exception as exc:
         logger.debug("Schema alignment notice: %s", exc)
 

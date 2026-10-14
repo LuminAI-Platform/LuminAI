@@ -56,7 +56,11 @@ def clean_sample_df() -> pl.DataFrame:
             "email": ["alice@example.com", "bob@example.com", "carol@example.com"],
             "age": [34, 28, 45],
             "country": ["UK", "US", "CA"],
-            "joined_at": ["2024-01-15T00:00:00Z", "2024-03-20T00:00:00Z", "2024-05-01T00:00:00Z"],
+            "joined_at": [
+                "2024-01-15T00:00:00Z",
+                "2024-03-20T00:00:00Z",
+                "2024-05-01T00:00:00Z",
+            ],
             "salary_amount": [1200.50, 1500.0, 9000.0],
             "score": [0.85, 0.72, 0.91],
         }
@@ -128,7 +132,9 @@ class TestMaxNullPercentageCheck:
         )
         res = evaluate_null_percentages(df_with_missing_id)
         assert res.passed is False
-        assert any("Mandatory identifier 'id'" in v for v in get_meta(res, "violations", []))
+        assert any(
+            "Mandatory identifier 'id'" in v for v in get_meta(res, "violations", [])
+        )
 
     def test_max_null_percentage_fails_on_empty_string_id(self):
         df_with_empty_id = pl.DataFrame(
@@ -139,7 +145,9 @@ class TestMaxNullPercentageCheck:
         )
         res = evaluate_null_percentages(df_with_empty_id)
         assert res.passed is False
-        assert any("Mandatory identifier 'id'" in v for v in get_meta(res, "violations", []))
+        assert any(
+            "Mandatory identifier 'id'" in v for v in get_meta(res, "violations", [])
+        )
 
     def test_max_null_percentage_fails_when_exceeding_threshold(self):
         df_high_nulls = pl.DataFrame(
@@ -150,7 +158,9 @@ class TestMaxNullPercentageCheck:
         )
         res = evaluate_null_percentages(df_high_nulls, max_null_pct=50.0)
         assert res.passed is False
-        assert any("exceeds max threshold" in v for v in get_meta(res, "violations", []))
+        assert any(
+            "exceeds max threshold" in v for v in get_meta(res, "violations", [])
+        )
 
     def test_direct_null_asset_check_invocation(self, clean_sample_df):
         res = cleaning_max_null_percentage_check(clean_sample_df)
@@ -175,7 +185,9 @@ class TestValueRangeConstraintsCheck:
         res = evaluate_value_range_constraints(df_negative_age)
         assert res.passed is False
         assert res.severity == AssetCheckSeverity.ERROR
-        assert any("Age constraint violation" in v for v in get_meta(res, "violations", []))
+        assert any(
+            "Age constraint violation" in v for v in get_meta(res, "violations", [])
+        )
 
     def test_value_range_fails_on_absurd_age(self):
         df_absurd_age = pl.DataFrame(
@@ -186,10 +198,14 @@ class TestValueRangeConstraintsCheck:
         )
         res = evaluate_value_range_constraints(df_absurd_age)
         assert res.passed is False
-        assert any("Age constraint violation" in v for v in get_meta(res, "violations", []))
+        assert any(
+            "Age constraint violation" in v for v in get_meta(res, "violations", [])
+        )
 
     def test_value_range_fails_on_future_joined_at_date(self):
-        future_year = (datetime.now(timezone.utc) + timedelta(days=400)).strftime("%Y-%m-%d")
+        future_year = (datetime.now(timezone.utc) + timedelta(days=400)).strftime(
+            "%Y-%m-%d"
+        )
         df_future_date = pl.DataFrame(
             {
                 "id": ["rec-001"],
@@ -198,7 +214,10 @@ class TestValueRangeConstraintsCheck:
         )
         res = evaluate_value_range_constraints(df_future_date)
         assert res.passed is False
-        assert any("Future date constraint violation" in v for v in get_meta(res, "violations", []))
+        assert any(
+            "Future date constraint violation" in v
+            for v in get_meta(res, "violations", [])
+        )
 
     def test_value_range_fails_on_negative_salary(self):
         df_negative_salary = pl.DataFrame(
@@ -209,7 +228,9 @@ class TestValueRangeConstraintsCheck:
         )
         res = evaluate_value_range_constraints(df_negative_salary)
         assert res.passed is False
-        assert any("Salary constraint violation" in v for v in get_meta(res, "violations", []))
+        assert any(
+            "Salary constraint violation" in v for v in get_meta(res, "violations", [])
+        )
 
     def test_direct_value_range_asset_check_invocation(self, clean_sample_df):
         res = cleaning_value_range_check(clean_sample_df)
@@ -286,7 +307,9 @@ class TestReferentialIntegrityCheck:
 
     def test_direct_er_check_invocation(self):
         staging_df = pl.DataFrame({"id": ["1", "2"]})
-        golden_df = pl.DataFrame({"golden_id": ["g1"], "source_record_ids": [["1", "2"]]})
+        golden_df = pl.DataFrame(
+            {"golden_id": ["g1"], "source_record_ids": [["1", "2"]]}
+        )
         res = er_referential_integrity_check(golden_df, staging_df)
         assert res.passed is True
 
@@ -318,7 +341,9 @@ class TestDagsterAssetCheckIntegration:
         check_evals = result.get_asset_check_evaluations()
         assert len(check_evals) == 3
         for evaluation in check_evals:
-            assert evaluation.passed is True, f"Check {evaluation.check_name} failed: {evaluation.metadata}"
+            assert evaluation.passed is True, (
+                f"Check {evaluation.check_name} failed: {evaluation.metadata}"
+            )
 
     def test_materialize_er_pipeline_with_referential_integrity_check(self):
         """In-process materialize evaluates referential integrity on the ER pipeline."""

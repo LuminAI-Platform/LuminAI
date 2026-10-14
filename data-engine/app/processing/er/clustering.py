@@ -46,7 +46,9 @@ class UnionFind:
                 self.rank[root1] += 1
 
 
-def find_connected_components(matches_df: pl.DataFrame, id_a_col: str = "id_a", id_b_col: str = "id_b") -> list[set[str]]:
+def find_connected_components(
+    matches_df: pl.DataFrame, id_a_col: str = "id_a", id_b_col: str = "id_b"
+) -> list[set[str]]:
     """Compute connected components graph clusters from a DataFrame of matched record pairs."""
     if matches_df.height == 0:
         return []

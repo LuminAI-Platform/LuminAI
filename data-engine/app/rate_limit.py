@@ -80,7 +80,8 @@ class SlidingWindowRateLimiter:
         """Remove empty or outdated buckets to prevent memory accumulation."""
         window_start = now - self.window_seconds
         stale_keys = [
-            k for k, timestamps in self._buckets.items()
+            k
+            for k, timestamps in self._buckets.items()
             if not timestamps or timestamps[-1] < window_start
         ]
         for k in stale_keys:
@@ -128,7 +129,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.limiter = limiter or _limiter
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Any]
+    ) -> Response:
         settings = get_settings()
 
         # 1. Skip if rate limiting is globally disabled
@@ -142,7 +145,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # 3. Skip exempt operational endpoints
-        if path in self.EXEMPT_PATHS or any(path.startswith(p) for p in ("/docs", "/redoc", "/metrics")):
+        if path in self.EXEMPT_PATHS or any(
+            path.startswith(p) for p in ("/docs", "/redoc", "/metrics")
+        ):
             return await call_next(request)
 
         # 4. Resolve client identifier (Tenant ID > X-Forwarded-For > Client IP)
@@ -155,7 +160,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_key = f"tenant:{tenant_id}" if tenant_id else f"ip:{client_ip}"
 
         # 5. Determine rate tier based on path
-        is_pipeline = any(path.startswith(prefix) for prefix in self.PIPELINE_PATH_PREFIXES)
+        is_pipeline = any(
+            path.startswith(prefix) for prefix in self.PIPELINE_PATH_PREFIXES
+        )
         if is_pipeline:
             limit = settings.rate_limit_pipeline_per_minute
             bucket_key = f"{client_key}:pipeline"
@@ -164,7 +171,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             bucket_key = f"{client_key}:general"
 
         # 6. Evaluate rate limit
-        allowed, remaining, retry_after = self.limiter.check_and_record(bucket_key, limit)
+        allowed, remaining, retry_after = self.limiter.check_and_record(
+            bucket_key, limit
+        )
 
         reset_epoch = int(time.time() + (retry_after if not allowed else 60.0))
 

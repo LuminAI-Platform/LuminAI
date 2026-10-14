@@ -28,8 +28,12 @@ class Settings(BaseSettings):
     app_frontend_url: str = "https://luminai-sand.vercel.app"
     debug: bool = False
     environment: str = "development"  # "development", "staging", "production"
-    enable_mock_auth: bool | None = None  # None: enabled only in non-production environments
-    allow_synthetic_data: bool | None = None  # None: allowed only in non-production environments
+    enable_mock_auth: bool | None = (
+        None  # None: enabled only in non-production environments
+    )
+    allow_synthetic_data: bool | None = (
+        None  # None: allowed only in non-production environments
+    )
 
     @property
     def is_production(self) -> bool:
@@ -66,7 +70,6 @@ class Settings(BaseSettings):
     rate_limit_default_per_minute: int = 120
     rate_limit_pipeline_per_minute: int = 30
 
-
     # CORS Configuration
     cors_origins: list[str] | str = [
         "https://luminai-sand.vercel.app",
@@ -84,6 +87,7 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             if v.startswith("[") and v.endswith("]"):
                 import json
+
                 v = json.loads(v)
             else:
                 v = [item.strip() for item in v.split(",") if item.strip()]
@@ -100,6 +104,7 @@ class Settings(BaseSettings):
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
     kafka_topic_entity_resolved: str = "entity.resolved"
     kafka_sasl_mechanism: str = "PLAIN"
+    kafka_security_protocol: str | None = None
     kafka_username: str | None = None
     kafka_password: str | None = None
     kafka_producer_max_retries: int = 3
@@ -140,8 +145,12 @@ class Settings(BaseSettings):
     db_pool_timeout: float = 30.0
     db_pool_recycle: int = 1800
     db_pool_pre_ping: bool = True
-    auto_migrate: bool = True  # Automatically run database migrations on application startup
-    analytics_query_timeout_seconds: float = 30.0  # Maximum execution time for analytics queries
+    auto_migrate: bool = (
+        True  # Automatically run database migrations on application startup
+    )
+    analytics_query_timeout_seconds: float = (
+        30.0  # Maximum execution time for analytics queries
+    )
 
     @property
     def postgres_dsn(self) -> str:
@@ -206,7 +215,6 @@ class Settings(BaseSettings):
             return endpoint
         return f"{proto}://{endpoint}"
 
-
     # Dagster Orchestrator Configuration
     dagster_host: str = "localhost"
     dagster_port: int = 3001
@@ -238,9 +246,7 @@ class Settings(BaseSettings):
         return f"{url}/realms/{self.keycloak_realm}"
 
 
-
 @lru_cache
 def get_settings() -> Settings:
     """Return a cached singleton Settings instance."""
     return Settings()
-

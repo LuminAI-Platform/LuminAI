@@ -146,7 +146,7 @@ def canonicalize_name(name: str | None) -> str:
     """Canonicalize full or single names by replacing known nicknames with formal names."""
     if not name or not isinstance(name, str):
         return ""
-    
+
     clean = re.sub(r"[^a-zA-Z\s]", "", name).strip().lower()
     if not clean:
         return ""
@@ -163,7 +163,17 @@ def canonicalize_name(name: str | None) -> str:
     return " ".join(tokens)
 
 
-CORPORATE_SUFFIXES = {"corp", "corporation", "inc", "incorporated", "llc", "ltd", "limited", "co", "company"}
+CORPORATE_SUFFIXES = {
+    "corp",
+    "corporation",
+    "inc",
+    "incorporated",
+    "llc",
+    "ltd",
+    "limited",
+    "co",
+    "company",
+}
 
 
 def is_acronym_match(str_a: str, str_b: str) -> bool:
@@ -216,7 +226,7 @@ def _char_ngrams(text: str, n: int = 3) -> collections.Counter[str]:
 
 def ngram_cosine_similarity(str_a: str | None, str_b: str | None, n: int = 3) -> float:
     """Compute cosine similarity over character n-gram vectors.
-    
+
     Robust to token permutations ('Smith, Alice' vs 'Alice Smith') and minor typos.
     """
     if str_a is None or str_b is None:
@@ -241,7 +251,9 @@ def ngram_cosine_similarity(str_a: str | None, str_b: str | None, n: int = 3) ->
     if sum_a == 0 or sum_b == 0:
         return 0.0
 
-    return max(0.0, min(1.0, float(dot_product / (math.sqrt(sum_a) * math.sqrt(sum_b)))))
+    return max(
+        0.0, min(1.0, float(dot_product / (math.sqrt(sum_a) * math.sqrt(sum_b))))
+    )
 
 
 def semantic_name_similarity(name_a: str | None, name_b: str | None) -> float:

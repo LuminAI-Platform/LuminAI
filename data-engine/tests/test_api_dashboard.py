@@ -30,68 +30,80 @@ client = TestClient(app)
 def mock_golden_df():
     """Sample golden records Polars DataFrame with valid JSON attributes."""
     now = datetime.now(timezone.utc)
-    return pl.DataFrame([
-        {
-            "golden_id": "gr-001",
-            "tenant_id": "acme",
-            "version": 1,
-            "cluster_size": 2,
-            "source_record_ids": json.dumps(["s1", "s2"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "Alice Johnson",
-                "age": 32,
-            }),
-            "created_at": now - timedelta(days=5),
-            "updated_at": now - timedelta(days=1),
-        },
-        {
-            "golden_id": "gr-002",
-            "tenant_id": "acme",
-            "version": 1,
-            "cluster_size": 1,
-            "source_record_ids": json.dumps(["s3"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "Bob Smith",
-                "age": 45,
-            }),
-            "created_at": now - timedelta(days=10),
-            "updated_at": now - timedelta(days=2),
-        },
-        {
-            "golden_id": "gr-003",
-            "tenant_id": "acme",
-            "version": 1,
-            "cluster_size": 3,
-            "source_record_ids": json.dumps(["s4", "s5", "s6"]),
-            "attributes": json.dumps({
-                "entity_type": "Organization",
-                "name": "Acme Corp",
-                "industry": "Technology",
-            }),
-            "created_at": now - timedelta(days=3),
-            "updated_at": now - timedelta(hours=12),
-        },
-    ])
+    return pl.DataFrame(
+        [
+            {
+                "golden_id": "gr-001",
+                "tenant_id": "acme",
+                "version": 1,
+                "cluster_size": 2,
+                "source_record_ids": json.dumps(["s1", "s2"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "Alice Johnson",
+                        "age": 32,
+                    }
+                ),
+                "created_at": now - timedelta(days=5),
+                "updated_at": now - timedelta(days=1),
+            },
+            {
+                "golden_id": "gr-002",
+                "tenant_id": "acme",
+                "version": 1,
+                "cluster_size": 1,
+                "source_record_ids": json.dumps(["s3"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "Bob Smith",
+                        "age": 45,
+                    }
+                ),
+                "created_at": now - timedelta(days=10),
+                "updated_at": now - timedelta(days=2),
+            },
+            {
+                "golden_id": "gr-003",
+                "tenant_id": "acme",
+                "version": 1,
+                "cluster_size": 3,
+                "source_record_ids": json.dumps(["s4", "s5", "s6"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Organization",
+                        "name": "Acme Corp",
+                        "industry": "Technology",
+                    }
+                ),
+                "created_at": now - timedelta(days=3),
+                "updated_at": now - timedelta(hours=12),
+            },
+        ]
+    )
 
 
 @pytest.fixture
 def mock_stale_golden_df():
     """Golden records with timestamps older than 30 days for timeliness testing."""
     old_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    return pl.DataFrame([
-        {
-            "golden_id": "gr-old-1",
-            "tenant_id": "acme",
-            "version": 1,
-            "cluster_size": 1,
-            "source_record_ids": json.dumps(["old-s1"]),
-            "attributes": json.dumps({"entity_type": "Person", "name": "Old Record"}),
-            "created_at": old_date,
-            "updated_at": old_date,
-        },
-    ])
+    return pl.DataFrame(
+        [
+            {
+                "golden_id": "gr-old-1",
+                "tenant_id": "acme",
+                "version": 1,
+                "cluster_size": 1,
+                "source_record_ids": json.dumps(["old-s1"]),
+                "attributes": json.dumps(
+                    {"entity_type": "Person", "name": "Old Record"}
+                ),
+                "created_at": old_date,
+                "updated_at": old_date,
+            },
+        ]
+    )
 
 
 @pytest.fixture
@@ -172,7 +184,9 @@ class TestPipelineStatsEndpoint:
 
     def test_returns_200_with_explicit_tenant(self):
         """Endpoint accepts explicit tenant_id query parameter."""
-        response = client.get("/analytics/dashboard/pipeline-stats?tenant_id=test-tenant")
+        response = client.get(
+            "/analytics/dashboard/pipeline-stats?tenant_id=test-tenant"
+        )
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data["totalRuns"], int)
@@ -182,12 +196,14 @@ class TestPipelineStatsEndpoint:
 
     def test_pipeline_stats_with_mocked_data(self, mock_pipeline_rows):
         """Pipeline stats return correct calculated values from mocked run data."""
-        with patch.object(
-            DashboardAnalyticsService, "_query_sqlite_scalar"
-        ) as mock_scalar, patch.object(
-            DashboardAnalyticsService, "_query_sqlite_runs"
-        ) as mock_runs, patch.object(
-            DashboardAnalyticsService, "_count_processed_records", return_value=500
+        with (
+            patch.object(
+                DashboardAnalyticsService, "_query_sqlite_scalar"
+            ) as mock_scalar,
+            patch.object(DashboardAnalyticsService, "_query_sqlite_runs") as mock_runs,
+            patch.object(
+                DashboardAnalyticsService, "_count_processed_records", return_value=500
+            ),
         ):
             # Mock total runs = 3, completed = 2
             def scalar_side_effect(sql, params):
@@ -226,12 +242,16 @@ class TestPipelineStatsEndpoint:
 
     def test_pipeline_stats_no_runs(self):
         """Returns zero values when no pipeline runs exist for tenant."""
-        with patch.object(
-            DashboardAnalyticsService, "_query_sqlite_scalar", return_value=None
-        ), patch.object(
-            DashboardAnalyticsService, "_query_sqlite_runs", return_value=[]
-        ), patch.object(
-            DashboardAnalyticsService, "_count_processed_records", return_value=0
+        with (
+            patch.object(
+                DashboardAnalyticsService, "_query_sqlite_scalar", return_value=None
+            ),
+            patch.object(
+                DashboardAnalyticsService, "_query_sqlite_runs", return_value=[]
+            ),
+            patch.object(
+                DashboardAnalyticsService, "_count_processed_records", return_value=0
+            ),
         ):
             response = client.get(
                 "/analytics/dashboard/pipeline-stats?tenant_id=nonexistent"
@@ -246,13 +266,18 @@ class TestPipelineStatsEndpoint:
 
     def test_success_rate_bounded(self):
         """Success rate never exceeds 100%."""
-        with patch.object(
-            DashboardAnalyticsService, "_query_sqlite_scalar"
-        ) as mock_scalar, patch.object(
-            DashboardAnalyticsService, "_query_sqlite_runs", return_value=[]
-        ), patch.object(
-            DashboardAnalyticsService, "_count_processed_records", return_value=0
+        with (
+            patch.object(
+                DashboardAnalyticsService, "_query_sqlite_scalar"
+            ) as mock_scalar,
+            patch.object(
+                DashboardAnalyticsService, "_query_sqlite_runs", return_value=[]
+            ),
+            patch.object(
+                DashboardAnalyticsService, "_count_processed_records", return_value=0
+            ),
         ):
+
             def scalar_side_effect(sql, params):
                 if "COUNT(*)" in sql and "status" not in sql:
                     return 5
@@ -367,7 +392,13 @@ class TestDataQualityEndpoint:
         ):
             response = client.get("/analytics/dashboard/data-quality?tenant_id=acme")
             data = response.json()
-            for key in ("overallScore", "completeness", "uniqueness", "consistency", "timeliness"):
+            for key in (
+                "overallScore",
+                "completeness",
+                "uniqueness",
+                "consistency",
+                "timeliness",
+            ):
                 assert 0 <= data[key] <= 100, f"{key} out of bounds: {data[key]}"
 
 
@@ -389,13 +420,15 @@ class TestEntityStatsEndpoint:
 
     def test_entity_stats_with_mocked_data(self, mock_golden_df):
         """Entity stats return correct counts and type breakdown."""
-        with patch.object(
-            DashboardAnalyticsService, "_query_pg_scalar"
-        ) as mock_scalar, patch.object(
-            DashboardAnalyticsService,
-            "_load_golden_records_df",
-            return_value=mock_golden_df,
+        with (
+            patch.object(DashboardAnalyticsService, "_query_pg_scalar") as mock_scalar,
+            patch.object(
+                DashboardAnalyticsService,
+                "_load_golden_records_df",
+                return_value=mock_golden_df,
+            ),
         ):
+
             def scalar_side_effect(sql, params):
                 if "golden_records" in sql:
                     return 3
@@ -423,20 +456,23 @@ class TestEntityStatsEndpoint:
 
     def test_entity_stats_empty_tenant(self):
         """Returns zeros when tenant has no data."""
-        with patch.object(
-            DashboardAnalyticsService, "_query_pg_scalar", return_value=None
-        ), patch.object(
-            DashboardAnalyticsService,
-            "_load_golden_records_df",
-            return_value=pl.DataFrame(
-                schema={
-                    "golden_id": pl.Utf8,
-                    "tenant_id": pl.Utf8,
-                    "cluster_size": pl.Int64,
-                    "source_record_ids": pl.Utf8,
-                    "attributes": pl.Utf8,
-                    "created_at": pl.Datetime,
-                }
+        with (
+            patch.object(
+                DashboardAnalyticsService, "_query_pg_scalar", return_value=None
+            ),
+            patch.object(
+                DashboardAnalyticsService,
+                "_load_golden_records_df",
+                return_value=pl.DataFrame(
+                    schema={
+                        "golden_id": pl.Utf8,
+                        "tenant_id": pl.Utf8,
+                        "cluster_size": pl.Int64,
+                        "source_record_ids": pl.Utf8,
+                        "attributes": pl.Utf8,
+                        "created_at": pl.Datetime,
+                    }
+                ),
             ),
         ):
             response = client.get(
@@ -465,22 +501,28 @@ class TestEntityStatsEndpoint:
 class TestDashboardResponseSchemas:
     """Cross-cutting schema validation for all dashboard endpoints."""
 
-    @pytest.mark.parametrize("endpoint", [
-        "/analytics/dashboard/pipeline-stats",
-        "/analytics/dashboard/data-quality",
-        "/analytics/dashboard/entity-stats",
-    ])
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "/analytics/dashboard/pipeline-stats",
+            "/analytics/dashboard/data-quality",
+            "/analytics/dashboard/entity-stats",
+        ],
+    )
     def test_endpoints_return_json_content_type(self, endpoint):
         """All dashboard endpoints return application/json."""
         response = client.get(endpoint)
         assert response.status_code == 200
         assert "application/json" in response.headers.get("content-type", "")
 
-    @pytest.mark.parametrize("endpoint", [
-        "/analytics/dashboard/pipeline-stats",
-        "/analytics/dashboard/data-quality",
-        "/analytics/dashboard/entity-stats",
-    ])
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "/analytics/dashboard/pipeline-stats",
+            "/analytics/dashboard/data-quality",
+            "/analytics/dashboard/entity-stats",
+        ],
+    )
     def test_endpoints_accept_tenant_id_parameter(self, endpoint):
         """All endpoints accept the tenant_id query parameter."""
         response = client.get(f"{endpoint}?tenant_id=test-corp")

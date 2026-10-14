@@ -16,7 +16,11 @@ import pytest
 
 from app.config import Settings
 from app.main import app
-from app.rate_limit import RateLimitMiddleware, SlidingWindowRateLimiter, reset_rate_limits
+from app.rate_limit import (
+    RateLimitMiddleware,
+    SlidingWindowRateLimiter,
+    reset_rate_limits,
+)
 
 
 class TestRateLimiterCore:
@@ -40,7 +44,9 @@ class TestRateLimiterCore:
             assert allowed is True
 
         # 4th request exceeds limit
-        allowed, remaining, retry_after = limiter.check_and_record("test_client", limit=3)
+        allowed, remaining, retry_after = limiter.check_and_record(
+            "test_client", limit=3
+        )
         assert allowed is False
         assert remaining == 0
         assert retry_after > 0.0
@@ -78,7 +84,9 @@ class TestRateLimitMiddleware:
         with pytest.MonkeyPatch.context() as m:
             m.setattr(
                 "app.rate_limit.get_settings",
-                lambda: Settings(rate_limit_enabled=True, rate_limit_default_per_minute=3),
+                lambda: Settings(
+                    rate_limit_enabled=True, rate_limit_default_per_minute=3
+                ),
             )
 
             # Requests 1, 2, 3 should succeed
@@ -112,18 +120,31 @@ class TestRateLimitMiddleware:
         with pytest.MonkeyPatch.context() as m:
             m.setattr(
                 "app.rate_limit.get_settings",
-                lambda: Settings(rate_limit_enabled=True, rate_limit_default_per_minute=2),
+                lambda: Settings(
+                    rate_limit_enabled=True, rate_limit_default_per_minute=2
+                ),
             )
 
             # Tenant A sends 2 requests (exhausts quota)
-            res_a1 = test_client.get("/tenant-data", headers={"X-Tenant-ID": "tenant-a"})
-            res_a2 = test_client.get("/tenant-data", headers={"X-Tenant-ID": "tenant-a"})
+            res_a1 = test_client.get(
+                "/tenant-data", headers={"X-Tenant-ID": "tenant-a"}
+            )
+            res_a2 = test_client.get(
+                "/tenant-data", headers={"X-Tenant-ID": "tenant-a"}
+            )
             assert res_a1.status_code == 200
             assert res_a2.status_code == 200
-            assert test_client.get("/tenant-data", headers={"X-Tenant-ID": "tenant-a"}).status_code == 429
+            assert (
+                test_client.get(
+                    "/tenant-data", headers={"X-Tenant-ID": "tenant-a"}
+                ).status_code
+                == 429
+            )
 
             # Tenant B should still be allowed
-            res_b1 = test_client.get("/tenant-data", headers={"X-Tenant-ID": "tenant-b"})
+            res_b1 = test_client.get(
+                "/tenant-data", headers={"X-Tenant-ID": "tenant-b"}
+            )
             assert res_b1.status_code == 200
 
     def test_rate_limit_disabled_bypass(self):
@@ -139,7 +160,9 @@ class TestRateLimitMiddleware:
         with pytest.MonkeyPatch.context() as m:
             m.setattr(
                 "app.rate_limit.get_settings",
-                lambda: Settings(rate_limit_enabled=False, rate_limit_default_per_minute=1),
+                lambda: Settings(
+                    rate_limit_enabled=False, rate_limit_default_per_minute=1
+                ),
             )
 
             for _ in range(5):

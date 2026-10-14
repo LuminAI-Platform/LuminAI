@@ -22,6 +22,7 @@ router = APIRouter()
 
 # Request / Response Models
 
+
 class QueryRequest(BaseModel):
     """Request payload schema for executing an ad-hoc analytical query."""
 
@@ -144,6 +145,7 @@ class TimeseriesResponse(BaseModel):
 
 # Endpoints
 
+
 @router.post(
     "/query",
     response_model=QueryResponse,
@@ -222,7 +224,6 @@ async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse
         )
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
-
 
 
 @router.get(

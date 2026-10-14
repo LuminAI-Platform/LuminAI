@@ -193,7 +193,6 @@ class TestDagsterWorkspaceConfig:
             config = yaml.safe_load(f)
         modules = config["load_from"]
         module_names = [
-            entry.get("python_module", {}).get("module_name", "")
-            for entry in modules
+            entry.get("python_module", {}).get("module_name", "") for entry in modules
         ]
         assert "app.processing.pipelines.ingest_pipeline" in module_names

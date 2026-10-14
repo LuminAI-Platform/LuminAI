@@ -91,7 +91,9 @@ class TestSimilarityMetrics20EdgeCases:
         assert dist > 0
 
     def test_20_long_string_partial_match(self):
-        score = jaro_winkler_similarity("LuminAI Enterprise Data Engine Platform", "LuminAI Data Engine Platform")
+        score = jaro_winkler_similarity(
+            "LuminAI Enterprise Data Engine Platform", "LuminAI Data Engine Platform"
+        )
         assert score > 0.80
 
     def test_21_unicode_characters(self):
@@ -103,21 +105,45 @@ class TestWeightedConfidenceScore:
     """Tests for calculate_pair_similarity_score and weighting."""
 
     def test_perfect_pair_score(self):
-        rec_a = {"name": "Alice Smith", "dob": "1990-01-01", "email": "alice@example.com"}
-        rec_b = {"name": "Alice Smith", "dob": "1990-01-01", "email": "alice@example.com"}
+        rec_a = {
+            "name": "Alice Smith",
+            "dob": "1990-01-01",
+            "email": "alice@example.com",
+        }
+        rec_b = {
+            "name": "Alice Smith",
+            "dob": "1990-01-01",
+            "email": "alice@example.com",
+        }
         res = calculate_pair_similarity_score(rec_a, rec_b)
         assert res["confidence_score"] == 1.0
         assert 0.0 <= res["confidence_score"] <= 1.0
 
     def test_non_match_pair_score(self):
-        rec_a = {"name": "Alice Smith", "dob": "1990-01-01", "email": "alice@example.com"}
-        rec_b = {"name": "Zachary Taylor", "dob": "2020-05-15", "email": "zach@other.com"}
+        rec_a = {
+            "name": "Alice Smith",
+            "dob": "1990-01-01",
+            "email": "alice@example.com",
+        }
+        rec_b = {
+            "name": "Zachary Taylor",
+            "dob": "2020-05-15",
+            "email": "zach@other.com",
+        }
         res = calculate_pair_similarity_score(rec_a, rec_b)
         assert res["confidence_score"] < 0.60
 
     def test_partial_match_weighted(self):
-        rec_a = {"name": "Alice Smith", "dob": "1990-01-01", "email": "alice@example.com"}
-        rec_b = {"name": "Alice Smyth", "dob": "1990-01-01", "email": "alice@example.com"}
+        rec_a = {
+            "name": "Alice Smith",
+            "dob": "1990-01-01",
+            "email": "alice@example.com",
+        }
+        rec_b = {
+            "name": "Alice Smyth",
+            "dob": "1990-01-01",
+            "email": "alice@example.com",
+        }
         res = calculate_pair_similarity_score(rec_a, rec_b)
         assert res["confidence_score"] >= 0.90
 

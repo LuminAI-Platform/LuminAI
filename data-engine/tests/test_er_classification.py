@@ -26,9 +26,16 @@ class TestPairClassification:
 
     def test_custom_thresholds(self):
         # Match >= 0.80, Review >= 0.50
-        assert classify_pair(0.85, match_threshold=0.80, review_threshold=0.50) == "match"
-        assert classify_pair(0.60, match_threshold=0.80, review_threshold=0.50) == "review"
-        assert classify_pair(0.40, match_threshold=0.80, review_threshold=0.50) == "non_match"
+        assert (
+            classify_pair(0.85, match_threshold=0.80, review_threshold=0.50) == "match"
+        )
+        assert (
+            classify_pair(0.60, match_threshold=0.80, review_threshold=0.50) == "review"
+        )
+        assert (
+            classify_pair(0.40, match_threshold=0.80, review_threshold=0.50)
+            == "non_match"
+        )
 
 
 class TestDataFrameClassification:
@@ -58,7 +65,13 @@ class TestDataFrameClassification:
         assert non_matches["decision"].to_list() == ["non_match"]
 
     def test_empty_dataframe_classification(self):
-        df = pl.DataFrame(schema={"id_a": pl.String, "id_b": pl.String, "confidence_score": pl.Float64})
+        df = pl.DataFrame(
+            schema={
+                "id_a": pl.String,
+                "id_b": pl.String,
+                "confidence_score": pl.Float64,
+            }
+        )
         matches, review, non_matches = classify_candidate_pairs(df)
         assert matches.height == 0
         assert review.height == 0

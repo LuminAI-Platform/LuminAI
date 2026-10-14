@@ -53,7 +53,9 @@ def init_telemetry(force_in_memory: bool = False) -> None:
     settings = get_settings()
 
     if not settings.otel_enabled and not force_in_memory:
-        logger.info("OpenTelemetry tracing is disabled (set OTEL_ENABLED=true to enable)")
+        logger.info(
+            "OpenTelemetry tracing is disabled (set OTEL_ENABLED=true to enable)"
+        )
         return
 
     resource = Resource.create(
@@ -72,12 +74,22 @@ def init_telemetry(force_in_memory: bool = False) -> None:
         logger.info("OpenTelemetry configured with InMemorySpanExporter for testing")
     elif settings.otel_exporter_otlp_endpoint:
         try:
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-            otlp_exporter = OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint)
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                OTLPSpanExporter,
+            )
+
+            otlp_exporter = OTLPSpanExporter(
+                endpoint=settings.otel_exporter_otlp_endpoint
+            )
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-            logger.info("OpenTelemetry OTLP exporter configured for %s", settings.otel_exporter_otlp_endpoint)
+            logger.info(
+                "OpenTelemetry OTLP exporter configured for %s",
+                settings.otel_exporter_otlp_endpoint,
+            )
         except ImportError:
-            logger.warning("OTLPSpanExporter dependencies not installed. Falling back to default.")
+            logger.warning(
+                "OTLPSpanExporter dependencies not installed. Falling back to default."
+            )
 
     _current_tracer_provider = provider
     try:
@@ -115,7 +127,6 @@ def get_tracer(name: str = "data-engine") -> trace.Tracer:
     return trace.get_tracer(name)
 
 
-
 @contextmanager
 def trace_span(
     name: str,
@@ -124,7 +135,7 @@ def trace_span(
 ) -> Generator[Span | _NoOpSpan, None, None]:
     """
     Context manager for creating an OpenTelemetry trace span.
-    
+
     Records exceptions and updates span status automatically.
     Falls back gracefully to a no-op span if tracing is disabled.
     """
@@ -139,7 +150,9 @@ def trace_span(
         if attributes:
             for k, v in attributes.items():
                 if v is not None:
-                    span.set_attribute(k, str(v) if not isinstance(v, (bool, int, float, str)) else v)
+                    span.set_attribute(
+                        k, str(v) if not isinstance(v, (bool, int, float, str)) else v
+                    )
         try:
             yield span
         except Exception as exc:

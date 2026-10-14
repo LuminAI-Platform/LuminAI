@@ -70,12 +70,21 @@ def test_cleaning_pipeline_fails_fast_in_production_without_minio():
         }
     )
 
-    with patch("app.processing.pipelines.cleaning_pipeline.get_settings", return_value=prod_settings):
-        with patch("app.processing.pipelines.cleaning_pipeline.get_minio_client") as mock_minio:
-            mock_minio.return_value.load_dataframe.side_effect = ConnectionError("MinIO cluster unreachable")
+    with patch(
+        "app.processing.pipelines.cleaning_pipeline.get_settings",
+        return_value=prod_settings,
+    ):
+        with patch(
+            "app.processing.pipelines.cleaning_pipeline.get_minio_client"
+        ) as mock_minio:
+            mock_minio.return_value.load_dataframe.side_effect = ConnectionError(
+                "MinIO cluster unreachable"
+            )
             with pytest.raises(RuntimeError) as exc_info:
                 cleaning_pipeline.raw_ingestion_data(context)
-            assert "synthetic data fallback is prohibited in production mode" in str(exc_info.value)
+            assert "synthetic data fallback is prohibited in production mode" in str(
+                exc_info.value
+            )
 
 
 def test_er_pipeline_fails_fast_in_production_without_staged_records():
@@ -92,17 +101,26 @@ def test_er_pipeline_fails_fast_in_production_without_staged_records():
         }
     )
 
-    with patch("app.processing.pipelines.er_pipeline.get_settings", return_value=prod_settings):
-        with patch("app.processing.pipelines.er_pipeline.get_checkpoint_manager") as mock_cp:
+    with patch(
+        "app.processing.pipelines.er_pipeline.get_settings", return_value=prod_settings
+    ):
+        with patch(
+            "app.processing.pipelines.er_pipeline.get_checkpoint_manager"
+        ) as mock_cp:
             mock_cp.return_value.load_checkpoint.return_value = None
             with patch("app.db.get_engine") as mock_engine:
                 mock_conn = MagicMock()
                 mock_conn.execute.return_value = []
-                mock_engine.return_value.connect.return_value.__enter__.return_value = mock_conn
+                mock_engine.return_value.connect.return_value.__enter__.return_value = (
+                    mock_conn
+                )
                 with patch("os.path.exists", return_value=False):
                     with pytest.raises(RuntimeError) as exc_info:
                         er_pipeline.staged_records_for_er(context)
-                    assert "synthetic data fallback is prohibited in production mode" in str(exc_info.value)
+                    assert (
+                        "synthetic data fallback is prohibited in production mode"
+                        in str(exc_info.value)
+                    )
 
 
 def test_er_pipeline_sanitizes_limit_tag():
@@ -142,14 +160,19 @@ def test_cleaning_and_er_support_dynamic_entity_type():
         }
     )
 
-    with patch("app.processing.pipelines.cleaning_pipeline.record_records_processed") as mock_telemetry:
+    with patch(
+        "app.processing.pipelines.cleaning_pipeline.record_records_processed"
+    ) as mock_telemetry:
         # Generate dummy cleaned data
         import polars as pl
-        dummy_df = pl.DataFrame({
-            "id": ["tx-001", "tx-002"],
-            "amount": [100.0, 200.0],
-            "currency": ["USD", "EUR"],
-        })
+
+        dummy_df = pl.DataFrame(
+            {
+                "id": ["tx-001", "tx-002"],
+                "amount": [100.0, 200.0],
+                "currency": ["USD", "EUR"],
+            }
+        )
         res = cleaning_pipeline.cleaned_ingestion_data(context, dummy_df)
         assert res.height == 2
 

@@ -186,7 +186,9 @@ class TestBatchCompleteCallback:
     def test_callback_exception_is_caught(self):
         """Exceptions in on_batch_complete are caught and logged, not re-raised."""
         consumer = IngestRawConsumer()
-        consumer.on_batch_complete = MagicMock(side_effect=RuntimeError("trigger failed"))
+        consumer.on_batch_complete = MagicMock(
+            side_effect=RuntimeError("trigger failed")
+        )
 
         # Should NOT raise even though callback throws
         consumer.handle(

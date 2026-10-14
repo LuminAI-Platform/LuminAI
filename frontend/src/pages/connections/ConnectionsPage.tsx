@@ -728,7 +728,9 @@ export const ConnectionsPage: React.FC = () => {
           "id",
         ];
         for (const nk of nameCandidates) {
-          const matchKey = keys.find((k) => k.toLowerCase() === nk.toLowerCase());
+          const matchKey = keys.find(
+            (k) => k.toLowerCase() === nk.toLowerCase(),
+          );
           if (matchKey && cleanedProps[matchKey]) {
             canonicalName = String(cleanedProps[matchKey]);
             break;
@@ -739,18 +741,17 @@ export const ConnectionsPage: React.FC = () => {
         }
 
         // Primary key for deduplication
-        let primaryKey = "";
         const emailKey = keys.find((k) => k.toLowerCase().includes("email"));
         const idKey = keys.find(
-          (k) => k.toLowerCase() === "id" || k.toLowerCase().includes("identifier"),
+          (k) =>
+            k.toLowerCase() === "id" || k.toLowerCase().includes("identifier"),
         );
-        if (emailKey && cleanedProps[emailKey]) {
-          primaryKey = `email:${String(cleanedProps[emailKey]).toLowerCase()}`;
-        } else if (idKey && cleanedProps[idKey]) {
-          primaryKey = `id:${String(cleanedProps[idKey]).toLowerCase()}`;
-        } else {
-          primaryKey = `name:${canonicalName.toLowerCase()}`;
-        }
+        const primaryKey =
+          emailKey && cleanedProps[emailKey]
+            ? `email:${String(cleanedProps[emailKey]).toLowerCase()}`
+            : idKey && cleanedProps[idKey]
+              ? `id:${String(cleanedProps[idKey]).toLowerCase()}`
+              : `name:${canonicalName.toLowerCase()}`;
 
         const rowQuality = rowFields > 0 ? rowValid / rowFields : 1.0;
         return {
@@ -805,7 +806,7 @@ export const ConnectionsPage: React.FC = () => {
           0.99,
           Math.max(
             0.82,
-            Math.round((0.90 + boost * 0.5 + avgQuality * 0.06) * 100) / 100,
+            Math.round((0.9 + boost * 0.5 + avgQuality * 0.06) * 100) / 100,
           ),
         );
 

@@ -16,65 +16,77 @@ client = TestClient(app)
 @pytest.fixture
 def mock_golden_records():
     """Sample records for testing API endpoints with real calculated values."""
-    return pl.DataFrame([
-        {
-            "golden_id": "gr-1",
-            "tenant_id": "acme",
-            "cluster_size": 2,
-            "source_record_ids": json.dumps(["s1"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "Alice",
-                "age": 30,
-                "country": "UK",
-            }),
-            "created_at": datetime(2024, 1, 1, 10, 0),
-        },
-        {
-            "golden_id": "gr-2",
-            "tenant_id": "acme",
-            "cluster_size": 1,
-            "source_record_ids": json.dumps(["s2"]),
-            "attributes": json.dumps({
-                "entity_type": "Person",
-                "name": "Bob",
-                "age": 40,
-                "country": "UK",
-            }),
-            "created_at": datetime(2024, 1, 2, 10, 0),
-        },
-    ])
+    return pl.DataFrame(
+        [
+            {
+                "golden_id": "gr-1",
+                "tenant_id": "acme",
+                "cluster_size": 2,
+                "source_record_ids": json.dumps(["s1"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "Alice",
+                        "age": 30,
+                        "country": "UK",
+                    }
+                ),
+                "created_at": datetime(2024, 1, 1, 10, 0),
+            },
+            {
+                "golden_id": "gr-2",
+                "tenant_id": "acme",
+                "cluster_size": 1,
+                "source_record_ids": json.dumps(["s2"]),
+                "attributes": json.dumps(
+                    {
+                        "entity_type": "Person",
+                        "name": "Bob",
+                        "age": 40,
+                        "country": "UK",
+                    }
+                ),
+                "created_at": datetime(2024, 1, 2, 10, 0),
+            },
+        ]
+    )
 
 
 @pytest.fixture
 def mock_transaction_records():
     """Sample transaction records for timeseries API tests."""
-    return pl.DataFrame([
-        {
-            "id": "tx-1",
-            "tenant_id": "acme",
-            "source_id": "crm",
-            "raw_id": "r1",
-            "data": json.dumps({
-                "entity_type": "Transaction",
-                "amount": 100.0,
-                "status": "completed",
-            }),
-            "staged_at": datetime(2024, 1, 1, 12, 0),
-        },
-        {
-            "id": "tx-2",
-            "tenant_id": "acme",
-            "source_id": "crm",
-            "raw_id": "r2",
-            "data": json.dumps({
-                "entity_type": "Transaction",
-                "amount": 200.0,
-                "status": "completed",
-            }),
-            "staged_at": datetime(2024, 1, 2, 12, 0),
-        },
-    ])
+    return pl.DataFrame(
+        [
+            {
+                "id": "tx-1",
+                "tenant_id": "acme",
+                "source_id": "crm",
+                "raw_id": "r1",
+                "data": json.dumps(
+                    {
+                        "entity_type": "Transaction",
+                        "amount": 100.0,
+                        "status": "completed",
+                    }
+                ),
+                "staged_at": datetime(2024, 1, 1, 12, 0),
+            },
+            {
+                "id": "tx-2",
+                "tenant_id": "acme",
+                "source_id": "crm",
+                "raw_id": "r2",
+                "data": json.dumps(
+                    {
+                        "entity_type": "Transaction",
+                        "amount": 200.0,
+                        "status": "completed",
+                    }
+                ),
+                "staged_at": datetime(2024, 1, 2, 12, 0),
+            },
+        ]
+    )
 
 
 class TestAnalyticsQueryEndpoint:
@@ -99,7 +111,11 @@ class TestAnalyticsQueryEndpoint:
 
     def test_query_with_filters_and_aggregations(self, mock_golden_records):
         """Query with mocked records verifies actual calculated results."""
-        with patch.object(DuckDBAnalyticsEngine, "load_table_dataframe", return_value=mock_golden_records):
+        with patch.object(
+            DuckDBAnalyticsEngine,
+            "load_table_dataframe",
+            return_value=mock_golden_records,
+        ):
             response = client.post(
                 "/analytics/query",
                 json={
@@ -183,7 +199,11 @@ class TestTimeseriesEndpoint:
 
     def test_timeseries_with_data(self, mock_transaction_records):
         """Time-series rollup returns populated series when records exist."""
-        with patch.object(DuckDBAnalyticsEngine, "load_table_dataframe", return_value=mock_transaction_records):
+        with patch.object(
+            DuckDBAnalyticsEngine,
+            "load_table_dataframe",
+            return_value=mock_transaction_records,
+        ):
             response = client.post(
                 "/analytics/timeseries",
                 json={
@@ -221,7 +241,9 @@ class TestAnalyticsReconciliationEndpoint:
     """GET /analytics/reconciliation endpoint tests."""
 
     def test_get_reconciliation_returns_200(self):
-        response = client.get("/analytics/reconciliation?tenant_id=acme&entity_type=Person")
+        response = client.get(
+            "/analytics/reconciliation?tenant_id=acme&entity_type=Person"
+        )
         assert response.status_code == 200
         data = response.json()
         assert "status" in data

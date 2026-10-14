@@ -63,12 +63,15 @@ from app.processing.pipelines.cleaning_pipeline import (
 from app.processing.reconciliation import run_cross_store_reconciliation
 from app.processing.schema_detector import get_schema_detector
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("QA_StressTest")
 
 
 class TestFailure(Exception):
     """Raised when a strict QA acceptance criterion is violated."""
+
     __test__ = False
     pass
 
@@ -106,32 +109,51 @@ def run_comprehensive_qa_stress_test(
     with open(file_path, "rb") as f:
         file_bytes = f.read()
 
-    preflight_report = detector.validate_file_bytes(file_bytes, file_name=os.path.basename(file_path))
+    preflight_report = detector.validate_file_bytes(
+        file_bytes, file_name=os.path.basename(file_path)
+    )
 
     print(f"  - Ingest Validation Passed : {preflight_report.is_valid}")
     print(f"  - Total Ingested Rows      : {preflight_report.total_rows:,}")
     print(f"  - Total Detected Columns   : {preflight_report.total_columns}")
-    print(f"  - Suggested Entity Target  : {preflight_report.suggested_entity_type} (Confidence: {preflight_report.entity_confidence:.2f})")
+    print(
+        f"  - Suggested Entity Target  : {preflight_report.suggested_entity_type} (Confidence: {preflight_report.entity_confidence:.2f})"
+    )
 
     if not preflight_report.is_valid:
-        raise TestFailure(f"Pre-flight validation failed unexpectedly: {preflight_report.error_message}")
+        raise TestFailure(
+            f"Pre-flight validation failed unexpectedly: {preflight_report.error_message}"
+        )
 
     # Verify column type detections
     for col in preflight_report.columns:
-        print(f"    * Col '{col.column_name}': Detected Type={col.detected_type.upper():<7} | Nulls={col.null_percentage:>5.1f}% | Uniques={col.unique_percentage:>5.1f}% | Mapped='{col.suggested_property}'")
-        if col.column_name.lower() in ("email", "contact_email") and col.detected_type != "email":
-            logger.warning("Type detection warning: Email column was not classified as EMAIL type")
+        print(
+            f"    * Col '{col.column_name}': Detected Type={col.detected_type.upper():<7} | Nulls={col.null_percentage:>5.1f}% | Uniques={col.unique_percentage:>5.1f}% | Mapped='{col.suggested_property}'"
+        )
+        if (
+            col.column_name.lower() in ("email", "contact_email")
+            and col.detected_type != "email"
+        ):
+            logger.warning(
+                "Type detection warning: Email column was not classified as EMAIL type"
+            )
 
     # Poison File Test: Verify rejection when a column has >50% nulls
     print("\n  [Testing Poison Rejection Threshold (>50% Nulls)]")
-    poison_df = pl.DataFrame({
-        "id": ["p-1", "p-2", "p-3", "p-4"],
-        "critical_field": [None, None, None, "value"],  # 75% null
-    })
+    poison_df = pl.DataFrame(
+        {
+            "id": ["p-1", "p-2", "p-3", "p-4"],
+            "critical_field": [None, None, None, "value"],  # 75% null
+        }
+    )
     poison_report = detector.validate_dataframe(poison_df)
     if poison_report.is_valid:
-        raise TestFailure("CRITICAL SECURITY HOLE: Dataset with 75% null column was NOT rejected by pre-flight gate!")
-    print(f"  [OK] Successfully rejected poisoned dataset: {poison_report.error_message}")
+        raise TestFailure(
+            "CRITICAL SECURITY HOLE: Dataset with 75% null column was NOT rejected by pre-flight gate!"
+        )
+    print(
+        f"  [OK] Successfully rejected poisoned dataset: {poison_report.error_message}"
+    )
 
     # -------------------------------------------------------------------------
     # Phase 2: High-Performance Ingestion & Cleaning Engine
@@ -146,53 +168,77 @@ def run_comprehensive_qa_stress_test(
     t_clean_start = time.perf_counter()
 
     # Step A: Whitespace Strip
-    string_cols = [c for c, dt in zip(raw_df.columns, raw_df.dtypes) if dt in (pl.Utf8, pl.String)]
-    cleaned_df = raw_df.with_columns([pl.col(c).str.strip_chars().alias(c) for c in string_cols])
+    string_cols = [
+        c for c, dt in zip(raw_df.columns, raw_df.dtypes) if dt in (pl.Utf8, pl.String)
+    ]
+    cleaned_df = raw_df.with_columns(
+        [pl.col(c).str.strip_chars().alias(c) for c in string_cols]
+    )
 
     # Step B: Lowercase Email & Uppercase Country
     if "email" in cleaned_df.columns:
-        cleaned_df = cleaned_df.with_columns(pl.col("email").str.to_lowercase().alias("email"))
+        cleaned_df = cleaned_df.with_columns(
+            pl.col("email").str.to_lowercase().alias("email")
+        )
     if "country" in cleaned_df.columns:
-        cleaned_df = cleaned_df.with_columns(pl.col("country").str.to_uppercase().alias("country"))
+        cleaned_df = cleaned_df.with_columns(
+            pl.col("country").str.to_uppercase().alias("country")
+        )
 
     # Step C: Currency Parsing Verification
     if "salary" in cleaned_df.columns:
-        cleaned_df = cleaned_df.with_columns(
-            pl.col("salary")
-            .map_elements(
-                _parse_currency_string,
-                return_dtype=pl.Struct([
-                    pl.Field("amount", pl.Float64),
-                    pl.Field("currency", pl.String),
-                ]),
+        cleaned_df = (
+            cleaned_df.with_columns(
+                pl.col("salary")
+                .map_elements(
+                    _parse_currency_string,
+                    return_dtype=pl.Struct(
+                        [
+                            pl.Field("amount", pl.Float64),
+                            pl.Field("currency", pl.String),
+                        ]
+                    ),
+                )
+                .alias("salary_parsed")
             )
-            .alias("salary_parsed")
-        ).with_columns(
-            pl.col("salary_parsed").struct.field("amount").alias("salary_amount"),
-            pl.col("salary_parsed").struct.field("currency").alias("salary_currency"),
-        ).drop(["salary_parsed", "salary"])
+            .with_columns(
+                pl.col("salary_parsed").struct.field("amount").alias("salary_amount"),
+                pl.col("salary_parsed")
+                .struct.field("currency")
+                .alias("salary_currency"),
+            )
+            .drop(["salary_parsed", "salary"])
+        )
 
     # Step D: Timestamp Parsing Verification
     if "joined_at" in cleaned_df.columns:
         cleaned_df = cleaned_df.with_columns(
-            pl.col("joined_at").map_elements(_parse_date_string, return_dtype=pl.Utf8).alias("joined_at")
+            pl.col("joined_at")
+            .map_elements(_parse_date_string, return_dtype=pl.Utf8)
+            .alias("joined_at")
         )
 
     clean_duration = time.perf_counter() - t_clean_start
     throughput = cleaned_df.height / max(0.001, clean_duration)
-    print(f"  - Cleaned {cleaned_df.height:,} records in {clean_duration:.3f}s ({throughput:,.0f} rows/sec)")
+    print(
+        f"  - Cleaned {cleaned_df.height:,} records in {clean_duration:.3f}s ({throughput:,.0f} rows/sec)"
+    )
 
     # Assertions on cleaned data
     if "email" in cleaned_df.columns:
         sample_emails = cleaned_df["email"].drop_nulls().head(100).to_list()
         if any(e != e.lower() for e in sample_emails):
-            raise TestFailure("Cleaning engine failed: uppercase characters detected in normalized email column")
+            raise TestFailure(
+                "Cleaning engine failed: uppercase characters detected in normalized email column"
+            )
     print("  [OK] Email case normalization verified.")
 
     if "salary_amount" in cleaned_df.columns:
         sample_salaries = cleaned_df["salary_amount"].drop_nulls().head(100).to_list()
         if any(not isinstance(s, (int, float)) for s in sample_salaries):
-            raise TestFailure("Currency parsing failed: non-numeric values present in salary_amount")
+            raise TestFailure(
+                "Currency parsing failed: non-numeric values present in salary_amount"
+            )
     print("  [OK] Currency extraction & normalization verified.")
 
     # -------------------------------------------------------------------------
@@ -211,7 +257,9 @@ def run_comprehensive_qa_stress_test(
     block_duration = time.perf_counter() - t_block_start
 
     total_possible_pairs = cleaned_df.height * (cleaned_df.height - 1) // 2
-    reduction_ratio = calculate_blocking_reduction_ratio(cleaned_df.height, candidate_pairs.height)
+    reduction_ratio = calculate_blocking_reduction_ratio(
+        cleaned_df.height, candidate_pairs.height
+    )
 
     print(f"  - Input Records             : {cleaned_df.height:,}")
     print(f"  - Theoretical O(N^2) Pairs  : {total_possible_pairs:,}")
@@ -220,7 +268,9 @@ def run_comprehensive_qa_stress_test(
     print(f"  - Blocking Elapsed Time     : {block_duration:.3f}s")
 
     if candidate_pairs.height > 0 and reduction_ratio < 0.90:
-        logger.warning("Blocking reduction ratio is low (<90%%). Check for mega-block skew on common keys.")
+        logger.warning(
+            "Blocking reduction ratio is low (<90%%). Check for mega-block skew on common keys."
+        )
     print("  [OK] Blocking search space reduction verified.")
 
     # -------------------------------------------------------------------------
@@ -232,14 +282,20 @@ def run_comprehensive_qa_stress_test(
     if candidate_pairs.height > 0:
         scored_pairs = compare_candidate_pairs(candidate_pairs)
         score_duration = time.perf_counter() - t_score_start
-        print(f"  - Scored {scored_pairs.height:,} candidate pairs in {score_duration:.3f}s ({scored_pairs.height / max(0.001, score_duration):,.0f} pairs/sec)")
+        print(
+            f"  - Scored {scored_pairs.height:,} candidate pairs in {score_duration:.3f}s ({scored_pairs.height / max(0.001, score_duration):,.0f} pairs/sec)"
+        )
 
         # Verify score bounds [0.0, 1.0]
         min_score = scored_pairs["confidence_score"].min()
         max_score = scored_pairs["confidence_score"].max()
         if min_score < 0.0 or max_score > 1.0:
-            raise TestFailure(f"Scoring violation: Confidence score out of bounds [{min_score}, {max_score}]")
-        print(f"  [OK] Confidence score range validated: [{min_score:.4f}, {max_score:.4f}]")
+            raise TestFailure(
+                f"Scoring violation: Confidence score out of bounds [{min_score}, {max_score}]"
+            )
+        print(
+            f"  [OK] Confidence score range validated: [{min_score:.4f}, {max_score:.4f}]"
+        )
     else:
         scored_pairs = pl.DataFrame()
         print("  - Zero candidate pairs generated (homogeneous distinct records).")
@@ -247,7 +303,10 @@ def run_comprehensive_qa_stress_test(
     # -------------------------------------------------------------------------
     # Phase 5: Classification Engine & Boundary Testing
     # -------------------------------------------------------------------------
-    print_substep("5.0", "Classification Partitioning (Match >= 0.90, Review 0.70-0.89, Non-Match < 0.70)")
+    print_substep(
+        "5.0",
+        "Classification Partitioning (Match >= 0.90, Review 0.70-0.89, Non-Match < 0.70)",
+    )
     matches_df, review_df, non_matches_df = classify_candidate_pairs(scored_pairs)
 
     print(f"  - Automatic Matches   (S >= 0.90) : {matches_df.height:,}")
@@ -256,9 +315,19 @@ def run_comprehensive_qa_stress_test(
 
     # Verify no partition leakage
     if matches_df.height > 0 and (matches_df["confidence_score"] < 0.90).any():
-        raise TestFailure("Classification leak: Matches DataFrame contains scores below 0.90 threshold")
-    if review_df.height > 0 and ((review_df["confidence_score"] < 0.70) | (review_df["confidence_score"] >= 0.90)).any():
-        raise TestFailure("Classification leak: Review DataFrame contains scores outside [0.70, 0.90) range")
+        raise TestFailure(
+            "Classification leak: Matches DataFrame contains scores below 0.90 threshold"
+        )
+    if (
+        review_df.height > 0
+        and (
+            (review_df["confidence_score"] < 0.70)
+            | (review_df["confidence_score"] >= 0.90)
+        ).any()
+    ):
+        raise TestFailure(
+            "Classification leak: Review DataFrame contains scores outside [0.70, 0.90) range"
+        )
     print("  [OK] Classification partitioning strictly enforced.")
 
     # -------------------------------------------------------------------------
@@ -275,11 +344,15 @@ def run_comprehensive_qa_stress_test(
     print(f"  - Input Records               : {len(records_list):,}")
     print(f"  - Resolved Clusters           : {len(clusters):,}")
     print(f"  - Canonical Golden Records    : {golden_records_df.height:,}")
-    print(f"  - Duplicate Records Merged    : {len(records_list) - golden_records_df.height:,}")
+    print(
+        f"  - Duplicate Records Merged    : {len(records_list) - golden_records_df.height:,}"
+    )
     print(f"  - Clustering Execution Time   : {cluster_duration:.3f}s")
 
     if golden_records_df.height > len(records_list):
-        raise TestFailure("Data integrity violation: Golden records count exceeds input records count!")
+        raise TestFailure(
+            "Data integrity violation: Golden records count exceeds input records count!"
+        )
     print("  [OK] Graph clustering and transitive closure verified.")
 
     # -------------------------------------------------------------------------
@@ -292,7 +365,14 @@ def run_comprehensive_qa_stress_test(
         if not cluster:
             continue
         c_ids = {str(r.get("id")) for r in cluster}
-        matching_golden = next((gr for gr in golden_records_dict if any(sid in c_ids for sid in gr.get("source_record_ids", []))), None)
+        matching_golden = next(
+            (
+                gr
+                for gr in golden_records_dict
+                if any(sid in c_ids for sid in gr.get("source_record_ids", []))
+            ),
+            None,
+        )
         if matching_golden:
             prov = track_field_provenance(matching_golden, cluster, tenant_id=tenant_id)
             all_provenance.extend(prov)
@@ -300,7 +380,9 @@ def run_comprehensive_qa_stress_test(
     print(f"  - Generated {len(all_provenance):,} field-level provenance audit entries")
     if all_provenance:
         sample_p = all_provenance[0]
-        print(f"    * Sample Provenance: Golden [{sample_p['golden_id']}] -> Property '{sample_p['attribute_name']}': '{sample_p['attribute_value']}' (Source: {sample_p['source_id']}, Row: {sample_p['source_record_id']})")
+        print(
+            f"    * Sample Provenance: Golden [{sample_p['golden_id']}] -> Property '{sample_p['attribute_name']}': '{sample_p['attribute_value']}' (Source: {sample_p['source_id']}, Row: {sample_p['source_record_id']})"
+        )
     print("  [OK] Field-level provenance attribution verified.")
 
     # -------------------------------------------------------------------------
@@ -310,23 +392,34 @@ def run_comprehensive_qa_stress_test(
 
     # 1. Min Row Count Check
     chk_count = evaluate_min_row_count(cleaned_df, min_threshold=1)
-    print(f"  - Min Row Count Check : {'PASSED' if chk_count.passed else 'FAILED'} ({chk_count.description})")
+    print(
+        f"  - Min Row Count Check : {'PASSED' if chk_count.passed else 'FAILED'} ({chk_count.description})"
+    )
     if not chk_count.passed:
         raise TestFailure(chk_count.description)
 
     # 2. Null Percentage Check (Mandatory ID must be 0% null)
     chk_nulls = evaluate_null_percentages(cleaned_df, max_null_pct=50.0)
-    print(f"  - Null Threshold Check: {'PASSED' if chk_nulls.passed else 'FAILED'} ({chk_nulls.description})")
+    print(
+        f"  - Null Threshold Check: {'PASSED' if chk_nulls.passed else 'FAILED'} ({chk_nulls.description})"
+    )
     if not chk_nulls.passed:
-        logger.warning("Null threshold check flagged violations: %s", chk_nulls.metadata.get("violations"))
+        logger.warning(
+            "Null threshold check flagged violations: %s",
+            chk_nulls.metadata.get("violations"),
+        )
 
     # 3. Value Range Constraints Check
     chk_ranges = evaluate_value_range_constraints(cleaned_df)
-    print(f"  - Value Ranges Check  : {'PASSED' if chk_ranges.passed else 'FAILED'} ({chk_ranges.description})")
+    print(
+        f"  - Value Ranges Check  : {'PASSED' if chk_ranges.passed else 'FAILED'} ({chk_ranges.description})"
+    )
 
     # 4. Referential Integrity Check
     chk_ref = evaluate_referential_integrity(golden_records_df, cleaned_df)
-    print(f"  - Referential Integrity: {'PASSED' if chk_ref.passed else 'FAILED'} ({chk_ref.description})")
+    print(
+        f"  - Referential Integrity: {'PASSED' if chk_ref.passed else 'FAILED'} ({chk_ref.description})"
+    )
     if not chk_ref.passed:
         raise TestFailure(chk_ref.description)
 
@@ -348,7 +441,9 @@ def run_comprehensive_qa_stress_test(
     print(f"  - SHA-256 Checksum Match: {rec_report.checksum_match}")
 
     if not rec_report.checksum_match:
-        raise TestFailure("Reconciliation error: State checksum mismatch detected across simulated stores!")
+        raise TestFailure(
+            "Reconciliation error: State checksum mismatch detected across simulated stores!"
+        )
     print("  [OK] Cross-store synchronization and checksum verified.")
 
     # -------------------------------------------------------------------------
@@ -361,18 +456,33 @@ def run_comprehensive_qa_stress_test(
     print_banner("Comprehensive Stress Test Passed Successfully")
     print(f"Total Records Tested       : {cleaned_df.height:,}")
     print(f"Golden Entities Resolved   : {golden_records_df.height:,}")
-    print(f"Duplicates Merged          : {cleaned_df.height - golden_records_df.height:,}")
+    print(
+        f"Duplicates Merged          : {cleaned_df.height - golden_records_df.height:,}"
+    )
     print(f"Total Execution Time       : {total_elapsed:.2f} seconds")
-    print(f"End-to-End Throughput      : {cleaned_df.height / total_elapsed:,.0f} records/sec")
+    print(
+        f"End-to-End Throughput      : {cleaned_df.height / total_elapsed:,.0f} records/sec"
+    )
     print(f"Peak RAM Allocation        : {peak_mem / (1024 * 1024):.2f} MB")
     print("=" * 80 + "\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LuminAI Data Engine Deep QA Stress Test")
-    parser.add_argument("--file", type=str, required=True, help="Path to CSV dataset for testing")
-    parser.add_argument("--tenant", type=str, default="stress-acme", help="Tenant ID scoping the test")
-    parser.add_argument("--max-rows", type=int, default=None, help="Max rows to process (for memory profiling)")
+    parser = argparse.ArgumentParser(
+        description="LuminAI Data Engine Deep QA Stress Test"
+    )
+    parser.add_argument(
+        "--file", type=str, required=True, help="Path to CSV dataset for testing"
+    )
+    parser.add_argument(
+        "--tenant", type=str, default="stress-acme", help="Tenant ID scoping the test"
+    )
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=None,
+        help="Max rows to process (for memory profiling)",
+    )
     args = parser.parse_args()
 
     run_comprehensive_qa_stress_test(

@@ -1,6 +1,5 @@
 """Unit and integration tests for Observability (Prometheus Metrics & OpenTelemetry Tracing)."""
 
-
 from fastapi.testclient import TestClient
 import pytest
 
@@ -62,7 +61,6 @@ class TestPrometheusMetricsEndpoint:
             app.dependency_overrides.pop(get_settings, None)
 
 
-
 class TestPrometheusMetricsRecording:
     """Tests for metrics recording helpers."""
 
@@ -74,7 +72,13 @@ class TestPrometheusMetricsRecording:
             entity_type="Person",
         )._value.get()
 
-        record_records_processed("test-tenant", stage="clean", count=42, status="success", entity_type="Person")
+        record_records_processed(
+            "test-tenant",
+            stage="clean",
+            count=42,
+            status="success",
+            entity_type="Person",
+        )
 
         new_val = luminai_records_processed_total.labels(
             tenant_id="test-tenant",
@@ -86,12 +90,17 @@ class TestPrometheusMetricsRecording:
         assert new_val == initial_val + 42
 
     def test_record_pipeline_duration(self):
-        record_pipeline_duration("cleaning_pipeline", duration_seconds=1.25, status="success")
+        record_pipeline_duration(
+            "cleaning_pipeline", duration_seconds=1.25, status="success"
+        )
         record_pipeline_duration("er_pipeline", duration_seconds=3.50, status="success")
 
         client = TestClient(app)
         response = client.get("/metrics")
-        assert 'luminai_pipeline_duration_seconds_count{pipeline="cleaning_pipeline",status="success"}' in response.text
+        assert (
+            'luminai_pipeline_duration_seconds_count{pipeline="cleaning_pipeline",status="success"}'
+            in response.text
+        )
 
     def test_record_er_metrics(self):
         record_er_metrics(
@@ -122,7 +131,9 @@ class TestOpenTelemetryTracing:
         assert exporter is not None
         exporter.clear()
 
-        with trace_span("test.operation", attributes={"tenant.id": "acme", "records": 100}):
+        with trace_span(
+            "test.operation", attributes={"tenant.id": "acme", "records": 100}
+        ):
             pass
 
         spans = exporter.get_finished_spans()
@@ -155,20 +166,37 @@ class TestOpenTelemetryTracing:
         exporter.clear()
 
         # 1. Kafka consume
-        with trace_span("kafka.consume", attributes={"messaging.destination": "ingest.raw", "tenant.id": "acme"}):
+        with trace_span(
+            "kafka.consume",
+            attributes={"messaging.destination": "ingest.raw", "tenant.id": "acme"},
+        ):
             # 2. Pipeline clean
-            with trace_span("pipeline.clean", attributes={"tenant.id": "acme", "input.rows": 50}):
+            with trace_span(
+                "pipeline.clean", attributes={"tenant.id": "acme", "input.rows": 50}
+            ):
                 pass
             # 3. Pipeline stage
-            with trace_span("pipeline.stage", attributes={"tenant.id": "acme", "records.staged_count": 48}):
+            with trace_span(
+                "pipeline.stage",
+                attributes={"tenant.id": "acme", "records.staged_count": 48},
+            ):
                 pass
             # 4. ER blocking & golden records
             with trace_span("er.blocking", attributes={"tenant.id": "acme"}):
                 pass
-            with trace_span("er.golden_records", attributes={"tenant.id": "acme", "golden_records.count": 20}):
+            with trace_span(
+                "er.golden_records",
+                attributes={"tenant.id": "acme", "golden_records.count": 20},
+            ):
                 pass
             # 5. Kafka produce
-            with trace_span("kafka.produce", attributes={"messaging.destination": "entity.resolved", "tenant.id": "acme"}):
+            with trace_span(
+                "kafka.produce",
+                attributes={
+                    "messaging.destination": "entity.resolved",
+                    "tenant.id": "acme",
+                },
+            ):
                 pass
 
         spans = exporter.get_finished_spans()

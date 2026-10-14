@@ -55,7 +55,8 @@ def configure_logging(
 
     # Configure structlog internals
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -119,10 +120,16 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.logger = get_logger("data-engine.http")
 
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Any]
+    ) -> Response:
         clear_context()
 
-        request_id = request.headers.get("X-Request-ID") or request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+        request_id = (
+            request.headers.get("X-Request-ID")
+            or request.headers.get("X-Correlation-ID")
+            or str(uuid.uuid4())
+        )
         tenant_id = request.headers.get("X-Tenant-ID")
 
         context: Dict[str, Any] = {

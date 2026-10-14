@@ -85,8 +85,7 @@ public class KafkaConfig {
               : "org.apache.kafka.common.security.scram.ScramLoginModule";
       String jaasConfig =
           String.format(
-              "%s required username=\"%s\" password=\"%s\";",
-              module, kafkaUsername, kafkaPassword);
+              "%s required username=\"%s\" password=\"%s\";", module, kafkaUsername, kafkaPassword);
       props.put("sasl.jaas.config", jaasConfig);
       log.info("Kafka SASL ({}) authentication configured for user: {}", mechanism, kafkaUsername);
     }

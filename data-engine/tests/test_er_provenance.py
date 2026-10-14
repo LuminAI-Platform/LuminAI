@@ -19,10 +19,17 @@ class TestProvenanceTracking:
 
         cluster_records = [
             {"id": "rec-1", "source_id": "src-a", "name": "Alice", "country": "UK"},
-            {"id": "rec-2", "source_id": "src-b", "name": "Alice Smith", "email": "alice@example.com"},
+            {
+                "id": "rec-2",
+                "source_id": "src-b",
+                "name": "Alice Smith",
+                "email": "alice@example.com",
+            },
         ]
 
-        entries = track_field_provenance(golden_record, cluster_records, tenant_id="acme")
+        entries = track_field_provenance(
+            golden_record, cluster_records, tenant_id="acme"
+        )
         assert len(entries) == 3
 
         attr_map = {e["attribute_name"]: e for e in entries}
