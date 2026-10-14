@@ -62,13 +62,13 @@ spring:
       password: ${NEO4J_PASSWORD:neo4j}
     database: ${NEO4J_DATABASE:neo4j}
 
-  # ── Kafka — Confluent Cloud / Aiven (SASL/PLAIN or SCRAM over TLS) ───
+  # ── Kafka — Optional Event Streaming (defaults to off if unconfigured) ───
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     properties:
-      security.protocol: ${KAFKA_SECURITY_PROTOCOL:SASL_SSL}
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
       sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
-      sasl.jaas.config: ${KAFKA_JAAS_CONFIG:org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";}
+      sasl.jaas.config: ${KAFKA_JAAS_CONFIG:org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME:}" password="${KAFKA_PASSWORD:}";}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -96,11 +96,11 @@ spring:
       ack-mode: manual_immediate
       concurrency: 3
       observation-enabled: true
-      auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:${KAFKA_AUTO_STARTUP:true}}
+      auto-startup: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:${KAFKA_AUTO_STARTUP:false}}
     admin:
       auto-create: false
       properties:
-        bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS}
+        bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
   # ── Redis — Upstash (TLS) ─────────────────────────────────────────
   data:
