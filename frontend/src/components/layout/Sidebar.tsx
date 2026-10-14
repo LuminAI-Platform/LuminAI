@@ -294,7 +294,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 py-4 px-3 flex flex-col gap-1 overflow-y-auto min-h-0">
+        <nav className="flex-1 py-4 px-3 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
           {/* Section: Explore & Overview */}
           {!collapsed && (
             <div className="px-2 pt-1 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
@@ -311,10 +311,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Link
                   to={item.to}
-                  className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
+                  className="flex items-center p-2! text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
                   activeProps={{
                     className:
-                      "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+                      "bg-blue-600/10! text-blue-500!  font-semibold! border-blue-500/20! border!",
                   }}
                   onClick={() => setMobileOpen(false)}
                 >
@@ -348,7 +348,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Link
                   to={item.to}
-                  className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
+                  className="flex items-center p-2! text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
                   activeProps={{
                     className:
                       "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
@@ -385,7 +385,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Link
                   to={item.to}
-                  className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
+                  className="flex items-center p-2! text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
                   activeProps={{
                     className:
                       "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
