@@ -99,8 +99,7 @@ class Settings(BaseSettings):
     kafka_topic_ingest_valid: str = "ingest.valid"
     kafka_topic_ingest_dead_letter: str = "ingest.dead_letter"
     kafka_topic_entity_resolved: str = "entity.resolved"
-    kafka_security_protocol: str | None = None
-    kafka_sasl_mechanism: str = "SCRAM-SHA-256"
+    kafka_sasl_mechanism: str = "PLAIN"
     kafka_username: str | None = None
     kafka_password: str | None = None
     kafka_producer_max_retries: int = 3
@@ -117,7 +116,7 @@ class Settings(BaseSettings):
             conf["security.protocol"] = "SASL_SSL"
 
         if self.kafka_username and self.kafka_password:
-            conf["sasl.mechanisms"] = self.kafka_sasl_mechanism or "SCRAM-SHA-256"
+            conf["sasl.mechanisms"] = self.kafka_sasl_mechanism or "PLAIN"
             conf["sasl.username"] = self.kafka_username
             conf["sasl.password"] = self.kafka_password
         return conf
