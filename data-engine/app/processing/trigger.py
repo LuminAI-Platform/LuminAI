@@ -62,7 +62,9 @@ class DagsterTrigger:
             The Dagster run ID if successful, or ``None`` on failure.
         """
         active_run_id = run_id or batch_metadata.get("run_id") or str(uuid.uuid4())
-        bind_context(tenant_id=str(tenant_id), source_id=str(source_id), run_id=active_run_id)
+        bind_context(
+            tenant_id=str(tenant_id), source_id=str(source_id), run_id=active_run_id
+        )
         tracker = get_run_tracker()
         tracker.start_run(
             active_run_id,
@@ -73,7 +75,8 @@ class DagsterTrigger:
             "Triggering cleaning pipeline — tenant=%s, source=%s, rows=%s, run_id=%s",
             tenant_id,
             source_id,
-            batch_metadata.get("total_rows") or batch_metadata.get("totalRows", "unknown"),
+            batch_metadata.get("total_rows")
+            or batch_metadata.get("totalRows", "unknown"),
             active_run_id,
         )
 
@@ -131,7 +134,9 @@ class DagsterTrigger:
                     tags=tags,
                 )
 
-                dagster_run_id = str(result.run_id) if hasattr(result, "run_id") else active_run_id
+                dagster_run_id = (
+                    str(result.run_id) if hasattr(result, "run_id") else active_run_id
+                )
 
                 # Track individual step successes and failures
                 failed_step = None
@@ -140,14 +145,23 @@ class DagsterTrigger:
                         tracker.update_step(active_run_id, event.step_key)
                     elif getattr(event, "is_step_failure", False):
                         failed_step = event.step_key
-                        err_msg = str(getattr(event, "step_failure_data", None) or f"Step '{event.step_key}' failed")
-                        tracker.record_step_error(active_run_id, step_name=event.step_key, error=err_msg)
+                        err_msg = str(
+                            getattr(event, "step_failure_data", None)
+                            or f"Step '{event.step_key}' failed"
+                        )
+                        tracker.record_step_error(
+                            active_run_id, step_name=event.step_key, error=err_msg
+                        )
 
                 if result.success:
                     duration = time.perf_counter() - start_time
-                    record_pipeline_duration("cleaning_pipeline", duration, status="success")
+                    record_pipeline_duration(
+                        "cleaning_pipeline", duration, status="success"
+                    )
                     step_names = [
-                        e.step_key for e in result.all_events if getattr(e, "is_step_success", False)
+                        e.step_key
+                        for e in result.all_events
+                        if getattr(e, "is_step_success", False)
                     ]
                     tracker.complete_run(
                         active_run_id,
@@ -165,7 +179,9 @@ class DagsterTrigger:
                     return dagster_run_id
                 else:
                     duration = time.perf_counter() - start_time
-                    record_pipeline_duration("cleaning_pipeline", duration, status="failed")
+                    record_pipeline_duration(
+                        "cleaning_pipeline", duration, status="failed"
+                    )
                     tracker.fail_run(
                         active_run_id,
                         error="Dagster materialization completed with errors.",
@@ -205,14 +221,21 @@ class DagsterTrigger:
     ) -> str | None:
         """Launch an Entity Resolution pipeline run for the given tenant."""
         active_run_id = run_id or str(uuid.uuid4())
-        bind_context(tenant_id=str(tenant_id), source_id=str(source_id), run_id=active_run_id)
+        bind_context(
+            tenant_id=str(tenant_id), source_id=str(source_id), run_id=active_run_id
+        )
         tracker = get_run_tracker()
         tracker.start_run(
             active_run_id,
             message=f"Starting Entity Resolution pipeline for tenant '{tenant_id}'.",
         )
 
-        logger.info("Triggering Entity Resolution pipeline — tenant=%s, source=%s, run_id=%s", tenant_id, source_id, active_run_id)
+        logger.info(
+            "Triggering Entity Resolution pipeline — tenant=%s, source=%s, run_id=%s",
+            tenant_id,
+            source_id,
+            active_run_id,
+        )
 
         start_time = time.perf_counter()
         try:
@@ -243,7 +266,9 @@ class DagsterTrigger:
                     },
                 )
 
-                dagster_run_id = str(result.run_id) if hasattr(result, "run_id") else active_run_id
+                dagster_run_id = (
+                    str(result.run_id) if hasattr(result, "run_id") else active_run_id
+                )
 
                 # Track individual step successes and failures
                 failed_step = None
@@ -252,21 +277,34 @@ class DagsterTrigger:
                         tracker.update_step(active_run_id, event.step_key)
                     elif getattr(event, "is_step_failure", False):
                         failed_step = event.step_key
-                        err_msg = str(getattr(event, "step_failure_data", None) or f"Step '{event.step_key}' failed")
-                        tracker.record_step_error(active_run_id, step_name=event.step_key, error=err_msg)
+                        err_msg = str(
+                            getattr(event, "step_failure_data", None)
+                            or f"Step '{event.step_key}' failed"
+                        )
+                        tracker.record_step_error(
+                            active_run_id, step_name=event.step_key, error=err_msg
+                        )
 
                 if result.success:
                     duration = time.perf_counter() - start_time
                     record_pipeline_duration("er_pipeline", duration, status="success")
                     step_names = [
-                        e.step_key for e in result.all_events if getattr(e, "is_step_success", False)
+                        e.step_key
+                        for e in result.all_events
+                        if getattr(e, "is_step_success", False)
                     ]
                     tracker.complete_run(
                         active_run_id,
                         dagster_run_id=dagster_run_id,
                         message=f"Entity Resolution pipeline completed: {len(step_names)} assets materialized.",
                     )
-                    logger.info("✅ ER pipeline completed — tenant=%s, run_id=%s, dagster_run_id=%s (took %.2fs)", tenant_id, active_run_id, dagster_run_id, duration)
+                    logger.info(
+                        "✅ ER pipeline completed — tenant=%s, run_id=%s, dagster_run_id=%s (took %.2fs)",
+                        tenant_id,
+                        active_run_id,
+                        dagster_run_id,
+                        duration,
+                    )
                     return dagster_run_id
                 else:
                     duration = time.perf_counter() - start_time
@@ -277,7 +315,12 @@ class DagsterTrigger:
                         message="Entity Resolution pipeline failed.",
                         failed_step=failed_step,
                     )
-                    logger.error("❌ ER pipeline failed — tenant=%s, run_id=%s, failed_step=%s", tenant_id, active_run_id, failed_step)
+                    logger.error(
+                        "❌ ER pipeline failed — tenant=%s, run_id=%s, failed_step=%s",
+                        tenant_id,
+                        active_run_id,
+                        failed_step,
+                    )
                     return None
         except Exception as exc:
             duration = time.perf_counter() - start_time
@@ -287,14 +330,20 @@ class DagsterTrigger:
                 error=str(exc),
                 message=f"Entity Resolution error: {exc}",
             )
-            logger.exception("❌ Error triggering ER pipeline — tenant=%s, run_id=%s", tenant_id, active_run_id)
+            logger.exception(
+                "❌ Error triggering ER pipeline — tenant=%s, run_id=%s",
+                tenant_id,
+                active_run_id,
+            )
             return None
 
     def retry_pipeline(self, run_id: str) -> str | None:
         """Retry a previously failed pipeline run, resuming from checkpoints."""
         tracker = get_run_tracker()
         rec = tracker.get_status(run_id)
-        if not rec or (rec.status == "failed" and rec.message.startswith("Pipeline run '")):
+        if not rec or (
+            rec.status == "failed" and rec.message.startswith("Pipeline run '")
+        ):
             logger.error("Cannot retry unknown pipeline run %s", run_id)
             return None
 
@@ -308,7 +357,11 @@ class DagsterTrigger:
         )
 
         if rec.pipeline_name == "cleaning_pipeline":
-            options = rec.metadata.get("options", {}) if isinstance(rec.metadata, dict) else {}
+            options = (
+                rec.metadata.get("options", {})
+                if isinstance(rec.metadata, dict)
+                else {}
+            )
             return self.trigger_cleaning_pipeline(
                 tenant_id=rec.tenant_id,
                 source_id=rec.source_id,
@@ -322,11 +375,15 @@ class DagsterTrigger:
                 run_id=run_id,
             )
         else:
-            logger.warning("Unrecognized pipeline '%s' for retry on run %s", rec.pipeline_name, run_id)
-            tracker.fail_run(run_id, error=f"Cannot retry unrecognized pipeline: {rec.pipeline_name}")
+            logger.warning(
+                "Unrecognized pipeline '%s' for retry on run %s",
+                rec.pipeline_name,
+                run_id,
+            )
+            tracker.fail_run(
+                run_id, error=f"Cannot retry unrecognized pipeline: {rec.pipeline_name}"
+            )
             return None
-
-
 
     def trigger_reconciliation(
         self,
@@ -337,7 +394,11 @@ class DagsterTrigger:
         opensearch_records: Optional[list[dict[str, Any]]] = None,
     ) -> dict[str, Any]:
         """Execute a cross-store reconciliation job and return the report dict."""
-        logger.info("Triggering Cross-Store Reconciliation — tenant=%s, entity_type=%s", tenant_id, entity_type)
+        logger.info(
+            "Triggering Cross-Store Reconciliation — tenant=%s, entity_type=%s",
+            tenant_id,
+            entity_type,
+        )
         report = run_cross_store_reconciliation(
             tenant_id=tenant_id,
             entity_type=entity_type,

@@ -211,7 +211,7 @@ def run_full_test_pipeline(
     cols = raw_df.columns
     if "id" not in cols:
         raw_df = raw_df.with_columns(
-            pl.Series("id", [f"row-{i+1}" for i in range(raw_df.height)])
+            pl.Series("id", [f"row-{i + 1}" for i in range(raw_df.height)])
         )
     if "country" not in cols:
         raw_df = raw_df.with_columns(pl.lit("GLOBAL").alias("country"))
@@ -223,7 +223,10 @@ def run_full_test_pipeline(
     # -------------------------------------------------------------
     # Step 1: Ingestion & Profiling
     # -------------------------------------------------------------
-    print_step(1, f"Raw Data Ingestion & Profiling ({raw_df.height} rows, {raw_df.width} columns)")
+    print_step(
+        1,
+        f"Raw Data Ingestion & Profiling ({raw_df.height} rows, {raw_df.width} columns)",
+    )
     print(f"Columns: {raw_df.columns}")
     print("\nSample Ingested Rows:")
     print(raw_df.head(4))
@@ -248,7 +251,9 @@ def run_full_test_pipeline(
             pl.col("country").str.to_uppercase().alias("country")
         )
 
-    print(f"[OK] Stripped whitespace and normalized casing across {raw_df.height} rows.")
+    print(
+        f"[OK] Stripped whitespace and normalized casing across {raw_df.height} rows."
+    )
 
     # -------------------------------------------------------------
     # Step 3: ER Candidate Blocking (Phonetic Metaphone + Country)
@@ -263,11 +268,15 @@ def run_full_test_pipeline(
     )
 
     total_possible_pairs = raw_df.height * (raw_df.height - 1) // 2
-    reduction_ratio = calculate_blocking_reduction_ratio(raw_df.height, candidate_pairs.height)
+    reduction_ratio = calculate_blocking_reduction_ratio(
+        raw_df.height, candidate_pairs.height
+    )
 
     print(f"[OK] Total possible O(N^2) pairs: {total_possible_pairs}")
     print(f"[OK] Candidate pairs selected by blocking: {candidate_pairs.height}")
-    print(f"[OK] Search space reduction: {reduction_ratio:.2%} (Complexity reduced from O(N^2) to O(N))")
+    print(
+        f"[OK] Search space reduction: {reduction_ratio:.2%} (Complexity reduced from O(N^2) to O(N))"
+    )
 
     # -------------------------------------------------------------
     # Step 4: Pairwise Similarity Scoring (Jaro-Winkler & Levenshtein)
@@ -275,9 +284,15 @@ def run_full_test_pipeline(
     print_step(4, "Pairwise Attribute Scoring & Weighted Confidence Computation")
     if candidate_pairs.height > 0:
         scored_pairs = compare_candidate_pairs(candidate_pairs)
-        print("[OK] Computed Jaro-Winkler (names) and Levenshtein (IDs/dates) similarities.")
+        print(
+            "[OK] Computed Jaro-Winkler (names) and Levenshtein (IDs/dates) similarities."
+        )
         print("\nCandidate Pairs Evaluation:")
-        display_cols = [c for c in ["id_a", "id_b", "name_a", "name_b", "confidence_score"] if c in scored_pairs.columns]
+        display_cols = [
+            c
+            for c in ["id_a", "id_b", "name_a", "name_b", "confidence_score"]
+            if c in scored_pairs.columns
+        ]
         print(scored_pairs.select(display_cols))
     else:
         scored_pairs = pl.DataFrame()
@@ -286,7 +301,9 @@ def run_full_test_pipeline(
     # -------------------------------------------------------------
     # Step 5: Classification Engine (Match / Review / Non-Match)
     # -------------------------------------------------------------
-    print_step(5, "Classification: Match (>=0.90), Review (0.70-0.89), Non-Match (<0.70)")
+    print_step(
+        5, "Classification: Match (>=0.90), Review (0.70-0.89), Non-Match (<0.70)"
+    )
     matches_df, review_df, non_matches_df = classify_candidate_pairs(scored_pairs)
 
     print(f"[OK] Automatic Matches (S >= 0.90): {matches_df.height} pairs")
@@ -294,22 +311,32 @@ def run_full_test_pipeline(
     print(f"[OK] Discarded Non-Matches (S < 0.70): {non_matches_df.height} pairs")
 
     if review_df.height > 0:
-        print("\n[REVIEW] Borderline Pairs Flagged for Analyst Review in 'er_candidates' table:")
+        print(
+            "\n[REVIEW] Borderline Pairs Flagged for Analyst Review in 'er_candidates' table:"
+        )
         for r in review_df.iter_rows(named=True):
-            print(f"  - Pair [{r.get('id_a')} <-> {r.get('id_b')}] -- Confidence Score: {r.get('confidence_score'):.4f} ({r.get('name_a')} vs {r.get('name_b')})")
+            print(
+                f"  - Pair [{r.get('id_a')} <-> {r.get('id_b')}] -- Confidence Score: {r.get('confidence_score'):.4f} ({r.get('name_a')} vs {r.get('name_b')})"
+            )
 
     if persist_db and review_df.height > 0:
         saved_reviews = persist_review_candidates(review_df, tenant_id=tenant_id)
-        print(f"[OK] Successfully persisted {saved_reviews} review candidates to database.")
+        print(
+            f"[OK] Successfully persisted {saved_reviews} review candidates to database."
+        )
 
     # -------------------------------------------------------------
     # Step 6: Graph Clustering & Golden Record Merge
     # -------------------------------------------------------------
-    print_step(6, "Connected Components Graph Clustering (Union-Find) & Canonical Merge")
+    print_step(
+        6, "Connected Components Graph Clustering (Union-Find) & Canonical Merge"
+    )
     records_list = cleaned_df.to_dicts()
     clusters = cluster_record_dictionaries(matches_df, records_list, id_col="id")
 
-    print(f"[OK] Resolved {len(clusters)} distinct entity clusters from {len(records_list)} input records.")
+    print(
+        f"[OK] Resolved {len(clusters)} distinct entity clusters from {len(records_list)} input records."
+    )
     for idx, c in enumerate(clusters, 1):
         ids = [r.get("id") for r in c]
         names = [r.get("name") for r in c]
@@ -320,7 +347,9 @@ def run_full_test_pipeline(
 
     if persist_db and golden_records_df.height > 0:
         saved_gr = persist_golden_records(golden_records_df, tenant_id=tenant_id)
-        print(f"[OK] Successfully saved {saved_gr} Golden Records to PostgreSQL / SQLite database.")
+        print(
+            f"[OK] Successfully saved {saved_gr} Golden Records to PostgreSQL / SQLite database."
+        )
 
     # -------------------------------------------------------------
     # Step 7: Field-Level Provenance Tracking
@@ -334,7 +363,9 @@ def run_full_test_pipeline(
             (
                 gr
                 for gr in golden_records_df.to_dicts()
-                if any(str(r.get("id")) in gr.get("source_record_ids", []) for r in cluster)
+                if any(
+                    str(r.get("id")) in gr.get("source_record_ids", []) for r in cluster
+                )
             ),
             None,
         )
@@ -346,7 +377,9 @@ def run_full_test_pipeline(
     if all_prov:
         print("Sample Field Provenance:")
         for p in all_prov[:3]:
-            print(f"  - Golden Entity [{p['golden_id']}] -> Property '{p['attribute_name']}': '{p['attribute_value']}' (contributed by source: {p['source_id']}, record: {p['source_record_id']})")
+            print(
+                f"  - Golden Entity [{p['golden_id']}] -> Property '{p['attribute_name']}': '{p['attribute_value']}' (contributed by source: {p['source_id']}, record: {p['source_record_id']})"
+            )
 
     if persist_db and all_prov:
         saved_prov = persist_provenance_records(all_prov, tenant_id=tenant_id)
@@ -355,7 +388,10 @@ def run_full_test_pipeline(
     # -------------------------------------------------------------
     # Step 8: Cross-Store Reconciliation Verification
     # -------------------------------------------------------------
-    print_step(8, "Cross-Store Synchronization & Checksum Verification (PostgreSQL vs Neo4j vs OpenSearch)")
+    print_step(
+        8,
+        "Cross-Store Synchronization & Checksum Verification (PostgreSQL vs Neo4j vs OpenSearch)",
+    )
     rec_report = run_cross_store_reconciliation(
         tenant_id=tenant_id,
         entity_type="Person",
@@ -364,7 +400,9 @@ def run_full_test_pipeline(
         opensearch_records=golden_records_df.to_dicts(),
     )
     print(f"[OK] Cross-Store Status: {rec_report.status}")
-    print(f"[OK] PG Records: {rec_report.pg_count} | Neo4j Nodes: {rec_report.neo4j_count} | OpenSearch Docs: {rec_report.opensearch_count}")
+    print(
+        f"[OK] PG Records: {rec_report.pg_count} | Neo4j Nodes: {rec_report.neo4j_count} | OpenSearch Docs: {rec_report.opensearch_count}"
+    )
     print(f"[OK] SHA-256 Checksum Match: {rec_report.checksum_match}")
 
     # -------------------------------------------------------------
@@ -381,12 +419,27 @@ def run_full_test_pipeline(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Test LuminAI Data Engine with Real Data")
+    parser = argparse.ArgumentParser(
+        description="Test LuminAI Data Engine with Real Data"
+    )
     parser.add_argument("--csv", type=str, help="Path to a real CSV file to process")
-    parser.add_argument("--db", type=str, help="SQLAlchemy connection URI (e.g. mysql+pymysql://user:pass@host/db or postgresql://...)")
-    parser.add_argument("--query", type=str, default="SELECT * FROM users LIMIT 1000", help="SQL Query to execute when using --db")
+    parser.add_argument(
+        "--db",
+        type=str,
+        help="SQLAlchemy connection URI (e.g. mysql+pymysql://user:pass@host/db or postgresql://...)",
+    )
+    parser.add_argument(
+        "--query",
+        type=str,
+        default="SELECT * FROM users LIMIT 1000",
+        help="SQL Query to execute when using --db",
+    )
     parser.add_argument("--tenant", type=str, default="acme", help="Tenant identifier")
-    parser.add_argument("--demo", action="store_true", help="Run with built-in multi-source CRM + Billing dirty dataset")
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run with built-in multi-source CRM + Billing dirty dataset",
+    )
 
     args = parser.parse_args()
 
@@ -395,7 +448,9 @@ def main():
     elif args.db:
         df = load_from_database(args.db, args.query)
     else:
-        print("No --csv or --db argument provided. Running realistic multi-source CRM demo dataset...")
+        print(
+            "No --csv or --db argument provided. Running realistic multi-source CRM demo dataset..."
+        )
         df = generate_demo_dataset()
 
     run_full_test_pipeline(df, tenant_id=args.tenant)

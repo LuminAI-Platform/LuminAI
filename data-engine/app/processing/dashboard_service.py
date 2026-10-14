@@ -41,6 +41,7 @@ class DashboardAnalyticsService:
     def _get_pg_engine(self):
         """Return the shared SQLAlchemy PostgreSQL engine."""
         from app.db import get_engine
+
         return get_engine()
 
     def _query_pg_scalar(self, sql: str, params: Dict[str, Any]) -> Any:
@@ -58,9 +59,7 @@ class DashboardAnalyticsService:
             logger.debug("PostgreSQL scalar query failed: %s", exc)
             return None
 
-    def _query_pg_rows(
-        self, sql: str, params: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _query_pg_rows(self, sql: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Execute a parameterized query and return all rows as dicts."""
         try:
             engine = self._get_pg_engine()
@@ -75,7 +74,9 @@ class DashboardAnalyticsService:
         """Return the path to the SQLite run-storage database."""
         return os.path.join("storage", "sqlite", "run_storage.db")
 
-    def _query_sqlite_runs(self, sql: str, params: Tuple[Any, ...]) -> List[sqlite3.Row]:
+    def _query_sqlite_runs(
+        self, sql: str, params: Tuple[Any, ...]
+    ) -> List[sqlite3.Row]:
         """Execute a parameterized read query against the SQLite run tracker DB."""
         db_path = self._get_run_storage_path()
         if not os.path.exists(db_path):
@@ -133,9 +134,7 @@ class DashboardAnalyticsService:
 
         # Success rate (percentage, 0-100)
         success_rate = (
-            round((completed_runs / total_runs) * 100, 1)
-            if total_runs > 0
-            else 0.0
+            round((completed_runs / total_runs) * 100, 1) if total_runs > 0 else 0.0
         )
 
         # Average duration of completed runs (seconds)
@@ -301,7 +300,9 @@ class DashboardAnalyticsService:
                         sqlite_engine = get_sqlite_engine(path)
                         with sqlite_engine.connect() as conn:
                             result = conn.execute(
-                                text("SELECT * FROM golden_records WHERE tenant_id = :tenant_id"),
+                                text(
+                                    "SELECT * FROM golden_records WHERE tenant_id = :tenant_id"
+                                ),
                                 {"tenant_id": tenant_id},
                             )
                             for row in result.mappings():

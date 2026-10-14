@@ -5,6 +5,7 @@ Revises: 0001_initial_schema
 Create Date: 2026-09-21 11:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -26,7 +27,12 @@ def upgrade() -> None:
     )
     op.add_column(
         "golden_records",
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
 
     # 2. Create golden_record_history table
@@ -39,16 +45,31 @@ def upgrade() -> None:
         sa.Column("cluster_size", sa.Integer(), server_default="1", nullable=False),
         sa.Column("source_record_ids", sa.Text(), nullable=False),
         sa.Column("attributes", sa.Text(), nullable=False),
-        sa.Column("action", sa.String(length=50), server_default="CREATED", nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "action", sa.String(length=50), server_default="CREATED", nullable=False
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
-    op.create_index("ix_golden_record_history_golden_id", "golden_record_history", ["golden_id"])
-    op.create_index("ix_golden_record_history_tenant_id", "golden_record_history", ["tenant_id"])
+    op.create_index(
+        "ix_golden_record_history_golden_id", "golden_record_history", ["golden_id"]
+    )
+    op.create_index(
+        "ix_golden_record_history_tenant_id", "golden_record_history", ["tenant_id"]
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_golden_record_history_tenant_id", table_name="golden_record_history")
-    op.drop_index("ix_golden_record_history_golden_id", table_name="golden_record_history")
+    op.drop_index(
+        "ix_golden_record_history_tenant_id", table_name="golden_record_history"
+    )
+    op.drop_index(
+        "ix_golden_record_history_golden_id", table_name="golden_record_history"
+    )
     op.drop_table("golden_record_history")
 
     op.drop_column("golden_records", "updated_at")

@@ -28,7 +28,10 @@ def get_url() -> str:
     """Return configured database URL, preferring dynamic app settings."""
     settings = get_settings()
     custom_url = config.get_main_option("sqlalchemy.url")
-    if custom_url and custom_url != "postgresql+pg8000://luminai:luminai@localhost:5432/luminai":
+    if (
+        custom_url
+        and custom_url != "postgresql+pg8000://luminai:luminai@localhost:5432/luminai"
+    ):
         return custom_url
     return settings.postgres_driver_dsn
 
@@ -67,6 +70,7 @@ def run_migrations_online() -> None:
     url = get_url()
     if url.startswith("sqlite"):
         from sqlalchemy import create_engine
+
         connectable = create_engine(url, poolclass=pool.StaticPool)
     else:
         connectable = get_db_manager().get_engine()

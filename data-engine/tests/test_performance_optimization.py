@@ -36,8 +36,12 @@ from app.processing.minio_client import (
 def test_connection_pool_sizing_and_telemetry():
     """Verify connection pool is configured to 10 base, 20 max overflow, and status reports metrics."""
     settings = get_settings()
-    assert settings.db_pool_size == 10, f"Expected db_pool_size=10, got {settings.db_pool_size}"
-    assert settings.db_max_overflow == 20, f"Expected db_max_overflow=20, got {settings.db_max_overflow}"
+    assert settings.db_pool_size == 10, (
+        f"Expected db_pool_size=10, got {settings.db_pool_size}"
+    )
+    assert settings.db_max_overflow == 20, (
+        f"Expected db_max_overflow=20, got {settings.db_max_overflow}"
+    )
     assert settings.db_pool_timeout == 30.0
 
     pool_status = DatabaseManager.get_pool_status()
@@ -59,14 +63,16 @@ def test_golden_record_batch_inserts_500():
     # Generate 1250 unique records
     records = []
     for i in range(1250):
-        records.append({
-            "golden_id": f"gid-batch-{uid}-{i:04d}",
-            "tenant_id": "test-perf-batch",
-            "cluster_size": 1,
-            "source_record_ids": [f"src-{i}"],
-            "full_name": f"User Batch {i}",
-            "email": f"user{i}@perf.org",
-        })
+        records.append(
+            {
+                "golden_id": f"gid-batch-{uid}-{i:04d}",
+                "tenant_id": "test-perf-batch",
+                "cluster_size": 1,
+                "source_record_ids": [f"src-{i}"],
+                "full_name": f"User Batch {i}",
+                "email": f"user{i}@perf.org",
+            }
+        )
     df = pl.DataFrame(records)
 
     persisted = persist_golden_records(df, tenant_id="test-perf-batch", batch_size=500)
@@ -86,14 +92,18 @@ def test_golden_record_batch_updates_and_versioning():
     """Verify batch updates increment version numbers and maintain audit history."""
     uid = uuid.uuid4().hex[:8]
     gid = f"gid-update-perf-{uid}"
-    df_v1 = pl.DataFrame([{
-        "golden_id": gid,
-        "tenant_id": "test-perf-batch",
-        "cluster_size": 1,
-        "source_record_ids": ["src-v1"],
-        "full_name": "Original Name",
-        "email": "orig@perf.org",
-    }])
+    df_v1 = pl.DataFrame(
+        [
+            {
+                "golden_id": gid,
+                "tenant_id": "test-perf-batch",
+                "cluster_size": 1,
+                "source_record_ids": ["src-v1"],
+                "full_name": "Original Name",
+                "email": "orig@perf.org",
+            }
+        ]
+    )
     persist_golden_records(df_v1, tenant_id="test-perf-batch", batch_size=500)
 
     rec_v1 = get_golden_record(gid, tenant_id="test-perf-batch")
@@ -101,14 +111,18 @@ def test_golden_record_batch_updates_and_versioning():
     assert rec_v1["version"] == 1
 
     # Update in batch
-    df_v2 = pl.DataFrame([{
-        "golden_id": gid,
-        "tenant_id": "test-perf-batch",
-        "cluster_size": 2,
-        "source_record_ids": ["src-v1", "src-v2"],
-        "full_name": "Updated Name",
-        "email": "updated@perf.org",
-    }])
+    df_v2 = pl.DataFrame(
+        [
+            {
+                "golden_id": gid,
+                "tenant_id": "test-perf-batch",
+                "cluster_size": 2,
+                "source_record_ids": ["src-v1", "src-v2"],
+                "full_name": "Updated Name",
+                "email": "updated@perf.org",
+            }
+        ]
+    )
     persist_golden_records(df_v2, tenant_id="test-perf-batch", batch_size=500)
 
     rec_v2 = get_golden_record(gid, tenant_id="test-perf-batch")
@@ -131,7 +145,11 @@ def test_kafka_consumer_batch_processing_100():
         msg = MagicMock()
         msg.error.return_value = None
         msg.key.return_value = f"key-{i}".encode("utf-8")
-        msg.value.return_value = f'{{"event_id": "{i}", "tenant_id": "acme", "payload": {{}}}}'.encode("utf-8")
+        msg.value.return_value = (
+            f'{{"event_id": "{i}", "tenant_id": "acme", "payload": {{}}}}'.encode(
+                "utf-8"
+            )
+        )
         msg.offset.return_value = i
         fake_messages.append(msg)
 
@@ -156,7 +174,12 @@ def test_duckdb_query_plan_and_pragmas():
 
     assert isinstance(plan, str)
     assert len(plan) > 0
-    assert "EXPLAIN" in plan.upper() or "QUERY PLAN" in plan.upper() or "PHYSICAL_PLAN" in plan.upper() or "SCAN" in plan.upper()
+    assert (
+        "EXPLAIN" in plan.upper()
+        or "QUERY PLAN" in plan.upper()
+        or "PHYSICAL_PLAN" in plan.upper()
+        or "SCAN" in plan.upper()
+    )
 
 
 def test_analytics_query_timeout_setting():
@@ -169,7 +192,9 @@ def test_analytics_query_timeout_enforcement():
     """Verify analytics query endpoint returns HTTP 504 when query exceeds timeout."""
     client = TestClient(app)
 
-    with patch("app.api.analytics.asyncio.wait_for", side_effect=asyncio.TimeoutError()):
+    with patch(
+        "app.api.analytics.asyncio.wait_for", side_effect=asyncio.TimeoutError()
+    ):
         resp = client.post(
             "/analytics/query",
             json={
@@ -180,21 +205,26 @@ def test_analytics_query_timeout_enforcement():
             headers={"X-API-Key": "test-api-key-12345"},
         )
         assert resp.status_code == 504
-        assert "timed out after 30" in resp.json()["detail"] or "30.0s limit" in resp.json()["detail"]
+        assert (
+            "timed out after 30" in resp.json()["detail"]
+            or "30.0s limit" in resp.json()["detail"]
+        )
 
 
 # 5. MinIO Multipart Upload for Large Files (>100MB)
 def test_minio_multipart_constants():
     """Verify MinIO multipart upload constants are sized appropriately (>100MB threshold, 10MB chunk)."""
     assert MULTIPART_THRESHOLD == 100 * 1024 * 1024  # 100 MB
-    assert DEFAULT_PART_SIZE == 10 * 1024 * 1024     # 10 MB
+    assert DEFAULT_PART_SIZE == 10 * 1024 * 1024  # 10 MB
 
 
 def test_minio_multipart_routing_for_large_files(temp_storage):
     """Verify put_object_bytes routes to multipart upload when payload >= 100MB."""
     client = MinioRawStorageClient(local_fallback_dir=temp_storage)
 
-    with patch.object(client, "put_object_multipart", return_value=True) as mock_multipart:
+    with patch.object(
+        client, "put_object_multipart", return_value=True
+    ) as mock_multipart:
         # Under threshold: 1 KB
         small_payload = b"small payload"
         client.put_object_bytes("test-bucket", "small.csv", small_payload)
@@ -203,7 +233,9 @@ def test_minio_multipart_routing_for_large_files(temp_storage):
         # Over threshold: 100MB + 1 byte
         large_payload = b"X" * (MULTIPART_THRESHOLD + 1)
         client.put_object_bytes("test-bucket", "large.csv", large_payload)
-        mock_multipart.assert_called_once_with("test-bucket", "large.csv", large_payload, content_type="text/csv")
+        mock_multipart.assert_called_once_with(
+            "test-bucket", "large.csv", large_payload, content_type="text/csv"
+        )
 
 
 @pytest.fixture

@@ -12,7 +12,10 @@ Covers:
 import polars as pl
 
 from app.processing.er.blocking import generate_blocking_key
-from app.processing.er.comparison import calculate_pair_similarity_score, compare_candidate_pairs
+from app.processing.er.comparison import (
+    calculate_pair_similarity_score,
+    compare_candidate_pairs,
+)
 from app.processing.er.semantic import (
     canonicalize_name,
     is_acronym_match,
@@ -65,7 +68,9 @@ class TestSemanticMatching:
         assert score_bill >= 0.90
 
         # Acronym match
-        score_acronym = semantic_name_similarity("IBM Corp", "International Business Machines Corp")
+        score_acronym = semantic_name_similarity(
+            "IBM Corp", "International Business Machines Corp"
+        )
         assert score_acronym >= 0.90
 
     def test_blocking_key_canonicalization(self):
@@ -80,8 +85,16 @@ class TestVectorizedComparison:
     """Test suite for vectorized candidate pair comparison."""
 
     def test_calculate_pair_similarity_score_with_semantics(self):
-        row_a = {"full_name": "Bob Smith", "dob": "1985-05-12", "email": "bsmith@example.com"}
-        row_b = {"full_name": "Robert Smith", "dob": "1985-05-12", "email": "bsmith@example.com"}
+        row_a = {
+            "full_name": "Bob Smith",
+            "dob": "1985-05-12",
+            "email": "bsmith@example.com",
+        }
+        row_b = {
+            "full_name": "Robert Smith",
+            "dob": "1985-05-12",
+            "email": "bsmith@example.com",
+        }
 
         score_res = calculate_pair_similarity_score(row_a, row_b)
         assert score_res["score_name"] >= 0.90
@@ -90,16 +103,22 @@ class TestVectorizedComparison:
         assert score_res["confidence_score"] >= 0.90
 
     def test_compare_candidate_pairs_vectorized(self):
-        candidate_pairs = pl.DataFrame({
-            "record_id_l": ["r1", "r2", "r3"],
-            "full_name_l": ["Bob Smith", "Alice Johnson", "IBM"],
-            "dob_l": ["1985-05-12", "1990-01-01", None],
-            "email_l": ["bsmith@example.com", "alice@test.com", None],
-            "record_id_r": ["r1-dup", "r2-diff", "r3-long"],
-            "full_name_r": ["Robert Smith", "Zachary Taylor", "International Business Machines"],
-            "dob_r": ["1985-05-12", "2020-05-15", None],
-            "email_r": ["robert.smith@example.com", "zach@corp.io", None],
-        })
+        candidate_pairs = pl.DataFrame(
+            {
+                "record_id_l": ["r1", "r2", "r3"],
+                "full_name_l": ["Bob Smith", "Alice Johnson", "IBM"],
+                "dob_l": ["1985-05-12", "1990-01-01", None],
+                "email_l": ["bsmith@example.com", "alice@test.com", None],
+                "record_id_r": ["r1-dup", "r2-diff", "r3-long"],
+                "full_name_r": [
+                    "Robert Smith",
+                    "Zachary Taylor",
+                    "International Business Machines",
+                ],
+                "dob_r": ["1985-05-12", "2020-05-15", None],
+                "email_r": ["robert.smith@example.com", "zach@corp.io", None],
+            }
+        )
 
         scored_df = compare_candidate_pairs(candidate_pairs)
 

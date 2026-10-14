@@ -52,7 +52,13 @@ def raw_data_placeholder(context: AssetExecutionContext) -> pl.DataFrame:
     df = pl.DataFrame(
         {
             "id": ["rec-001", "rec-002", "rec-003", "rec-004", "rec-005"],
-            "name": ["Alice Smith", "alice smith", "Bob Jones", "Bobby Jones", "Carol White"],
+            "name": [
+                "Alice Smith",
+                "alice smith",
+                "Bob Jones",
+                "Bobby Jones",
+                "Carol White",
+            ],
             "email": [
                 "alice@example.com",
                 "alice@example.com",
@@ -86,8 +92,7 @@ def cleaned_data_placeholder(
     context.log.info("🟢 cleaned_data_placeholder: cleaning DataFrame…")
 
     cleaned = (
-        raw_data_placeholder
-        .with_columns(
+        raw_data_placeholder.with_columns(
             pl.col("name").str.to_lowercase().str.strip_chars().alias("name"),
             pl.col("email").str.to_lowercase().str.strip_chars().alias("email"),
         )

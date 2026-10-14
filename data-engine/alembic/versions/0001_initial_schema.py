@@ -5,6 +5,7 @@ Revises: None
 Create Date: 2026-09-16 22:45:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -27,7 +28,12 @@ def upgrade() -> None:
         sa.Column("source_id", sa.String(length=255), nullable=False),
         sa.Column("raw_id", sa.String(length=255), nullable=True),
         sa.Column("data", sa.Text(), nullable=False),
-        sa.Column("staged_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "staged_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_staging_records_tenant_id", "staging_records", ["tenant_id"])
     op.create_index("ix_staging_records_source_id", "staging_records", ["source_id"])
@@ -40,7 +46,12 @@ def upgrade() -> None:
         sa.Column("cluster_size", sa.Integer(), server_default="1", nullable=False),
         sa.Column("source_record_ids", sa.Text(), nullable=False),
         sa.Column("attributes", sa.Text(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_golden_records_tenant_id", "golden_records", ["tenant_id"])
 
@@ -53,8 +64,15 @@ def upgrade() -> None:
         sa.Column("record_id_b", sa.String(length=255), nullable=False),
         sa.Column("confidence_score", sa.Float(), nullable=False),
         sa.Column("payload", sa.Text(), nullable=False),
-        sa.Column("status", sa.String(length=50), server_default="PENDING", nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "status", sa.String(length=50), server_default="PENDING", nullable=False
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_er_candidates_tenant_id", "er_candidates", ["tenant_id"])
     op.create_index("ix_er_candidates_status", "er_candidates", ["status"])
@@ -70,7 +88,12 @@ def upgrade() -> None:
         sa.Column("source_record_id", sa.String(length=255), nullable=False),
         sa.Column("source_id", sa.String(length=255), nullable=False),
         sa.Column("confidence_score", sa.Float(), server_default="1.0", nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
     op.create_index("ix_provenance_golden_id", "provenance", ["golden_id"])
     op.create_index("ix_provenance_tenant_id", "provenance", ["tenant_id"])

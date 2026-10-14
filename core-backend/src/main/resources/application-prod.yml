@@ -62,16 +62,13 @@ spring:
       password: ${NEO4J_PASSWORD:neo4j}
     database: ${NEO4J_DATABASE:neo4j}
 
-  # ── Kafka — Aiven (SASL/SCRAM over TLS) ──────────────────────────
+  # ── Kafka — Confluent Cloud / Aiven (SASL/PLAIN or SCRAM over TLS) ───
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     properties:
-      security.protocol: SASL_SSL
-      sasl.mechanism: SCRAM-SHA-256
-      sasl.jaas.config: >-
-        org.apache.kafka.common.security.scram.ScramLoginModule required
-        username="${KAFKA_USERNAME}"
-        password="${KAFKA_PASSWORD}";
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:SASL_SSL}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+      sasl.jaas.config: ${KAFKA_JAAS_CONFIG:org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

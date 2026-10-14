@@ -68,19 +68,26 @@ public class KafkaConfig {
   @Value("${KAFKA_SECURITY_PROTOCOL:SASL_SSL}")
   private String securityProtocol;
 
-  @Value("${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}")
+  @Value("${KAFKA_SASL_MECHANISM:PLAIN}")
   private String saslMechanism;
 
   private void applySaslConfig(Map<String, Object> props) {
     if (kafkaUsername != null && !kafkaUsername.isBlank()) {
-      props.put("security.protocol", securityProtocol);
-      props.put("sasl.mechanism", saslMechanism);
+      props.put("security.protocol", securityProtocol != null ? securityProtocol : "SASL_SSL");
+      String mechanism =
+          (saslMechanism != null && !saslMechanism.isBlank())
+              ? saslMechanism.trim().toUpperCase()
+              : "PLAIN";
+      props.put("sasl.mechanism", mechanism);
+      String module =
+          "PLAIN".equals(mechanism)
+              ? "org.apache.kafka.common.security.plain.PlainLoginModule"
+              : "org.apache.kafka.common.security.scram.ScramLoginModule";
       String jaasConfig =
           String.format(
-              "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";",
-              kafkaUsername, kafkaPassword);
+              "%s required username=\"%s\" password=\"%s\";", module, kafkaUsername, kafkaPassword);
       props.put("sasl.jaas.config", jaasConfig);
-      log.info("Kafka SASL/SCRAM authentication configured for user: {}", kafkaUsername);
+      log.info("Kafka SASL ({}) authentication configured for user: {}", mechanism, kafkaUsername);
     }
   }
 

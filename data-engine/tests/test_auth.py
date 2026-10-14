@@ -35,6 +35,7 @@ client = TestClient(app)
 
 # --- Fixtures for RSA Key Pair Generation for JWT Tests ---
 
+
 @pytest.fixture(scope="module")
 def rsa_keys():
     """Generate an RSA key pair for testing Keycloak JWT signature verification."""
@@ -48,10 +49,14 @@ def rsa_keys():
         encryption_algorithm=serialization.NoEncryption(),
     ).decode("utf-8")
 
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
 
     return {
         "private_key": private_key,
@@ -88,6 +93,7 @@ def create_test_jwt(
 
 # --- Unit Tests for Role Extraction & Models ---
 
+
 def test_extract_roles_from_claims():
     """Roles are extracted from realm_access and resource_access with ROLE_ prefixes."""
     claims = {
@@ -121,11 +127,14 @@ def test_auth_identity_has_role():
 @pytest.fixture(autouse=True)
 def mock_dagster_trigger():
     """Mock background Dagster pipeline trigger so auth tests execute instantaneously."""
-    with patch("app.processing.trigger.DagsterTrigger.trigger_cleaning_pipeline") as mock:
+    with patch(
+        "app.processing.trigger.DagsterTrigger.trigger_cleaning_pipeline"
+    ) as mock:
         yield mock
 
 
 # --- Integration Tests with auth_enabled = True ---
+
 
 class TestAuthenticationEnforced:
     """Tests when auth_enabled=True."""
@@ -169,7 +178,9 @@ class TestAuthenticationEnforced:
             json={"source_id": "src-1", "tenant_id": "acme"},
         )
         assert response.status_code == 401
-        assert "Authentication credentials were not provided" in response.json()["detail"]
+        assert (
+            "Authentication credentials were not provided" in response.json()["detail"]
+        )
 
     def test_protected_endpoint_rejects_invalid_api_key(self):
         """Protected endpoint returns 401 when an invalid X-API-Key is passed."""
@@ -213,7 +224,9 @@ class TestAuthenticationEnforced:
 
     def test_protected_endpoint_accepts_valid_keycloak_jwt(self, rsa_keys):
         """Protected endpoint accepts a cryptographically valid Keycloak RS256 token."""
-        token = create_test_jwt(rsa_keys["private_key"], sub="user-007", username="bond")
+        token = create_test_jwt(
+            rsa_keys["private_key"], sub="user-007", username="bond"
+        )
         response = client.post(
             "/process/trigger",
             headers={"Authorization": f"Bearer {token}"},
@@ -270,6 +283,7 @@ class TestAuthenticationEnforced:
 
 # --- Integration Tests with auth_enabled = False (Dev Bypass Mode) ---
 
+
 class TestAuthenticationDisabledDevMode:
     """Tests when auth_enabled=False (default dev/test mode)."""
 
@@ -292,6 +306,7 @@ class TestProductionAuthSafeguards:
     def test_mock_token_rejected_in_production_environment(self):
         """In production environment, mock/sandbox tokens must return 401 Unauthorized."""
         from app.rate_limit import reset_rate_limits
+
         reset_rate_limits()
         prod_settings = Settings(
             auth_enabled=True,
@@ -307,13 +322,20 @@ class TestProductionAuthSafeguards:
         app.dependency_overrides[get_keycloak_validator] = lambda: prod_validator
 
         try:
-            for bad_token in ["mock-access-token-123", "sandbox-token", "mock-admin", "user-sandbox-session"]:
+            for bad_token in [
+                "mock-access-token-123",
+                "sandbox-token",
+                "mock-admin",
+                "user-sandbox-session",
+            ]:
                 resp = client.post(
                     "/process/trigger",
                     headers={"Authorization": f"Bearer {bad_token}"},
                     json={"source_id": "src-1", "tenant_id": "acme"},
                 )
-                assert resp.status_code == 401, f"Expected 401 for token '{bad_token}' in production"
+                assert resp.status_code == 401, (
+                    f"Expected 401 for token '{bad_token}' in production"
+                )
                 assert "prohibited in production" in resp.json()["detail"]
         finally:
             app.dependency_overrides.clear()

@@ -163,4 +163,3 @@ class TestStatusEndpoint:
         assert status_data["run_id"] == run_id
         assert status_data["status"] in ("queued", "running", "completed")
         assert "entity resolution" in status_data["message"].lower()
-

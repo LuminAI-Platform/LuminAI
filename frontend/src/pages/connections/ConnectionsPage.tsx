@@ -625,45 +625,219 @@ export const ConnectionsPage: React.FC = () => {
       );
     }
 
-    // Fallback: If backend returns empty rows (e.g. before background pipeline runs or in MinIO-less deployment)
+    // Real data cleaning and entity resolution algorithm for previewing dataset
     const raw = getPreviewData(file);
     if (raw.rows && raw.rows.length > 0) {
-      const cleanRows = raw.rows.map((r, i) => {
-        const canonicalName = String(
-          r.canonicalName ||
-            r.name ||
-            r.full_name ||
-            r.company ||
-            r.title ||
-            `Record ${i + 1}`,
-        ).trim();
-        const entityType = String(
-          r.entityType || r.type || "Organization",
-        ).trim();
+      let totalFieldCount = 0;
+      let validFieldCount = 0;
+
+      const normalizeValue = (v: unknown): string | null => {
+        if (v === undefined || v === null) return null;
+        const str = String(v).trim();
+        const lower = str.toLowerCase();
+        if (
+          lower === "" ||
+          lower === "null" ||
+          lower === "n/a" ||
+          lower === "none" ||
+          lower === "-" ||
+          lower === "undefined"
+        ) {
+          return null;
+        }
+        return str;
+      };
+
+      const toTitleCase = (str: string): string => {
+        return str
+          .toLowerCase()
+          .split(/\s+/)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+      };
+
+      const candidates = raw.rows.map((rawRow, idx) => {
+        const cleanedProps: Record<string, unknown> = {};
+        const keys = Object.keys(rawRow);
+        let rowFields = 0;
+        let rowValid = 0;
+
+        keys.forEach((k) => {
+          rowFields++;
+          totalFieldCount++;
+          const norm = normalizeValue(rawRow[k]);
+          if (norm !== null) {
+            rowValid++;
+            validFieldCount++;
+            const lk = k.toLowerCase();
+            if (lk.includes("email") && norm.includes("@")) {
+              cleanedProps[k] = norm.toLowerCase();
+            } else if (
+              (lk === "name" || lk === "full_name" || lk === "company") &&
+              !norm.includes("@")
+            ) {
+              cleanedProps[k] = toTitleCase(norm);
+            } else {
+              cleanedProps[k] = norm;
+            }
+          } else {
+            cleanedProps[k] = null;
+          }
+        });
+
+        // Determine Entity Type dynamically
+        let entityType = "Organization";
+        const allKeyStr = keys.join(" ").toLowerCase();
+        if (
+          allKeyStr.includes("first_name") ||
+          allKeyStr.includes("last_name") ||
+          allKeyStr.includes("email") ||
+          allKeyStr.includes("gender") ||
+          allKeyStr.includes("dob") ||
+          allKeyStr.includes("user")
+        ) {
+          entityType = "Person";
+        } else if (
+          allKeyStr.includes("sku") ||
+          allKeyStr.includes("product") ||
+          allKeyStr.includes("price") ||
+          allKeyStr.includes("stock")
+        ) {
+          entityType = "Product";
+        } else if (
+          allKeyStr.includes("transaction") ||
+          allKeyStr.includes("amount") ||
+          allKeyStr.includes("payment")
+        ) {
+          entityType = "Transaction";
+        }
+
+        // Determine Canonical Name
+        let canonicalName = "";
+        const nameCandidates = [
+          "canonicalName",
+          "canonical_name",
+          "name",
+          "full_name",
+          "company",
+          "organization",
+          "customer_name",
+          "username",
+          "email",
+          "title",
+          "id",
+        ];
+        for (const nk of nameCandidates) {
+          const matchKey = keys.find(
+            (k) => k.toLowerCase() === nk.toLowerCase(),
+          );
+          if (matchKey && cleanedProps[matchKey]) {
+            canonicalName = String(cleanedProps[matchKey]);
+            break;
+          }
+        }
+        if (!canonicalName) {
+          canonicalName = `Entity #${idx + 1}`;
+        }
+
+        // Primary key for deduplication
+        const emailKey = keys.find((k) => k.toLowerCase().includes("email"));
+        const idKey = keys.find(
+          (k) =>
+            k.toLowerCase() === "id" || k.toLowerCase().includes("identifier"),
+        );
+        const primaryKey =
+          emailKey && cleanedProps[emailKey]
+            ? `email:${String(cleanedProps[emailKey]).toLowerCase()}`
+            : idKey && cleanedProps[idKey]
+              ? `id:${String(cleanedProps[idKey]).toLowerCase()}`
+              : `name:${canonicalName.toLowerCase()}`;
+
+        const rowQuality = rowFields > 0 ? rowValid / rowFields : 1.0;
         return {
-          id: String(r.id || `gr-${i + 1}`),
+          originalIndex: idx,
+          cleanedProps,
           canonicalName,
           entityType,
-          confidenceScore: 0.98,
-          sourceCount: 1,
-          ...r,
+          primaryKey,
+          rowQuality,
         };
       });
 
-      const columnSet = new Set([
+      // Deduplicate by primary key
+      const groups = new Map<string, typeof candidates>();
+      candidates.forEach((cand) => {
+        const arr = groups.get(cand.primaryKey) || [];
+        arr.push(cand);
+        groups.set(cand.primaryKey, arr);
+      });
+
+      let duplicatesMerged = 0;
+      const cleanRows: Record<string, unknown>[] = [];
+      const columnSet = new Set<string>([
         "canonicalName",
         "entityType",
         "confidenceScore",
+        "sourceCount",
       ]);
-      raw.columns.forEach((c) => columnSet.add(c));
+
+      groups.forEach((groupCandidates) => {
+        if (groupCandidates.length > 1) {
+          duplicatesMerged += groupCandidates.length - 1;
+        }
+
+        const mergedProps: Record<string, unknown> = {};
+        let avgQuality = 0;
+        groupCandidates.forEach((c) => {
+          avgQuality += c.rowQuality;
+          Object.entries(c.cleanedProps).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && v !== "") {
+              mergedProps[k] = v;
+              columnSet.add(k);
+            }
+          });
+        });
+        avgQuality /= groupCandidates.length;
+
+        const lead = groupCandidates[0];
+        const sourceCount = groupCandidates.length;
+        const boost = Math.min(0.06, (sourceCount - 1) * 0.03);
+        const confidenceScore = Math.min(
+          0.99,
+          Math.max(
+            0.82,
+            Math.round((0.9 + boost * 0.5 + avgQuality * 0.06) * 100) / 100,
+          ),
+        );
+
+        cleanRows.push({
+          id: `gr-${lead.originalIndex + 1}`,
+          canonicalName: lead.canonicalName,
+          entityType: lead.entityType,
+          confidenceScore,
+          sourceCount,
+          ...mergedProps,
+        });
+      });
+
+      const totalRawRecords = raw.rows.length;
+      const totalCleanRecords = cleanRows.length;
+      const compressionRatio =
+        totalRawRecords > 0
+          ? `${((duplicatesMerged / totalRawRecords) * 100).toFixed(1)}%`
+          : "0.0%";
+      const dataQualityScore =
+        totalFieldCount > 0
+          ? Math.round((validFieldCount / totalFieldCount) * 1000) / 10
+          : 100;
 
       setCleanData({
         connectionId: file.id,
-        totalRawRecords: file.recordsCount || raw.rows.length,
-        totalCleanRecords: cleanRows.length,
-        duplicatesMerged: Math.max(0, Math.round(cleanRows.length * 0.12)),
-        compressionRatio: "12.0%",
-        dataQualityScore: 98.6,
+        totalRawRecords,
+        totalCleanRecords,
+        duplicatesMerged,
+        compressionRatio,
+        dataQualityScore,
         status: "RESOLVED_GOLDEN_RECORDS",
         columns: Array.from(columnSet),
         rows: cleanRows,
@@ -675,7 +849,7 @@ export const ConnectionsPage: React.FC = () => {
         totalCleanRecords: 0,
         duplicatesMerged: 0,
         compressionRatio: "0.0%",
-        dataQualityScore: 95.0,
+        dataQualityScore: 100,
         status: "AWAITING_INGESTION_CLEAN",
         columns: ["canonicalName", "entityType", "confidenceScore"],
         rows: [],
@@ -1495,11 +1669,9 @@ export const ConnectionsPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-base font-bold text-emerald-400 font-mono">
-                    {cleanData?.totalCleanRecords?.toLocaleString() ??
-                      Math.max(
-                        1,
-                        Math.round(cleanPreviewFile.recordsCount * 0.82),
-                      ).toLocaleString()}
+                    {cleanData?.totalCleanRecords !== undefined
+                      ? cleanData.totalCleanRecords.toLocaleString()
+                      : "—"}
                   </div>
                 </div>
 
@@ -1509,14 +1681,13 @@ export const ConnectionsPage: React.FC = () => {
                       Deduplicated / Merged
                     </div>
                     <div className="text-[10px] text-blue-400/80 mt-0.5">
-                      Ratio {cleanData?.compressionRatio ?? "18.0%"}
+                      Ratio {cleanData?.compressionRatio ?? "0.0%"}
                     </div>
                   </div>
                   <div className="text-base font-bold text-blue-400 font-mono">
-                    {cleanData?.duplicatesMerged?.toLocaleString() ??
-                      Math.round(
-                        cleanPreviewFile.recordsCount * 0.18,
-                      ).toLocaleString()}
+                    {cleanData?.duplicatesMerged !== undefined
+                      ? cleanData.duplicatesMerged.toLocaleString()
+                      : "0"}
                   </div>
                 </div>
 
@@ -1526,12 +1697,14 @@ export const ConnectionsPage: React.FC = () => {
                       Quality Pass Score
                     </div>
                     <div className="text-[10px] text-purple-400/80 mt-0.5">
-                      Schema validated
+                      Field completeness & validation
                     </div>
                   </div>
                   <div className="text-base font-bold text-purple-400 font-mono flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                    {cleanData?.dataQualityScore ?? 98.4}%
+                    {cleanData?.dataQualityScore !== undefined
+                      ? `${cleanData.dataQualityScore}%`
+                      : "—"}
                   </div>
                 </div>
               </div>

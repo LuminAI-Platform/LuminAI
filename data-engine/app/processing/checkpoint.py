@@ -27,11 +27,17 @@ class CheckpointManager:
 
     def _get_step_path(self, run_id: str, step_name: str) -> str:
         """Return the Parquet file path for a run's step."""
-        clean_run_id = str(run_id).replace("..", "_").replace("/", "_").replace("\\", "_")
-        clean_step = str(step_name).replace("..", "_").replace("/", "_").replace("\\", "_")
+        clean_run_id = (
+            str(run_id).replace("..", "_").replace("/", "_").replace("\\", "_")
+        )
+        clean_step = (
+            str(step_name).replace("..", "_").replace("/", "_").replace("\\", "_")
+        )
         return os.path.join(self.base_dir, clean_run_id, f"{clean_step}.parquet")
 
-    def save_checkpoint(self, run_id: str, step_name: str, df: pl.DataFrame) -> Optional[str]:
+    def save_checkpoint(
+        self, run_id: str, step_name: str, df: pl.DataFrame
+    ) -> Optional[str]:
         """Save an intermediate step DataFrame to Parquet storage."""
         if not run_id or not step_name or df is None:
             return None
@@ -39,10 +45,20 @@ class CheckpointManager:
             file_path = self._get_step_path(run_id, step_name)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             df.write_parquet(file_path)
-            logger.info("💾 Saved checkpoint for run %s at step '%s' (%d rows)", run_id, step_name, df.height)
+            logger.info(
+                "💾 Saved checkpoint for run %s at step '%s' (%d rows)",
+                run_id,
+                step_name,
+                df.height,
+            )
             return file_path
         except Exception as exc:
-            logger.warning("Could not save checkpoint for run %s step '%s': %s", run_id, step_name, exc)
+            logger.warning(
+                "Could not save checkpoint for run %s step '%s': %s",
+                run_id,
+                step_name,
+                exc,
+            )
             return None
 
     def load_checkpoint(self, run_id: str, step_name: str) -> Optional[pl.DataFrame]:
@@ -54,7 +70,12 @@ class CheckpointManager:
             return None
         try:
             df = pl.read_parquet(file_path)
-            logger.info("⏩ Reusing checkpoint for run %s at step '%s' (%d rows)", run_id, step_name, df.height)
+            logger.info(
+                "⏩ Reusing checkpoint for run %s at step '%s' (%d rows)",
+                run_id,
+                step_name,
+                df.height,
+            )
             return df
         except Exception as exc:
             logger.warning("Could not read checkpoint from %s: %s", file_path, exc)
@@ -70,7 +91,9 @@ class CheckpointManager:
         """Delete all checkpoints for a completed run."""
         if not run_id:
             return
-        clean_run_id = str(run_id).replace("..", "_").replace("/", "_").replace("\\", "_")
+        clean_run_id = (
+            str(run_id).replace("..", "_").replace("/", "_").replace("\\", "_")
+        )
         run_dir = os.path.join(self.base_dir, clean_run_id)
         if os.path.exists(run_dir):
             try:

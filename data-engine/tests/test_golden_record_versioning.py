@@ -34,7 +34,9 @@ class TestGoldenRecordVersioning:
             {"id": "r1", "full_name": "Bob Smith", "email": "bob@example.com"},
             {"id": "r2", "full_name": "Robert Smith", "phone": "+1-555-0100"},
         ]
-        gr = merge_cluster_to_golden_record(cluster, tenant_id="acme", golden_id="gr-test-01")
+        gr = merge_cluster_to_golden_record(
+            cluster, tenant_id="acme", golden_id="gr-test-01"
+        )
         assert gr["golden_id"] == "gr-test-01"
         assert gr["version"] == 1
         assert "created_at" in gr
@@ -45,14 +47,18 @@ class TestGoldenRecordVersioning:
         gid = f"gr-vers-{uuid.uuid4().hex[:8]}"
 
         # 1. Initial version
-        df_v1 = pl.DataFrame([{
-            "golden_id": gid,
-            "tenant_id": "acme",
-            "cluster_size": 2,
-            "source_record_ids": ["src-1", "src-2"],
-            "full_name": "Alice Cooper",
-            "email": "alice@v1.com",
-        }])
+        df_v1 = pl.DataFrame(
+            [
+                {
+                    "golden_id": gid,
+                    "tenant_id": "acme",
+                    "cluster_size": 2,
+                    "source_record_ids": ["src-1", "src-2"],
+                    "full_name": "Alice Cooper",
+                    "email": "alice@v1.com",
+                }
+            ]
+        )
         count1 = persist_golden_records(df_v1)
         assert count1 == 1
 
@@ -69,14 +75,18 @@ class TestGoldenRecordVersioning:
         assert history1[0]["attributes"]["email"] == "alice@v1.com"
 
         # 2. Update with modified email
-        df_v2 = pl.DataFrame([{
-            "golden_id": gid,
-            "tenant_id": "acme",
-            "cluster_size": 3,
-            "source_record_ids": ["src-1", "src-2", "src-3"],
-            "full_name": "Alice Cooper",
-            "email": "alice@v2-updated.com",
-        }])
+        df_v2 = pl.DataFrame(
+            [
+                {
+                    "golden_id": gid,
+                    "tenant_id": "acme",
+                    "cluster_size": 3,
+                    "source_record_ids": ["src-1", "src-2", "src-3"],
+                    "full_name": "Alice Cooper",
+                    "email": "alice@v2-updated.com",
+                }
+            ]
+        )
         count2 = persist_golden_records(df_v2)
         assert count2 == 1
 
@@ -108,13 +118,17 @@ class TestGoldenRecordVersioning:
 
     def test_rollback_invalid_version_raises_error(self):
         gid = f"gr-invalid-{uuid.uuid4().hex[:8]}"
-        df = pl.DataFrame([{
-            "golden_id": gid,
-            "tenant_id": "acme",
-            "cluster_size": 1,
-            "source_record_ids": ["src-1"],
-            "full_name": "Charlie",
-        }])
+        df = pl.DataFrame(
+            [
+                {
+                    "golden_id": gid,
+                    "tenant_id": "acme",
+                    "cluster_size": 1,
+                    "source_record_ids": ["src-1"],
+                    "full_name": "Charlie",
+                }
+            ]
+        )
         persist_golden_records(df)
 
         with pytest.raises(ValueError, match="not found in history"):
@@ -129,14 +143,18 @@ class TestGoldenRecordApiEndpoints:
         gid = f"gr-api-{uuid.uuid4().hex[:8]}"
 
         # Persist v1
-        df_v1 = pl.DataFrame([{
-            "golden_id": gid,
-            "tenant_id": "acme",
-            "cluster_size": 2,
-            "source_record_ids": ["rec-a", "rec-b"],
-            "full_name": "Daniel Craig",
-            "company": "MI6",
-        }])
+        df_v1 = pl.DataFrame(
+            [
+                {
+                    "golden_id": gid,
+                    "tenant_id": "acme",
+                    "cluster_size": 2,
+                    "source_record_ids": ["rec-a", "rec-b"],
+                    "full_name": "Daniel Craig",
+                    "company": "MI6",
+                }
+            ]
+        )
         persist_golden_records(df_v1)
 
         # GET /process/golden-records/{id}
@@ -148,14 +166,18 @@ class TestGoldenRecordApiEndpoints:
         assert data["attributes"]["company"] == "MI6"
 
         # Persist v2
-        df_v2 = pl.DataFrame([{
-            "golden_id": gid,
-            "tenant_id": "acme",
-            "cluster_size": 2,
-            "source_record_ids": ["rec-a", "rec-b"],
-            "full_name": "Daniel Craig",
-            "company": "Universal Pictures",
-        }])
+        df_v2 = pl.DataFrame(
+            [
+                {
+                    "golden_id": gid,
+                    "tenant_id": "acme",
+                    "cluster_size": 2,
+                    "source_record_ids": ["rec-a", "rec-b"],
+                    "full_name": "Daniel Craig",
+                    "company": "Universal Pictures",
+                }
+            ]
+        )
         persist_golden_records(df_v2)
 
         # GET /process/golden-records/{id}/history

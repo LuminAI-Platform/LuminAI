@@ -161,15 +161,20 @@ def test_staged_ingestion_data_stages_parquet_and_db():
 def test_raw_ingestion_data_with_custom_minio_tags(monkeypatch, tmp_path):
     """raw_ingestion_data loads from MinIO/S3 object when tags are present."""
     from app.processing.minio_client import MinioRawStorageClient
+
     client = MinioRawStorageClient(local_fallback_dir=str(tmp_path))
-    monkeypatch.setattr("app.processing.pipelines.cleaning_pipeline.get_minio_client", lambda: client)
+    monkeypatch.setattr(
+        "app.processing.pipelines.cleaning_pipeline.get_minio_client", lambda: client
+    )
 
-    client.put_object_bytes("luminai-raw", "sample.csv", b"id,name,email\nr-1,Test User,test@luminai.io\n")
+    client.put_object_bytes(
+        "luminai-raw", "sample.csv", b"id,name,email\nr-1,Test User,test@luminai.io\n"
+    )
 
-    ctx = build_asset_context(run_tags={"object_key": "sample.csv", "bucket": "luminai-raw"})
+    ctx = build_asset_context(
+        run_tags={"object_key": "sample.csv", "bucket": "luminai-raw"}
+    )
     df = raw_ingestion_data(ctx)
     assert df.height == 1
     assert df["name"][0] == "Test User"
     assert df["email"][0] == "test@luminai.io"
-
-

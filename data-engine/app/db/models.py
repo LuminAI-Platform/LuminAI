@@ -10,6 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
     """Base declarative class for all Data Engine relational database tables."""
+
     pass
 
 
@@ -65,7 +66,9 @@ class GoldenRecordHistory(Base):
     cluster_size: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     source_record_ids: Mapped[str] = mapped_column(Text, nullable=False)
     attributes: Mapped[str] = mapped_column(Text, nullable=False)
-    action: Mapped[str] = mapped_column(String(50), default="CREATED", nullable=False)  # CREATED, UPDATED, ROLLBACK
+    action: Mapped[str] = mapped_column(
+        String(50), default="CREATED", nullable=False
+    )  # CREATED, UPDATED, ROLLBACK
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -84,7 +87,9 @@ class ERCandidate(Base):
     record_id_b: Mapped[str] = mapped_column(String(255), nullable=False)
     confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
     payload: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(50), default="PENDING", index=True, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(50), default="PENDING", index=True, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

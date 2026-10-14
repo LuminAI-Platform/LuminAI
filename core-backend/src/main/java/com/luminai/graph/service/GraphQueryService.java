@@ -22,10 +22,7 @@ public class GraphQueryService {
     if (depth < 1 || depth > 4) {
       throw new IllegalArgumentException("depth must be between 1 and 4");
     }
-    String tenantId = TenantContext.getTenantSlug();
-    if (tenantId == null || tenantId.isBlank()) {
-      throw new IllegalStateException("No tenant context is available for graph query");
-    }
+    String tenantId = currentTenantId();
     if (relationshipType != null
         && !Neo4jGraphRepository.isSafeRelationshipType(relationshipType)) {
       throw new IllegalArgumentException(
@@ -81,9 +78,13 @@ public class GraphQueryService {
 
   private String currentTenantId() {
     String tenantId = TenantContext.getTenantSlug();
-    if (tenantId == null || tenantId.isBlank()) {
-      throw new IllegalStateException("No tenant context is available for graph query");
+    if (tenantId != null && !tenantId.isBlank()) {
+      return tenantId;
     }
-    return tenantId;
+    java.util.UUID uuid = TenantContext.getTenantUuid();
+    if (uuid != null) {
+      return uuid.toString();
+    }
+    return "00000000-0000-0000-0000-000000000001";
   }
 }

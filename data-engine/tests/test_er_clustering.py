@@ -57,7 +57,12 @@ class TestGoldenRecordMerge:
     def test_merge_selects_non_null_and_longest_string(self):
         cluster = [
             {"id": "1", "name": "Alice", "country": "UK", "email": None},
-            {"id": "2", "name": "Alice Smith", "country": None, "email": "alice@example.com"},
+            {
+                "id": "2",
+                "name": "Alice Smith",
+                "country": None,
+                "email": "alice@example.com",
+            },
         ]
         gr = merge_cluster_to_golden_record(cluster, tenant_id="acme")
         assert gr["name"] == "Alice Smith"
@@ -86,7 +91,9 @@ class TestGoldenRecordMerge:
         assert "cluster_size" in df.columns
 
     def test_persist_golden_records(self):
-        clusters = [[{"id": "1", "name": "Alice Smith"}, {"id": "2", "name": "Alice Smyth"}]]
+        clusters = [
+            [{"id": "1", "name": "Alice Smith"}, {"id": "2", "name": "Alice Smyth"}]
+        ]
         df = merge_clusters_to_golden_records(clusters, tenant_id="test-tenant")
         count = persist_golden_records(df, tenant_id="test-tenant")
         assert count == 1

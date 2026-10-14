@@ -31,7 +31,18 @@ class TestColumnTypeDetection:
     """Validate auto-detection across all 6 target data types."""
 
     def test_detect_boolean(self, detector: SchemaDetector):
-        bool_samples = ["true", "False", "TRUE", "false", "yes", "no", "1", "0", True, False]
+        bool_samples = [
+            "true",
+            "False",
+            "TRUE",
+            "false",
+            "yes",
+            "no",
+            "1",
+            "0",
+            True,
+            False,
+        ]
         ctype, dist = detector.detect_column_type(bool_samples)
         assert ctype == ColumnType.BOOLEAN
         assert dist["boolean"] == 100.0
@@ -95,38 +106,52 @@ class TestOntologyPropertyFuzzyMapping:
 
     def test_person_property_suggestions(self, detector: SchemaDetector):
         # Exact / alias mappings
-        ent, prop, conf = detector.suggest_ontology_mapping("email_address", ColumnType.EMAIL)
+        ent, prop, conf = detector.suggest_ontology_mapping(
+            "email_address", ColumnType.EMAIL
+        )
         assert ent == "Person"
         assert prop == "email"
         assert conf >= 0.85
 
-        ent, prop, conf = detector.suggest_ontology_mapping("full_name", ColumnType.STRING)
+        ent, prop, conf = detector.suggest_ontology_mapping(
+            "full_name", ColumnType.STRING
+        )
         assert ent == "Person"
         assert prop == "name"
         assert conf >= 0.85
 
-        ent, prop, conf = detector.suggest_ontology_mapping("telephone_number", ColumnType.PHONE)
+        ent, prop, conf = detector.suggest_ontology_mapping(
+            "telephone_number", ColumnType.PHONE
+        )
         assert ent == "Person"
         assert prop == "phone"
         assert conf >= 0.70
 
-        ent, prop, conf = detector.suggest_ontology_mapping("annual_salary", ColumnType.NUMBER)
+        ent, prop, conf = detector.suggest_ontology_mapping(
+            "annual_salary", ColumnType.NUMBER
+        )
         assert ent == "Person"
         assert prop == "salary"
         assert conf >= 0.70
 
     def test_product_and_organization_suggestions(self, detector: SchemaDetector):
-        ent, prop, conf = detector.suggest_ontology_mapping("product_sku", ColumnType.STRING)
+        ent, prop, conf = detector.suggest_ontology_mapping(
+            "product_sku", ColumnType.STRING
+        )
         assert ent == "Product"
         assert prop == "id"
         assert conf >= 0.70
 
-        ent, prop, conf = detector.suggest_ontology_mapping("unit_price", ColumnType.NUMBER)
+        ent, prop, conf = detector.suggest_ontology_mapping(
+            "unit_price", ColumnType.NUMBER
+        )
         assert ent == "Product"
         assert prop == "price"
         assert conf >= 0.80
 
-        ent, prop, conf = detector.suggest_ontology_mapping("company_name", ColumnType.STRING)
+        ent, prop, conf = detector.suggest_ontology_mapping(
+            "company_name", ColumnType.STRING
+        )
         assert ent == "Organization"
         assert prop == "name"
         assert conf >= 0.85
@@ -137,14 +162,26 @@ class TestPreflightValidationAndRejection:
     """Validate report generation and rejection on high null percentages."""
 
     def test_valid_dataset_passes_preflight(self, detector: SchemaDetector):
-        df = pl.DataFrame({
-            "id": ["rec-1", "rec-2", "rec-3", "rec-4"],
-            "full_name": ["Alice Smith", "Bob Jones", "Carol White", "David Brown"],
-            "contact_email": ["alice@a.com", "bob@b.com", "carol@c.com", "david@d.com"],
-            "phone_no": ["+1-555-0101", "+1-555-0102", "+1-555-0103", "+1-555-0104"],
-            "age": [30, 25, 40, 35],
-            "joined_at": ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"],
-        })
+        df = pl.DataFrame(
+            {
+                "id": ["rec-1", "rec-2", "rec-3", "rec-4"],
+                "full_name": ["Alice Smith", "Bob Jones", "Carol White", "David Brown"],
+                "contact_email": [
+                    "alice@a.com",
+                    "bob@b.com",
+                    "carol@c.com",
+                    "david@d.com",
+                ],
+                "phone_no": [
+                    "+1-555-0101",
+                    "+1-555-0102",
+                    "+1-555-0103",
+                    "+1-555-0104",
+                ],
+                "age": [30, 25, 40, 35],
+                "joined_at": ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"],
+            }
+        )
 
         report = detector.validate_dataframe(df)
 
@@ -171,18 +208,23 @@ class TestPreflightValidationAndRejection:
 
     def test_reject_dataset_with_over_50_percent_nulls(self, detector: SchemaDetector):
         # Column 'unreliable_phone' has 4 nulls out of 5 = 80% null
-        df = pl.DataFrame({
-            "id": ["rec-1", "rec-2", "rec-3", "rec-4", "rec-5"],
-            "name": ["Alice", "Bob", "Carol", "Dave", "Eve"],
-            "unreliable_phone": ["+1-555-0101", None, "", None, None],
-        })
+        df = pl.DataFrame(
+            {
+                "id": ["rec-1", "rec-2", "rec-3", "rec-4", "rec-5"],
+                "name": ["Alice", "Bob", "Carol", "Dave", "Eve"],
+                "unreliable_phone": ["+1-555-0101", None, "", None, None],
+            }
+        )
 
         report = detector.validate_dataframe(df)
 
         assert report.is_valid is False
         assert "unreliable_phone" in report.rejected_columns
         assert report.error_message is not None
-        assert "exceed the maximum allowable null threshold of 50.0%" in report.error_message
+        assert (
+            "exceed the maximum allowable null threshold of 50.0%"
+            in report.error_message
+        )
 
         # Verify column report details
         cols_by_name = {c.column_name: c for c in report.columns}
@@ -262,13 +304,7 @@ class TestSchemaValidationAPI:
 
     def test_api_validate_schema_rejects_high_nulls_with_422(self, client: TestClient):
         # CSV with column 'bad_col' having 75% nulls (3 nulls out of 4)
-        invalid_csv = (
-            "id,name,bad_col\n"
-            "1,Alice,valid\n"
-            "2,Bob,\n"
-            "3,Carol,\n"
-            "4,David,\n"
-        )
+        invalid_csv = "id,name,bad_col\n1,Alice,valid\n2,Bob,\n3,Carol,\n4,David,\n"
         resp = client.post(
             "/process/validate-schema",
             json={
@@ -279,16 +315,15 @@ class TestSchemaValidationAPI:
             headers={"X-API-Key": "test-api-key-12345"},
         )
         assert resp.status_code == 422
-        assert "exceed the maximum allowable null threshold of 50.0%" in resp.json()["detail"]
-
-    def test_api_validate_schema_returns_report_when_rejection_disabled(self, client: TestClient):
-        invalid_csv = (
-            "id,name,bad_col\n"
-            "1,Alice,valid\n"
-            "2,Bob,\n"
-            "3,Carol,\n"
-            "4,David,\n"
+        assert (
+            "exceed the maximum allowable null threshold of 50.0%"
+            in resp.json()["detail"]
         )
+
+    def test_api_validate_schema_returns_report_when_rejection_disabled(
+        self, client: TestClient
+    ):
+        invalid_csv = "id,name,bad_col\n1,Alice,valid\n2,Bob,\n3,Carol,\n4,David,\n"
         resp = client.post(
             "/process/validate-schema",
             json={
@@ -305,9 +340,7 @@ class TestSchemaValidationAPI:
 
     def test_api_validate_schema_file_upload(self, client: TestClient):
         csv_file = io.BytesIO(
-            b"id,name,email\n"
-            b"10,Jane Doe,jane@doe.org\n"
-            b"11,John Doe,john@doe.org\n"
+            b"id,name,email\n10,Jane Doe,jane@doe.org\n11,John Doe,john@doe.org\n"
         )
         resp = client.post(
             "/process/validate-schema/upload",

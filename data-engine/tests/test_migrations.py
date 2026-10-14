@@ -20,8 +20,15 @@ class TestDeclarativeModels:
     def test_models_metadata_registration(self):
         """All core Data Engine tables are registered in Base.metadata."""
         table_names = set(Base.metadata.tables.keys())
-        expected_tables = {"staging_records", "golden_records", "er_candidates", "provenance"}
-        assert expected_tables.issubset(table_names), f"Missing tables: {expected_tables - table_names}"
+        expected_tables = {
+            "staging_records",
+            "golden_records",
+            "er_candidates",
+            "provenance",
+        }
+        assert expected_tables.issubset(table_names), (
+            f"Missing tables: {expected_tables - table_names}"
+        )
 
     def test_staging_record_schema(self):
         """staging_records table columns and constraints."""
@@ -114,7 +121,12 @@ class TestAlembicMigrations:
         ensure_tables_exist(engine)
         inspector = inspect(engine)
         tables = set(inspector.get_table_names())
-        assert {"staging_records", "golden_records", "er_candidates", "provenance"}.issubset(tables)
+        assert {
+            "staging_records",
+            "golden_records",
+            "er_candidates",
+            "provenance",
+        }.issubset(tables)
 
         # Second call does not error out
         ensure_tables_exist(engine)

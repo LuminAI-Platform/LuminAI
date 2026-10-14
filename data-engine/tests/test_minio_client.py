@@ -30,7 +30,9 @@ def test_minio_sigv4_headers():
     )
     headers = client._build_sigv4_headers("GET", "/luminai-raw/test.csv")
     assert "Authorization" in headers
-    assert headers["Authorization"].startswith("AWS4-HMAC-SHA256 Credential=minioadmin/")
+    assert headers["Authorization"].startswith(
+        "AWS4-HMAC-SHA256 Credential=minioadmin/"
+    )
     assert "x-amz-date" in headers
     assert "x-amz-content-sha256" in headers
     assert headers["Host"] == "localhost:9000"
@@ -40,7 +42,7 @@ def test_put_and_get_local_fallback(temp_storage):
     """Verify object bytes are persisted and retrievable via local filesystem fallback."""
     client = MinioRawStorageClient(local_fallback_dir=temp_storage)
     payload = b"id,name,email\nrec-1,Alice,alice@example.com\n"
-    
+
     success = client.put_object_bytes("test-bucket", "uploads/test.csv", payload)
     assert success is True
 
@@ -73,10 +75,12 @@ def test_load_dataframe_csv(temp_storage):
 def test_load_dataframe_parquet(temp_storage):
     """Verify Parquet file loading."""
     client = MinioRawStorageClient(local_fallback_dir=temp_storage)
-    source_df = pl.DataFrame({
-        "id": ["p-1", "p-2"],
-        "metric": [10.5, 20.8],
-    })
+    source_df = pl.DataFrame(
+        {
+            "id": ["p-1", "p-2"],
+            "metric": [10.5, 20.8],
+        }
+    )
     buf = io.BytesIO()
     source_df.write_parquet(buf)
     client.put_object_bytes("test-bucket", "data.parquet", buf.getvalue())
@@ -90,7 +94,9 @@ def test_load_dataframe_parquet(temp_storage):
 def test_load_dataframe_json(temp_storage):
     """Verify JSON file loading."""
     client = MinioRawStorageClient(local_fallback_dir=temp_storage)
-    json_data = b'[{"id": "j-1", "product": "Widget A"}, {"id": "j-2", "product": "Widget B"}]'
+    json_data = (
+        b'[{"id": "j-1", "product": "Widget A"}, {"id": "j-2", "product": "Widget B"}]'
+    )
     client.put_object_bytes("test-bucket", "data.json", json_data)
 
     df = client.load_dataframe("test-bucket", "data.json")
@@ -111,7 +117,9 @@ def test_object_exists(temp_storage):
 def test_raw_ingestion_asset_with_minio_tags(temp_storage, monkeypatch):
     """Verify raw_ingestion_data loads actual data from MinIO client when object_key is in tags."""
     client = MinioRawStorageClient(local_fallback_dir=temp_storage)
-    monkeypatch.setattr("app.processing.pipelines.cleaning_pipeline.get_minio_client", lambda: client)
+    monkeypatch.setattr(
+        "app.processing.pipelines.cleaning_pipeline.get_minio_client", lambda: client
+    )
 
     # Store a test CSV file in the test client
     csv_content = (

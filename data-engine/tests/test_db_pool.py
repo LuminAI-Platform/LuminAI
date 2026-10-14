@@ -68,12 +68,16 @@ class TestDatabaseManager:
 
         # Create table and insert a record
         with manager.get_session() as session:
-            session.execute(text("CREATE TABLE test_table (id INT PRIMARY KEY, val TEXT);"))
+            session.execute(
+                text("CREATE TABLE test_table (id INT PRIMARY KEY, val TEXT);")
+            )
             session.execute(text("INSERT INTO test_table VALUES (1, 'hello');"))
 
         # Verify record was committed
         with manager.get_session() as session:
-            result = session.execute(text("SELECT val FROM test_table WHERE id = 1;")).scalar()
+            result = session.execute(
+                text("SELECT val FROM test_table WHERE id = 1;")
+            ).scalar()
             assert result == "hello"
 
         manager.dispose_all()
@@ -85,12 +89,16 @@ class TestDatabaseManager:
         manager = DatabaseManager(settings=custom_settings)
 
         with manager.get_session() as session:
-            session.execute(text("CREATE TABLE test_table (id INT PRIMARY KEY, val TEXT);"))
+            session.execute(
+                text("CREATE TABLE test_table (id INT PRIMARY KEY, val TEXT);")
+            )
 
         # Trigger rollback via intentional exception
         with pytest.raises(RuntimeError, match="Intentional failure"):
             with manager.get_session() as session:
-                session.execute(text("INSERT INTO test_table VALUES (1, 'failed_val');"))
+                session.execute(
+                    text("INSERT INTO test_table VALUES (1, 'failed_val');")
+                )
                 raise RuntimeError("Intentional failure")
 
         # Verify record was NOT committed
