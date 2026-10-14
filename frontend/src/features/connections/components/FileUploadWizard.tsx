@@ -448,6 +448,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           fileName: file.name,
           fileSize: file.size,
           rowsCount: parsedData.rows.length,
+          columns: parsedData.columns,
+          sampleRows: parsedData.rows.slice(0, 100),
         }),
         credentialsRef: "minio-bucket-raw",
       };

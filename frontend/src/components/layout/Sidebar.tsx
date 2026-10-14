@@ -158,7 +158,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Pipeline Monitor",
-    to: "/connections/pipeline",
+    to: "/connections/pipelines",
     section: "pipelines",
     icon: (
       <svg
