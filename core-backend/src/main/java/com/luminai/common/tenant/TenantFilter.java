@@ -37,6 +37,7 @@ public class TenantFilter extends OncePerRequestFilter {
     "/v3/api-docs",
     "/swagger-ui",
     "/swagger-ui.html",
+    "/error",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
     "/api/v1/public/",
@@ -70,7 +71,7 @@ public class TenantFilter extends OncePerRequestFilter {
     try {
       // If ApiKeyAuthenticationFilter has already authenticated the request and populated
       // TenantContext, pass through
-      if (TenantContext.getTenantId() != null) {
+      if (TenantContext.hasTenant() || TenantContext.getTenantId() != null) {
         filterChain.doFilter(request, response);
         return;
       }
@@ -123,8 +124,13 @@ public class TenantFilter extends OncePerRequestFilter {
   /** Reads the authenticated {@link Jwt} principal set by Spring Security's resource server. */
   private Optional<Jwt> currentJwt() {
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof Jwt jwt) {
-      return Optional.of(jwt);
+    if (auth != null) {
+      if (auth.getPrincipal() instanceof Jwt jwt) {
+        return Optional.of(jwt);
+      }
+      if (auth instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtAuth) {
+        return Optional.of(jwtAuth.getToken());
+      }
     }
     return Optional.empty();
   }

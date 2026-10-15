@@ -355,7 +355,7 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
             </div>
 
             {/* Log entries */}
-            <div className="overflow-y-auto max-h-[232px] font-mono text-[11px] divide-y divide-zinc-900/60">
+            <div className="overflow-x-auto overflow-y-auto max-h-[232px] font-mono text-[11px] divide-y divide-zinc-900/60 scrollbar-thin">
               {job.errors.map((entry, i) => (
                 <div
                   key={i}

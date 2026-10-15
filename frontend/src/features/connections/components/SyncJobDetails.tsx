@@ -670,7 +670,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
                 key={ds.id}
                 className="bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-3"
               >
-                <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span
                       className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dsCfg.dot}`}

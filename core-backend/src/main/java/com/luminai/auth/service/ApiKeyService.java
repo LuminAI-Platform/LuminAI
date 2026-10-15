@@ -38,6 +38,10 @@ public class ApiKeyService {
 
   @Transactional(readOnly = true)
   public Optional<ApiKeyDto> getActiveApiKey(UUID tenantId) {
+    if (tenantId == null) {
+      log.warn("Cannot fetch active API key: tenantId is null");
+      return Optional.empty();
+    }
     List<ApiKey> keys =
         apiKeyRepository.findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(tenantId);
     if (keys.isEmpty()) {

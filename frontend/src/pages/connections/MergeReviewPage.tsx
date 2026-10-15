@@ -362,8 +362,8 @@ export const MergeReviewPage: React.FC = () => {
               {/* Side-by-Side Comparison Table */}
               <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col">
                 <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950/60 shadow-inner flex-1 min-h-0 flex flex-col">
-                  <div className="overflow-auto min-w-0 flex-1">
-                    <table className="w-full text-left text-xs border-collapse">
+                  <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 scrollbar-thin">
+                    <table className="w-full min-w-[650px] text-left text-xs border-collapse">
                       <thead className="sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 shadow-xs">
                         <tr className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">
                           <th className="py-2.5 px-3 min-w-[140px] w-1/4">

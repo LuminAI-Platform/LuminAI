@@ -25,3 +25,14 @@ SELECT 'sandbox-admin-id',
 FROM tenants t
 WHERE t.slug = 'default'
 ON CONFLICT (keycloak_id) DO NOTHING;
+
+INSERT INTO users (keycloak_id, email, full_name, tenant_id, role, is_active)
+SELECT 'mock-sub-12345',
+       'admin@luminai.dev',
+       'Sandbox Admin',
+       t.id,
+       'ADMIN',
+       true
+FROM tenants t
+WHERE t.slug = 'default'
+ON CONFLICT (keycloak_id) DO NOTHING;

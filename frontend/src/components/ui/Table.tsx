@@ -5,9 +5,9 @@ export const Table: React.FC<React.HTMLAttributes<HTMLTableElement>> = ({
   className = "",
   ...props
 }) => (
-  <div className="relative w-full overflow-auto">
+  <div className="relative w-full overflow-x-auto scrollbar-thin">
     <table
-      className={`w-full caption-bottom text-xs text-left text-zinc-300 ${className}`}
+      className={`w-full caption-bottom text-xs text-left text-zinc-300 min-w-[640px] sm:min-w-full ${className}`}
       {...props}
     >
       {children}
