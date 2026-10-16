@@ -9,422 +9,23 @@ import {
   type SchemaMappingPayload,
 } from "../../features/connections/components/VisualSchemaMapper";
 
-// ─── Reference Schema Templates ──────────────────────────────────────────────
-
-const TEMPLATE_SOURCES: Record<
-  string,
-  { table: string; columns: SourceColumn[] }
-> = {
-  snowflake_users: {
-    table: "SNOWFLAKE.PUBLIC.USERS_GOLD_V2",
-    columns: [
-      {
-        id: "c1",
-        name: "user_id",
-        dataType: "string",
-        sample: "usr_8f2k91",
-        nullable: false,
-      },
-      {
-        id: "c2",
-        name: "email_address",
-        dataType: "string",
-        sample: "alice@corp.io",
-        nullable: false,
-      },
-      {
-        id: "c3",
-        name: "full_name",
-        dataType: "string",
-        sample: "Alice Mensah",
-        nullable: true,
-      },
-      {
-        id: "c4",
-        name: "created_at",
-        dataType: "timestamp",
-        sample: "2024-01-15T08:30:00Z",
-        nullable: false,
-      },
-      {
-        id: "c5",
-        name: "account_status",
-        dataType: "string",
-        sample: "active",
-        nullable: false,
-      },
-      {
-        id: "c6",
-        name: "monthly_spend",
-        dataType: "float",
-        sample: "1250.00",
-        nullable: true,
-      },
-      {
-        id: "c7",
-        name: "country_code",
-        dataType: "string",
-        sample: "GH",
-        nullable: true,
-      },
-      {
-        id: "c8",
-        name: "is_verified",
-        dataType: "boolean",
-        sample: "true",
-        nullable: false,
-      },
-      {
-        id: "c9",
-        name: "plan_tier",
-        dataType: "string",
-        sample: "enterprise",
-        nullable: false,
-      },
-      {
-        id: "c10",
-        name: "metadata_json",
-        dataType: "json",
-        sample: '{"source":"signup"}',
-        nullable: true,
-      },
-    ],
-  },
-  s3_transactions: {
-    table: "S3.lumin-raw/stripe_transactions.parquet",
-    columns: [
-      {
-        id: "t1",
-        name: "transaction_id",
-        dataType: "string",
-        sample: "txn_a7k2p",
-        nullable: false,
-      },
-      {
-        id: "t2",
-        name: "amount_usd",
-        dataType: "float",
-        sample: "299.99",
-        nullable: false,
-      },
-      {
-        id: "t3",
-        name: "currency",
-        dataType: "string",
-        sample: "USD",
-        nullable: false,
-      },
-      {
-        id: "t4",
-        name: "initiated_at",
-        dataType: "timestamp",
-        sample: "2024-06-01T12:00:00Z",
-        nullable: false,
-      },
-      {
-        id: "t5",
-        name: "customer_ref",
-        dataType: "string",
-        sample: "usr_8f2k91",
-        nullable: false,
-      },
-      {
-        id: "t6",
-        name: "status_code",
-        dataType: "integer",
-        sample: "200",
-        nullable: false,
-      },
-      {
-        id: "t7",
-        name: "payment_method",
-        dataType: "string",
-        sample: "card",
-        nullable: true,
-      },
-      {
-        id: "t8",
-        name: "failure_reason",
-        dataType: "string",
-        sample: "null",
-        nullable: true,
-      },
-    ],
-  },
-  kafka_events: {
-    table: "KAFKA.clickstream.page_views",
-    columns: [
-      {
-        id: "e1",
-        name: "event_id",
-        dataType: "string",
-        sample: "evt_xk29",
-        nullable: false,
-      },
-      {
-        id: "e2",
-        name: "session_id",
-        dataType: "string",
-        sample: "sess_7m1q",
-        nullable: false,
-      },
-      {
-        id: "e3",
-        name: "user_agent",
-        dataType: "string",
-        sample: "Mozilla/5.0",
-        nullable: true,
-      },
-      {
-        id: "e4",
-        name: "page_path",
-        dataType: "string",
-        sample: "/dashboard",
-        nullable: false,
-      },
-      {
-        id: "e5",
-        name: "referrer_url",
-        dataType: "string",
-        sample: "https://google.com",
-        nullable: true,
-      },
-      {
-        id: "e6",
-        name: "event_time",
-        dataType: "timestamp",
-        sample: "2024-07-10T09:00:00Z",
-        nullable: false,
-      },
-      {
-        id: "e7",
-        name: "device_type",
-        dataType: "string",
-        sample: "desktop",
-        nullable: true,
-      },
-    ],
-  },
-};
-
-const MOCK_ONTOLOGIES: Record<string, OntologyProperty[]> = {
-  User: [
-    {
-      id: "p1",
-      name: "identifier",
-      entityClass: "User",
-      expectedType: "xsd:string",
-      required: true,
-      description: "Unique entity identifier",
-    },
-    {
-      id: "p2",
-      name: "emailAddress",
-      entityClass: "User",
-      expectedType: "xsd:string",
-      required: true,
-      description: "Primary contact email",
-    },
-    {
-      id: "p3",
-      name: "displayName",
-      entityClass: "User",
-      expectedType: "xsd:string",
-      required: false,
-      description: "Human-readable full name",
-    },
-    {
-      id: "p4",
-      name: "registeredAt",
-      entityClass: "User",
-      expectedType: "xsd:dateTime",
-      required: true,
-      description: "Account creation timestamp",
-    },
-    {
-      id: "p5",
-      name: "accountState",
-      entityClass: "User",
-      expectedType: "xsd:string",
-      required: false,
-      description: "Lifecycle state of account",
-    },
-    {
-      id: "p6",
-      name: "lifetimeValue",
-      entityClass: "User",
-      expectedType: "xsd:decimal",
-      required: false,
-      description: "Total revenue attributed",
-    },
-    {
-      id: "p7",
-      name: "countryISO",
-      entityClass: "User",
-      expectedType: "xsd:string",
-      required: false,
-      description: "ISO 3166-1 alpha-2 code",
-    },
-    {
-      id: "p8",
-      name: "isEmailVerified",
-      entityClass: "User",
-      expectedType: "xsd:boolean",
-      required: false,
-      description: "Verification status flag",
-    },
-    {
-      id: "p9",
-      name: "subscriptionTier",
-      entityClass: "User",
-      expectedType: "xsd:string",
-      required: false,
-      description: "Commercial plan level",
-    },
-  ],
-  Transaction: [
-    {
-      id: "q1",
-      name: "transactionId",
-      entityClass: "Transaction",
-      expectedType: "xsd:string",
-      required: true,
-      description: "Unique payment identifier",
-    },
-    {
-      id: "q2",
-      name: "amountDecimal",
-      entityClass: "Transaction",
-      expectedType: "xsd:decimal",
-      required: true,
-      description: "Value in base currency",
-    },
-    {
-      id: "q3",
-      name: "currencyCode",
-      entityClass: "Transaction",
-      expectedType: "xsd:string",
-      required: true,
-      description: "ISO 4217 currency code",
-    },
-    {
-      id: "q4",
-      name: "initiatedAt",
-      entityClass: "Transaction",
-      expectedType: "xsd:dateTime",
-      required: true,
-      description: "Payment initiation time",
-    },
-    {
-      id: "q5",
-      name: "customerRef",
-      entityClass: "Transaction",
-      expectedType: "xsd:string",
-      required: true,
-      description: "FK to User.identifier",
-    },
-    {
-      id: "q6",
-      name: "httpStatus",
-      entityClass: "Transaction",
-      expectedType: "xsd:integer",
-      required: false,
-      description: "Response status code",
-    },
-    {
-      id: "q7",
-      name: "paymentInstrument",
-      entityClass: "Transaction",
-      expectedType: "xsd:string",
-      required: false,
-      description: "Payment method used",
-    },
-  ],
-  WebEvent: [
-    {
-      id: "w1",
-      name: "eventId",
-      entityClass: "WebEvent",
-      expectedType: "xsd:string",
-      required: true,
-      description: "Unique event identifier",
-    },
-    {
-      id: "w2",
-      name: "sessionId",
-      entityClass: "WebEvent",
-      expectedType: "xsd:string",
-      required: true,
-      description: "Browser session reference",
-    },
-    {
-      id: "w3",
-      name: "userAgentString",
-      entityClass: "WebEvent",
-      expectedType: "xsd:string",
-      required: false,
-      description: "HTTP User-Agent header",
-    },
-    {
-      id: "w4",
-      name: "pagePath",
-      entityClass: "WebEvent",
-      expectedType: "xsd:string",
-      required: true,
-      description: "URL path visited",
-    },
-    {
-      id: "w5",
-      name: "referrerUrl",
-      entityClass: "WebEvent",
-      expectedType: "xsd:anyURI",
-      required: false,
-      description: "Originating page URL",
-    },
-    {
-      id: "w6",
-      name: "occurredAt",
-      entityClass: "WebEvent",
-      expectedType: "xsd:dateTime",
-      required: true,
-      description: "Event timestamp",
-    },
-  ],
-};
-
-const TEMPLATE_SOURCE_LABELS: Record<string, string> = {
-  snowflake_users: "Template: Snowflake · USERS_GOLD_V2",
-  s3_transactions: "Template: S3 · stripe_transactions",
-  kafka_events: "Template: Kafka · page_views",
-};
-
-const ONTOLOGY_LABELS: Record<string, string> = {
-  User: "User",
-  Transaction: "Transaction",
-  WebEvent: "WebEvent",
-};
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export const SchemaMapPage: React.FC = () => {
-  const [sources, setSources] =
-    useState<Record<string, { table: string; columns: SourceColumn[] }>>(
-      TEMPLATE_SOURCES,
-    );
-  const [sourceLabels, setSourceLabels] = useState<Record<string, string>>(
-    TEMPLATE_SOURCE_LABELS,
-  );
-  const [selectedSource, setSelectedSource] =
-    useState<string>("snowflake_users");
-  const [selectedOntology, setSelectedOntology] = useState<string>("User");
+  const [sources, setSources] = useState<
+    Record<string, { table: string; columns: SourceColumn[] }>
+  >({});
+  const [sourceLabels, setSourceLabels] = useState<Record<string, string>>({});
+  const [selectedSource, setSelectedSource] = useState<string>("");
+  const [selectedOntology, setSelectedOntology] = useState<string>("");
   const [savedMappings, setSavedMappings] = useState<SchemaMappingPayload[]>(
     [],
   );
   const [showHistory, setShowHistory] = useState(false);
-  const [dynamicOntologyMap, setDynamicOntologyMap] =
-    useState<Record<string, OntologyProperty[]>>(MOCK_ONTOLOGIES);
-  const [dynamicOntologyLabels, setDynamicOntologyLabels] =
-    useState<Record<string, string>>(ONTOLOGY_LABELS);
+  const [dynamicOntologyMap, setDynamicOntologyMap] = useState<
+    Record<string, OntologyProperty[]>
+  >({});
+  const [dynamicOntologyLabels, setDynamicOntologyLabels] = useState<
+    Record<string, string>
+  >({});
 
   // Fetch live connectors from backend GET /api/v1/connections
   useEffect(() => {
@@ -437,10 +38,8 @@ export const SchemaMapPage: React.FC = () => {
             const newSources: Record<
               string,
               { table: string; columns: SourceColumn[] }
-            > = { ...TEMPLATE_SOURCES };
-            const newLabels: Record<string, string> = {
-              ...TEMPLATE_SOURCE_LABELS,
-            };
+            > = {};
+            const newLabels: Record<string, string> = {};
             list.forEach(
               (c: {
                 id: string;
@@ -513,24 +112,7 @@ export const SchemaMapPage: React.FC = () => {
                         });
                       });
 
-                      if (cols.length === 0) {
-                        cols.push(
-                          {
-                            id: "col_1",
-                            name: "id",
-                            dataType: "string",
-                            sample: "1",
-                            nullable: false,
-                          },
-                          {
-                            id: "col_2",
-                            name: "name",
-                            dataType: "string",
-                            sample: tblName,
-                            nullable: false,
-                          },
-                        );
-                      }
+                      if (cols.length === 0) return;
 
                       newSources[subKey] = {
                         table: `${c.name}.${tblName}`,
@@ -580,75 +162,6 @@ export const SchemaMapPage: React.FC = () => {
                   });
                 });
 
-                // Fallback to local cache if config has no parsed columns
-                if (cols.length === 0) {
-                  try {
-                    const local = JSON.parse(
-                      localStorage.getItem("local_ingested_files") || "[]",
-                    );
-                    const match = local.find(
-                      (f: {
-                        id?: string;
-                        name?: string;
-                        columns?: string[];
-                        sampleRows?: Record<string, unknown>[];
-                      }) => f.id === c.id || f.name === c.name,
-                    );
-                    if (
-                      match &&
-                      Array.isArray(match.columns) &&
-                      match.columns.length > 0
-                    ) {
-                      const localSample =
-                        Array.isArray(match.sampleRows) && match.sampleRows[0]
-                          ? match.sampleRows[0]
-                          : {};
-                      match.columns.forEach((colName: string, cIdx: number) => {
-                        const val = localSample[colName];
-                        cols.push({
-                          id: `col_${cIdx + 1}`,
-                          name: colName,
-                          dataType:
-                            typeof val === "number" ? "integer" : "string",
-                          sample:
-                            val !== undefined && val !== null
-                              ? String(val)
-                              : "—",
-                          nullable: true,
-                        });
-                      });
-                    }
-                  } catch {
-                    // ignore
-                  }
-                }
-
-                if (cols.length === 0) {
-                  cols.push(
-                    {
-                      id: "col_1",
-                      name: "id",
-                      dataType: "string",
-                      sample: "1",
-                      nullable: false,
-                    },
-                    {
-                      id: "col_2",
-                      name: "name",
-                      dataType: "string",
-                      sample: c.name,
-                      nullable: false,
-                    },
-                    {
-                      id: "col_3",
-                      name: "updated_at",
-                      dataType: "timestamp",
-                      sample: new Date().toISOString(),
-                      nullable: true,
-                    },
-                  );
-                }
-
                 newSources[key] = {
                   table: `${c.type}.${c.name.replace(/\s+/g, "_").toUpperCase()}`,
                   columns: cols,
@@ -693,12 +206,8 @@ export const SchemaMapPage: React.FC = () => {
         if (res.ok) {
           const types = await res.json();
           if (Array.isArray(types) && types.length > 0) {
-            const newMap: Record<string, OntologyProperty[]> = {
-              ...MOCK_ONTOLOGIES,
-            };
-            const newLabels: Record<string, string> = {
-              ...ONTOLOGY_LABELS,
-            };
+            const newMap: Record<string, OntologyProperty[]> = {};
+            const newLabels: Record<string, string> = {};
 
             types.forEach(
               (t: {
@@ -752,7 +261,7 @@ export const SchemaMapPage: React.FC = () => {
           }
         }
       } catch {
-        // Keep initial fallback map
+        // Ontology fetch failed
       }
     };
     fetchOntologyTypes();
@@ -795,15 +304,7 @@ export const SchemaMapPage: React.FC = () => {
           }
         }
       } catch {
-        // Fallback to local storage if endpoint unavailable
-        const local = localStorage.getItem("lumin_schema_mapping");
-        if (local) {
-          try {
-            setSavedMappings([JSON.parse(local)]);
-          } catch {
-            // Ignore parse errors
-          }
-        }
+        // Saved mappings unavailable
       }
     };
     fetchSavedMappings();
@@ -813,10 +314,7 @@ export const SchemaMapPage: React.FC = () => {
     setSavedMappings((prev) => [payload, ...prev.slice(0, 4)]);
   };
 
-  const sourceData =
-    sources[selectedSource] ||
-    sources["snowflake_users"] ||
-    TEMPLATE_SOURCES["snowflake_users"];
+  const sourceData = sources[selectedSource] || { table: "", columns: [] };
   const ontologyProps = dynamicOntologyMap[selectedOntology] ?? [];
 
   return (

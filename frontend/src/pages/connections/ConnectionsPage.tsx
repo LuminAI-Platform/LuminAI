@@ -580,8 +580,7 @@ export const ConnectionsPage: React.FC = () => {
     if (file.columns && file.columns.length > 0) {
       return { columns: file.columns, rows: [] };
     }
-    // 4. Fallback to schema structure without fabricating false records
-    return { columns: ["id", "status", "created_at"], rows: [] };
+    return { columns: [], rows: [] };
   };
 
   const exportLocalCsv = (fileName: string) => {
@@ -674,8 +673,7 @@ export const ConnectionsPage: React.FC = () => {
   };
 
   const downloadCleanCsv = async (connectionId: string, fileName: string) => {
-    // 1. If we already have cleanData rows loaded in the active modal, export directly
-    // to guarantee an instant, authentic RFC-4180 CSV without any network risk or HTML fallback
+    // 1. Export directly from already-loaded cleanData rows if available
     if (cleanData && cleanData.rows && cleanData.rows.length > 0) {
       exportLocalCsv(fileName);
       return;
@@ -688,7 +686,7 @@ export const ConnectionsPage: React.FC = () => {
       const contentType = res.headers.get("content-type") || "";
       const text = await res.text();
 
-      // Guard against HTML error pages or SPA dev-server fallback responses
+      // Guard against HTML error pages
       const isHtmlResponse =
         contentType.includes("text/html") ||
         text.trim().startsWith("<!doctype") ||

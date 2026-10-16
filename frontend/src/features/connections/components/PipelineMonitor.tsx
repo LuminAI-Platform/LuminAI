@@ -253,7 +253,7 @@ export const PipelineMonitor: React.FC = () => {
     }
   }, []);
 
-  // ── Polling fetch fallback ──────────────────────────────────────────────────
+  // ── Polling fetch ──────────────────────────────────────────────────────────
   const fetchOnce = useCallback(async () => {
     try {
       const res = await apiFetch("/api/v1/pipelines/runs");
@@ -325,7 +325,7 @@ export const PipelineMonitor: React.FC = () => {
     onComplete: handleComplete,
   });
 
-  // ── Initial load + fallback polling if SSE disconnected ─────────────────────
+  // ── Initial load + polling when SSE disconnected ─────────────────────────────
   useEffect(() => {
     fetchOnce();
     if (polling || !sseConnected) {
