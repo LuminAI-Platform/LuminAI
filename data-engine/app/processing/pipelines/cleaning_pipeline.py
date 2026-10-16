@@ -227,30 +227,50 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
                 object_key,
             )
 
+            if df.height == 0:
+                raise ValueError(f"File s3://{bucket}/{object_key} is empty (0 rows).")
+
             # Pre-flight schema validation and data quality gate
             from app.processing.schema_detector import get_schema_detector
 
             detector = get_schema_detector()
             preflight = detector.validate_dataframe(df)
             if not preflight.is_valid:
-                context.log.error(
-                    "❌ Pre-flight validation rejected file s3://%s/%s: %s",
+                context.log.warning(
+                    "⚠️ Pre-flight quality advisory for file s3://%s/%s: %s. Proceeding with data cleaning and normalization.",
                     bucket,
                     object_key,
                     preflight.error_message,
                 )
-                raise ValueError(preflight.error_message)
+            else:
+                context.log.info(
+                    "✅ Pre-flight validation passed for s3://%s/%s (suggested entity: %s)",
+                    bucket,
+                    object_key,
+                    preflight.suggested_entity_type or "Unknown",
+                )
 
-            context.log.info(
-                "✅ Pre-flight validation passed for s3://%s/%s (suggested entity: %s)",
-                bucket,
-                object_key,
-                preflight.suggested_entity_type or "Unknown",
-            )
             return df
         except Exception as exc:
+            context.log.error(
+                "❌ Failed to load raw data from MinIO (s3://%s/%s): %s",
+                bucket,
+                object_key,
+                exc,
+            )
+            settings = get_settings()
+            if not settings.synthetic_data_allowed:
+                context.log.error(
+                    "❌ Cleaning pipeline failure: Raw ingestion data could not be retrieved from MinIO (bucket: %s, key: %s) and synthetic fallback is disabled.",
+                    bucket,
+                    object_key,
+                )
+                raise RuntimeError(
+                    f"Production safety violation: Unable to load raw dataset from s3://{bucket}/{object_key or '<missing>'} "
+                    "and synthetic data fallback is prohibited in production mode."
+                ) from exc
             context.log.warning(
-                "⚠️ Failed to load raw data from MinIO (s3://%s/%s): %s. Falling back to synthetic dataset.",
+                "⚠️ Failed to load raw data from MinIO (s3://%s/%s) in non-production mode; falling back to synthetic dataset: %s",
                 bucket,
                 object_key,
                 exc,

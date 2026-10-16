@@ -273,4 +273,26 @@ class ConnectionControllerTest {
         .andExpect(jsonPath("$.fileName").value("users.csv"))
         .andExpect(jsonPath("$.recordsCount").value(2));
   }
+
+  @Test
+  @DisplayName("POST /api/v1/connections/{id}/upload parses files > 1000 rows without truncation")
+  void uploadLargeFileWithoutTruncation() throws Exception {
+    UUID connId = UUID.randomUUID();
+    StringBuilder sb = new StringBuilder("id,name\n");
+    for (int i = 1; i <= 1500; i++) {
+      sb.append(i).append(",User_").append(i).append("\n");
+    }
+    MockMultipartFile file =
+        new MockMultipartFile("file", "large_dataset.csv", "text/csv", sb.toString().getBytes());
+
+    when(fileConnectorService.ingest(any(), eq(connId), any()))
+        .thenReturn("tenant/raw/" + connId + "/large_dataset.csv");
+
+    mockMvc
+        .perform(multipart("/api/v1/connections/" + connId + "/upload").file(file))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INGESTED"))
+        .andExpect(jsonPath("$.fileName").value("large_dataset.csv"))
+        .andExpect(jsonPath("$.recordsCount").value(1500));
+  }
 }

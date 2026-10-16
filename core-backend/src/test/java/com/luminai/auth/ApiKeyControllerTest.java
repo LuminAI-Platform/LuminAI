@@ -24,13 +24,15 @@ import org.springframework.http.ResponseEntity;
 class ApiKeyControllerTest {
 
   private ApiKeyService apiKeyService;
+  private com.luminai.auth.repository.TenantRepository tenantRepository;
   private ApiKeyController apiKeyController;
   private UUID tenantId;
 
   @BeforeEach
   void setUp() {
     apiKeyService = mock(ApiKeyService.class);
-    apiKeyController = new ApiKeyController(apiKeyService);
+    tenantRepository = mock(com.luminai.auth.repository.TenantRepository.class);
+    apiKeyController = new ApiKeyController(apiKeyService, tenantRepository);
     tenantId = UUID.randomUUID();
     TenantContext.setTenant(tenantId, "test-corp");
   }

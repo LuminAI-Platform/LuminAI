@@ -40,7 +40,9 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, com.luminai.auth.security.ApiKeyAuthenticationFilter apiKeyAuthFilter)
+      HttpSecurity http,
+      com.luminai.auth.security.ApiKeyAuthenticationFilter apiKeyAuthFilter,
+      com.luminai.common.tenant.TenantFilter tenantFilter)
       throws Exception {
     http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .csrf(csrf -> csrf.disable()) // Stateless JWT — no CSRF needed
@@ -53,12 +55,17 @@ public class SecurityConfig {
                         "/actuator/info",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
-                        "/swagger-ui.html")
+                        "/swagger-ui.html",
+                        "/error")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
         .addFilterBefore(
             apiKeyAuthFilter,
+            org.springframework.security.oauth2.server.resource.web.authentication
+                .BearerTokenAuthenticationFilter.class)
+        .addFilterAfter(
+            tenantFilter,
             org.springframework.security.oauth2.server.resource.web.authentication
                 .BearerTokenAuthenticationFilter.class)
         .oauth2ResourceServer(
@@ -83,6 +90,28 @@ public class SecurityConfig {
                     .frameOptions(frame -> frame.deny()));
 
     return http.build();
+  }
+
+  @Bean
+  public org.springframework.boot.web.servlet.FilterRegistrationBean<
+          com.luminai.common.tenant.TenantFilter>
+      tenantFilterRegistration(com.luminai.common.tenant.TenantFilter filter) {
+    org.springframework.boot.web.servlet.FilterRegistrationBean<
+            com.luminai.common.tenant.TenantFilter>
+        registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+    registration.setEnabled(false);
+    return registration;
+  }
+
+  @Bean
+  public org.springframework.boot.web.servlet.FilterRegistrationBean<
+          com.luminai.auth.security.ApiKeyAuthenticationFilter>
+      apiKeyAuthFilterRegistration(com.luminai.auth.security.ApiKeyAuthenticationFilter filter) {
+    org.springframework.boot.web.servlet.FilterRegistrationBean<
+            com.luminai.auth.security.ApiKeyAuthenticationFilter>
+        registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+    registration.setEnabled(false);
+    return registration;
   }
 
   @Value("${luminai.security.allow-mock-tokens:false}")

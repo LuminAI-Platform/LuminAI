@@ -1468,8 +1468,8 @@ export const ConnectionsPage: React.FC = () => {
                   }
 
                   return (
-                    <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-auto bg-zinc-950 shadow-inner">
-                      <table className="w-full text-left text-xs border-collapse font-sans">
+                    <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
+                      <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
                         <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
                           <tr className="text-zinc-300">
                             <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
@@ -1754,8 +1754,8 @@ export const ConnectionsPage: React.FC = () => {
                         : Object.keys(cleanData.rows[0]);
 
                     return (
-                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-auto bg-zinc-950 shadow-inner">
-                        <table className="w-full text-left text-xs border-collapse font-sans">
+                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
+                        <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
                           <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
                             <tr className="text-zinc-300">
                               <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">

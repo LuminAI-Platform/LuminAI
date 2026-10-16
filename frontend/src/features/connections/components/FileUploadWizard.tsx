@@ -161,7 +161,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   };
 
   // Parse CSV helper
-  const parseCSV = (text: string) => {
+  const parseCSV = (text: string, isSample = false) => {
     const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
     if (lines.length === 0) return { columns: [], rows: [] };
 
@@ -188,7 +188,12 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     // Clean headers (remove quotes if any)
     const headers = rawHeaders.map((h) => h.replace(/^["']|["']$/g, ""));
 
-    const rows = lines.slice(1).map((line) => {
+    // If sliced sample, drop the potentially truncated trailing line
+    const dataLines =
+      isSample && lines.length > 2 ? lines.slice(1, -1) : lines.slice(1);
+    const previewLines = dataLines.slice(0, 200);
+
+    const rows = previewLines.map((line) => {
       const values = parseLine(line);
       const row: Record<string, unknown> = {};
       headers.forEach((header, index) => {
@@ -220,7 +225,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       });
       const columns = Array.from(columnsSet);
 
-      return { columns, rows };
+      return { columns, rows: rows.slice(0, 200) };
     } catch (e) {
       throw new Error("Invalid JSON structure. Must be an array of objects.", {
         cause: e,
@@ -236,6 +241,11 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     }
 
     setFile(selectedFile);
+    const isLarge = selectedFile.size > 2 * 1024 * 1024;
+    const isCsv = !selectedFile.name.toLowerCase().endsWith(".json");
+    const previewBlob =
+      isLarge && isCsv ? selectedFile.slice(0, 2 * 1024 * 1024) : selectedFile;
+
     const reader = new FileReader();
 
     reader.onload = (e) => {
@@ -248,7 +258,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         if (selectedFile.name.endsWith(".json")) {
           result = parseJSON(text);
         } else {
-          result = parseCSV(text);
+          result = parseCSV(text, isLarge);
         }
 
         setParsedData(result);
@@ -295,7 +305,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       }
     };
 
-    reader.readAsText(selectedFile);
+    reader.readAsText(previewBlob);
   };
 
   // Drag handlers

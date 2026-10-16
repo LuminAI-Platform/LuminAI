@@ -47,11 +47,19 @@ INTERVAL_MAP = {
 
 GOLDEN_COLUMNS = {
     "golden_id",
+    "id",
     "tenant_id",
     "cluster_size",
     "source_record_ids",
+    "source_count",
     "attributes",
+    "properties",
+    "entity_type",
+    "canonical_name",
+    "confidence_score",
+    "version",
     "created_at",
+    "updated_at",
 }
 STAGING_COLUMNS = {"id", "tenant_id", "source_id", "raw_id", "data", "staged_at"}
 
@@ -74,14 +82,38 @@ class DuckDBAnalyticsEngine:
 
         return get_engine()
 
+    def _normalize_dataframe(self, df: pl.DataFrame, target_table: str) -> pl.DataFrame:
+        """Normalize dataframe columns across PostgreSQL and SQLite schema variations."""
+        cols = df.columns
+        if not cols:
+            return df
+        exprs = []
+        if "golden" in target_table.lower():
+            if "properties" in cols and "attributes" not in cols:
+                exprs.append(pl.col("properties").cast(pl.Utf8).alias("attributes"))
+            elif "attributes" in cols and "properties" not in cols:
+                exprs.append(pl.col("attributes").cast(pl.Utf8).alias("properties"))
+
+            if "id" in cols and "golden_id" not in cols:
+                exprs.append(pl.col("id").cast(pl.Utf8).alias("golden_id"))
+            elif "golden_id" in cols and "id" not in cols:
+                exprs.append(pl.col("golden_id").cast(pl.Utf8).alias("id"))
+
+        if "entity_type" not in cols:
+            exprs.append(pl.lit("").alias("entity_type"))
+
+        if exprs:
+            df = df.with_columns(exprs)
+        return df
+
     def load_table_dataframe(self, table_name: str, tenant_id: str) -> pl.DataFrame:
         """Load records for the requested tenant from PostgreSQL or SQLite fallback."""
-        if self.override_df is not None:
-            return self.override_df
-
         target_table = (
             "golden_records" if "golden" in table_name.lower() else "staging_records"
         )
+        if self.override_df is not None:
+            return self._normalize_dataframe(self.override_df, target_table)
+
         records: List[Dict[str, Any]] = []
 
         # 1. Try PostgreSQL
@@ -101,7 +133,7 @@ class DuckDBAnalyticsEngine:
                     tenant_id,
                     target_table,
                 )
-                return pl.DataFrame(records)
+                return self._normalize_dataframe(pl.DataFrame(records), target_table)
         except Exception as exc:
             logger.debug("PostgreSQL query failed (%s). Checking SQLite fallback.", exc)
 
@@ -138,7 +170,9 @@ class DuckDBAnalyticsEngine:
                             tenant_id,
                             sqlite_path,
                         )
-                        return pl.DataFrame(records)
+                        return self._normalize_dataframe(
+                            pl.DataFrame(records), target_table
+                        )
                 except Exception as sqle:
                     logger.debug("SQLite check failed for %s: %s", sqlite_path, sqle)
 
@@ -172,6 +206,7 @@ class DuckDBAnalyticsEngine:
         tenant_id: str,
         entity_type: str,
         filters: Dict[str, Any],
+        df_columns: Optional[List[str]] = None,
     ) -> Tuple[str, List[Any]]:
         """Construct WHERE clause and parameter list safely.
 
@@ -186,7 +221,24 @@ class DuckDBAnalyticsEngine:
 
         # Entity type filter (skip if wildcard or ALL)
         if entity_type and entity_type.upper() not in {"*", "ALL"}:
-            conditions.append(f"json_extract_string({json_col}, '$.entity_type') = ?")
+            has_entity_type_col = df_columns is not None and "entity_type" in df_columns
+            has_json_col = df_columns is not None and json_col in df_columns
+            if df_columns is None:
+                conditions.append(
+                    f"(COALESCE(NULLIF(TRY_CAST(entity_type AS VARCHAR), ''), json_extract_string({json_col}, '$.entity_type')) = ?)"
+                )
+            elif has_entity_type_col and has_json_col:
+                conditions.append(
+                    f"(COALESCE(NULLIF(TRY_CAST(entity_type AS VARCHAR), ''), json_extract_string({json_col}, '$.entity_type')) = ?)"
+                )
+            elif has_entity_type_col:
+                conditions.append("TRY_CAST(entity_type AS VARCHAR) = ?")
+            elif has_json_col:
+                conditions.append(
+                    f"json_extract_string({json_col}, '$.entity_type') = ?"
+                )
+            else:
+                conditions.append("1 = 0")
             params.append(entity_type)
 
         # Dynamic filters
@@ -196,11 +248,11 @@ class DuckDBAnalyticsEngine:
                     f"Invalid filter field name: '{key}'. Must be alphanumeric identifier."
                 )
 
-            if key in known_cols:
+            if key in known_cols and (df_columns is None or key in df_columns):
                 # Top level table column
                 conditions.append(f"{key} = ?")
                 params.append(val)
-            else:
+            elif df_columns is None or json_col in df_columns:
                 # Nested JSON field
                 if isinstance(val, bool):
                     conditions.append(
@@ -215,6 +267,8 @@ class DuckDBAnalyticsEngine:
                 else:
                     conditions.append(f"json_extract_string({json_col}, '$.{key}') = ?")
                     params.append(str(val))
+            else:
+                conditions.append("1 = 0")
 
         where_clause = " WHERE " + " AND ".join(conditions)
         return where_clause, params
@@ -305,6 +359,7 @@ class DuckDBAnalyticsEngine:
                 res_keys.append(f"distinct_{field}")
 
         df = self.load_table_dataframe(table_name, tenant_id)
+        df = self._normalize_dataframe(df, table_name)
 
         # Create isolated in-memory DuckDB connection with optimized thread & memory settings
         con = duckdb.connect()
@@ -319,6 +374,7 @@ class DuckDBAnalyticsEngine:
                 tenant_id=tenant_id,
                 entity_type=entity_type,
                 filters=filters,
+                df_columns=df.columns,
             )
 
             # 2. Calculate matching row count
@@ -396,6 +452,7 @@ class DuckDBAnalyticsEngine:
                     )
 
         df = self.load_table_dataframe(table_name, tenant_id)
+        df = self._normalize_dataframe(df, table_name)
         con = duckdb.connect()
         try:
             con.execute("PRAGMA threads=4")
@@ -406,6 +463,7 @@ class DuckDBAnalyticsEngine:
                 tenant_id=tenant_id,
                 entity_type=entity_type,
                 filters=filters,
+                df_columns=df.columns,
             )
             agg_sql = f"EXPLAIN SELECT {', '.join(select_exprs)} FROM source_table {where_clause}"
             rows = con.execute(agg_sql, params).fetchall()
@@ -429,6 +487,7 @@ class DuckDBAnalyticsEngine:
         """
         filters = filters or {}
         df = self.load_table_dataframe(table_name, tenant_id)
+        df = self._normalize_dataframe(df, table_name)
 
         # Map interval
         norm_interval = interval.lower().strip()
@@ -492,6 +551,7 @@ class DuckDBAnalyticsEngine:
                 tenant_id=tenant_id,
                 entity_type=entity_type,
                 filters=filters,
+                df_columns=df.columns,
             )
 
             # Add timestamp NOT NULL requirement

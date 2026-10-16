@@ -391,6 +391,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8180/realms/luminai-auth}
       KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8180/realms/luminai-auth/protocol/openid-connect/certs}
+      DATA_ENGINE_URL: ${DATA_ENGINE_URL:-http://data-engine:8000}
     depends_on:
       postgres:
         condition: service_healthy

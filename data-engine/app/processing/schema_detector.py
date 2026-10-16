@@ -517,7 +517,11 @@ class SchemaDetector:
         return None, None, 0.0
 
     # 3. Pre-Flight Validation Report & >50% Null Rejection
-    def validate_dataframe(self, df: pl.DataFrame) -> PreflightValidationReport:
+    def validate_dataframe(
+        self,
+        df: pl.DataFrame,
+        max_null_pct: Optional[float] = None,
+    ) -> PreflightValidationReport:
         """
         Perform comprehensive pre-flight validation on a Polars DataFrame.
 
@@ -528,6 +532,7 @@ class SchemaDetector:
           - Ontology property mapping suggestions
           - Rejection of datasets violating quality thresholds
         """
+        threshold = max_null_pct if max_null_pct is not None else self.max_null_pct
         total_rows = df.height
         total_cols = df.width
         columns_report: List[ColumnValidationReport] = []
@@ -587,10 +592,10 @@ class SchemaDetector:
                 :5
             ]
 
-            # Rejection check (>50% null)
-            is_rejected = null_pct > self.max_null_pct
+            # Rejection check against threshold
+            is_rejected = null_pct > threshold
             rejection_reason = (
-                f"Column '{col_name}' has {null_pct:.1f}% null values, exceeding the maximum allowable threshold of {self.max_null_pct:.1f}%."
+                f"Column '{col_name}' has {null_pct:.1f}% null values, exceeding the maximum allowable threshold of {threshold:.1f}%."
                 if is_rejected
                 else None
             )
@@ -632,7 +637,7 @@ class SchemaDetector:
         error_msg = None
         if not is_valid:
             col_list_str = ", ".join(f"'{c}'" for c in rejected_cols)
-            error_msg = f"File rejected: Columns ({col_list_str}) exceed the maximum allowable null threshold of {self.max_null_pct:.1f}%."
+            error_msg = f"File rejected: Columns ({col_list_str}) exceed the maximum allowable null threshold of {threshold:.1f}%."
 
         return PreflightValidationReport(
             is_valid=is_valid,
@@ -650,6 +655,7 @@ class SchemaDetector:
         self,
         data: bytes,
         file_name: str = "upload.csv",
+        max_null_pct: Optional[float] = None,
     ) -> PreflightValidationReport:
         """
         Parse raw file bytes (CSV, JSON, NDJSON, Parquet, or Excel) and validate schema.
@@ -690,7 +696,7 @@ class SchemaDetector:
                 error_message=f"Failed to parse file '{file_name}': {str(exc)}",
             )
 
-        return self.validate_dataframe(df)
+        return self.validate_dataframe(df, max_null_pct=max_null_pct)
 
 
 # Singleton factory helper

@@ -164,33 +164,87 @@ public class DataEngineClient {
   }
 
   public Map<String, Object> cleanData(Object requestPayload) {
-    return restClient
-        .post()
-        .uri("/process/trigger")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(requestPayload)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body(MAP_TYPE);
+    try {
+      return restClient
+          .post()
+          .uri("/process/trigger")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(requestPayload)
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(MAP_TYPE);
+    } catch (Exception e) {
+      log.warn("Failed to trigger cleanData on Data Engine ({}): {}", baseUrl, e.getMessage());
+      return Map.of(
+          "status",
+          "DEGRADED",
+          "available",
+          false,
+          "recordsProcessed",
+          0,
+          "message",
+          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").",
+          "error",
+          e.getMessage() != null ? e.getMessage() : "Connection failed");
+    }
   }
 
   public Map<String, Object> resolveEntities(Object requestPayload) {
-    return restClient
-        .post()
-        .uri("/process/er/trigger")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(requestPayload)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body(MAP_TYPE);
+    try {
+      return restClient
+          .post()
+          .uri("/process/er/trigger")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(requestPayload)
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(MAP_TYPE);
+    } catch (Exception e) {
+      log.warn(
+          "Failed to trigger resolveEntities on Data Engine ({}): {}", baseUrl, e.getMessage());
+      return Map.of(
+          "status",
+          "DEGRADED",
+          "available",
+          false,
+          "resolvedEntities",
+          0,
+          "message",
+          "Data Engine ER service unreachable at "
+              + baseUrl
+              + " ("
+              + e.getClass().getSimpleName()
+              + ").",
+          "error",
+          e.getMessage() != null ? e.getMessage() : "Connection failed");
+    }
   }
 
   public Map<String, Object> getJobStatus(String jobId) {
-    return restClient
-        .get()
-        .uri("/process/status/{jobId}", jobId)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve()
-        .body(MAP_TYPE);
+    try {
+      return restClient
+          .get()
+          .uri("/process/status/{jobId}", jobId)
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(MAP_TYPE);
+    } catch (Exception e) {
+      log.warn(
+          "Failed to fetch job status for {} from Data Engine ({}): {}",
+          jobId,
+          baseUrl,
+          e.getMessage());
+      return Map.of(
+          "jobId",
+          jobId,
+          "status",
+          "UNKNOWN",
+          "available",
+          false,
+          "message",
+          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").",
+          "error",
+          e.getMessage() != null ? e.getMessage() : "Connection failed");
+    }
   }
 }

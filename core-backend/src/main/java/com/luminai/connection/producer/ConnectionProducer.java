@@ -62,7 +62,7 @@ public class ConnectionProducer {
    */
   public void publishRows(
       UUID tenantId, UUID connectionId, String source, List<Map<String, Object>> rows) {
-    publishRows(tenantId, connectionId, source, rows, true);
+    publishRows(tenantId, connectionId, source, rows, true, null);
   }
 
   public void publishRows(
@@ -71,11 +71,26 @@ public class ConnectionProducer {
       String source,
       List<Map<String, Object>> rows,
       boolean batchComplete) {
+    publishRows(tenantId, connectionId, source, rows, batchComplete, null);
+  }
 
-    if (rows == null || rows.isEmpty()) {
-      log.warn("publishRows called with empty rows for connection '{}' — skipping", connectionId);
+  public void publishRows(
+      UUID tenantId,
+      UUID connectionId,
+      String source,
+      List<Map<String, Object>> rows,
+      boolean batchComplete,
+      String objectKey) {
+
+    if ((rows == null || rows.isEmpty()) && (objectKey == null || objectKey.isBlank())) {
+      log.warn(
+          "publishRows called with empty rows and no objectKey for connection '{}' — skipping",
+          connectionId);
       return;
     }
+
+    int rowCount = rows != null ? rows.size() : 0;
+    List<Map<String, Object>> safeRows = rows != null ? rows : List.of();
 
     IngestEvent event =
         new IngestEvent(
@@ -84,9 +99,10 @@ public class ConnectionProducer {
             connectionId.toString(),
             source,
             Instant.now().toString(),
-            rows.size(),
-            rows,
-            batchComplete);
+            rowCount,
+            safeRows,
+            batchComplete,
+            objectKey);
 
     String payload = serialize(event);
     String messageKey = tenantId.toString();
@@ -98,7 +114,7 @@ public class ConnectionProducer {
               if (ex != null) {
                 log.error(
                     "Failed to publish {} rows from '{}' to topic '{}': {}",
-                    rows.size(),
+                    rowCount,
                     source,
                     TOPIC,
                     ex.getMessage(),
@@ -107,7 +123,7 @@ public class ConnectionProducer {
                 SendResult<String, Object> sendResult = result;
                 log.info(
                     "Published {} rows from '{}' to topic '{}' partition {} offset {}",
-                    rows.size(),
+                    rowCount,
                     source,
                     TOPIC,
                     sendResult.getRecordMetadata().partition(),
@@ -143,6 +159,7 @@ public class ConnectionProducer {
    * @param totalRows number of rows in this batch
    * @param rows the parsed row data
    * @param batchComplete flag indicating whether this event completes an ingestion batch
+   * @param objectKey MinIO / S3 storage key pointing to the raw file
    */
   public record IngestEvent(
       String eventId,
@@ -152,7 +169,29 @@ public class ConnectionProducer {
       String ingestedAt,
       int totalRows,
       List<Map<String, Object>> rows,
-      @com.fasterxml.jackson.annotation.JsonProperty("batch_complete") boolean batchComplete) {
+      @com.fasterxml.jackson.annotation.JsonProperty("batch_complete") boolean batchComplete,
+      @com.fasterxml.jackson.annotation.JsonProperty("object_key") String objectKey) {
+
+    public IngestEvent(
+        String eventId,
+        String tenantId,
+        String connectionId,
+        String source,
+        String ingestedAt,
+        int totalRows,
+        List<Map<String, Object>> rows,
+        boolean batchComplete) {
+      this(
+          eventId,
+          tenantId,
+          connectionId,
+          source,
+          ingestedAt,
+          totalRows,
+          rows,
+          batchComplete,
+          null);
+    }
 
     public IngestEvent(
         String eventId,
@@ -162,7 +201,7 @@ public class ConnectionProducer {
         String ingestedAt,
         int totalRows,
         List<Map<String, Object>> rows) {
-      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true);
+      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null);
     }
   }
 

@@ -2,7 +2,10 @@ package com.luminai.auth.controller;
 
 import com.luminai.auth.dto.ApiKeyDto;
 import com.luminai.auth.dto.ApiKeyRotateResponse;
+import com.luminai.auth.model.Tenant;
+import com.luminai.auth.repository.TenantRepository;
 import com.luminai.auth.service.ApiKeyService;
+import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.tenant.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,9 +26,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApiKeyController {
 
   private final ApiKeyService apiKeyService;
+  private final TenantRepository tenantRepository;
 
-  public ApiKeyController(ApiKeyService apiKeyService) {
+  public ApiKeyController(ApiKeyService apiKeyService, TenantRepository tenantRepository) {
     this.apiKeyService = apiKeyService;
+    this.tenantRepository = tenantRepository;
+  }
+
+  private UUID resolveTenantId() {
+    UUID tenantId = TenantContext.getTenantUuid();
+    if (tenantId != null) {
+      return tenantId;
+    }
+    String slug = TenantContext.getTenantSlug();
+    if (slug != null && !slug.isBlank()) {
+      Optional<Tenant> tenant = tenantRepository.findBySlug(slug);
+      if (tenant.isPresent()) {
+        return tenant.get().getId();
+      }
+    }
+    return tenantRepository.findBySlug("default").map(Tenant::getId).orElse(null);
   }
 
   @Operation(
@@ -36,7 +56,10 @@ public class ApiKeyController {
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'USER')")
   public ResponseEntity<?> getActiveApiKey() {
-    UUID tenantId = TenantContext.getTenantUuid();
+    UUID tenantId = resolveTenantId();
+    if (tenantId == null) {
+      return ResponseEntity.ok(Map.of("hasKey", false));
+    }
     Optional<ApiKeyDto> activeKey = apiKeyService.getActiveApiKey(tenantId);
     if (activeKey.isEmpty()) {
       return ResponseEntity.ok(Map.of("hasKey", false));
@@ -53,7 +76,10 @@ public class ApiKeyController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN')")
   public ResponseEntity<ApiKeyRotateResponse> rotateApiKey(
       @RequestBody(required = false) Map<String, String> body) {
-    UUID tenantId = TenantContext.getTenantUuid();
+    UUID tenantId = resolveTenantId();
+    if (tenantId == null) {
+      throw new ResourceNotFoundException("Tenant", "active tenant context");
+    }
     String keyName = (body != null) ? body.get("name") : "Production Live Key";
     ApiKeyRotateResponse response = apiKeyService.rotateApiKey(tenantId, keyName);
     return ResponseEntity.ok(response);

@@ -18,6 +18,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
    */
   Optional<User> findByKeycloakId(String keycloakId);
 
+  /** Finds a user by email ignoring case (useful for dev/sandbox resolution and fallback). */
+  Optional<User> findByEmailIgnoreCase(String email);
+
   /** Used by provisioning to avoid creating a second user with the same email in one tenant. */
   boolean existsByTenantAndEmailIgnoreCase(Tenant tenant, String email);
 }

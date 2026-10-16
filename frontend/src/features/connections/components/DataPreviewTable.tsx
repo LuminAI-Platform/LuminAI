@@ -105,7 +105,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
       </div>
 
       {/* Main Table viewport */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
         {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center select-none">
             <svg
@@ -131,7 +131,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
             </span>
           </div>
         ) : (
-          <table className="w-full text-left border-collapse table-auto text-xs font-mono">
+          <table className="w-full min-w-[600px] text-left border-collapse table-auto text-xs font-mono">
             <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-xs">
               <tr className="text-zinc-400 select-none">
                 <th className="py-2.5 px-3 font-semibold text-zinc-400 w-12 text-center sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800/80 shadow-xs">

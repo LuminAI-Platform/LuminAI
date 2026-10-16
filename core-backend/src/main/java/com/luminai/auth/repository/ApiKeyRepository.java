@@ -13,9 +13,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
 
-  Optional<ApiKey> findByKeyHashAndIsActiveTrue(String keyHash);
+  @Query("SELECT k FROM ApiKey k WHERE k.keyHash = :keyHash AND k.isActive = true")
+  Optional<ApiKey> findByKeyHashAndIsActiveTrue(@Param("keyHash") String keyHash);
 
-  List<ApiKey> findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(UUID tenantId);
+  @Query(
+      "SELECT k FROM ApiKey k WHERE k.tenant.id = :tenantId AND k.isActive = true ORDER BY k.createdAt DESC")
+  List<ApiKey> findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(@Param("tenantId") UUID tenantId);
 
   @Modifying
   @Query("UPDATE ApiKey k SET k.isActive = false WHERE k.tenant.id = :tenantId")
