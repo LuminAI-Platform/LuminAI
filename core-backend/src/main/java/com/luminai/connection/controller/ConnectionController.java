@@ -213,16 +213,6 @@ public class ConnectionController {
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getCleanPreview(@PathVariable UUID id) {
-    List<GoldenRecord> goldenRecords =
-        goldenRecordRepository
-            .findAll(
-                org.springframework.data.domain.PageRequest.of(
-                    0,
-                    100,
-                    org.springframework.data.domain.Sort.by(
-                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt")))
-            .getContent();
-
     List<Map<String, Object>> cleanRows = new ArrayList<>();
     Set<String> columnSet = new LinkedHashSet<>();
     columnSet.add("canonicalName");
@@ -234,237 +224,221 @@ public class ConnectionController {
     long mergedCount = 0;
     double qualityScore = 98.4;
 
-    if (!goldenRecords.isEmpty()) {
-      for (GoldenRecord gr : goldenRecords) {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", gr.getId() != null ? gr.getId().toString() : UUID.randomUUID().toString());
-        row.put("canonicalName", gr.getCanonicalName());
-        row.put("entityType", gr.getEntityType());
-        row.put(
-            "confidenceScore",
-            gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0);
-        row.put("sourceCount", gr.getSourceCount());
+    List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
+    if (rawRows.isEmpty() && connectionRepository != null) {
+      Optional<Connection> connOpt = connectionRepository.findById(id);
+      if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
+        try {
+          com.fasterxml.jackson.databind.JsonNode root =
+              objectMapper.readTree(connOpt.get().getConfig());
+          if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
+            List<Map<String, Object>> cached = new ArrayList<>();
+            for (com.fasterxml.jackson.databind.JsonNode rowNode : root.get("sampleRows")) {
+              @SuppressWarnings("unchecked")
+              Map<String, Object> map = objectMapper.convertValue(rowNode, Map.class);
+              cached.add(map);
+            }
+            rawRows = cached;
+          }
+        } catch (Exception ignored) {
+        }
+      }
+    }
 
-        if (gr.getProperties() != null) {
-          for (Map.Entry<String, Object> entry : gr.getProperties().entrySet()) {
-            columnSet.add(entry.getKey());
-            row.put(entry.getKey(), entry.getValue());
+    if (rawRows.isEmpty() && connectionRepository != null) {
+      UUID currentTenant = TenantContext.getTenantUuid();
+      if (currentTenant != null) {
+        List<Connection> connections = connectionRepository.findAllByTenantId(currentTenant);
+        for (Connection c : connections) {
+          List<Map<String, Object>> candidate = connectionPreviewService.previewFile(c.getId());
+          if (!candidate.isEmpty()) {
+            rawRows = candidate;
+            break;
           }
         }
+      }
+    }
+
+    if (!rawRows.isEmpty()) {
+      rawCount = rawRows.size();
+      long totalFields = 0;
+      long validFields = 0;
+
+      // Step 1: Clean and normalize raw rows
+      List<Map<String, Object>> candidateCleanList = new ArrayList<>();
+      for (Map<String, Object> raw : rawRows) {
+        Map<String, Object> cleaned = new LinkedHashMap<>();
+        long rowFields = 0;
+        long rowValid = 0;
+
+        for (Map.Entry<String, Object> e : raw.entrySet()) {
+          String k = e.getKey() != null ? e.getKey().trim() : "";
+          if (k.isBlank()) continue;
+          rowFields++;
+          totalFields++;
+
+          Object v = e.getValue();
+          String strVal = v != null ? String.valueOf(v).trim() : null;
+          if (strVal != null
+              && !strVal.isBlank()
+              && !"null".equalsIgnoreCase(strVal)
+              && !"n/a".equalsIgnoreCase(strVal)
+              && !"none".equalsIgnoreCase(strVal)
+              && !"-".equals(strVal)
+              && !"undefined".equalsIgnoreCase(strVal)) {
+            rowValid++;
+            validFields++;
+
+            String lk = k.toLowerCase();
+            if (lk.contains("email") && strVal.contains("@")) {
+              cleaned.put(k, strVal.toLowerCase());
+            } else if ((lk.equals("name") || lk.equals("full_name") || lk.equals("company"))
+                && !strVal.contains("@")) {
+              cleaned.put(k, toTitleCase(strVal));
+            } else {
+              cleaned.put(k, strVal);
+            }
+            columnSet.add(k);
+          } else {
+            cleaned.put(k, "");
+          }
+        }
+
+        String name = extractRowName(cleaned);
+        String type = inferEntityType(cleaned);
+        cleaned.put("_canonicalName", name);
+        cleaned.put("_entityType", type);
+        cleaned.put("_rowQuality", rowFields > 0 ? (double) rowValid / (double) rowFields : 1.0);
+
+        // Find primary key for grouping / deduplication
+        String pk = "";
+        for (String k : cleaned.keySet()) {
+          if (k.toLowerCase().contains("email") && !String.valueOf(cleaned.get(k)).isBlank()) {
+            pk = "email:" + String.valueOf(cleaned.get(k)).toLowerCase();
+            break;
+          }
+        }
+        if (pk.isEmpty()) {
+          for (String k : cleaned.keySet()) {
+            String lk = k.toLowerCase().replace("_", " ").replace("-", " ").trim();
+            if ((lk.equals("id")
+                    || lk.endsWith(" id")
+                    || lk.startsWith("id ")
+                    || lk.contains("identifier")
+                    || lk.contains("uuid")
+                    || lk.endsWith(" code")
+                    || lk.endsWith(" number")
+                    || lk.equals("sku"))
+                && !String.valueOf(cleaned.get(k)).isBlank()) {
+              pk = "id:" + String.valueOf(cleaned.get(k)).trim().toLowerCase();
+              break;
+            }
+          }
+        }
+        if (pk.isEmpty()) {
+          pk = "name:" + name.toLowerCase();
+        }
+        cleaned.put("_primaryKey", pk);
+        candidateCleanList.add(cleaned);
+      }
+
+      // Step 2: Group by _primaryKey to resolve duplicate entities
+      Map<String, List<Map<String, Object>>> groups = new LinkedHashMap<>();
+      for (Map<String, Object> cand : candidateCleanList) {
+        String pk = String.valueOf(cand.get("_primaryKey"));
+        groups.computeIfAbsent(pk, k -> new ArrayList<>()).add(cand);
+      }
+
+      mergedCount = 0;
+      cleanRows.clear();
+      for (List<Map<String, Object>> group : groups.values()) {
+        if (group.size() > 1) {
+          mergedCount += (group.size() - 1);
+        }
+        Map<String, Object> lead = group.get(0);
+        Map<String, Object> mergedProps = new LinkedHashMap<>();
+        double avgQuality = 0.0;
+
+        for (Map<String, Object> member : group) {
+          avgQuality += (Double) member.getOrDefault("_rowQuality", 1.0);
+          for (Map.Entry<String, Object> entry : member.entrySet()) {
+            if (entry.getKey().startsWith("_")) continue;
+            if (entry.getValue() != null && !String.valueOf(entry.getValue()).isBlank()) {
+              mergedProps.put(entry.getKey(), entry.getValue());
+            }
+          }
+        }
+        avgQuality /= group.size();
+
+        int sourceCount = group.size();
+        double boost = Math.min(0.06, (sourceCount - 1) * 0.03);
+        double confidenceScore =
+            Math.min(
+                0.99,
+                Math.max(
+                    0.82, Math.round((0.90 + boost * 0.5 + avgQuality * 0.06) * 100.0) / 100.0));
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", UUID.randomUUID().toString());
+        row.put("canonicalName", lead.get("_canonicalName"));
+        row.put("entityType", lead.get("_entityType"));
+        row.put("confidenceScore", confidenceScore);
+        row.put("sourceCount", sourceCount);
+        row.putAll(mergedProps);
         cleanRows.add(row);
       }
-      cleanCount = goldenRecords.size();
-      mergedCount = goldenRecords.stream().mapToInt(r -> Math.max(0, r.getSourceCount() - 1)).sum();
-      rawCount = cleanCount + mergedCount;
-    } else {
-      List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-      if (rawRows.isEmpty() && connectionRepository != null) {
-        Optional<Connection> connOpt = connectionRepository.findById(id);
-        if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
-          try {
-            com.fasterxml.jackson.databind.JsonNode root =
-                objectMapper.readTree(connOpt.get().getConfig());
-            if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
-              List<Map<String, Object>> cached = new ArrayList<>();
-              for (com.fasterxml.jackson.databind.JsonNode rowNode : root.get("sampleRows")) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = objectMapper.convertValue(rowNode, Map.class);
-                cached.add(map);
-              }
-              rawRows = cached;
-            }
-          } catch (Exception ignored) {
+
+      cleanCount = cleanRows.size();
+      qualityScore =
+          totalFields > 0
+              ? Math.round(((double) validFields / (double) totalFields) * 1000.0) / 10.0
+              : 100.0;
+
+      // Auto-persist into golden_records so Graph and Explorer are immediately alive
+      if (goldenRecordRepository != null) {
+        try {
+          UUID currentTenant = TenantContext.getTenantUuid();
+          if (currentTenant == null) {
+            currentTenant = UUID.fromString("00000000-0000-0000-0000-000000000001");
           }
-        }
-      }
+          List<GoldenRecord> savedList = new ArrayList<>();
+          for (Map<String, Object> cRow : cleanRows) {
+            GoldenRecord gr = GoldenRecord.newStandalone();
+            gr.setTenantId(currentTenant);
+            gr.setCanonicalName(String.valueOf(cRow.get("canonicalName")));
+            gr.setEntityType(String.valueOf(cRow.get("entityType")));
+            gr.setConfidenceScore(
+                java.math.BigDecimal.valueOf((Double) cRow.get("confidenceScore")));
+            gr.setSourceCount((Integer) cRow.get("sourceCount"));
+            Map<String, Object> props = new LinkedHashMap<>(cRow);
+            props.remove("id");
+            props.remove("canonicalName");
+            props.remove("entityType");
+            props.remove("confidenceScore");
+            props.remove("sourceCount");
+            gr.getProperties().putAll(props);
+            GoldenRecord saved = goldenRecordRepository.save(gr);
+            savedList.add(saved);
 
-      if (rawRows.isEmpty() && connectionRepository != null) {
-        UUID currentTenant = TenantContext.getTenantUuid();
-        if (currentTenant != null) {
-          List<Connection> connections = connectionRepository.findAllByTenantId(currentTenant);
-          for (Connection c : connections) {
-            List<Map<String, Object>> candidate = connectionPreviewService.previewFile(c.getId());
-            if (!candidate.isEmpty()) {
-              rawRows = candidate;
-              break;
-            }
+            syncNodeToNeo4j(
+                currentTenant, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
           }
-        }
-      }
 
-      if (!rawRows.isEmpty()) {
-        rawCount = rawRows.size();
-        long totalFields = 0;
-        long validFields = 0;
-
-        // Step 1: Clean and normalize raw rows
-        List<Map<String, Object>> candidateCleanList = new ArrayList<>();
-        for (Map<String, Object> raw : rawRows) {
-          Map<String, Object> cleaned = new LinkedHashMap<>();
-          long rowFields = 0;
-          long rowValid = 0;
-
-          for (Map.Entry<String, Object> e : raw.entrySet()) {
-            String k = e.getKey() != null ? e.getKey().trim() : "";
-            if (k.isBlank()) continue;
-            rowFields++;
-            totalFields++;
-
-            Object v = e.getValue();
-            String strVal = v != null ? String.valueOf(v).trim() : null;
-            if (strVal != null
-                && !strVal.isBlank()
-                && !"null".equalsIgnoreCase(strVal)
-                && !"n/a".equalsIgnoreCase(strVal)
-                && !"none".equalsIgnoreCase(strVal)
-                && !"-".equals(strVal)
-                && !"undefined".equalsIgnoreCase(strVal)) {
-              rowValid++;
-              validFields++;
-
-              String lk = k.toLowerCase();
-              if (lk.contains("email") && strVal.contains("@")) {
-                cleaned.put(k, strVal.toLowerCase());
-              } else if ((lk.equals("name") || lk.equals("full_name") || lk.equals("company"))
-                  && !strVal.contains("@")) {
-                cleaned.put(k, toTitleCase(strVal));
-              } else {
-                cleaned.put(k, strVal);
-              }
-              columnSet.add(k);
-            } else {
-              cleaned.put(k, "");
+          for (int i = 0; i < savedList.size() - 1 && i < 20; i++) {
+            GoldenRecord a = savedList.get(i);
+            GoldenRecord b = savedList.get(i + 1);
+            if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
+              syncRelationshipToNeo4j(currentTenant, a.getId(), b.getId(), "SAME_CATEGORY");
             }
           }
 
-          String name = extractRowName(cleaned);
-          String type = inferEntityType(cleaned);
-          cleaned.put("_canonicalName", name);
-          cleaned.put("_entityType", type);
-          cleaned.put("_rowQuality", rowFields > 0 ? (double) rowValid / (double) rowFields : 1.0);
-
-          // Find primary key for grouping / deduplication
-          String pk = "";
-          for (String k : cleaned.keySet()) {
-            if (k.toLowerCase().contains("email") && !String.valueOf(cleaned.get(k)).isBlank()) {
-              pk = "email:" + String.valueOf(cleaned.get(k)).toLowerCase();
-              break;
-            }
-          }
-          if (pk.isEmpty()) {
-            for (String k : cleaned.keySet()) {
-              if ((k.equalsIgnoreCase("id") || k.toLowerCase().contains("identifier"))
-                  && !String.valueOf(cleaned.get(k)).isBlank()) {
-                pk = "id:" + String.valueOf(cleaned.get(k)).toLowerCase();
-                break;
-              }
-            }
-          }
-          if (pk.isEmpty()) {
-            pk = "name:" + name.toLowerCase();
-          }
-          cleaned.put("_primaryKey", pk);
-          candidateCleanList.add(cleaned);
-        }
-
-        // Step 2: Group by _primaryKey to resolve duplicate entities
-        Map<String, List<Map<String, Object>>> groups = new LinkedHashMap<>();
-        for (Map<String, Object> cand : candidateCleanList) {
-          String pk = String.valueOf(cand.get("_primaryKey"));
-          groups.computeIfAbsent(pk, k -> new ArrayList<>()).add(cand);
-        }
-
-        mergedCount = 0;
-        cleanRows.clear();
-        for (List<Map<String, Object>> group : groups.values()) {
-          if (group.size() > 1) {
-            mergedCount += (group.size() - 1);
-          }
-          Map<String, Object> lead = group.get(0);
-          Map<String, Object> mergedProps = new LinkedHashMap<>();
-          double avgQuality = 0.0;
-
-          for (Map<String, Object> member : group) {
-            avgQuality += (Double) member.getOrDefault("_rowQuality", 1.0);
-            for (Map.Entry<String, Object> entry : member.entrySet()) {
-              if (entry.getKey().startsWith("_")) continue;
-              if (entry.getValue() != null && !String.valueOf(entry.getValue()).isBlank()) {
-                mergedProps.put(entry.getKey(), entry.getValue());
-              }
-            }
-          }
-          avgQuality /= group.size();
-
-          int sourceCount = group.size();
-          double boost = Math.min(0.06, (sourceCount - 1) * 0.03);
-          double confidenceScore =
-              Math.min(
-                  0.99,
-                  Math.max(
-                      0.82, Math.round((0.90 + boost * 0.5 + avgQuality * 0.06) * 100.0) / 100.0));
-
-          Map<String, Object> row = new LinkedHashMap<>();
-          row.put("id", UUID.randomUUID().toString());
-          row.put("canonicalName", lead.get("_canonicalName"));
-          row.put("entityType", lead.get("_entityType"));
-          row.put("confidenceScore", confidenceScore);
-          row.put("sourceCount", sourceCount);
-          row.putAll(mergedProps);
-          cleanRows.add(row);
-        }
-
-        cleanCount = cleanRows.size();
-        qualityScore =
-            totalFields > 0
-                ? Math.round(((double) validFields / (double) totalFields) * 1000.0) / 10.0
-                : 100.0;
-
-        // Auto-persist into golden_records so Graph and Explorer are immediately alive
-        if (goldenRecordRepository != null) {
-          try {
-            UUID currentTenant = TenantContext.getTenantUuid();
-            if (currentTenant == null) {
-              currentTenant = UUID.fromString("00000000-0000-0000-0000-000000000001");
-            }
-            List<GoldenRecord> savedList = new ArrayList<>();
-            for (Map<String, Object> cRow : cleanRows) {
-              GoldenRecord gr = GoldenRecord.newStandalone();
-              gr.setTenantId(currentTenant);
-              gr.setCanonicalName(String.valueOf(cRow.get("canonicalName")));
-              gr.setEntityType(String.valueOf(cRow.get("entityType")));
-              gr.setConfidenceScore(
-                  java.math.BigDecimal.valueOf((Double) cRow.get("confidenceScore")));
-              gr.setSourceCount((Integer) cRow.get("sourceCount"));
-              Map<String, Object> props = new LinkedHashMap<>(cRow);
-              props.remove("id");
-              props.remove("canonicalName");
-              props.remove("entityType");
-              props.remove("confidenceScore");
-              props.remove("sourceCount");
-              gr.getProperties().putAll(props);
-              GoldenRecord saved = goldenRecordRepository.save(gr);
-              savedList.add(saved);
-
-              syncNodeToNeo4j(
-                  currentTenant, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
-            }
-
-            for (int i = 0; i < savedList.size() - 1 && i < 20; i++) {
-              GoldenRecord a = savedList.get(i);
-              GoldenRecord b = savedList.get(i + 1);
-              if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
-                syncRelationshipToNeo4j(currentTenant, a.getId(), b.getId(), "SAME_CATEGORY");
-              }
-            }
-
-            log.info(
-                "Persisted and graph-synced {} resolved golden records for tenant {}",
-                cleanRows.size(),
-                currentTenant);
-          } catch (Exception e) {
-            log.debug(
-                "Auto-persistence of golden records in clean-preview skipped: {}", e.getMessage());
-          }
+          log.info(
+              "Persisted and graph-synced {} resolved golden records for tenant {}",
+              cleanRows.size(),
+              currentTenant);
+        } catch (Exception e) {
+          log.debug(
+              "Auto-persistence of golden records in clean-preview skipped: {}", e.getMessage());
         }
       }
     }
@@ -497,26 +471,20 @@ public class ConnectionController {
     response.setHeader(
         "Content-Disposition", "attachment; filename=\"luminai-clean-dataset-" + id + ".csv\"");
 
-    List<GoldenRecord> goldenRecords =
-        goldenRecordRepository
-            .findAll(
-                org.springframework.data.domain.PageRequest.of(
-                    0,
-                    1000,
-                    org.springframework.data.domain.Sort.by(
-                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt")))
-            .getContent();
+    ResponseEntity<Map<String, Object>> previewRes = getCleanPreview(id);
+    List<Map<String, Object>> cleanRows = new ArrayList<>();
+    if (previewRes.getBody() != null && previewRes.getBody().get("rows") instanceof List) {
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> rowsList =
+          (List<Map<String, Object>>) previewRes.getBody().get("rows");
+      cleanRows = rowsList;
+    }
 
     PrintWriter writer = response.getWriter();
-    if (!goldenRecords.isEmpty()) {
-      writeRecordsToCsv(goldenRecords, writer);
+    if (!cleanRows.isEmpty()) {
+      writeMapsToCsv(cleanRows, writer);
     } else {
-      List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-      if (!rawRows.isEmpty()) {
-        writeMapsToCsv(rawRows, writer);
-      } else {
-        writer.println("id,canonical_name,entity_type,confidence_score,status");
-      }
+      writer.println("id,canonical_name,entity_type,confidence_score,status");
     }
   }
 
@@ -978,6 +946,32 @@ public class ConnectionController {
     if (raw == null || raw.isEmpty()) {
       return "Entity " + UUID.randomUUID().toString().substring(0, 8);
     }
+    // 1. Check for specific order / transaction ID identifiers
+    String orderId = null;
+    String item = null;
+    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+      String lk = entry.getKey().toLowerCase().replace("_", " ").trim();
+      if ((lk.equals("id") || lk.endsWith(" id") || lk.startsWith("id "))
+          && entry.getValue() != null
+          && !String.valueOf(entry.getValue()).isBlank()) {
+        orderId = String.valueOf(entry.getValue()).trim();
+      }
+      if ((lk.contains("item")
+              || lk.contains("product")
+              || lk.contains("sku")
+              || lk.contains("category"))
+          && entry.getValue() != null
+          && !String.valueOf(entry.getValue()).isBlank()) {
+        item = String.valueOf(entry.getValue()).trim();
+      }
+    }
+    if (orderId != null) {
+      if (item != null) {
+        return item + " (#" + orderId + ")";
+      }
+      return "Order #" + orderId;
+    }
+
     String[] candidateKeys = {
       "canonicalName",
       "canonical_name",
@@ -1015,6 +1009,16 @@ public class ConnectionController {
       return String.valueOf(raw.get("entity_type")).trim();
     }
     String keys = String.join(" ", raw.keySet()).toLowerCase();
+    if (keys.contains("order")
+        || keys.contains("transaction")
+        || keys.contains("revenue")
+        || keys.contains("sales")
+        || keys.contains("sale")
+        || keys.contains("amount")
+        || keys.contains("payment")
+        || keys.contains("invoice")) {
+      return "Transaction";
+    }
     if (keys.contains("email")
         || keys.contains("first_name")
         || keys.contains("last_name")
@@ -1033,9 +1037,6 @@ public class ConnectionController {
         || keys.contains("product")
         || keys.contains("inventory")) {
       return "Product";
-    }
-    if (keys.contains("transaction") || keys.contains("amount") || keys.contains("payment")) {
-      return "Transaction";
     }
     return "Organization";
   }
