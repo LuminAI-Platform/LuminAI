@@ -660,9 +660,8 @@ export const SchemaMapPage: React.FC = () => {
 
             // Pre-select connection from URL parameter or localStorage
             const preferredId =
-              new URLSearchParams(window.location.search).get(
-                "connectionId",
-              ) || localStorage.getItem("lumin_selected_connection_id");
+              new URLSearchParams(window.location.search).get("connectionId") ||
+              localStorage.getItem("lumin_selected_connection_id");
 
             if (preferredId) {
               const matchKey = Object.keys(newSources).find((k) =>

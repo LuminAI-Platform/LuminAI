@@ -214,8 +214,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(
-          errJson.message ||
-            `Connector creation rejected (HTTP ${res.status})`,
+          errJson.message || `Connector creation rejected (HTTP ${res.status})`,
         );
       }
 

@@ -511,28 +511,29 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
               </svg>
             </button>
           )}
-          {onCancel && (job.status === "running" || job.status === "paused") && (
-            <button
-              onClick={() => {
-                setJob((j) => (j ? { ...j, status: "failed" } : null));
-                onCancel?.(job.id);
-              }}
-              title="Cancel sync"
-              className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-400 hover:border-red-500/30 transition-all cursor-pointer"
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
+          {onCancel &&
+            (job.status === "running" || job.status === "paused") && (
+              <button
+                onClick={() => {
+                  setJob((j) => (j ? { ...j, status: "failed" } : null));
+                  onCancel?.(job.id);
+                }}
+                title="Cancel sync"
+                className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-400 hover:border-red-500/30 transition-all cursor-pointer"
               >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          )}
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
         </div>
       </div>
 
