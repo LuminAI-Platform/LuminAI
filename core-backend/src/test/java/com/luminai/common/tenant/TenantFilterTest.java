@@ -1,7 +1,6 @@
 package com.luminai.common.tenant;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -66,10 +65,7 @@ class TenantFilterTest {
         .thenReturn(Optional.of(new TenantResolutionService.ResolvedTenant(tenantId, "acme")));
 
     Jwt jwt =
-        Jwt.withTokenValue("mock-token")
-            .header("alg", "none")
-            .subject("user-sub-123")
-            .build();
+        Jwt.withTokenValue("mock-token").header("alg", "none").subject("user-sub-123").build();
     SecurityContextHolder.getContext()
         .setAuthentication(
             new JwtAuthenticationToken(
@@ -117,11 +113,7 @@ class TenantFilterTest {
     when(tenantResolutionService.resolveForKeycloakUser("unknown-sub"))
         .thenReturn(Optional.empty());
 
-    Jwt jwt =
-        Jwt.withTokenValue("mock-token")
-            .header("alg", "none")
-            .subject("unknown-sub")
-            .build();
+    Jwt jwt = Jwt.withTokenValue("mock-token").header("alg", "none").subject("unknown-sub").build();
     SecurityContextHolder.getContext()
         .setAuthentication(
             new JwtAuthenticationToken(
@@ -133,7 +125,8 @@ class TenantFilterTest {
     tenantFilter.doFilter(request, response, filterChain);
 
     assertThat(response.getStatus()).isEqualTo(403);
-    assertThat(response.getContentAsString()).contains("User is not associated with an active tenant");
+    assertThat(response.getContentAsString())
+        .contains("User is not associated with an active tenant");
     assertThat(TenantContext.hasTenant()).isFalse();
   }
 

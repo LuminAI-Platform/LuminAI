@@ -128,7 +128,10 @@ public class TenantFilter extends OncePerRequestFilter {
       if (auth.getPrincipal() instanceof Jwt jwt) {
         return Optional.of(jwt);
       }
-      if (auth instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtAuth) {
+      if (auth
+          instanceof
+          org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+              jwtAuth) {
         return Optional.of(jwtAuth.getToken());
       }
     }

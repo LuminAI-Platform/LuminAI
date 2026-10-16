@@ -589,48 +589,34 @@ public class ConnectionController {
       }
     }
 
-    // 2. Persist preliminary Golden Records so Knowledge Graph and Object Explorer are populated
-    if (!rows.isEmpty() && goldenRecordRepository != null) {
-      try {
-        int toPersist = Math.min(rows.size(), 100);
-        List<GoldenRecord> savedUploads = new ArrayList<>();
-        for (int i = 0; i < toPersist; i++) {
-          Map<String, Object> row = rows.get(i);
-          GoldenRecord gr = GoldenRecord.newStandalone();
-          gr.setTenantId(tenantId);
-          gr.setCanonicalName(extractRowName(row));
-          gr.setEntityType(inferEntityType(row));
-          gr.setConfidenceScore(java.math.BigDecimal.valueOf(0.9800));
-          gr.setSourceCount(1);
-          gr.getProperties().putAll(row);
-          GoldenRecord saved = goldenRecordRepository.save(gr);
-          savedUploads.add(saved);
-
-          syncNodeToNeo4j(tenantId, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
-        }
-
-        for (int i = 0; i < savedUploads.size() - 1 && i < 15; i++) {
-          GoldenRecord a = savedUploads.get(i);
-          GoldenRecord b = savedUploads.get(i + 1);
-          if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
-            syncRelationshipToNeo4j(tenantId, a.getId(), b.getId(), "RELATED_TO");
-          }
-        }
-
-        log.info(
-            "Persisted and graph-synced {} preliminary golden records for tenant {}",
-            toPersist,
-            tenantId);
-      } catch (Exception e) {
-        log.warn("Could not auto-seed golden records from uploaded file: {}", e.getMessage());
-      }
-    }
-
+    // 2. Stream parsed rows into Kafka in chunked batches with objectKey for Data Engine
+    // consumption
+    final int BATCH_SIZE = 1000;
     if (!rows.isEmpty()) {
       try {
-        connectionProducer.publishRows(tenantId, id, file.getOriginalFilename(), rows);
+        int totalRows = rows.size();
+        for (int i = 0; i < totalRows; i += BATCH_SIZE) {
+          int end = Math.min(i + BATCH_SIZE, totalRows);
+          List<Map<String, Object>> chunk = rows.subList(i, end);
+          boolean isLast = (end == totalRows);
+          connectionProducer.publishRows(
+              tenantId, id, file.getOriginalFilename(), chunk, isLast, objectKey);
+        }
+        log.info(
+            "Streamed {} parsed rows across {} Kafka batches for connection '{}' (tenant={})",
+            totalRows,
+            (int) Math.ceil((double) totalRows / BATCH_SIZE),
+            id,
+            tenantId);
       } catch (Exception e) {
         log.warn("Kafka publishing skipped: {}", e.getMessage());
+      }
+    } else {
+      try {
+        connectionProducer.publishRows(
+            tenantId, id, file.getOriginalFilename(), List.of(), true, objectKey);
+      } catch (Exception e) {
+        log.warn("Kafka completion signal skipped: {}", e.getMessage());
       }
     }
 
@@ -726,7 +712,6 @@ public class ConnectionController {
               @SuppressWarnings("unchecked")
               Map<String, Object> typedMap = (Map<String, Object>) m;
               rows.add(typedMap);
-              if (rows.size() >= 1000) break;
             }
           }
         }
@@ -737,7 +722,7 @@ public class ConnectionController {
           if (headerLine != null && !headerLine.isBlank()) {
             List<String> headers = parseCsvLine(headerLine);
             String line;
-            while ((line = reader.readLine()) != null && rows.size() < 1000) {
+            while ((line = reader.readLine()) != null) {
               if (line.isBlank()) continue;
               List<String> vals = parseCsvLine(line);
               Map<String, Object> row = new LinkedHashMap<>();

@@ -16,7 +16,8 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
   @Query("SELECT k FROM ApiKey k WHERE k.keyHash = :keyHash AND k.isActive = true")
   Optional<ApiKey> findByKeyHashAndIsActiveTrue(@Param("keyHash") String keyHash);
 
-  @Query("SELECT k FROM ApiKey k WHERE k.tenant.id = :tenantId AND k.isActive = true ORDER BY k.createdAt DESC")
+  @Query(
+      "SELECT k FROM ApiKey k WHERE k.tenant.id = :tenantId AND k.isActive = true ORDER BY k.createdAt DESC")
   List<ApiKey> findByTenantIdAndIsActiveTrueOrderByCreatedAtDesc(@Param("tenantId") UUID tenantId);
 
   @Modifying

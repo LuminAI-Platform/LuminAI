@@ -93,19 +93,23 @@ public class SecurityConfig {
   }
 
   @Bean
-  public org.springframework.boot.web.servlet.FilterRegistrationBean<com.luminai.common.tenant.TenantFilter> tenantFilterRegistration(
-      com.luminai.common.tenant.TenantFilter filter) {
-    org.springframework.boot.web.servlet.FilterRegistrationBean<com.luminai.common.tenant.TenantFilter> registration =
-        new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+  public org.springframework.boot.web.servlet.FilterRegistrationBean<
+          com.luminai.common.tenant.TenantFilter>
+      tenantFilterRegistration(com.luminai.common.tenant.TenantFilter filter) {
+    org.springframework.boot.web.servlet.FilterRegistrationBean<
+            com.luminai.common.tenant.TenantFilter>
+        registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
     registration.setEnabled(false);
     return registration;
   }
 
   @Bean
-  public org.springframework.boot.web.servlet.FilterRegistrationBean<com.luminai.auth.security.ApiKeyAuthenticationFilter> apiKeyAuthFilterRegistration(
-      com.luminai.auth.security.ApiKeyAuthenticationFilter filter) {
-    org.springframework.boot.web.servlet.FilterRegistrationBean<com.luminai.auth.security.ApiKeyAuthenticationFilter> registration =
-        new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+  public org.springframework.boot.web.servlet.FilterRegistrationBean<
+          com.luminai.auth.security.ApiKeyAuthenticationFilter>
+      apiKeyAuthFilterRegistration(com.luminai.auth.security.ApiKeyAuthenticationFilter filter) {
+    org.springframework.boot.web.servlet.FilterRegistrationBean<
+            com.luminai.auth.security.ApiKeyAuthenticationFilter>
+        registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
     registration.setEnabled(false);
     return registration;
   }

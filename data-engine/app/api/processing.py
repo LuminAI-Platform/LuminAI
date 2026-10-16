@@ -119,6 +119,12 @@ class SchemaValidationRequest(BaseModel):
         default=True,
         description="Whether to reject with HTTP 422 if null percentage exceeds 50%.",
     )
+    max_null_pct: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=100.0,
+        description="Optional override for maximum null percentage threshold (0.0 - 100.0).",
+    )
 
 
 class ColumnValidationResponse(BaseModel):
@@ -826,7 +832,9 @@ async def validate_schema_endpoint(
             detail="Must provide one of 'content', 'object_key', or 'file_path' for validation.",
         )
 
-    report = detector.validate_file_bytes(data_bytes, file_name=file_name)
+    report = detector.validate_file_bytes(
+        data_bytes, file_name=file_name, max_null_pct=request.max_null_pct
+    )
     if request.reject_on_violation and not report.is_valid:
         raise HTTPException(
             status_code=422,
@@ -844,7 +852,13 @@ async def validate_schema_endpoint(
 async def validate_schema_upload_endpoint(
     file: UploadFile = File(...),
     reject_on_violation: bool = Query(
-        default=True, description="Whether to reject with 422 if nulls exceed 50%"
+        default=True, description="Whether to reject with 422 if nulls exceed threshold"
+    ),
+    max_null_pct: Optional[float] = Query(
+        default=None,
+        ge=0.0,
+        le=100.0,
+        description="Optional override for maximum allowable null percentage threshold",
     ),
 ) -> SchemaValidationResponse:
     """
@@ -855,7 +869,7 @@ async def validate_schema_upload_endpoint(
     detector = get_schema_detector()
     data_bytes = await file.read()
     report = detector.validate_file_bytes(
-        data_bytes, file_name=file.filename or "upload.csv"
+        data_bytes, file_name=file.filename or "upload.csv", max_null_pct=max_null_pct
     )
 
     if reject_on_violation and not report.is_valid:

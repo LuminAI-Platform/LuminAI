@@ -47,11 +47,19 @@ INTERVAL_MAP = {
 
 GOLDEN_COLUMNS = {
     "golden_id",
+    "id",
     "tenant_id",
     "cluster_size",
     "source_record_ids",
+    "source_count",
     "attributes",
+    "properties",
+    "entity_type",
+    "canonical_name",
+    "confidence_score",
+    "version",
     "created_at",
+    "updated_at",
 }
 STAGING_COLUMNS = {"id", "tenant_id", "source_id", "raw_id", "data", "staged_at"}
 
@@ -74,14 +82,37 @@ class DuckDBAnalyticsEngine:
 
         return get_engine()
 
+    def _normalize_dataframe(self, df: pl.DataFrame, target_table: str) -> pl.DataFrame:
+        """Normalize dataframe columns across PostgreSQL and SQLite schema variations."""
+        if df.height > 0:
+            cols = df.columns
+            exprs = []
+            if "golden" in target_table.lower():
+                if "properties" in cols and "attributes" not in cols:
+                    exprs.append(pl.col("properties").cast(pl.Utf8).alias("attributes"))
+                elif "attributes" in cols and "properties" not in cols:
+                    exprs.append(pl.col("attributes").cast(pl.Utf8).alias("properties"))
+
+                if "id" in cols and "golden_id" not in cols:
+                    exprs.append(pl.col("id").cast(pl.Utf8).alias("golden_id"))
+                elif "golden_id" in cols and "id" not in cols:
+                    exprs.append(pl.col("golden_id").cast(pl.Utf8).alias("id"))
+
+            if "entity_type" not in cols:
+                exprs.append(pl.lit("").alias("entity_type"))
+
+            if exprs:
+                df = df.with_columns(exprs)
+        return df
+
     def load_table_dataframe(self, table_name: str, tenant_id: str) -> pl.DataFrame:
         """Load records for the requested tenant from PostgreSQL or SQLite fallback."""
-        if self.override_df is not None:
-            return self.override_df
-
         target_table = (
             "golden_records" if "golden" in table_name.lower() else "staging_records"
         )
+        if self.override_df is not None:
+            return self._normalize_dataframe(self.override_df, target_table)
+
         records: List[Dict[str, Any]] = []
 
         # 1. Try PostgreSQL
@@ -101,7 +132,7 @@ class DuckDBAnalyticsEngine:
                     tenant_id,
                     target_table,
                 )
-                return pl.DataFrame(records)
+                return self._normalize_dataframe(pl.DataFrame(records), target_table)
         except Exception as exc:
             logger.debug("PostgreSQL query failed (%s). Checking SQLite fallback.", exc)
 
@@ -138,7 +169,9 @@ class DuckDBAnalyticsEngine:
                             tenant_id,
                             sqlite_path,
                         )
-                        return pl.DataFrame(records)
+                        return self._normalize_dataframe(
+                            pl.DataFrame(records), target_table
+                        )
                 except Exception as sqle:
                     logger.debug("SQLite check failed for %s: %s", sqlite_path, sqle)
 
@@ -186,7 +219,9 @@ class DuckDBAnalyticsEngine:
 
         # Entity type filter (skip if wildcard or ALL)
         if entity_type and entity_type.upper() not in {"*", "ALL"}:
-            conditions.append(f"json_extract_string({json_col}, '$.entity_type') = ?")
+            conditions.append(
+                f"(COALESCE(NULLIF(TRY_CAST(entity_type AS VARCHAR), ''), json_extract_string({json_col}, '$.entity_type')) = ?)"
+            )
             params.append(entity_type)
 
         # Dynamic filters

@@ -176,6 +176,23 @@ class DagsterTrigger:
                         dagster_run_id,
                         duration,
                     )
+                    # Automatically trigger Entity Resolution pipeline for complete pipeline orchestration
+                    if batch_metadata.get("auto_er", True):
+                        try:
+                            logger.info(
+                                "🚀 Auto-triggering Entity Resolution pipeline post-cleaning — tenant=%s, source=%s",
+                                tenant_id,
+                                source_id,
+                            )
+                            self.trigger_er_pipeline(
+                                tenant_id=tenant_id,
+                                source_id=source_id,
+                            )
+                        except Exception as er_exc:
+                            logger.warning(
+                                "⚠️ Automated post-cleaning ER trigger encountered an issue: %s",
+                                er_exc,
+                            )
                     return dagster_run_id
                 else:
                     duration = time.perf_counter() - start_time
