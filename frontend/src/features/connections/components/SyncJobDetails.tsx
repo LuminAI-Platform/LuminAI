@@ -471,8 +471,8 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
             {cfg.label}
           </span>
 
-          {/* Controls */}
-          {job.status === "running" && (
+          {/* Controls (rendered when parent handler is provided) */}
+          {onPause && job.status === "running" && (
             <button
               onClick={() => {
                 setJob((j) => (j ? { ...j, status: "paused" } : null));
@@ -492,7 +492,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
               </svg>
             </button>
           )}
-          {job.status === "paused" && (
+          {onResume && job.status === "paused" && (
             <button
               onClick={() => {
                 setJob((j) => (j ? { ...j, status: "running" } : null));
@@ -511,7 +511,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
               </svg>
             </button>
           )}
-          {(job.status === "running" || job.status === "paused") && (
+          {onCancel && (job.status === "running" || job.status === "paused") && (
             <button
               onClick={() => {
                 setJob((j) => (j ? { ...j, status: "failed" } : null));

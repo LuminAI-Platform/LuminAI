@@ -441,39 +441,242 @@ export const SchemaMapPage: React.FC = () => {
             const newLabels: Record<string, string> = {
               ...TEMPLATE_SOURCE_LABELS,
             };
-            list.forEach((c: { id: string; name: string; type: string }) => {
-              const key = `conn_${c.id}`;
-              newLabels[key] = `Live: ${c.name} (${c.type})`;
-              newSources[key] = {
-                table: `${c.type}.${c.name.replace(/\s+/g, "_").toUpperCase()}`,
-                columns: [
-                  {
-                    id: "col_1",
-                    name: "id",
-                    dataType: "string",
-                    sample: "1",
-                    nullable: false,
-                  },
-                  {
-                    id: "col_2",
-                    name: "name",
-                    dataType: "string",
-                    sample: c.name,
-                    nullable: false,
-                  },
-                  {
-                    id: "col_3",
-                    name: "updated_at",
-                    dataType: "timestamp",
-                    sample: new Date().toISOString(),
+            list.forEach(
+              (c: {
+                id: string;
+                name: string;
+                type: string;
+                config?: string | Record<string, unknown>;
+              }) => {
+                let parsedConfig: Record<string, unknown> = {};
+                if (typeof c.config === "string") {
+                  try {
+                    parsedConfig = JSON.parse(c.config);
+                  } catch {
+                    // ignore
+                  }
+                } else if (c.config && typeof c.config === "object") {
+                  parsedConfig = c.config as Record<string, unknown>;
+                }
+
+                // If multi-table archive bundle:
+                if (
+                  Array.isArray(parsedConfig.tables) &&
+                  parsedConfig.tables.length > 0
+                ) {
+                  parsedConfig.tables.forEach(
+                    (
+                      tbl: {
+                        fileName?: string;
+                        columns?: string[];
+                        sampleRows?: Record<string, unknown>[];
+                      },
+                      tIdx: number,
+                    ) => {
+                      const tblName = tbl.fileName || `table_${tIdx + 1}`;
+                      const subKey = `conn_${c.id}_${tblName}`;
+                      newLabels[subKey] = `Live: ${c.name} > ${tblName}`;
+
+                      const cols: SourceColumn[] = [];
+                      const colNames = Array.isArray(tbl.columns)
+                        ? tbl.columns
+                        : [];
+                      const sampleRow =
+                        Array.isArray(tbl.sampleRows) && tbl.sampleRows[0]
+                          ? tbl.sampleRows[0]
+                          : {};
+
+                      colNames.forEach((colName: string, cIdx: number) => {
+                        const val = sampleRow[colName];
+                        let dType: SourceColumn["dataType"] = "string";
+                        if (typeof val === "number") {
+                          dType = Number.isInteger(val) ? "integer" : "float";
+                        } else if (typeof val === "boolean") {
+                          dType = "boolean";
+                        } else if (typeof val === "string") {
+                          if (
+                            !isNaN(Date.parse(val)) &&
+                            (val.includes("-") || val.includes("/"))
+                          ) {
+                            dType = "timestamp";
+                          }
+                        }
+                        cols.push({
+                          id: `col_${cIdx + 1}`,
+                          name: colName,
+                          dataType: dType,
+                          sample:
+                            val !== undefined && val !== null
+                              ? String(val)
+                              : "—",
+                          nullable: true,
+                        });
+                      });
+
+                      if (cols.length === 0) {
+                        cols.push(
+                          {
+                            id: "col_1",
+                            name: "id",
+                            dataType: "string",
+                            sample: "1",
+                            nullable: false,
+                          },
+                          {
+                            id: "col_2",
+                            name: "name",
+                            dataType: "string",
+                            sample: tblName,
+                            nullable: false,
+                          },
+                        );
+                      }
+
+                      newSources[subKey] = {
+                        table: `${c.name}.${tblName}`,
+                        columns: cols,
+                      };
+                    },
+                  );
+                  return;
+                }
+
+                // Single dataset file or database connector
+                const key = `conn_${c.id}`;
+                newLabels[key] = `Live: ${c.name} (${c.type})`;
+
+                const cols: SourceColumn[] = [];
+                const colNames = Array.isArray(parsedConfig.columns)
+                  ? (parsedConfig.columns as string[])
+                  : [];
+                const sampleRow =
+                  Array.isArray(parsedConfig.sampleRows) &&
+                  parsedConfig.sampleRows[0]
+                    ? (parsedConfig.sampleRows[0] as Record<string, unknown>)
+                    : {};
+
+                colNames.forEach((colName: string, cIdx: number) => {
+                  const val = sampleRow[colName];
+                  let dType: SourceColumn["dataType"] = "string";
+                  if (typeof val === "number") {
+                    dType = Number.isInteger(val) ? "integer" : "float";
+                  } else if (typeof val === "boolean") {
+                    dType = "boolean";
+                  } else if (typeof val === "string") {
+                    if (
+                      !isNaN(Date.parse(val)) &&
+                      (val.includes("-") || val.includes("/"))
+                    ) {
+                      dType = "timestamp";
+                    }
+                  }
+                  cols.push({
+                    id: `col_${cIdx + 1}`,
+                    name: colName,
+                    dataType: dType,
+                    sample:
+                      val !== undefined && val !== null ? String(val) : "—",
                     nullable: true,
-                  },
-                ],
-              };
-            });
+                  });
+                });
+
+                // Fallback to local cache if config has no parsed columns
+                if (cols.length === 0) {
+                  try {
+                    const local = JSON.parse(
+                      localStorage.getItem("local_ingested_files") || "[]",
+                    );
+                    const match = local.find(
+                      (f: {
+                        id?: string;
+                        name?: string;
+                        columns?: string[];
+                        sampleRows?: Record<string, unknown>[];
+                      }) => f.id === c.id || f.name === c.name,
+                    );
+                    if (
+                      match &&
+                      Array.isArray(match.columns) &&
+                      match.columns.length > 0
+                    ) {
+                      const localSample =
+                        Array.isArray(match.sampleRows) && match.sampleRows[0]
+                          ? match.sampleRows[0]
+                          : {};
+                      match.columns.forEach((colName: string, cIdx: number) => {
+                        const val = localSample[colName];
+                        cols.push({
+                          id: `col_${cIdx + 1}`,
+                          name: colName,
+                          dataType:
+                            typeof val === "number" ? "integer" : "string",
+                          sample:
+                            val !== undefined && val !== null
+                              ? String(val)
+                              : "—",
+                          nullable: true,
+                        });
+                      });
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
+
+                if (cols.length === 0) {
+                  cols.push(
+                    {
+                      id: "col_1",
+                      name: "id",
+                      dataType: "string",
+                      sample: "1",
+                      nullable: false,
+                    },
+                    {
+                      id: "col_2",
+                      name: "name",
+                      dataType: "string",
+                      sample: c.name,
+                      nullable: false,
+                    },
+                    {
+                      id: "col_3",
+                      name: "updated_at",
+                      dataType: "timestamp",
+                      sample: new Date().toISOString(),
+                      nullable: true,
+                    },
+                  );
+                }
+
+                newSources[key] = {
+                  table: `${c.type}.${c.name.replace(/\s+/g, "_").toUpperCase()}`,
+                  columns: cols,
+                };
+              },
+            );
             setSources(newSources);
             setSourceLabels(newLabels);
-            setSelectedSource(`conn_${list[0].id}`);
+
+            // Pre-select connection from URL parameter or localStorage
+            const preferredId =
+              new URLSearchParams(window.location.search).get(
+                "connectionId",
+              ) || localStorage.getItem("lumin_selected_connection_id");
+
+            if (preferredId) {
+              const matchKey = Object.keys(newSources).find((k) =>
+                k.includes(preferredId),
+              );
+              if (matchKey) {
+                setSelectedSource(matchKey);
+              } else if (list.length > 0) {
+                setSelectedSource(`conn_${list[0].id}`);
+              }
+              localStorage.removeItem("lumin_selected_connection_id");
+            } else if (list.length > 0) {
+              setSelectedSource(`conn_${list[0].id}`);
+            }
           }
         }
       } catch {
