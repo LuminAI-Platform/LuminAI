@@ -21,8 +21,7 @@ import { FileUploadWizard } from "../../features/connections/components/FileUplo
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
-import { PageHeader } from "../../components/layout/PageHeader";
-import { apiFetch, getAccessToken } from "../../lib/api";
+import { apiFetch } from "../../lib/api";
 
 interface IngestedFile {
   id: string;
