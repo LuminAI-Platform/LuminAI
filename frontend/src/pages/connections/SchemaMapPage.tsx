@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   History,
@@ -18,6 +18,7 @@ import {
   VisualSchemaMapper,
   type SourceColumn,
   type OntologyProperty,
+  type SchemaMapping,
   type SchemaMappingPayload,
 } from "../../features/connections/components/VisualSchemaMapper";
 import {
@@ -833,6 +834,17 @@ export const SchemaMapPage: React.FC = () => {
   const [savedMappings, setSavedMappings] = useState<SchemaMappingPayload[]>(
     [],
   );
+  const [rawDbMappings, setRawDbMappings] = useState<
+    Array<{
+      id?: string;
+      connectorId?: string;
+      name?: string;
+      sourceColumn?: string;
+      targetEntityType?: string;
+      targetProperty?: string;
+      createdAt?: string;
+    }>
+  >([]);
   const [showHistory, setShowHistory] = useState(false);
 
   // Real database entity types fetched from backend
@@ -1093,32 +1105,41 @@ export const SchemaMapPage: React.FC = () => {
         if (res.ok) {
           const list = await res.json();
           if (Array.isArray(list) && list.length > 0) {
-            const normalised: SchemaMappingPayload[] = list.map(
-              (item: Record<string, unknown>) => {
-                if (item.sourceTable && item.mappings) {
-                  return item as unknown as SchemaMappingPayload;
-                }
-                return {
-                  connectionId: String(
-                    item.connectorId ?? item.connectionId ?? "",
-                  ),
-                  sourceTable: String(
-                    item.name ?? item.sourceColumn ?? "source_table",
-                  ),
-                  targetEntity: String(
-                    item.targetEntityType ?? item.targetEntity ?? "Entity",
-                  ),
-                  mappings: [
-                    {
-                      sourceColumnId: String(item.sourceColumn ?? ""),
-                      ontologyPropertyId: String(item.targetProperty ?? ""),
-                    },
-                  ],
+            setRawDbMappings(list);
+
+            // Group mappings by targetEntity + connectorId/sourceTable so history modal shows clean mapping entries
+            const groups: Record<string, SchemaMappingPayload> = {};
+            for (const item of list) {
+              const connId = String(
+                item.connectorId ?? item.connectionId ?? "",
+              );
+              const targetEnt = String(
+                item.targetEntityType ?? item.targetEntity ?? "Entity",
+              );
+              const rawName = String(
+                item.name ?? item.sourceColumn ?? "source_table",
+              );
+              const table = rawName.includes(" - ")
+                ? rawName.split(" - ")[0]
+                : rawName;
+              const groupKey = `${connId}_${targetEnt}_${table}`;
+
+              if (!groups[groupKey]) {
+                groups[groupKey] = {
+                  connectionId: connId ? `conn_${connId}` : "",
+                  sourceTable: table,
+                  targetEntity: targetEnt,
+                  mappings: [],
                   createdAt: String(item.createdAt ?? new Date().toISOString()),
                 };
-              },
-            );
-            setSavedMappings(normalised);
+              }
+
+              groups[groupKey].mappings.push({
+                sourceColumnId: String(item.sourceColumn ?? ""),
+                ontologyPropertyId: String(item.targetProperty ?? ""),
+              });
+            }
+            setSavedMappings(Object.values(groups));
           }
         }
       } catch {
@@ -1128,16 +1149,168 @@ export const SchemaMapPage: React.FC = () => {
     fetchSavedMappings();
   }, []);
 
+  const sourceData = useMemo(
+    () => sources[selectedSource] || { table: "", columns: [] },
+    [sources, selectedSource],
+  );
+  const activeOntologyKey = useMemo(
+    () =>
+      selectedOntology && dynamicOntologyMap[selectedOntology]
+        ? selectedOntology
+        : Object.keys(dynamicOntologyMap)[0] || "",
+    [selectedOntology, dynamicOntologyMap],
+  );
+  const ontologyProps = useMemo(
+    () => dynamicOntologyMap[activeOntologyKey] ?? [],
+    [dynamicOntologyMap, activeOntologyKey],
+  );
+
+  // Compute initial mappings for active dataset + entity from saved database records or cache
+  const initialMapperLinks = useMemo(() => {
+    if (
+      !sourceData.columns ||
+      sourceData.columns.length === 0 ||
+      !ontologyProps ||
+      ontologyProps.length === 0
+    ) {
+      return [];
+    }
+
+    const cleanConnId = selectedSource.replace(/^conn_/, "").toLowerCase();
+    const result: SchemaMapping[] = [];
+    const usedSourceCols = new Set<string>();
+    const usedOntoProps = new Set<string>();
+
+    // 1. Match from live database records
+    for (const raw of rawDbMappings) {
+      if (!raw.sourceColumn || !raw.targetProperty) continue;
+      const targetEntity = String(raw.targetEntityType ?? "")
+        .trim()
+        .toLowerCase();
+      if (targetEntity && targetEntity !== activeOntologyKey.toLowerCase()) {
+        continue;
+      }
+
+      const rawConnId = String(raw.connectorId ?? "").toLowerCase();
+      const rawName = String(raw.name ?? "").toLowerCase();
+      const rawTable = sourceData.table.toLowerCase();
+      const isConnectionMatch =
+        (rawConnId &&
+          (rawConnId === cleanConnId || cleanConnId.includes(rawConnId))) ||
+        rawName.includes(rawTable) ||
+        rawTable.includes(rawName.split(" - ")[0]);
+
+      if (isConnectionMatch || rawDbMappings.length <= 25) {
+        const matchedCol = sourceData.columns.find(
+          (c) =>
+            c.name.toLowerCase() === raw.sourceColumn!.toLowerCase() ||
+            c.id.toLowerCase() === raw.sourceColumn!.toLowerCase(),
+        );
+        const matchedProp = ontologyProps.find(
+          (p) =>
+            p.name.toLowerCase() === raw.targetProperty!.toLowerCase() ||
+            p.id.toLowerCase() === raw.targetProperty!.toLowerCase(),
+        );
+
+        if (matchedCol && matchedProp) {
+          if (
+            !usedSourceCols.has(matchedCol.id) &&
+            !usedOntoProps.has(matchedProp.id)
+          ) {
+            result.push({
+              sourceColumnId: matchedCol.id,
+              ontologyPropertyId: matchedProp.id,
+            });
+            usedSourceCols.add(matchedCol.id);
+            usedOntoProps.add(matchedProp.id);
+          }
+        }
+      }
+    }
+
+    // 2. Fallback to localStorage if database query had no match
+    if (result.length === 0) {
+      try {
+        const stored =
+          localStorage.getItem(
+            `lumin_mapping_${selectedSource}_${sourceData.table}`,
+          ) ||
+          localStorage.getItem(
+            `lumin_mapping_${selectedSource}_${activeOntologyKey}`,
+          ) ||
+          localStorage.getItem(
+            `lumin_mapping_${sourceData.table}_${activeOntologyKey}`,
+          ) ||
+          localStorage.getItem(`lumin_mapping_${sourceData.table}`) ||
+          localStorage.getItem("lumin_schema_mapping");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const rawItems = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.mappings)
+              ? parsed.mappings
+              : [];
+          for (const item of rawItems) {
+            const srcId = String(
+              item.sourceColumnId ?? item.sourceColumn ?? "",
+            );
+            const propId = String(
+              item.ontologyPropertyId ?? item.targetProperty ?? "",
+            );
+            const matchedCol = sourceData.columns.find(
+              (c) =>
+                c.id === srcId || c.name.toLowerCase() === srcId.toLowerCase(),
+            );
+            const matchedProp = ontologyProps.find(
+              (p) =>
+                p.id === propId ||
+                p.name.toLowerCase() === propId.toLowerCase(),
+            );
+            if (matchedCol && matchedProp) {
+              if (
+                !usedSourceCols.has(matchedCol.id) &&
+                !usedOntoProps.has(matchedProp.id)
+              ) {
+                result.push({
+                  sourceColumnId: matchedCol.id,
+                  ontologyPropertyId: matchedProp.id,
+                });
+                usedSourceCols.add(matchedCol.id);
+                usedOntoProps.add(matchedProp.id);
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return result;
+  }, [
+    rawDbMappings,
+    sourceData,
+    ontologyProps,
+    selectedSource,
+    activeOntologyKey,
+  ]);
+
   const handleSave = (payload: SchemaMappingPayload) => {
     setSavedMappings((prev) => [payload, ...prev.slice(0, 4)]);
+    const newRaws = payload.mappings.map((m) => {
+      const col = sourceData.columns.find((c) => c.id === m.sourceColumnId);
+      const prop = ontologyProps.find((p) => p.id === m.ontologyPropertyId);
+      return {
+        connectorId: selectedSource.replace(/^conn_/, ""),
+        name: `${sourceData.table} - ${col?.name ?? m.sourceColumnId} Map`,
+        sourceColumn: col?.name ?? m.sourceColumnId,
+        targetEntityType: payload.targetEntity,
+        targetProperty: prop?.name ?? m.ontologyPropertyId,
+        createdAt: new Date().toISOString(),
+      };
+    });
+    setRawDbMappings((prev) => [...newRaws, ...prev]);
   };
-
-  const sourceData = sources[selectedSource] || { table: "", columns: [] };
-  const activeOntologyKey =
-    selectedOntology && dynamicOntologyMap[selectedOntology]
-      ? selectedOntology
-      : Object.keys(dynamicOntologyMap)[0] || "";
-  const ontologyProps = dynamicOntologyMap[activeOntologyKey] ?? [];
 
   // ─── Auto-Create Entity in Database from Data Columns ───────────────────────
   const handleAutoGenerateFromDataset = async () => {
@@ -1446,7 +1619,15 @@ export const SchemaMapPage: React.FC = () => {
               {savedMappings.map((m, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800 rounded-lg text-[11px]"
+                  onClick={() => {
+                    if (m.connectionId && sources[m.connectionId]) {
+                      setSelectedSource(m.connectionId);
+                    }
+                    if (m.targetEntity && dynamicOntologyMap[m.targetEntity]) {
+                      setSelectedOntology(m.targetEntity);
+                    }
+                  }}
+                  className="flex items-center justify-between p-3 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg text-[11px] cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-zinc-400">
@@ -1600,6 +1781,7 @@ export const SchemaMapPage: React.FC = () => {
               sourceColumns={sourceData.columns}
               ontologyProperties={ontologyProps}
               availableEntities={Object.keys(dynamicOntologyLabels)}
+              initialMappings={initialMapperLinks}
               onSave={handleSave}
             />
           )}
