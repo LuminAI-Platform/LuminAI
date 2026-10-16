@@ -24,21 +24,6 @@ interface EntityDetail {
   createdAt: string;
 }
 
-// ─── Ontology type config (mirrors ExplorerPage fallback) ─────────────────────
-
-const TYPE_CONFIG: Record<
-  string,
-  { color: string; icon: string; label?: string }
-> = {
-  Person: { color: "#60a5fa", icon: "user" },
-  Organization: { color: "#34d399", icon: "briefcase" },
-  Dataset: { color: "#fb923c", icon: "database" },
-  Device: { color: "#a78bfa", icon: "cpu" },
-  Location: { color: "#f43f5e", icon: "map-pin" },
-};
-
-const DEFAULT_TYPE = { color: "#3b82f6", icon: "package", label: undefined };
-
 // ─── EntityDetailPage ─────────────────────────────────────────────────────────
 
 export const EntityDetailPage: React.FC = () => {
@@ -96,9 +81,7 @@ export const EntityDetailPage: React.FC = () => {
   }, [entityId]);
 
   // ── Derived type config ────────────────────────────────────────────────────
-  const typeConf = entity
-    ? (TYPE_CONFIG[entity.entityType] ?? DEFAULT_TYPE)
-    : DEFAULT_TYPE;
+  const typeConf = { color: "#3b82f6", icon: "package" };
 
   // ── Handle "Explore Graph" navigation ────────────────────────────────────
   const handleExploreGraph = () => {

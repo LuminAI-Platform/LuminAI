@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { apiFetch } from "../../../lib/api";
+import { useToast } from "../../../components/ui/ToastProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   initialForeignKeys = [],
   onSave,
 }) => {
+  const toast = useToast();
   const [mappings, setMappings] = useState<SchemaMapping[]>([]);
   const [foreignKeys, setForeignKeys] = useState<
     Record<string, ForeignKeyDefinition>
@@ -138,6 +140,21 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
     const init: Record<string, ForeignKeyDefinition> = {};
     for (const fk of initialForeignKeys) {
       init[fk.columnId] = fk;
+    }
+    try {
+      const stored = localStorage.getItem(`lumin_fk_${connectionId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((fk: ForeignKeyDefinition) => {
+            if (fk && fk.columnId) init[fk.columnId] = fk;
+          });
+        } else if (typeof parsed === "object" && parsed !== null) {
+          Object.assign(init, parsed);
+        }
+      }
+    } catch {
+      // ignore
     }
     return init;
   });
@@ -301,28 +318,60 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
     const relType =
       fkRelType.trim().toUpperCase().replace(/\s+/g, "_") || "LINKED_TO";
 
-    setForeignKeys((prev) => ({
-      ...prev,
-      [activeFkColId]: {
-        columnId: activeFkColId,
-        columnName: col.name,
-        targetEntityType: targetType,
-        relationshipType: relType,
-        direction: fkDirection,
-      },
-    }));
+    const newFk: ForeignKeyDefinition = {
+      columnId: activeFkColId,
+      columnName: col.name,
+      targetEntityType: targetType,
+      relationshipType: relType,
+      direction: fkDirection,
+    };
+
+    setForeignKeys((prev) => {
+      const next = {
+        ...prev,
+        [activeFkColId]: newFk,
+      };
+      try {
+        localStorage.setItem(
+          `lumin_fk_${connectionId}`,
+          JSON.stringify(Object.values(next)),
+        );
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+
+    toast.info(
+      "Graph Link Configured",
+      `Linked ${col.name} → ${targetType} via ${relType}`,
+    );
+
     setActiveFkColId(null);
   };
 
   const removeFk = (colId: string) => {
+    const colName = sourceColumns.find((c) => c.id === colId)?.name ?? colId;
     setForeignKeys((prev) => {
       const next = { ...prev };
       delete next[colId];
+      try {
+        localStorage.setItem(
+          `lumin_fk_${connectionId}`,
+          JSON.stringify(Object.values(next)),
+        );
+      } catch {
+        // ignore
+      }
       return next;
     });
     if (activeFkColId === colId) {
       setActiveFkColId(null);
     }
+    toast.info(
+      "Graph Link Removed",
+      `Removed relationship link for ${colName}`,
+    );
   };
 
   const handleSave = async () => {
@@ -338,9 +387,10 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
       createdAt: new Date().toISOString(),
     };
 
+    const cleanConnectorId = connectionId.replace(/^conn_/, "");
     const isUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        connectionId,
+        cleanConnectorId,
       );
 
     setSaveError(null);
@@ -358,7 +408,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
           const res = await apiFetch("/api/v1/schema-mappings", {
             method: "POST",
             body: JSON.stringify({
-              connectorId: connectionId,
+              connectorId: cleanConnectorId,
               name: `${sourceTable} - ${sourceCol} Map`,
               sourceColumn: sourceCol,
               targetEntityType: targetEntityName,
@@ -372,9 +422,20 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         }
       }
       localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
+      localStorage.setItem(`lumin_fk_${connectionId}`, JSON.stringify(fkList));
       setSavedPayload(payload);
       setSaveSuccess(true);
       onSave?.(payload);
+
+      toast.success(
+        "Schema Mapping Saved",
+        `Saved ${mappings.length} column mapping${mappings.length === 1 ? "" : "s"}${
+          fkList.length > 0
+            ? ` and ${fkList.length} graph relationship link${fkList.length === 1 ? "" : "s"}`
+            : ""
+        } for ${sourceTable}.`,
+      );
+
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err: unknown) {
       console.error("Schema mapping persistence error:", err);
@@ -382,6 +443,14 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         err instanceof Error ? err.message : "Failed to persist mapping";
       setSaveError(msg);
       localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
+      localStorage.setItem(`lumin_fk_${connectionId}`, JSON.stringify(fkList));
+      setSavedPayload(payload);
+
+      toast.error(
+        "Schema Mapping Warning",
+        `${msg}. Local mapping has been cached.`,
+      );
+
       setTimeout(() => setSaveError(null), 4000);
     }
   };
@@ -390,6 +459,15 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   const fkCount = Object.keys(foreignKeys).length;
   const targetEntity = ontologyProperties[0]?.entityClass ?? "Entity";
   const activeCol = sourceColumns.find((c) => c.id === activeFkColId);
+
+  const currentPayload: SchemaMappingPayload = {
+    connectionId,
+    sourceTable,
+    targetEntity,
+    mappings,
+    foreignKeys: Object.values(foreignKeys),
+    createdAt: savedPayload?.createdAt ?? new Date().toISOString(),
+  };
 
   return (
     <div className="flex flex-col h-full gap-0 select-none">
@@ -500,13 +578,20 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
       </div>
 
       {/* ── Payload Preview ── */}
-      {showPayload && savedPayload && (
-        <div className="px-6 py-3 border-b border-zinc-800/80 bg-black/60 flex-shrink-0">
-          <p className="text-[10px] text-zinc-500 mb-1.5 font-mono uppercase tracking-widest">
-            API Payload Config
-          </p>
-          <pre className="text-[10px] font-mono text-emerald-400 overflow-x-auto leading-relaxed max-h-32">
-            {JSON.stringify(savedPayload, null, 2)}
+      {showPayload && (
+        <div className="px-6 py-3 border-b border-zinc-800/80 bg-black/60 flex-shrink-0 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              API Payload Config (Active Live State)
+            </p>
+            <span className="text-[10px] font-mono text-zinc-400">
+              {mappings.length} mapped · {fkCount} graph{" "}
+              {fkCount === 1 ? "link" : "links"}
+            </span>
+          </div>
+          <pre className="text-[10px] font-mono text-emerald-400 overflow-x-auto leading-relaxed max-h-36">
+            {JSON.stringify(currentPayload, null, 2)}
           </pre>
         </div>
       )}

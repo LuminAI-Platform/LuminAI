@@ -13,13 +13,6 @@ import { CallbackPage } from "./features/auth/CallbackPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
 
-const PageLoadingFallback = () => (
-  <div className="flex h-64 w-full items-center justify-center text-sm text-slate-400">
-    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-    Loading...
-  </div>
-);
-
 const lazyComponent = <T extends Record<string, unknown>>(
   importer: () => Promise<T>,
   exportName: keyof T,
@@ -33,7 +26,7 @@ const lazyComponent = <T extends Record<string, unknown>>(
   );
   return function LazyWrapper(props: Record<string, unknown>) {
     return (
-      <Suspense fallback={<PageLoadingFallback />}>
+      <Suspense fallback={null}>
         <LazyComp {...props} />
       </Suspense>
     );

@@ -23,54 +23,6 @@ interface SearchResponse {
   number: number;
 }
 
-const FALLBACK_ONTOLOGY_TYPES: EntityType[] = [
-  {
-    id: "1",
-    name: "Person",
-    label: "Person",
-    color: "#60a5fa",
-    icon: "user",
-    description: "",
-    properties: [],
-  },
-  {
-    id: "2",
-    name: "Organization",
-    label: "Organization",
-    color: "#34d399",
-    icon: "briefcase",
-    description: "",
-    properties: [],
-  },
-  {
-    id: "3",
-    name: "Dataset",
-    label: "Dataset",
-    color: "#fb923c",
-    icon: "database",
-    description: "",
-    properties: [],
-  },
-  {
-    id: "4",
-    name: "Device",
-    label: "Device",
-    color: "#a78bfa",
-    icon: "cpu",
-    description: "",
-    properties: [],
-  },
-  {
-    id: "5",
-    name: "Location",
-    label: "Location",
-    color: "#f43f5e",
-    icon: "map-pin",
-    description: "",
-    properties: [],
-  },
-];
-
 export const ExplorerPage: React.FC = () => {
   const getInitialParam = (key: string) => {
     if (typeof window !== "undefined") {
@@ -114,41 +66,7 @@ export const ExplorerPage: React.FC = () => {
       );
 
       if (!res.ok) {
-        // Fallback: client-side export from current searchData if backend endpoint fails
-        if (searchData && searchData.content && searchData.content.length > 0) {
-          const rows = searchData.content.map((item) => ({
-            id: item.id,
-            canonicalName: item.canonicalName,
-            entityType: item.entityType,
-            createdAt: item.createdAt,
-            ...item.properties,
-          }));
-          const headers = Array.from(
-            new Set(rows.flatMap((r) => Object.keys(r))),
-          );
-          const csvLines = [headers.join(",")];
-          rows.forEach((r) => {
-            csvLines.push(
-              headers
-                .map(
-                  (h) =>
-                    `"${String(r[h as keyof typeof r] ?? "").replace(/"/g, '""')}"`,
-                )
-                .join(","),
-            );
-          });
-          const blob = new Blob([csvLines.join("\r\n")], {
-            type: "text/csv;charset=utf-8;",
-          });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", "luminai-golden-records.csv");
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          return;
-        }
+        throw new Error(`Export failed: ${res.statusText}`);
       }
 
       const blob = await res.blob();
@@ -174,12 +92,9 @@ export const ExplorerPage: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           setOntologyTypes(data);
-        } else {
-          setOntologyTypes(FALLBACK_ONTOLOGY_TYPES);
         }
       } catch (err) {
-        console.warn("Ontology fetch failed, using default types:", err);
-        setOntologyTypes(FALLBACK_ONTOLOGY_TYPES);
+        console.warn("Ontology fetch failed:", err);
       }
     };
     fetchOntology();
