@@ -771,10 +771,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </div>
 
               {/* Mappings Grid */}
-              <div className="flex-1 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950 shadow-inner">
-                <div className="overflow-x-auto min-w-0">
-                  <div className="min-w-[760px]">
-                    <div className="grid grid-cols-12 bg-zinc-900/60 border-b border-zinc-800/80 p-3.5 text-xs font-semibold text-zinc-400 select-none">
+              <div className="flex-1 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950 shadow-inner flex flex-col min-h-0">
+                <div className="overflow-x-auto min-w-0 flex-1 flex flex-col min-h-0">
+                  <div className="min-w-[760px] flex-1 flex flex-col min-h-0">
+                    <div className="grid grid-cols-12 bg-zinc-900/90 border-b border-zinc-800/80 px-3.5 py-2.5 text-xs font-semibold text-zinc-400 select-none sticky top-0 z-10 backdrop-blur-xs">
                       <div className="col-span-1 text-center">Active</div>
                       <div className="col-span-3">Source Column</div>
                       <div className="col-span-2">Inferred Type</div>
@@ -782,7 +782,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       <div className="col-span-3">Transformation</div>
                     </div>
 
-                    <div className="divide-y divide-zinc-900 max-h-[45vh] overflow-y-auto">
+                    <div className="divide-y divide-zinc-900 flex-1 overflow-y-auto min-h-[220px]">
                       {columnsConfig.map((col) => {
                         const colMap = mappings[col.name] || {
                           targetEntityType: "User",
@@ -792,7 +792,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                         return (
                           <div
                             key={col.name}
-                            className={`grid grid-cols-12 p-3 items-center text-xs transition-colors ${
+                            className={`grid grid-cols-12 px-3 py-2 items-center text-xs transition-colors ${
                               col.active
                                 ? "hover:bg-zinc-900/20"
                                 : "bg-zinc-900/10 opacity-60"
@@ -916,8 +916,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="bg-zinc-900/60 border-t border-zinc-800/80 px-4 py-2 flex items-center justify-between text-xs text-zinc-400 select-none">
-                  <span className="font-mono">
+                <div className="bg-zinc-900/80 border-t border-zinc-800/80 px-4 py-2.5 flex items-center justify-between text-xs text-zinc-400 select-none">
+                  <span className="font-mono flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                     Showing{" "}
                     <strong className="text-zinc-200">
                       {columnsConfig.filter((c) => c.active).length}
@@ -928,8 +929,18 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     </strong>{" "}
                     columns detected
                   </span>
-                  <span className="text-zinc-500 text-[11px]">
-                    Scroll up/down inside table to review all fields
+                  <span className="text-zinc-400 text-xs flex items-center gap-1.5 font-medium">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 5v14M19 12l-7 7-7-7" />
+                    </svg>
+                    Scroll table to view all fields
                   </span>
                 </div>
               </div>
