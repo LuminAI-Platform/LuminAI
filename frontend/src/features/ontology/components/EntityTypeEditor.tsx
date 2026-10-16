@@ -239,12 +239,62 @@ const EMPTY: EntityType = {
   properties: [],
 };
 
+function hydrateInitialEntity(initial?: EntityType): EntityType {
+  if (!initial) return EMPTY;
+  let props = initial.properties ?? [];
+  const rawSchema = (
+    initial as unknown as {
+      propertiesSchema?: string | Record<string, unknown>;
+    }
+  ).propertiesSchema;
+  if ((!props || props.length === 0) && rawSchema) {
+    try {
+      const parsed =
+        typeof rawSchema === "string" ? JSON.parse(rawSchema) : rawSchema;
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        (parsed as Record<string, unknown>).properties
+      ) {
+        const schemaProps = (
+          parsed as {
+            properties: Record<
+              string,
+              { type?: string; default?: unknown; description?: string }
+            >;
+          }
+        ).properties;
+        const reqList = Array.isArray(
+          (parsed as { required?: string[] }).required,
+        )
+          ? (parsed as { required: string[] }).required
+          : [];
+        props = Object.entries(schemaProps).map(([name, def]) => ({
+          id: name,
+          name,
+          type: (def?.type
+            ? def.type.toUpperCase()
+            : "STRING") as PropertySchema["type"],
+          required: reqList.includes(name),
+          defaultValue: def?.default !== undefined ? String(def.default) : "",
+          description: def?.description || "",
+        }));
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return { ...initial, properties: props };
+}
+
 export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
   initial,
   onClose,
   onSaved,
 }) => {
-  const [form, setForm] = useState<EntityType>(initial ?? EMPTY);
+  const [form, setForm] = useState<EntityType>(() =>
+    hydrateInitialEntity(initial),
+  );
   const [activeTab, setActiveTab] = useState<"meta" | "properties">("meta");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
