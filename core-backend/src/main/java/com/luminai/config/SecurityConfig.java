@@ -70,9 +70,21 @@ public class SecurityConfig {
                 .BearerTokenAuthenticationFilter.class)
         .oauth2ResourceServer(
             oauth2 -> {
-              DefaultBearerTokenResolver resolver = new DefaultBearerTokenResolver();
-              resolver.setAllowUriQueryParameter(true);
-              oauth2.bearerTokenResolver(resolver);
+              DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
+              defaultResolver.setAllowUriQueryParameter(true);
+              oauth2.bearerTokenResolver(
+                  request -> {
+                    String token = defaultResolver.resolve(request);
+                    if (token != null) {
+                      return token;
+                    }
+                    // Support ?token= query parameter sent by browser EventSource (SSE)
+                    String queryToken = request.getParameter("token");
+                    if (queryToken != null && !queryToken.isBlank()) {
+                      return queryToken;
+                    }
+                    return null;
+                  });
               oauth2.jwt(
                   jwt ->
                       jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())

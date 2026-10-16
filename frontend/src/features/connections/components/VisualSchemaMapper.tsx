@@ -51,6 +51,7 @@ interface VisualSchemaMapperProps {
   ontologyProperties: OntologyProperty[];
   availableEntities?: string[];
   availableRelationshipTypes?: string[];
+  initialMappings?: SchemaMapping[];
   initialForeignKeys?: ForeignKeyDefinition[];
   onSave?: (payload: SchemaMappingPayload) => void;
 }
@@ -129,11 +130,46 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   ontologyProperties,
   availableEntities = DEFAULT_TARGET_ENTITIES,
   availableRelationshipTypes = DEFAULT_RELATION_TYPES,
+  initialMappings = [],
   initialForeignKeys = [],
   onSave,
 }) => {
   const toast = useToast();
-  const [mappings, setMappings] = useState<SchemaMapping[]>([]);
+  const [mappings, setMappings] = useState<SchemaMapping[]>(() => {
+    if (initialMappings && initialMappings.length > 0) {
+      return initialMappings;
+    }
+    try {
+      const stored =
+        localStorage.getItem(`lumin_mapping_${connectionId}_${sourceTable}`) ||
+        localStorage.getItem(`lumin_mapping_${sourceTable}`) ||
+        localStorage.getItem("lumin_schema_mapping");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+        if (
+          parsed &&
+          Array.isArray(parsed.mappings) &&
+          parsed.mappings.length > 0
+        ) {
+          return parsed.mappings;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  // Keep mappings in sync if initialMappings update from parent
+  useEffect(() => {
+    if (initialMappings && initialMappings.length > 0) {
+      setMappings(initialMappings);
+    }
+  }, [initialMappings]);
+
   const [foreignKeys, setForeignKeys] = useState<
     Record<string, ForeignKeyDefinition>
   >(() => {
@@ -237,8 +273,14 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
 
   useEffect(() => {
     recalcLines();
+    const frame = requestAnimationFrame(recalcLines);
+    const timer = setTimeout(recalcLines, 120);
     window.addEventListener("resize", recalcLines);
-    return () => window.removeEventListener("resize", recalcLines);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      window.removeEventListener("resize", recalcLines);
+    };
   }, [recalcLines]);
 
   // ── Drag Handlers ──────────────────────────────────────────────────────────
@@ -423,6 +465,18 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
       }
       localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
       localStorage.setItem(`lumin_fk_${connectionId}`, JSON.stringify(fkList));
+      localStorage.setItem(
+        `lumin_mapping_${connectionId}_${sourceTable}`,
+        JSON.stringify(mappings),
+      );
+      localStorage.setItem(
+        `lumin_mapping_${sourceTable}`,
+        JSON.stringify(mappings),
+      );
+      localStorage.setItem(
+        `lumin_mapping_${connectionId}_${targetEntityName}`,
+        JSON.stringify(mappings),
+      );
       setSavedPayload(payload);
       setSaveSuccess(true);
       onSave?.(payload);

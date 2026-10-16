@@ -83,7 +83,10 @@ export function usePipelineStream(
     try {
       const token = getAccessToken() ?? "";
       const queryParams = new URLSearchParams();
-      if (token) queryParams.set("token", token);
+      if (token) {
+        queryParams.set("token", token);
+        queryParams.set("access_token", token);
+      }
       if (runId) queryParams.set("runId", runId);
 
       const qs = queryParams.toString() ? `?${queryParams.toString()}` : "";
