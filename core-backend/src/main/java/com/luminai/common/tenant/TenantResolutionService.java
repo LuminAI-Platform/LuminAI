@@ -63,6 +63,13 @@ public class TenantResolutionService {
         && ("sandbox-admin-id".equals(keycloakId) || "mock-sub-12345".equals(keycloakId))) {
       user = userRepository.findByEmailIgnoreCase("admin@luminai.dev");
     }
+    if (user.isEmpty()
+        && ("sandbox-acme-id".equals(keycloakId) || "mock-sub-acme".equals(keycloakId))) {
+      user = userRepository.findByEmailIgnoreCase("alice@acme.com");
+    }
+    if (user.isEmpty() && keycloakId.contains("@")) {
+      user = userRepository.findByEmailIgnoreCase(keycloakId);
+    }
     if (user.isEmpty()) {
       log.warn("No LuminAI user found for Keycloak subject '{}'", keycloakId);
       return Optional.empty();

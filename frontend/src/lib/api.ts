@@ -36,7 +36,17 @@ export const API_BASE_URL =
  */
 export function getAccessToken(): string | null {
   const { user } = useAuthStore.getState();
-  return user?.access_token ?? null;
+  if (user?.access_token) {
+    return user.access_token;
+  }
+  if (typeof localStorage !== "undefined") {
+    return (
+      localStorage.getItem("lumin_access_token") ||
+      localStorage.getItem("token") ||
+      null
+    );
+  }
+  return null;
 }
 
 // ─── apiFetch ─────────────────────────────────────────────────────────────────

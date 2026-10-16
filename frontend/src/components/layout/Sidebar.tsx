@@ -348,6 +348,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Link
                   to={item.to}
+                  activeOptions={{ exact: item.to === "/connections" }}
                   className="flex items-center p-2! text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
                   activeProps={{
                     className:

@@ -113,19 +113,19 @@ public class MultiTenantConnectionProvider
     String safeSchema = sanitize(schema);
 
     try (var stmt = connection.createStatement()) {
-      stmt.execute("SET search_path = " + safeSchema);
+      stmt.execute("SET search_path = \"" + safeSchema + "\", public");
     }
 
-    log.info("search_path set to '{}'", safeSchema);
+    log.info("search_path set to '\"{}\", public'", safeSchema);
   }
 
   private void resetSearchPath(Connection connection) throws SQLException {
 
     try (var stmt = connection.createStatement()) {
-      stmt.execute("SET search_path = " + TenantContext.DEFAULT_SCHEMA);
+      stmt.execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
     }
 
-    log.info("search_path reset to '{}'", TenantContext.DEFAULT_SCHEMA);
+    log.info("search_path reset to '\"{}\", public'", TenantContext.DEFAULT_SCHEMA);
   }
 
   private String sanitize(String schema) {

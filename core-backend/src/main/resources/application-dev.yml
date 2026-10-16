@@ -138,6 +138,8 @@ management:
 
 # Application-specific tenant settings
 luminai:
+  security:
+    allow-mock-tokens: true
   multitenancy:
     schema-prefix: tenant_
     default-schema: public

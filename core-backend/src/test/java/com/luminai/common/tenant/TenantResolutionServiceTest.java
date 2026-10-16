@@ -99,4 +99,58 @@ class TenantResolutionServiceTest {
 
     verify(userRepository).findByKeycloakId("some-sub");
   }
+
+  @Test
+  @DisplayName("resolves acme candidate subject to alice@acme.com")
+  void resolvesAcmeCandidateSubject() {
+    TenantResolutionService svc = new TenantResolutionService(userRepository);
+    UUID tenantId = UUID.randomUUID();
+    Tenant acmeTenant = new Tenant(tenantId, "Acme Corporation", "acme", "active");
+    User acmeUser =
+        new User(
+            UUID.randomUUID(),
+            "sandbox-acme-id",
+            "alice@acme.com",
+            "Alice Acme",
+            acmeTenant,
+            "ADMIN",
+            true);
+
+    when(userRepository.findByKeycloakId("sandbox-acme-id")).thenReturn(Optional.empty());
+    when(userRepository.findByEmailIgnoreCase("alice@acme.com")).thenReturn(Optional.of(acmeUser));
+
+    Optional<TenantResolutionService.ResolvedTenant> result =
+        svc.resolveForKeycloakUser("sandbox-acme-id");
+
+    assertThat(result).isPresent();
+    assertThat(result.get().tenantId()).isEqualTo(tenantId);
+    assertThat(result.get().slug()).isEqualTo("acme");
+  }
+
+  @Test
+  @DisplayName("resolves email formatted subject via findByEmailIgnoreCase fallback")
+  void resolvesEmailFormattedSubject() {
+    TenantResolutionService svc = new TenantResolutionService(userRepository);
+    UUID tenantId = UUID.randomUUID();
+    Tenant acmeTenant = new Tenant(tenantId, "Acme Corporation", "acme", "active");
+    User acmeUser =
+        new User(
+            UUID.randomUUID(),
+            "kc-acme-user",
+            "user@acme.com",
+            "Acme User",
+            acmeTenant,
+            "USER",
+            true);
+
+    when(userRepository.findByKeycloakId("user@acme.com")).thenReturn(Optional.empty());
+    when(userRepository.findByEmailIgnoreCase("user@acme.com")).thenReturn(Optional.of(acmeUser));
+
+    Optional<TenantResolutionService.ResolvedTenant> result =
+        svc.resolveForKeycloakUser("user@acme.com");
+
+    assertThat(result).isPresent();
+    assertThat(result.get().tenantId()).isEqualTo(tenantId);
+    assertThat(result.get().slug()).isEqualTo("acme");
+  }
 }
