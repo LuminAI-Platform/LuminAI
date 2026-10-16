@@ -754,12 +754,19 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     Map columns to Ontology Properties
                   </h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    LuminAI automatically inferred schema datatypes. Refine
-                    column inclusion, target entities, and transformations.
+                    LuminAI automatically inferred schema datatypes for all{" "}
+                    {columnsConfig.length} columns. Scroll the list below to
+                    configure all fields.
                   </p>
                 </div>
-                <div className="text-xs px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded font-mono text-zinc-400">
-                  File: {file?.name} ({Math.round((file?.size || 0) / 1024)} KB)
+                <div className="flex items-center gap-2">
+                  <div className="text-xs px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded font-mono text-blue-400 font-semibold">
+                    {columnsConfig.length} Columns Detected
+                  </div>
+                  <div className="text-xs px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded font-mono text-zinc-400">
+                    File: {file?.name} ({Math.round((file?.size || 0) / 1024)}{" "}
+                    KB)
+                  </div>
                 </div>
               </div>
 
@@ -908,6 +915,22 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                       })}
                     </div>
                   </div>
+                </div>
+                <div className="bg-zinc-900/60 border-t border-zinc-800/80 px-4 py-2 flex items-center justify-between text-xs text-zinc-400 select-none">
+                  <span className="font-mono">
+                    Showing{" "}
+                    <strong className="text-zinc-200">
+                      {columnsConfig.filter((c) => c.active).length}
+                    </strong>{" "}
+                    of{" "}
+                    <strong className="text-zinc-200">
+                      {columnsConfig.length}
+                    </strong>{" "}
+                    columns detected
+                  </span>
+                  <span className="text-zinc-500 text-[11px]">
+                    Scroll up/down inside table to review all fields
+                  </span>
                 </div>
               </div>
             </div>
