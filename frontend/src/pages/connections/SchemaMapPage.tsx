@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import {
   History,
@@ -1789,115 +1790,125 @@ export const SchemaMapPage: React.FC = () => {
       </div>
 
       {/* ── Template Picker Modal ── */}
-      {isSeedModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-4xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                  <FolderDown className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-100">
-                    Starter Templates
-                  </h3>
-                  <p className="text-xs text-zinc-500">
-                    Add standard tables directly to your database with one click
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSeedModalOpen(false)}
-                className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {DOMAIN_STARTER_PACKS.map((pack) => {
-                  const isSeedingThis = seedingDomain === pack.id;
-                  return (
-                    <div
-                      key={pack.id}
-                      className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between group"
+      {/* ── Template Picker Modal ── */}
+      {isSeedModalOpen &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="template-picker-title"
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity animate-in fade-in duration-150"
+            onClick={() => setIsSeedModalOpen(false)}
+          >
+            <div
+              className="w-full max-w-4xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/80 flex flex-col max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <FolderDown className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3
+                      id="template-picker-title"
+                      className="text-sm font-bold text-zinc-100"
                     >
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${pack.badgeColor}`}
-                          >
-                            {pack.badge}
-                          </span>
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            {pack.entityTypes.length} Tables
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-bold text-zinc-100 group-hover:text-blue-400 transition-colors">
-                          {pack.name}
-                        </h4>
-                        <p className="text-xs text-zinc-400 mt-1 mb-4 leading-relaxed">
-                          {pack.description}
-                        </p>
+                      Starter Templates
+                    </h3>
+                    <p className="text-xs text-zinc-500">
+                      Add standard tables directly to your database with one
+                      click
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSeedModalOpen(false)}
+                  className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {pack.entityTypes.map((et) => (
-                            <span
-                              key={et.name}
-                              className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-300"
-                            >
-                              {et.name}{" "}
-                              <span className="text-zinc-500">
-                                ({et.properties.length} fields)
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleSeedDomainTemplate(pack)}
-                        disabled={seedingDomain !== null}
-                        className="w-full py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {DOMAIN_STARTER_PACKS.map((pack) => {
+                    const isSeedingThis = seedingDomain === pack.id;
+                    return (
+                      <div
+                        key={pack.id}
+                        className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between group"
                       >
-                        {isSeedingThis ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Adding to database…</span>
-                          </>
-                        ) : (
-                          <>
-                            <Database className="w-3.5 h-3.5" />
-                            <span>Add {pack.domain} Tables</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${pack.badgeColor}`}
+                            >
+                              {pack.badge}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {pack.entityTypes.length} Tables
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-zinc-100 group-hover:text-blue-400 transition-colors">
+                            {pack.name}
+                          </h4>
+                          <p className="text-xs text-zinc-400 mt-1 mb-4 leading-relaxed">
+                            {pack.description}
+                          </p>
+
+                          <div className="flex flex-wrap gap-1.5 mb-4">
+                            {pack.entityTypes.map((et) => (
+                              <span
+                                key={et.name}
+                                className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-300"
+                              >
+                                {et.name}{" "}
+                                <span className="text-zinc-500">
+                                  ({et.properties.length} fields)
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleSeedDomainTemplate(pack)}
+                          disabled={seedingDomain !== null}
+                          className="w-full py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        >
+                          {isSeedingThis ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Adding to database…</span>
+                            </>
+                          ) : (
+                            <>
+                              <Database className="w-3.5 h-3.5" />
+                              <span>Add {pack.domain} Tables</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-3 border-t border-zinc-800 bg-zinc-950/80 flex items-center text-xs text-zinc-500">
+                <span>
+                  All added entities are saved to your account. You can edit
+                  them anytime in the Entity Manager.
+                </span>
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-3 border-t border-zinc-800 bg-zinc-950/80 flex items-center justify-between text-xs text-zinc-500">
-              <span>
-                All added entities are saved to your account. You can edit them
-                anytime in the Entity Manager.
-              </span>
-              <button
-                onClick={() => setIsSeedModalOpen(false)}
-                className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* ── Entity Type Editor Modal ── */}
       {isEntityEditorOpen && (
