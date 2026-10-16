@@ -90,7 +90,7 @@ const ParticleMeshCanvas: React.FC = () => {
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;
-        ctx.shadowBlur = 6; // Reduced intense glare
+        ctx.shadowBlur = 6;
         ctx.globalAlpha = p.alpha;
         ctx.fill();
         ctx.restore();
@@ -181,22 +181,22 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen h-screen w-screen bg-[#07080b] text-zinc-100 font-sans relative overflow-y-auto overflow-x-hidden flex flex-col p-6 md:p-10 select-none">
+    <div className="min-h-screen w-screen bg-[#07080b] text-zinc-100 font-sans relative overflow-x-hidden flex flex-col justify-between p-6 md:p-10 select-none">
       <ParticleMeshCanvas />
 
-      {/* Controlled, subtle ambient background lights instead of blinding neon */}
+      {/* Controlled, subtle ambient background lights */}
       <div className="fixed top-[-10%] left-[20%] w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
       <div className="fixed bottom-[-10%] right-[20%] w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
       {/* Main Container */}
-      <div className="w-full max-w-[1240px] mx-auto my-auto py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10 items-stretch">
+      <div className="w-full max-w-[1240px] mx-auto py-4 grid grid-cols-1 lg:grid-cols-12 gap-5 relative z-10 items-stretch">
         {/* Left Column: Visual branding and system details */}
-        <div className="lg:col-span-7 bg-[#0b0d14]/90 border border-zinc-800/80 rounded-xl p-7 lg:p-9 flex flex-col justify-between gap-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+        <div className="lg:col-span-7 bg-[#0b0d14]/90 border border-zinc-800/80 rounded-xl p-6 flex flex-col justify-between gap-5 backdrop-blur-xl shadow-2xl relative overflow-hidden">
           {/* Top Thin Accent Line */}
           <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-blue-500/10 via-blue-400/70 to-blue-500/10 pointer-events-none" />
 
           {/* Header Block */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
                 <svg
@@ -210,11 +210,8 @@ export const LoginPage: React.FC = () => {
                   strokeLinejoin="round"
                 >
                   <rect x="3" y="3" width="7" height="7" rx="1" />
-
                   <rect x="14" y="3" width="7" height="7" rx="1" />
-
                   <rect x="14" y="14" width="7" height="7" rx="1" />
-
                   <rect x="3" y="14" width="7" height="7" rx="1" />
                 </svg>
               </div>
@@ -233,8 +230,8 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-3 mt-2">
-              <h1 className="text-3xl lg:text-4xl font-semibold text-white tracking-tight leading-[1.15]">
+            <div className="space-y-2 mt-1">
+              <h1 className="text-2xl lg:text-3xl font-semibold text-white tracking-tight leading-[1.15]">
                 The Unified Data Platform
               </h1>
               <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed max-w-xl">
@@ -245,25 +242,25 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Platform Capabilities Overview */}
-          <div className="space-y-3">
-            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3.5 flex items-start gap-3.5">
-              <div className="w-7 h-7 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
-                <Database className="w-4 h-4" />
+          <div className="space-y-2.5">
+            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3 flex items-start gap-3">
+              <div className="w-6 h-6 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Database className="w-3.5 h-3.5" />
               </div>
               <div>
                 <h2 className="text-xs font-medium text-zinc-200">
                   Data Ingestion & Connectors
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                  Ingest structured tabular files (CSV, JSON) and connect
-                  relational databases into staged raw storage.
+                  Ingest structured tabular files and connect relational
+                  databases into staged raw storage.
                 </p>
               </div>
             </div>
 
-            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3.5 flex items-start gap-3.5">
-              <div className="w-7 h-7 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
-                <Network className="w-4 h-4" />
+            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3 flex items-start gap-3">
+              <div className="w-6 h-6 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Network className="w-3.5 h-3.5" />
               </div>
               <div>
                 <h2 className="text-xs font-medium text-zinc-200">
@@ -276,9 +273,9 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3.5 flex items-start gap-3.5">
-              <div className="w-7 h-7 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                <Cpu className="w-4 h-4" />
+            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3 flex items-start gap-3">
+              <div className="w-6 h-6 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Cpu className="w-3.5 h-3.5" />
               </div>
               <div>
                 <h2 className="text-xs font-medium text-zinc-200">
@@ -286,14 +283,14 @@ export const LoginPage: React.FC = () => {
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
                   Identify duplicate records, resolve attribute conflicts, and
-                  maintain canonical golden records with provenance.
+                  maintain canonical golden records.
                 </p>
               </div>
             </div>
 
-            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3.5 flex items-start gap-3.5">
-              <div className="w-7 h-7 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
-                <Share2 className="w-4 h-4" />
+            <div className="bg-[#10131f]/60 border border-zinc-800/80 rounded-lg p-3 flex items-start gap-3">
+              <div className="w-6 h-6 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Share2 className="w-3.5 h-3.5" />
               </div>
               <div>
                 <h2 className="text-xs font-medium text-zinc-200">
@@ -301,14 +298,14 @@ export const LoginPage: React.FC = () => {
                 </h2>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
                   Perform multi-hop relationship traversals in Neo4j and
-                  full-text faceted entity search in OpenSearch.
+                  full-text faceted entity search.
                 </p>
               </div>
             </div>
           </div>
 
           {/* Left Footer Bar */}
-          <div className="border-t border-zinc-800/80 pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between text-[11px] text-zinc-500 font-mono gap-2">
+          <div className="border-t border-zinc-800/80 pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between text-[11px] text-zinc-500 font-mono gap-2">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span>Multi-Tenant Architecture</span>
@@ -318,7 +315,7 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Right Column: Keycloak SSO Card */}
-        <div className="lg:col-span-5 bg-[#0b0d14]/90 border border-zinc-800/80 rounded-xl p-7 lg:p-9 flex flex-col justify-between backdrop-blur-xl shadow-2xl min-h-[460px] relative overflow-hidden">
+        <div className="lg:col-span-5 bg-[#0b0d14]/90 border border-zinc-800/80 rounded-xl p-6 flex flex-col justify-between backdrop-blur-xl shadow-2xl relative overflow-hidden">
           {/* Top Thin Accent Line */}
           <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-blue-500/10 via-blue-400/70 to-blue-500/10 pointer-events-none" />
 
@@ -329,8 +326,8 @@ export const LoginPage: React.FC = () => {
               Single Sign-On
             </div>
 
-            <div className="mt-5 space-y-2">
-              <h2 className="text-2xl font-semibold tracking-tight text-white">
+            <div className="mt-4 space-y-2">
+              <h2 className="text-xl font-semibold tracking-tight text-white">
                 Account Sign In
               </h2>
               <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
@@ -341,7 +338,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Action Area */}
-          <div className="my-auto py-8">
+          <div className="my-6">
             {error && (
               <div className="mb-4 p-3 bg-red-950/40 border border-red-800/50 text-red-300 rounded-lg text-xs flex gap-2.5 items-start">
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
@@ -369,14 +366,14 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Card Footer Badges */}
-          <div className="text-[11px] text-zinc-500 font-mono text-center tracking-wide pt-4 border-t border-zinc-900">
+          <div className="text-[11px] text-zinc-500 font-mono text-center tracking-wide pt-3 border-t border-zinc-900">
             Protected by OpenID Connect (OIDC) Single Sign-On
           </div>
         </div>
       </div>
 
       {/* Bottom Footer Notice */}
-      <div className="w-full max-w-[1240px] mx-auto mt-4 pt-2 pb-4 flex items-center justify-between text-[11px] text-zinc-600 font-mono">
+      <div className="w-full max-w-[1240px] mx-auto mt-2 pt-2 pb-2 flex items-center justify-between text-[11px] text-zinc-600 font-mono">
         <span>LuminAI Enterprise Data Platform</span>
         <span>Version 1.0.0</span>
       </div>

@@ -45,7 +45,7 @@ export interface UsePipelineStreamResult {
 /**
  * Custom React hook for consuming real-time Server-Sent Events (SSE)
  * from /api/v1/pipelines/stream with automated heartbeat tracking,
- * structured event parsing, and polling fallback.
+ * structured event parsing, and polling when SSE is unavailable.
  */
 export function usePipelineStream(
   options: UsePipelineStreamOptions = {},

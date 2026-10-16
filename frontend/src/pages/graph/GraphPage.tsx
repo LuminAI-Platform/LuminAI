@@ -80,7 +80,7 @@ export const GraphPage: React.FC = () => {
           return items[0].id as string;
         }
       } catch {
-        // Fallback gracefully
+        // Could not fetch initial entity
       }
       return null;
     },
