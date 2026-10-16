@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import {
   History,
@@ -7,14 +6,14 @@ import {
   Plus,
   Sparkles,
   Database,
-  Check,
-  X,
   Loader2,
   AlertCircle,
   FolderDown,
 } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { Modal } from "../../components/ui/Modal";
+import { useToast } from "../../components/ui/ToastProvider";
 import {
   VisualSchemaMapper,
   type SourceColumn,
@@ -864,17 +863,7 @@ export const SchemaMapPage: React.FC = () => {
   const [seedingDomain, setSeedingDomain] = useState<string | null>(null);
 
   // Toast Notification
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4500);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
+  const toast = useToast();
 
   // Fetch real connectors from backend GET /api/v1/connections
   useEffect(() => {
@@ -1316,10 +1305,10 @@ export const SchemaMapPage: React.FC = () => {
   // ─── Auto-Create Entity in Database from Data Columns ───────────────────────
   const handleAutoGenerateFromDataset = async () => {
     if (!sourceData.columns || sourceData.columns.length === 0) {
-      setToast({
-        message: "Please select a data source with columns first.",
-        type: "error",
-      });
+      toast.error(
+        "Source Required",
+        "Please select a data source with columns first.",
+      );
       return;
     }
 
@@ -1360,16 +1349,15 @@ export const SchemaMapPage: React.FC = () => {
       const created = await res.json();
       await fetchOntologyTypes();
       setSelectedOntology(created.name || entityName);
-      setToast({
-        message: `Created '${created.name || entityName}' with ${properties.length} fields.`,
-        type: "success",
-      });
+      toast.success(
+        "Entity Created",
+        `Created '${created.name || entityName}' with ${properties.length} fields.`,
+      );
     } catch (err: unknown) {
-      setToast({
-        message:
-          err instanceof Error ? err.message : "Failed to create entity.",
-        type: "error",
-      });
+      toast.error(
+        "Creation Failed",
+        err instanceof Error ? err.message : "Failed to create entity.",
+      );
     } finally {
       setGeneratingFromDataset(false);
     }
@@ -1399,16 +1387,15 @@ export const SchemaMapPage: React.FC = () => {
         setSelectedOntology(template.entityTypes[0].name);
       }
       setIsSeedModalOpen(false);
-      setToast({
-        message: `Added ${template.name} (${createdCount} entities) to your database.`,
-        type: "success",
-      });
+      toast.success(
+        "Templates Added",
+        `Added ${template.name} (${createdCount} entities) to your database.`,
+      );
     } catch (err: unknown) {
-      setToast({
-        message:
-          err instanceof Error ? err.message : "Failed to add templates.",
-        type: "error",
-      });
+      toast.error(
+        "Template Import Failed",
+        err instanceof Error ? err.message : "Failed to add templates.",
+      );
     } finally {
       setSeedingDomain(null);
     }
@@ -1419,10 +1406,10 @@ export const SchemaMapPage: React.FC = () => {
     await fetchOntologyTypes();
     setSelectedOntology(saved.name);
     setIsEntityEditorOpen(false);
-    setToast({
-      message: `Created '${saved.label || saved.name}' successfully.`,
-      type: "success",
-    });
+    toast.success(
+      "Entity Saved",
+      `Created '${saved.label || saved.name}' successfully.`,
+    );
   };
 
   return (
@@ -1790,125 +1777,99 @@ export const SchemaMapPage: React.FC = () => {
       </div>
 
       {/* ── Template Picker Modal ── */}
-      {/* ── Template Picker Modal ── */}
-      {isSeedModalOpen &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="template-picker-title"
-            className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity animate-in fade-in duration-150"
-            onClick={() => setIsSeedModalOpen(false)}
-          >
-            <div
-              className="w-full max-w-4xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/80 flex flex-col max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-150"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                    <FolderDown className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3
-                      id="template-picker-title"
-                      className="text-sm font-bold text-zinc-100"
-                    >
-                      Starter Templates
-                    </h3>
-                    <p className="text-xs text-zinc-500">
-                      Add standard tables directly to your database with one
-                      click
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsSeedModalOpen(false)}
-                  className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {DOMAIN_STARTER_PACKS.map((pack) => {
-                    const isSeedingThis = seedingDomain === pack.id;
-                    return (
-                      <div
-                        key={pack.id}
-                        className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between group"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${pack.badgeColor}`}
-                            >
-                              {pack.badge}
-                            </span>
-                            <span className="text-[10px] text-zinc-500 font-mono">
-                              {pack.entityTypes.length} Tables
-                            </span>
-                          </div>
-                          <h4 className="text-sm font-bold text-zinc-100 group-hover:text-blue-400 transition-colors">
-                            {pack.name}
-                          </h4>
-                          <p className="text-xs text-zinc-400 mt-1 mb-4 leading-relaxed">
-                            {pack.description}
-                          </p>
-
-                          <div className="flex flex-wrap gap-1.5 mb-4">
-                            {pack.entityTypes.map((et) => (
-                              <span
-                                key={et.name}
-                                className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-300"
-                              >
-                                {et.name}{" "}
-                                <span className="text-zinc-500">
-                                  ({et.properties.length} fields)
-                                </span>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => handleSeedDomainTemplate(pack)}
-                          disabled={seedingDomain !== null}
-                          className="w-full py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                        >
-                          {isSeedingThis ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Adding to database…</span>
-                            </>
-                          ) : (
-                            <>
-                              <Database className="w-3.5 h-3.5" />
-                              <span>Add {pack.domain} Tables</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="px-6 py-3 border-t border-zinc-800 bg-zinc-950/80 flex items-center text-xs text-zinc-500">
-                <span>
-                  All added entities are saved to your account. You can edit
-                  them anytime in the Entity Manager.
-                </span>
-              </div>
+      <Modal
+        open={isSeedModalOpen}
+        onOpenChange={setIsSeedModalOpen}
+        maxWidth="4xl"
+        title={
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+              <FolderDown className="w-4 h-4" />
             </div>
-          </div>,
-          document.body,
-        )}
+            <div>
+              <span className="text-sm font-bold text-zinc-100">
+                Starter Templates
+              </span>
+              <p className="text-xs text-zinc-400 font-normal mt-0.5">
+                Add standard tables directly to your database with one click
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {DOMAIN_STARTER_PACKS.map((pack) => {
+              const isSeedingThis = seedingDomain === pack.id;
+              return (
+                <div
+                  key={pack.id}
+                  className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${pack.badgeColor}`}
+                      >
+                        {pack.badge}
+                      </span>
+                      <span className="text-[10px] text-zinc-500 font-mono">
+                        {pack.entityTypes.length} Tables
+                      </span>
+                    </div>
+                    <h4 className="text-sm font-bold text-zinc-100 group-hover:text-blue-400 transition-colors">
+                      {pack.name}
+                    </h4>
+                    <p className="text-xs text-zinc-400 mt-1 mb-4 leading-relaxed">
+                      {pack.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {pack.entityTypes.map((et) => (
+                        <span
+                          key={et.name}
+                          className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-300"
+                        >
+                          {et.name}{" "}
+                          <span className="text-zinc-500">
+                            ({et.properties.length} fields)
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleSeedDomainTemplate(pack)}
+                    disabled={seedingDomain !== null}
+                    className="w-full py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSeedingThis ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Adding to database…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Database className="w-3.5 h-3.5" />
+                        <span>Add {pack.domain} Tables</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-3 border-t border-zinc-800 bg-zinc-950/80 flex items-center text-xs text-zinc-500">
+          <span>
+            All added entities are saved to your account. You can edit them
+            anytime in the Entity Manager.
+          </span>
+        </div>
+      </Modal>
 
       {/* ── Entity Type Editor Modal ── */}
       {isEntityEditorOpen && (
@@ -1916,34 +1877,6 @@ export const SchemaMapPage: React.FC = () => {
           onClose={() => setIsEntityEditorOpen(false)}
           onSaved={handleEntitySaved}
         />
-      )}
-
-      {/* ── Toast Notification ── */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 ${
-            toast.type === "success"
-              ? "bg-emerald-950/90 border-emerald-500/40 text-emerald-200 shadow-emerald-950/50"
-              : toast.type === "error"
-                ? "bg-red-950/90 border-red-500/40 text-red-200 shadow-red-950/50"
-                : "bg-blue-950/90 border-blue-500/40 text-blue-200 shadow-blue-950/50"
-          }`}
-        >
-          {toast.type === "success" ? (
-            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-          ) : toast.type === "error" ? (
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-          ) : (
-            <Database className="w-4 h-4 text-blue-400 shrink-0" />
-          )}
-          <span className="text-xs font-medium">{toast.message}</span>
-          <button
-            onClick={() => setToast(null)}
-            className="text-zinc-400 hover:text-zinc-100 p-0.5 rounded transition-colors cursor-pointer"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
       )}
     </div>
   );
