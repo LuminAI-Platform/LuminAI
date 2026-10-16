@@ -674,21 +674,35 @@ export const ConnectionsPage: React.FC = () => {
   };
 
   const downloadCleanCsv = async (connectionId: string, fileName: string) => {
+    // 1. If we already have cleanData rows loaded in the active modal, export directly
+    // to guarantee an instant, authentic RFC-4180 CSV without any network risk or HTML fallback
+    if (cleanData && cleanData.rows && cleanData.rows.length > 0) {
+      exportLocalCsv(fileName);
+      return;
+    }
+
     try {
-      const token = getAccessToken();
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/v1/connections/${connectionId}/export/clean-csv`,
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        },
       );
-      if (!res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      const text = await res.text();
+
+      // Guard against HTML error pages or SPA dev-server fallback responses
+      const isHtmlResponse =
+        contentType.includes("text/html") ||
+        text.trim().startsWith("<!doctype") ||
+        text.trim().startsWith("<html") ||
+        text.includes("<script");
+
+      if (!res.ok || isHtmlResponse) {
         if (cleanData && cleanData.rows && cleanData.rows.length > 0) {
           exportLocalCsv(fileName);
           return;
         }
+        throw new Error("Invalid CSV response from server");
       }
-      const text = await res.text();
+
       // If backend returned empty CSV template with only headers and we have local clean records:
       const lines = text.trim().split("\n");
       if (
@@ -700,6 +714,7 @@ export const ConnectionsPage: React.FC = () => {
         exportLocalCsv(fileName);
         return;
       }
+
       const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");

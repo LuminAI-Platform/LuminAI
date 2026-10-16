@@ -213,16 +213,6 @@ public class ConnectionController {
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getCleanPreview(@PathVariable UUID id) {
-    List<GoldenRecord> goldenRecords =
-        goldenRecordRepository
-            .findAll(
-                org.springframework.data.domain.PageRequest.of(
-                    0,
-                    100,
-                    org.springframework.data.domain.Sort.by(
-                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt")))
-            .getContent();
-
     List<Map<String, Object>> cleanRows = new ArrayList<>();
     Set<String> columnSet = new LinkedHashSet<>();
     columnSet.add("canonicalName");
@@ -234,35 +224,26 @@ public class ConnectionController {
     long mergedCount = 0;
     double qualityScore = 98.4;
 
-    if (!goldenRecords.isEmpty()) {
-      for (GoldenRecord gr : goldenRecords) {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", gr.getId() != null ? gr.getId().toString() : UUID.randomUUID().toString());
-        row.put("canonicalName", gr.getCanonicalName());
-        row.put("entityType", gr.getEntityType());
-        row.put(
-            "confidenceScore",
-            gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0);
-        row.put("sourceCount", gr.getSourceCount());
-
-        if (gr.getProperties() != null) {
-          for (Map.Entry<String, Object> entry : gr.getProperties().entrySet()) {
-            columnSet.add(entry.getKey());
-            row.put(entry.getKey(), entry.getValue());
+    List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
+    if (rawRows.isEmpty() && connectionRepository != null) {
+      Optional<Connection> connOpt = connectionRepository.findById(id);
+      if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
+        try {
+          com.fasterxml.jackson.databind.JsonNode root =
+              objectMapper.readTree(connOpt.get().getConfig());
+          if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
+            List<Map<String, Object>> cached = new ArrayList<>();
+            for (com.fasterxml.jackson.databind.JsonNode rowNode : root.get("sampleRows")) {
+              @SuppressWarnings("unchecked")
+              Map<String, Object> map = objectMapper.convertValue(rowNode, Map.class);
+              cached.add(map);
+            }
+            rawRows = cached;
           }
+        } catch (Exception ignored) {
         }
-        cleanRows.add(row);
       }
-      cleanCount = goldenRecords.size();
-      mergedCount = goldenRecords.stream().mapToInt(r -> Math.max(0, r.getSourceCount() - 1)).sum();
-      rawCount = cleanCount + mergedCount;
-    } else {
-      List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-      if (rawRows.isEmpty() && connectionRepository != null) {
-        Optional<Connection> connOpt = connectionRepository.findById(id);
-        if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
-          try {
-            com.fasterxml.jackson.databind.JsonNode root =
+    }
                 objectMapper.readTree(connOpt.get().getConfig());
             if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
               List<Map<String, Object>> cached = new ArrayList<>();
@@ -353,9 +334,17 @@ public class ConnectionController {
           }
           if (pk.isEmpty()) {
             for (String k : cleaned.keySet()) {
-              if ((k.equalsIgnoreCase("id") || k.toLowerCase().contains("identifier"))
+              String lk = k.toLowerCase().replace("_", " ").replace("-", " ").trim();
+              if ((lk.equals("id")
+                      || lk.endsWith(" id")
+                      || lk.startsWith("id ")
+                      || lk.contains("identifier")
+                      || lk.contains("uuid")
+                      || lk.endsWith(" code")
+                      || lk.endsWith(" number")
+                      || lk.equals("sku"))
                   && !String.valueOf(cleaned.get(k)).isBlank()) {
-                pk = "id:" + String.valueOf(cleaned.get(k)).toLowerCase();
+                pk = "id:" + String.valueOf(cleaned.get(k)).trim().toLowerCase();
                 break;
               }
             }
@@ -497,26 +486,20 @@ public class ConnectionController {
     response.setHeader(
         "Content-Disposition", "attachment; filename=\"luminai-clean-dataset-" + id + ".csv\"");
 
-    List<GoldenRecord> goldenRecords =
-        goldenRecordRepository
-            .findAll(
-                org.springframework.data.domain.PageRequest.of(
-                    0,
-                    1000,
-                    org.springframework.data.domain.Sort.by(
-                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt")))
-            .getContent();
+    ResponseEntity<Map<String, Object>> previewRes = getCleanPreview(id);
+    List<Map<String, Object>> cleanRows = new ArrayList<>();
+    if (previewRes.getBody() != null && previewRes.getBody().get("rows") instanceof List) {
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> rowsList =
+          (List<Map<String, Object>>) previewRes.getBody().get("rows");
+      cleanRows = rowsList;
+    }
 
     PrintWriter writer = response.getWriter();
-    if (!goldenRecords.isEmpty()) {
-      writeRecordsToCsv(goldenRecords, writer);
+    if (!cleanRows.isEmpty()) {
+      writeMapsToCsv(cleanRows, writer);
     } else {
-      List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-      if (!rawRows.isEmpty()) {
-        writeMapsToCsv(rawRows, writer);
-      } else {
-        writer.println("id,canonical_name,entity_type,confidence_score,status");
-      }
+      writer.println("id,canonical_name,entity_type,confidence_score,status");
     }
   }
 
@@ -978,6 +961,29 @@ public class ConnectionController {
     if (raw == null || raw.isEmpty()) {
       return "Entity " + UUID.randomUUID().toString().substring(0, 8);
     }
+    // 1. Check for specific order / transaction ID identifiers
+    String orderId = null;
+    String item = null;
+    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+      String lk = entry.getKey().toLowerCase().replace("_", " ").trim();
+      if ((lk.equals("id") || lk.endsWith(" id") || lk.startsWith("id "))
+          && entry.getValue() != null
+          && !String.valueOf(entry.getValue()).isBlank()) {
+        orderId = String.valueOf(entry.getValue()).trim();
+      }
+      if ((lk.contains("item") || lk.contains("product") || lk.contains("sku") || lk.contains("category"))
+          && entry.getValue() != null
+          && !String.valueOf(entry.getValue()).isBlank()) {
+        item = String.valueOf(entry.getValue()).trim();
+      }
+    }
+    if (orderId != null) {
+      if (item != null) {
+        return item + " (#" + orderId + ")";
+      }
+      return "Order #" + orderId;
+    }
+
     String[] candidateKeys = {
       "canonicalName",
       "canonical_name",
@@ -1015,6 +1021,16 @@ public class ConnectionController {
       return String.valueOf(raw.get("entity_type")).trim();
     }
     String keys = String.join(" ", raw.keySet()).toLowerCase();
+    if (keys.contains("order")
+        || keys.contains("transaction")
+        || keys.contains("revenue")
+        || keys.contains("sales")
+        || keys.contains("sale")
+        || keys.contains("amount")
+        || keys.contains("payment")
+        || keys.contains("invoice")) {
+      return "Transaction";
+    }
     if (keys.contains("email")
         || keys.contains("first_name")
         || keys.contains("last_name")
@@ -1033,9 +1049,6 @@ public class ConnectionController {
         || keys.contains("product")
         || keys.contains("inventory")) {
       return "Product";
-    }
-    if (keys.contains("transaction") || keys.contains("amount") || keys.contains("payment")) {
-      return "Transaction";
     }
     return "Organization";
   }
