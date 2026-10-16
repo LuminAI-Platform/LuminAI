@@ -157,4 +157,24 @@ class EntityTypeServiceTest {
 
     assertThatThrownBy(() -> service.delete(id)).isInstanceOf(ResourceNotFoundException.class);
   }
+
+  @Test
+  @DisplayName("create auto-generates Neo4j schema indexes when Neo4j repository is present")
+  void createAutoGeneratesNeo4jIndexes() {
+    com.luminai.graph.repository.Neo4jGraphRepository mockNeo4j =
+        mock(com.luminai.graph.repository.Neo4jGraphRepository.class);
+    EntityTypeService serviceWithNeo4j =
+        new EntityTypeService(repository, claimsExtractor, mockNeo4j);
+
+    EntityTypeDto.CreateRequest request =
+        new EntityTypeDto.CreateRequest(
+            "Product", "Product Entity", "#10b981", "package", "Products", List.of(), null);
+
+    when(repository.existsByNameIgnoreCaseAndTenantId("Product", tenantId)).thenReturn(false);
+    when(repository.save(any(EntityType.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    serviceWithNeo4j.create(request);
+
+    verify(mockNeo4j).ensureEntityTypeIndexes("Product");
+  }
 }

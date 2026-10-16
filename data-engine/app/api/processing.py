@@ -879,3 +879,69 @@ async def validate_schema_upload_endpoint(
         )
 
     return SchemaValidationResponse(**report.to_dict())
+
+
+class RelationalEdgeTriggerRequest(BaseModel):
+    """Request payload for triggering relational edge generation."""
+
+    tenant_id: str = Field(
+        ...,
+        description="Tenant identifier scoping the pipeline run.",
+        examples=["acme"],
+    )
+    source_id: str = Field(
+        default="default-source",
+        description="ID of the data source.",
+    )
+    records: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Optional explicit records list. If omitted, uses staged records.",
+    )
+    foreign_keys: Optional[Any] = Field(
+        default=None,
+        description="Foreign key definitions mapping column names to target entities.",
+    )
+    source_entity_type: Optional[str] = Field(
+        default=None,
+        description="Entity type for the source records.",
+    )
+    publish_to_kafka: bool = Field(
+        default=True,
+        description="Whether to publish generated graph relationships to Kafka.",
+    )
+    persist_to_db: bool = Field(
+        default=True,
+        description="Whether to persist generated edges to the database.",
+    )
+
+
+class RelationalEdgeTriggerResponse(BaseModel):
+    tenant_id: str
+    edges_count: int
+    edges: List[Dict[str, Any]]
+
+
+@router.post(
+    "/edges/generate",
+    response_model=RelationalEdgeTriggerResponse,
+    summary="Generate cross-entity relational edges using foreign keys",
+)
+async def generate_relational_edges_endpoint(
+    payload: RelationalEdgeTriggerRequest,
+) -> RelationalEdgeTriggerResponse:
+    """Generate directional relational graph edges linking entities via foreign keys."""
+    trigger = DagsterTrigger()
+    edges = trigger.generate_relational_edges(
+        tenant_id=payload.tenant_id,
+        records=payload.records,
+        foreign_keys=payload.foreign_keys,
+        source_id=payload.source_id,
+        source_entity_type=payload.source_entity_type,
+        publish_to_kafka=payload.publish_to_kafka,
+        persist_to_db=payload.persist_to_db,
+    )
+    return RelationalEdgeTriggerResponse(
+        tenant_id=payload.tenant_id,
+        edges_count=len(edges),
+        edges=edges,
+    )

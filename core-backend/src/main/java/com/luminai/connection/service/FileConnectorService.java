@@ -36,9 +36,11 @@ public class FileConnectorService {
           "text/csv",
           "application/json",
           "application/vnd.ms-excel",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "application/zip",
+          "application/x-zip-compressed");
 
-  private static final Set<String> ALLOWED_EXTENSIONS = Set.of("csv", "json", "xls", "xlsx");
+  private static final Set<String> ALLOWED_EXTENSIONS = Set.of("csv", "json", "xls", "xlsx", "zip");
 
   private final MinioStorageService minioStorageService;
 
@@ -144,10 +146,22 @@ public class FileConnectorService {
         case "json" -> "application/json";
         case "xls" -> "application/vnd.ms-excel";
         case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        case "zip" -> "application/zip";
         default -> "application/octet-stream";
       };
     }
     return contentType;
+  }
+
+  /** Ingests raw byte array (e.g. from an extracted ZIP entry) into MinIO. */
+  public String ingestBytes(
+      UUID tenantId, UUID connectionId, String fileName, byte[] data, String contentType)
+      throws IOException {
+    String objectKey = buildObjectKey(tenantId, connectionId, fileName);
+    minioStorageService.upload(
+        objectKey, new java.io.ByteArrayInputStream(data), contentType, data.length);
+    log.info("File successfully stored at '{}' ({} bytes)", objectKey, data.length);
+    return objectKey;
   }
 
   private String getExtension(String fileName) {

@@ -26,11 +26,20 @@ export interface SchemaMapping {
   transform?: "direct" | "cast" | "normalize";
 }
 
+export interface ForeignKeyDefinition {
+  columnId: string;
+  columnName: string;
+  targetEntityType: string;
+  relationshipType: string;
+  direction: "OUTGOING" | "INCOMING";
+}
+
 export interface SchemaMappingPayload {
   connectionId: string;
   sourceTable: string;
   targetEntity: string;
   mappings: SchemaMapping[];
+  foreignKeys?: ForeignKeyDefinition[];
   createdAt: string;
 }
 
@@ -39,6 +48,9 @@ interface VisualSchemaMapperProps {
   sourceTable?: string;
   sourceColumns: SourceColumn[];
   ontologyProperties: OntologyProperty[];
+  availableEntities?: string[];
+  availableRelationshipTypes?: string[];
+  initialForeignKeys?: ForeignKeyDefinition[];
   onSave?: (payload: SchemaMappingPayload) => void;
 }
 
@@ -53,6 +65,60 @@ const DATA_TYPE_COLORS: Record<string, string> = {
   json: "text-orange-400 bg-orange-500/10 border-orange-500/20",
 };
 
+const DEFAULT_TARGET_ENTITIES = [
+  "Customer",
+  "User",
+  "Order",
+  "Product",
+  "Account",
+  "Organization",
+  "Transaction",
+  "Person",
+  "Location",
+  "Device",
+  "Supplier",
+];
+
+const DEFAULT_RELATION_TYPES = [
+  "CUSTOMER_OF",
+  "PLACED_BY",
+  "CONTAINS_PRODUCT",
+  "CREATED_BY",
+  "ACCOUNT_OF",
+  "PART_OF_ORDER",
+  "ORGANIZATION_OF",
+  "SOLD_BY",
+  "BOUGHT_BY",
+  "SUPPLIED_BY",
+  "ASSOCIATED_WITH",
+  "LINKED_TO",
+];
+
+function inferDefaultRelationship(colName: string): {
+  target: string;
+  rel: string;
+} {
+  const lower = colName.toLowerCase().trim();
+  if (lower.includes("customer"))
+    return { target: "Customer", rel: "CUSTOMER_OF" };
+  if (lower.includes("user")) return { target: "User", rel: "CREATED_BY" };
+  if (lower.includes("order")) return { target: "Order", rel: "PART_OF_ORDER" };
+  if (lower.includes("product") || lower.includes("item"))
+    return { target: "Product", rel: "CONTAINS_PRODUCT" };
+  if (lower.includes("account"))
+    return { target: "Account", rel: "ACCOUNT_OF" };
+  if (lower.includes("org"))
+    return { target: "Organization", rel: "ORGANIZATION_OF" };
+  if (
+    lower.includes("supplier") ||
+    lower.includes("seller") ||
+    lower.includes("vendor")
+  ) {
+    return { target: "Supplier", rel: "SUPPLIED_BY" };
+  }
+  return { target: "Customer", rel: "LINKED_TO" };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
@@ -60,9 +126,32 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   sourceTable = "raw_source",
   sourceColumns,
   ontologyProperties,
+  availableEntities = DEFAULT_TARGET_ENTITIES,
+  availableRelationshipTypes = DEFAULT_RELATION_TYPES,
+  initialForeignKeys = [],
   onSave,
 }) => {
   const [mappings, setMappings] = useState<SchemaMapping[]>([]);
+  const [foreignKeys, setForeignKeys] = useState<
+    Record<string, ForeignKeyDefinition>
+  >(() => {
+    const init: Record<string, ForeignKeyDefinition> = {};
+    for (const fk of initialForeignKeys) {
+      init[fk.columnId] = fk;
+    }
+    return init;
+  });
+
+  // Foreign Key Modal / Selector State
+  const [activeFkColId, setActiveFkColId] = useState<string | null>(null);
+  const [fkTargetEntity, setFkTargetEntity] = useState<string>("Customer");
+  const [fkRelType, setFkRelType] = useState<string>("CUSTOMER_OF");
+  const [fkDirection, setFkDirection] = useState<"OUTGOING" | "INCOMING">(
+    "OUTGOING",
+  );
+  const [isCustomEntity, setIsCustomEntity] = useState(false);
+  const [isCustomRel, setIsCustomRel] = useState(false);
+
   const [draggingColId, setDraggingColId] = useState<string | null>(null);
   const [hoverPropId, setHoverPropId] = useState<string | null>(null);
   const [savedPayload, setSavedPayload] = useState<SchemaMappingPayload | null>(
@@ -149,7 +238,6 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   const onDropOnProp = (propId: string) => {
     if (!draggingColId) return;
     setMappings((prev) => {
-      // Remove any existing mapping for same source col or same prop target
       const filtered = prev.filter(
         (m) =>
           m.sourceColumnId !== draggingColId && m.ontologyPropertyId !== propId,
@@ -165,7 +253,6 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
     });
     setDraggingColId(null);
     setHoverPropId(null);
-    // Give DOM time to update before recalculating
     setTimeout(recalcLines, 50);
   };
 
@@ -182,13 +269,72 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   const getMappedColId = (propId: string) =>
     mappings.find((m) => m.ontologyPropertyId === propId)?.sourceColumnId;
 
+  // ── Foreign Key & Relationship Handlers ─────────────────────────────────────
+
+  const openFkModal = (col: SourceColumn) => {
+    const existing = foreignKeys[col.id];
+    if (existing) {
+      setFkTargetEntity(existing.targetEntityType);
+      setFkRelType(existing.relationshipType);
+      setFkDirection(existing.direction);
+      setIsCustomEntity(!availableEntities.includes(existing.targetEntityType));
+      setIsCustomRel(
+        !availableRelationshipTypes.includes(existing.relationshipType),
+      );
+    } else {
+      const inferred = inferDefaultRelationship(col.name);
+      setFkTargetEntity(inferred.target);
+      setFkRelType(inferred.rel);
+      setFkDirection("OUTGOING");
+      setIsCustomEntity(false);
+      setIsCustomRel(false);
+    }
+    setActiveFkColId(col.id);
+  };
+
+  const saveFkModal = () => {
+    if (!activeFkColId) return;
+    const col = sourceColumns.find((c) => c.id === activeFkColId);
+    if (!col) return;
+
+    const targetType = fkTargetEntity.trim() || "Entity";
+    const relType =
+      fkRelType.trim().toUpperCase().replace(/\s+/g, "_") || "LINKED_TO";
+
+    setForeignKeys((prev) => ({
+      ...prev,
+      [activeFkColId]: {
+        columnId: activeFkColId,
+        columnName: col.name,
+        targetEntityType: targetType,
+        relationshipType: relType,
+        direction: fkDirection,
+      },
+    }));
+    setActiveFkColId(null);
+  };
+
+  const removeFk = (colId: string) => {
+    setForeignKeys((prev) => {
+      const next = { ...prev };
+      delete next[colId];
+      return next;
+    });
+    if (activeFkColId === colId) {
+      setActiveFkColId(null);
+    }
+  };
+
   const handleSave = async () => {
     const targetEntityName = ontologyProperties[0]?.entityClass ?? "Entity";
+    const fkList = Object.values(foreignKeys);
+
     const payload: SchemaMappingPayload = {
       connectionId,
       sourceTable,
       targetEntity: targetEntityName,
       mappings,
+      foreignKeys: fkList,
       createdAt: new Date().toISOString(),
     };
 
@@ -201,7 +347,6 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
 
     try {
       if (isUuid) {
-        // Send individual mapping records matching backend SchemaMappingDto.CreateRequest
         for (const m of mappings) {
           const sourceCol =
             sourceColumns.find((c) => c.id === m.sourceColumnId)?.name ??
@@ -225,9 +370,8 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
             throw new Error(`Failed to save schema mapping: ${res.statusText}`);
           }
         }
-      } else {
-        localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
       }
+      localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
       setSavedPayload(payload);
       setSaveSuccess(true);
       onSave?.(payload);
@@ -243,14 +387,15 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   };
 
   const unmappedCount = sourceColumns.length - mappings.length;
+  const fkCount = Object.keys(foreignKeys).length;
   const targetEntity = ontologyProperties[0]?.entityClass ?? "Entity";
+  const activeCol = sourceColumns.find((c) => c.id === activeFkColId);
 
   return (
     <div className="flex flex-col h-full gap-0 select-none">
       {/* ── Toolbar ── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/60 backdrop-blur flex-shrink-0">
         <div className="flex items-center gap-3">
-          {/* Breadcrumb */}
           <span className="text-xs text-zinc-500 font-mono">{sourceTable}</span>
           <svg
             width="12"
@@ -268,10 +413,28 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Stats pills */}
           <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full border bg-blue-500/10 border-blue-500/20 text-blue-400">
             {mappings.length} mapped
           </span>
+          {fkCount > 0 && (
+            <span
+              id="schema-mapper-fk-badge"
+              className="px-2.5 py-1 text-[10px] font-semibold rounded-full border bg-purple-500/10 border-purple-500/30 text-purple-400 flex items-center gap-1"
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              {fkCount} graph {fkCount === 1 ? "link" : "links"}
+            </span>
+          )}
           {unmappedCount > 0 && (
             <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full border bg-zinc-900 border-zinc-800 text-zinc-500">
               {unmappedCount} unmapped
@@ -292,11 +455,11 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
           <button
             id="schema-mapper-save"
             onClick={handleSave}
-            disabled={mappings.length === 0}
+            disabled={mappings.length === 0 && fkCount === 0}
             className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
               saveSuccess
                 ? "bg-emerald-600 border border-emerald-500/40 text-white shadow-lg shadow-emerald-500/20"
-                : mappings.length === 0
+                : mappings.length === 0 && fkCount === 0
                   ? "bg-zinc-800/50 border border-zinc-800 text-zinc-600 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-500 border border-blue-500/40 text-white shadow-lg shadow-blue-500/15 hover:shadow-blue-500/25"
             }`}
@@ -383,7 +546,6 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
               />
             );
           })}
-          {/* Drag preview line */}
           {dragPreviewLine && (
             <path
               d={`M ${dragPreviewLine.x1} ${dragPreviewLine.y1} C ${
@@ -407,10 +569,11 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
           <div className="px-5 py-3 border-b border-zinc-800/60 flex items-center justify-between flex-shrink-0">
             <div>
               <p className="text-xs font-semibold text-zinc-200">
-                Source Columns
+                Source Columns & Graph Links
               </p>
               <p className="text-[10px] text-zinc-500 mt-0.5">
-                Drag a row to connect it to an ontology property
+                Drag to map ontology property, or define foreign key
+                relationship link
               </p>
             </div>
             <span className="text-[10px] font-mono text-zinc-600 px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded">
@@ -425,6 +588,8 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
               );
               const isDragging = draggingColId === col.id;
               const isMapped = !!mappedPropId;
+              const fk = foreignKeys[col.id];
+
               return (
                 <div
                   key={col.id}
@@ -479,9 +644,67 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
                     )}
                   </div>
 
+                  {/* Foreign Key / Relationship Badge or Button */}
+                  <div className="flex-shrink-0">
+                    {fk ? (
+                      <button
+                        type="button"
+                        id={`fk-badge-${col.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openFkModal(col);
+                        }}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[9px] font-mono transition-all cursor-pointer shadow-xs"
+                        title={`Foreign key links to ${fk.targetEntityType} via ${fk.relationshipType}`}
+                      >
+                        <svg
+                          width="9"
+                          height="9"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        </svg>
+                        <span>
+                          {fk.relationshipType} → {fk.targetEntityType}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        id={`fk-link-btn-${col.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openFkModal(col);
+                        }}
+                        className="opacity-60 group-hover:opacity-100 flex items-center gap-1 px-1.5 py-0.5 rounded border border-zinc-800 bg-zinc-900/60 hover:border-purple-500/40 hover:bg-purple-500/10 text-zinc-500 hover:text-purple-300 text-[9px] transition-all cursor-pointer"
+                        title="Add Graph Link / Foreign Key relationship"
+                      >
+                        <svg
+                          width="8"
+                          height="8"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        </svg>
+                        <span>+ FK</span>
+                      </button>
+                    )}
+                  </div>
+
                   {/* Type badge */}
                   <span
-                    className={`text-[9px] font-semibold px-2 py-0.5 rounded border flex-shrink-0 ${DATA_TYPE_COLORS[col.dataType] ?? "text-zinc-400 bg-zinc-900 border-zinc-800"}`}
+                    className={`text-[9px] font-semibold px-2 py-0.5 rounded border flex-shrink-0 ${
+                      DATA_TYPE_COLORS[col.dataType] ??
+                      "text-zinc-400 bg-zinc-900 border-zinc-800"
+                    }`}
                   >
                     {col.dataType}
                   </span>
@@ -551,6 +774,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
               const isHovered = hoverPropId === prop.id;
               const isMapped = !!mappedColId;
               const isDropTarget = !!draggingColId;
+
               return (
                 <div
                   key={prop.id}
@@ -626,11 +850,210 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         </div>
       </div>
 
+      {/* ── Foreign Key / Target Relationship Link Selector Modal ── */}
+      {activeFkColId && activeCol && (
+        <div
+          id="fk-modal-backdrop"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div
+            id="fk-modal-container"
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 w-full max-w-md shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-100">
+                    Target Relationship Link (Foreign Key)
+                  </h3>
+                  <p className="text-[10px] text-zinc-400">
+                    Define cross-entity graph link for column{" "}
+                    <span className="font-mono text-purple-300 font-bold">
+                      {activeCol.name}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveFkColId(null)}
+                className="text-zinc-500 hover:text-zinc-300 text-sm cursor-pointer p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-300 mb-1">
+                  Target Entity Type
+                </label>
+                <div className="space-y-1.5">
+                  <select
+                    id="fk-target-entity-select"
+                    value={isCustomEntity ? "CUSTOM" : fkTargetEntity}
+                    onChange={(e) => {
+                      if (e.target.value === "CUSTOM") {
+                        setIsCustomEntity(true);
+                      } else {
+                        setIsCustomEntity(false);
+                        setFkTargetEntity(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
+                  >
+                    {availableEntities.map((ent) => (
+                      <option key={ent} value={ent}>
+                        {ent}
+                      </option>
+                    ))}
+                    <option value="CUSTOM">+ Custom Entity Type...</option>
+                  </select>
+                  {isCustomEntity && (
+                    <input
+                      id="fk-custom-entity-input"
+                      type="text"
+                      placeholder="e.g. Vendor, Merchant, Organization"
+                      value={fkTargetEntity}
+                      onChange={(e) => setFkTargetEntity(e.target.value)}
+                      className="w-full bg-zinc-950 border border-purple-500/50 rounded-lg px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-300 mb-1">
+                  Relationship Edge Type (Neo4j Cypher Label)
+                </label>
+                <div className="space-y-1.5">
+                  <select
+                    id="fk-relation-type-select"
+                    value={isCustomRel ? "CUSTOM" : fkRelType}
+                    onChange={(e) => {
+                      if (e.target.value === "CUSTOM") {
+                        setIsCustomRel(true);
+                      } else {
+                        setIsCustomRel(false);
+                        setFkRelType(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-purple-500"
+                  >
+                    {availableRelationshipTypes.map((rel) => (
+                      <option key={rel} value={rel}>
+                        {rel}
+                      </option>
+                    ))}
+                    <option value="CUSTOM">+ Custom Relationship...</option>
+                  </select>
+                  {isCustomRel && (
+                    <input
+                      id="fk-custom-relation-input"
+                      type="text"
+                      placeholder="e.g. PURCHASED_BY, ISSUED_TO"
+                      value={fkRelType}
+                      onChange={(e) =>
+                        setFkRelType(
+                          e.target.value.toUpperCase().replace(/\s+/g, "_"),
+                        )
+                      }
+                      className="w-full bg-zinc-950 border border-purple-500/50 rounded-lg px-3 py-1.5 text-xs text-zinc-200 font-mono uppercase focus:outline-none focus:border-purple-500"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-zinc-300 mb-1">
+                  Graph Traversal Direction
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    id="fk-direction-outgoing"
+                    onClick={() => setFkDirection("OUTGOING")}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
+                      fkDirection === "OUTGOING"
+                        ? "bg-purple-600/30 border-purple-500 text-purple-200 shadow-xs"
+                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                    }`}
+                  >
+                    Outgoing ({targetEntity} → {fkTargetEntity})
+                  </button>
+                  <button
+                    type="button"
+                    id="fk-direction-incoming"
+                    onClick={() => setFkDirection("INCOMING")}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
+                      fkDirection === "INCOMING"
+                        ? "bg-purple-600/30 border-purple-500 text-purple-200 shadow-xs"
+                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                    }`}
+                  >
+                    Incoming ({fkTargetEntity} → {targetEntity})
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
+              {foreignKeys[activeCol.id] ? (
+                <button
+                  type="button"
+                  id="fk-modal-remove-btn"
+                  onClick={() => removeFk(activeCol.id)}
+                  className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer font-medium"
+                >
+                  Remove Link
+                </button>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveFkColId(null)}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  id="fk-modal-apply-btn"
+                  onClick={saveFkModal}
+                  className="px-4 py-1.5 text-xs font-medium rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/20 cursor-pointer transition-all"
+                >
+                  Apply Relationship Link
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Footer summary ── */}
       <div className="px-6 py-3 border-t border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4 text-[10px] text-zinc-500">
           <span>
             {mappings.length} of {sourceColumns.length} source columns mapped
+          </span>
+          <span>·</span>
+          <span className="text-purple-400">
+            {fkCount} graph relationships defined
           </span>
           <span>·</span>
           <span>
@@ -655,7 +1078,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          Drag from left panel, drop onto right panel
+          Drag to map properties · Click + FK to define cross-entity links
         </div>
       </div>
     </div>

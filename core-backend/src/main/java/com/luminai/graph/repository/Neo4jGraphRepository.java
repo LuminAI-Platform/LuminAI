@@ -62,13 +62,78 @@ public class Neo4jGraphRepository {
                         "CREATE INDEX entity_tenant_index IF NOT EXISTS FOR (e:Entity) ON"
                             + " (e.tenant_id)")
                     .run();
-                log.info("Ensured Neo4j indexes on :Entity(id) and :Entity(tenant_id)");
+                neo4jClient
+                    .query(
+                        "CREATE INDEX entity_composite_tenant_id IF NOT EXISTS FOR (e:Entity) ON"
+                            + " (e.tenant_id, e.id)")
+                    .run();
+                neo4jClient
+                    .query(
+                        "CREATE INDEX entity_type_index IF NOT EXISTS FOR (e:Entity) ON"
+                            + " (e.entity_type)")
+                    .run();
+                neo4jClient
+                    .query(
+                        "CREATE INDEX entity_tenant_type_composite IF NOT EXISTS FOR (e:Entity) ON"
+                            + " (e.tenant_id, e.entity_type)")
+                    .run();
+                log.info(
+                    "Ensured Neo4j indexes on :Entity(id), :Entity(tenant_id), :Entity(tenant_id, id), :Entity(entity_type), :Entity(tenant_id, entity_type)");
               } catch (Exception e) {
                 // Don't fail application startup over index creation — sync will just be slower
                 // without them, not incorrect, since correctness comes from the MERGE pattern, not
                 // the index.
                 log.warn(
                     "Could not ensure Neo4j indexes on :Entity — continuing without them: {}",
+                    e.getMessage());
+              }
+            });
+  }
+
+  private static final Pattern SAFE_LABEL = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
+
+  /**
+   * Auto-generates Neo4j schema indexes for a specific entity type label. Ensures lookup by
+   * (tenant_id, id) scales to 100,000+ nodes without timing out.
+   */
+  public void ensureEntityTypeIndexes(String entityType) {
+    if (entityType == null || entityType.isBlank()) {
+      return;
+    }
+    String sanitized = entityType.trim();
+    if (!SAFE_LABEL.matcher(sanitized).matches()) {
+      log.debug(
+          "Skipping Neo4j index creation for non-standard entity type label: '{}'", entityType);
+      return;
+    }
+
+    Thread.ofVirtual()
+        .name("neo4j-entity-index-" + sanitized.toLowerCase())
+        .start(
+            () -> {
+              try {
+                String prefix = "idx_" + sanitized.toLowerCase() + "_";
+                neo4jClient
+                    .query(
+                        "CREATE INDEX "
+                            + prefix
+                            + "tenant_id IF NOT EXISTS FOR (e:"
+                            + sanitized
+                            + ") ON (e.tenant_id, e.id)")
+                    .run();
+                neo4jClient
+                    .query(
+                        "CREATE INDEX "
+                            + prefix
+                            + "id IF NOT EXISTS FOR (e:"
+                            + sanitized
+                            + ") ON (e.id)")
+                    .run();
+                log.info("Auto-generated Neo4j schema indexes for entity type :{}", sanitized);
+              } catch (Exception e) {
+                log.warn(
+                    "Could not auto-generate Neo4j indexes for entity type :{}: {}",
+                    sanitized,
                     e.getMessage());
               }
             });

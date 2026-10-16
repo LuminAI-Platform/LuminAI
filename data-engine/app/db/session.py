@@ -197,6 +197,11 @@ def get_session():
     return get_db_manager().get_session()
 
 
+def get_session_factory() -> sessionmaker[Session]:
+    """Convenience helper to retrieve the thread-safe sessionmaker."""
+    return get_db_manager().get_session_factory()
+
+
 def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency yielding a database session per request."""
     with get_db_manager().get_session() as session:
