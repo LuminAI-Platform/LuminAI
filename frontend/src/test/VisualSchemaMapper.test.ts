@@ -1,36 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type {
-  SourceColumn,
-  OntologyProperty,
   ForeignKeyDefinition,
   SchemaMappingPayload,
 } from "../features/connections/components/VisualSchemaMapper";
 
 describe("VisualSchemaMapper Foreign Key & Relationship Mapper (GAP-03)", () => {
-  const sampleColumns: SourceColumn[] = [
-    { id: "c1", name: "order_id", dataType: "string", nullable: false },
-    { id: "c2", name: "customer_id", dataType: "string", nullable: false },
-    { id: "c3", name: "product_id", dataType: "string", nullable: false },
-    { id: "c4", name: "amount", dataType: "float", nullable: true },
-  ];
-
-  const sampleProperties: OntologyProperty[] = [
-    {
-      id: "p1",
-      name: "orderId",
-      entityClass: "Order",
-      expectedType: "string",
-      required: true,
-    },
-    {
-      id: "p2",
-      name: "totalAmount",
-      entityClass: "Order",
-      expectedType: "float",
-      required: false,
-    },
-  ];
-
   it("should construct valid foreign key relationship definitions", () => {
     const fkCustomer: ForeignKeyDefinition = {
       columnId: "c2",
