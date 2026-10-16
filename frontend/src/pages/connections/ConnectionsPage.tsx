@@ -22,7 +22,7 @@ import { DatabaseConnectorForm } from "../../features/connections/components/Dat
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, getAccessToken } from "../../lib/api";
 
 interface IngestedFile {
   id: string;
@@ -523,6 +523,17 @@ export const ConnectionsPage: React.FC = () => {
       });
       setCustomConnectors((prev) => prev.filter((c) => c.id !== id));
       setIngestedFiles((prev) => prev.filter((f) => f.id !== id));
+      try {
+        const cached = JSON.parse(
+          localStorage.getItem("local_ingested_files") || "[]",
+        );
+        const filtered = cached.filter(
+          (item: { id?: string }) => item.id !== id,
+        );
+        localStorage.setItem("local_ingested_files", JSON.stringify(filtered));
+      } catch {
+        // ignore
+      }
     } catch (err: unknown) {
       console.error("Failed to delete connection", err);
     }
@@ -625,222 +636,23 @@ export const ConnectionsPage: React.FC = () => {
       );
     }
 
-    // Real data cleaning and entity resolution algorithm for previewing dataset
+    // If backend returns empty golden records, check if raw sample rows exist to display
     const raw = getPreviewData(file);
     if (raw.rows && raw.rows.length > 0) {
-      let totalFieldCount = 0;
-      let validFieldCount = 0;
-
-      const normalizeValue = (v: unknown): string | null => {
-        if (v === undefined || v === null) return null;
-        const str = String(v).trim();
-        const lower = str.toLowerCase();
-        if (
-          lower === "" ||
-          lower === "null" ||
-          lower === "n/a" ||
-          lower === "none" ||
-          lower === "-" ||
-          lower === "undefined"
-        ) {
-          return null;
-        }
-        return str;
-      };
-
-      const toTitleCase = (str: string): string => {
-        return str
-          .toLowerCase()
-          .split(/\s+/)
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(" ");
-      };
-
-      const candidates = raw.rows.map((rawRow, idx) => {
-        const cleanedProps: Record<string, unknown> = {};
-        const keys = Object.keys(rawRow);
-        let rowFields = 0;
-        let rowValid = 0;
-
-        keys.forEach((k) => {
-          rowFields++;
-          totalFieldCount++;
-          const norm = normalizeValue(rawRow[k]);
-          if (norm !== null) {
-            rowValid++;
-            validFieldCount++;
-            const lk = k.toLowerCase();
-            if (lk.includes("email") && norm.includes("@")) {
-              cleanedProps[k] = norm.toLowerCase();
-            } else if (
-              (lk === "name" || lk === "full_name" || lk === "company") &&
-              !norm.includes("@")
-            ) {
-              cleanedProps[k] = toTitleCase(norm);
-            } else {
-              cleanedProps[k] = norm;
-            }
-          } else {
-            cleanedProps[k] = null;
-          }
-        });
-
-        // Determine Entity Type dynamically
-        let entityType = "Organization";
-        const allKeyStr = keys.join(" ").toLowerCase();
-        if (
-          allKeyStr.includes("first_name") ||
-          allKeyStr.includes("last_name") ||
-          allKeyStr.includes("email") ||
-          allKeyStr.includes("gender") ||
-          allKeyStr.includes("dob") ||
-          allKeyStr.includes("user")
-        ) {
-          entityType = "Person";
-        } else if (
-          allKeyStr.includes("sku") ||
-          allKeyStr.includes("product") ||
-          allKeyStr.includes("price") ||
-          allKeyStr.includes("stock")
-        ) {
-          entityType = "Product";
-        } else if (
-          allKeyStr.includes("transaction") ||
-          allKeyStr.includes("amount") ||
-          allKeyStr.includes("payment")
-        ) {
-          entityType = "Transaction";
-        }
-
-        // Determine Canonical Name
-        let canonicalName = "";
-        const nameCandidates = [
-          "canonicalName",
-          "canonical_name",
-          "name",
-          "full_name",
-          "company",
-          "organization",
-          "customer_name",
-          "username",
-          "email",
-          "title",
-          "id",
-        ];
-        for (const nk of nameCandidates) {
-          const matchKey = keys.find(
-            (k) => k.toLowerCase() === nk.toLowerCase(),
-          );
-          if (matchKey && cleanedProps[matchKey]) {
-            canonicalName = String(cleanedProps[matchKey]);
-            break;
-          }
-        }
-        if (!canonicalName) {
-          canonicalName = `Entity #${idx + 1}`;
-        }
-
-        // Primary key for deduplication
-        const emailKey = keys.find((k) => k.toLowerCase().includes("email"));
-        const idKey = keys.find(
-          (k) =>
-            k.toLowerCase() === "id" || k.toLowerCase().includes("identifier"),
-        );
-        const primaryKey =
-          emailKey && cleanedProps[emailKey]
-            ? `email:${String(cleanedProps[emailKey]).toLowerCase()}`
-            : idKey && cleanedProps[idKey]
-              ? `id:${String(cleanedProps[idKey]).toLowerCase()}`
-              : `name:${canonicalName.toLowerCase()}`;
-
-        const rowQuality = rowFields > 0 ? rowValid / rowFields : 1.0;
-        return {
-          originalIndex: idx,
-          cleanedProps,
-          canonicalName,
-          entityType,
-          primaryKey,
-          rowQuality,
-        };
-      });
-
-      // Deduplicate by primary key
-      const groups = new Map<string, typeof candidates>();
-      candidates.forEach((cand) => {
-        const arr = groups.get(cand.primaryKey) || [];
-        arr.push(cand);
-        groups.set(cand.primaryKey, arr);
-      });
-
-      let duplicatesMerged = 0;
-      const cleanRows: Record<string, unknown>[] = [];
-      const columnSet = new Set<string>([
-        "canonicalName",
-        "entityType",
-        "confidenceScore",
-        "sourceCount",
-      ]);
-
-      groups.forEach((groupCandidates) => {
-        if (groupCandidates.length > 1) {
-          duplicatesMerged += groupCandidates.length - 1;
-        }
-
-        const mergedProps: Record<string, unknown> = {};
-        let avgQuality = 0;
-        groupCandidates.forEach((c) => {
-          avgQuality += c.rowQuality;
-          Object.entries(c.cleanedProps).forEach(([k, v]) => {
-            if (v !== null && v !== undefined && v !== "") {
-              mergedProps[k] = v;
-              columnSet.add(k);
-            }
-          });
-        });
-        avgQuality /= groupCandidates.length;
-
-        const lead = groupCandidates[0];
-        const sourceCount = groupCandidates.length;
-        const boost = Math.min(0.06, (sourceCount - 1) * 0.03);
-        const confidenceScore = Math.min(
-          0.99,
-          Math.max(
-            0.82,
-            Math.round((0.9 + boost * 0.5 + avgQuality * 0.06) * 100) / 100,
-          ),
-        );
-
-        cleanRows.push({
-          id: `gr-${lead.originalIndex + 1}`,
-          canonicalName: lead.canonicalName,
-          entityType: lead.entityType,
-          confidenceScore,
-          sourceCount,
-          ...mergedProps,
-        });
-      });
-
-      const totalRawRecords = raw.rows.length;
-      const totalCleanRecords = cleanRows.length;
-      const compressionRatio =
-        totalRawRecords > 0
-          ? `${((duplicatesMerged / totalRawRecords) * 100).toFixed(1)}%`
-          : "0.0%";
-      const dataQualityScore =
-        totalFieldCount > 0
-          ? Math.round((validFieldCount / totalFieldCount) * 1000) / 10
-          : 100;
-
+      const cols =
+        raw.columns && raw.columns.length > 0
+          ? raw.columns
+          : Object.keys(raw.rows[0]);
       setCleanData({
         connectionId: file.id,
-        totalRawRecords,
-        totalCleanRecords,
-        duplicatesMerged,
-        compressionRatio,
-        dataQualityScore,
-        status: "RESOLVED_GOLDEN_RECORDS",
-        columns: Array.from(columnSet),
-        rows: cleanRows,
+        totalRawRecords: raw.rows.length,
+        totalCleanRecords: raw.rows.length,
+        duplicatesMerged: 0,
+        compressionRatio: "0.0%",
+        dataQualityScore: 100,
+        status: "RAW_PREVIEW_RECORDS",
+        columns: cols,
+        rows: raw.rows,
       });
     } else {
       setCleanData({
@@ -851,7 +663,10 @@ export const ConnectionsPage: React.FC = () => {
         compressionRatio: "0.0%",
         dataQualityScore: 100,
         status: "AWAITING_INGESTION_CLEAN",
-        columns: ["canonicalName", "entityType", "confidenceScore"],
+        columns:
+          file.columns && file.columns.length > 0
+            ? file.columns
+            : ["canonicalName", "entityType", "confidenceScore"],
         rows: [],
       });
     }
@@ -860,12 +675,11 @@ export const ConnectionsPage: React.FC = () => {
 
   const downloadCleanCsv = async (connectionId: string, fileName: string) => {
     try {
+      const token = getAccessToken();
       const res = await fetch(
         `/api/v1/connections/${connectionId}/export/clean-csv`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         },
       );
       if (!res.ok) {
@@ -912,7 +726,20 @@ export const ConnectionsPage: React.FC = () => {
     setIsWizardOpen(true);
   };
 
-  const deleteFile = (id: string) => {
+  const deleteFile = async (id: string) => {
+    try {
+      if (
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        )
+      ) {
+        await apiFetch(`/api/v1/connections/${id}`, {
+          method: "DELETE",
+        });
+      }
+    } catch (err: unknown) {
+      console.error("Failed to delete file connection on backend", err);
+    }
     const updated = ingestedFiles.filter((f) => f.id !== id);
     localStorage.setItem("local_ingested_files", JSON.stringify(updated));
     setIngestedFiles(updated);
@@ -1294,6 +1121,12 @@ export const ConnectionsPage: React.FC = () => {
                             </button>
                             <Link
                               to="/connections/schema-map"
+                              onClick={() =>
+                                localStorage.setItem(
+                                  "lumin_selected_connection_id",
+                                  file.id,
+                                )
+                              }
                               className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
                               title="Map File Schema to Ontology"
                             >
@@ -1530,7 +1363,15 @@ export const ConnectionsPage: React.FC = () => {
                   <Link
                     to="/connections/schema-map"
                     className="px-4 py-2 bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-medium rounded-lg transition-colors flex items-center gap-2 cursor-pointer border border-zinc-700/50"
-                    onClick={() => setPreviewingFile(null)}
+                    onClick={() => {
+                      if (previewingFile) {
+                        localStorage.setItem(
+                          "lumin_selected_connection_id",
+                          previewingFile.id,
+                        );
+                      }
+                      setPreviewingFile(null);
+                    }}
                   >
                     <svg
                       width="14"

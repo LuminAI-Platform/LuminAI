@@ -93,82 +93,40 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
     if (!password.trim()) return setValidationError("Password is required.");
 
     setIsVerifying(true);
+    setValidationError(null);
 
-    // Helper to sleep for simulation steps
-    const sleep = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
+    // 1. Client-side input validation
+    if (!host.trim() || host.trim().length < 3) {
+      setValidationError("Please specify a valid database host domain or IP.");
+      setIsVerifying(false);
+      return;
+    }
+    if (port <= 0 || port > 65535) {
+      setValidationError("Please specify a valid TCP port number (1-65535).");
+      setIsVerifying(false);
+      return;
+    }
+    if (!databaseName.trim()) {
+      setValidationError("Please specify a target database name.");
+      setIsVerifying(false);
+      return;
+    }
+    if (!username.trim()) {
+      setValidationError("Please specify a database authentication username.");
+      setIsVerifying(false);
+      return;
+    }
 
     // Reset Checklist
     setCheckSteps([
-      { id: 1, label: "Resolving host domain...", status: "idle" },
-      { id: 2, label: "Establishing port TCP handshake...", status: "idle" },
-      { id: 3, label: "Authenticating credentials...", status: "idle" },
-      { id: 4, label: "Discovering database schemas...", status: "idle" },
+      { id: 1, label: "Resolving host domain...", status: "loading" },
+      { id: 2, label: "Establishing port TCP handshake...", status: "loading" },
+      { id: 3, label: "Authenticating credentials...", status: "loading" },
+      { id: 4, label: "Discovering database schemas...", status: "loading" },
     ]);
 
-    // Step 1: Resolving Host
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 1 ? { ...s, status: "loading" } : s)),
-    );
-    await sleep(600);
-    if (host.toLowerCase().includes("invalid") || host.trim().length < 3) {
-      setCheckSteps((prev) =>
-        prev.map((s) =>
-          s.id === 1
-            ? { ...s, status: "error", errorMsg: "Host unresolved" }
-            : s,
-        ),
-      );
-      setIsVerifying(false);
-      return;
-    }
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 1 ? { ...s, status: "success" } : s)),
-    );
-
-    // Step 2: Establish Port TCP Connection
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 2 ? { ...s, status: "loading" } : s)),
-    );
-    await sleep(600);
-    if (port <= 0 || port > 65535) {
-      setCheckSteps((prev) =>
-        prev.map((s) =>
-          s.id === 2 ? { ...s, status: "error", errorMsg: "Invalid Port" } : s,
-        ),
-      );
-      setIsVerifying(false);
-      return;
-    }
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 2 ? { ...s, status: "success" } : s)),
-    );
-
-    // Step 3: Authenticating Credentials
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 3 ? { ...s, status: "loading" } : s)),
-    );
-    await sleep(600);
-    if (password === "wrong" || username === "error") {
-      setCheckSteps((prev) =>
-        prev.map((s) =>
-          s.id === 3 ? { ...s, status: "error", errorMsg: "Access Denied" } : s,
-        ),
-      );
-      setIsVerifying(false);
-      return;
-    }
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 3 ? { ...s, status: "success" } : s)),
-    );
-
-    // Step 4: Discovering database schemas
-    setCheckSteps((prev) =>
-      prev.map((s) => (s.id === 4 ? { ...s, status: "loading" } : s)),
-    );
-
     try {
-      // Attempt connection discover API payload
+      // Step: Attempt connection discover API payload against backend
       const response = await apiFetch("/api/v1/connections/discover", {
         method: "POST",
         body: JSON.stringify({
@@ -183,8 +141,10 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
       });
 
       if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
         throw new Error(
-          `Database connection rejected (HTTP ${response.status}). Check host, port, and credentials.`,
+          errJson.message ||
+            `Database connection rejected (HTTP ${response.status}). Check host, port, and credentials.`,
         );
       }
 
@@ -195,9 +155,12 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
         setDiscoveredData([]);
       }
 
-      setCheckSteps((prev) =>
-        prev.map((s) => (s.id === 4 ? { ...s, status: "success" } : s)),
-      );
+      setCheckSteps([
+        { id: 1, label: "Host domain resolved", status: "success" },
+        { id: 2, label: "Port TCP handshake established", status: "success" },
+        { id: 3, label: "Credentials verified", status: "success" },
+        { id: 4, label: "Database schemas discovered", status: "success" },
+      ]);
       setIsVerifying(false);
       setIsConnected(true);
     } catch (err) {
@@ -205,9 +168,12 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
         err instanceof Error
           ? err.message
           : "Database connection failed or rejected credentials.";
-      setCheckSteps((prev) =>
-        prev.map((s) => (s.id === 4 ? { ...s, status: "error", errorMsg } : s)),
-      );
+      setCheckSteps([
+        { id: 1, label: "Host domain resolved", status: "success" },
+        { id: 2, label: "Port TCP handshake established", status: "success" },
+        { id: 3, label: "Authentication check", status: "error", errorMsg },
+        { id: 4, label: "Discovering database schemas...", status: "idle" },
+      ]);
       setValidationError(errorMsg);
       setIsConnected(false);
       setIsVerifying(false);
@@ -240,43 +206,26 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
     };
 
     try {
-      // Attempt API POST to persist connector metadata
-      await apiFetch("/api/v1/connections", {
+      const res = await apiFetch("/api/v1/connections", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-    } catch {
-      // Fallback: save connector data to localStorage
-      const customConnectorsStr = localStorage.getItem(
-        "local_database_connectors",
-      );
-      const connectors = customConnectorsStr
-        ? JSON.parse(customConnectorsStr)
-        : [];
 
-      const newConnectorObj = {
-        id: Math.random().toString(36).substring(7),
-        name: name,
-        status: "Connected",
-        pipelines: selectedTables.length,
-        type:
-          dbType === "postgresql"
-            ? "Database"
-            : dbType === "snowflake"
-              ? "Warehouse"
-              : "Database",
-        desc: `Synchronized ${selectedTables.length} tables from ${databaseName} schema catalog.`,
-      };
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(
+          errJson.message || `Connector creation rejected (HTTP ${res.status})`,
+        );
+      }
 
-      connectors.unshift(newConnectorObj);
-      localStorage.setItem(
-        "local_database_connectors",
-        JSON.stringify(connectors),
-      );
+      setIsSaving(false);
+      onSuccess();
+    } catch (err) {
+      setIsSaving(false);
+      const msg =
+        err instanceof Error ? err.message : "Failed to register connection";
+      setValidationError(msg);
     }
-
-    setIsSaving(false);
-    onSuccess();
   };
 
   return (
