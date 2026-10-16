@@ -16,6 +16,9 @@ import {
   Database,
   Plus,
   Radio,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
@@ -303,6 +306,12 @@ export const ConnectionsPage: React.FC = () => {
   const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
     [],
   );
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+    type: "file" | "connection";
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
@@ -508,13 +517,14 @@ export const ConnectionsPage: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (deleteTarget) setDeleteTarget(null);
         if (cleanPreviewFile) setCleanPreviewFile(null);
         if (previewingFile) setPreviewingFile(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cleanPreviewFile, previewingFile]);
+  }, [cleanPreviewFile, previewingFile, deleteTarget]);
 
   const deleteConnector = async (id: string) => {
     try {
@@ -536,6 +546,44 @@ export const ConnectionsPage: React.FC = () => {
       }
     } catch (err: unknown) {
       console.error("Failed to delete connection", err);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      if (deleteTarget.type === "file") {
+        await deleteFile(deleteTarget.id);
+      } else {
+        await deleteConnector(deleteTarget.id);
+      }
+      if (cleanPreviewFile && cleanPreviewFile.id === deleteTarget.id) {
+        setCleanPreviewFile(null);
+      }
+      if (previewingFile && previewingFile.id === deleteTarget.id) {
+        setPreviewingFile(null);
+      }
+      if (
+        localStorage.getItem("lumin_selected_connection_id") === deleteTarget.id
+      ) {
+        localStorage.removeItem("lumin_selected_connection_id");
+      }
+      try {
+        const recent = JSON.parse(
+          localStorage.getItem("most_recent_ingested_file") || "{}",
+        );
+        if (recent?.id === deleteTarget.id) {
+          localStorage.removeItem("most_recent_ingested_file");
+        }
+      } catch {
+        // ignore
+      }
+      setDeleteTarget(null);
+    } catch (err: unknown) {
+      console.error("Failed to delete", err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -944,22 +992,20 @@ export const ConnectionsPage: React.FC = () => {
 
                           {isCustom && conn.id && (
                             <button
-                              onClick={() => deleteConnector(conn.id!)}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteTarget({
+                                  id: conn.id!,
+                                  name: conn.name,
+                                  type: "connection",
+                                });
+                              }}
                               className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-850 rounded transition-all cursor-pointer absolute top-4 right-4"
                               title="Delete Custom Connection"
+                              aria-label={`Delete custom connection ${conn.name}`}
                             >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M3 6h18" />
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                              </svg>
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -1159,22 +1205,20 @@ export const ConnectionsPage: React.FC = () => {
                               </svg>
                             </Link>
                             <button
-                              onClick={() => deleteFile(file.id)}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteTarget({
+                                  id: file.id,
+                                  name: file.name,
+                                  type: "file",
+                                });
+                              }}
                               className="p-1.5 hover:bg-zinc-900 hover:text-red-400 text-zinc-500 rounded transition-colors cursor-pointer"
                               title="Delete record"
+                              aria-label={`Delete record ${file.name}`}
                             >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M3 6h18" />
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                              </svg>
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
@@ -1706,6 +1750,79 @@ export const ConnectionsPage: React.FC = () => {
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+            onClick={() => !isDeleting && setDeleteTarget(null)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-dialog-title"
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl shadow-black/90 overflow-hidden animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3
+                      id="delete-dialog-title"
+                      className="text-base font-semibold text-zinc-100"
+                    >
+                      {deleteTarget.type === "file"
+                        ? "Delete Ingested File"
+                        : "Delete Connection"}
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
+                      Are you sure you want to delete{" "}
+                      <span className="font-semibold text-zinc-200 font-mono bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 break-all">
+                        {deleteTarget.name}
+                      </span>
+                      ? This action cannot be undone and will permanently remove
+                      all associated staged data and pipeline mappings.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-3.5 bg-zinc-900/60 border-t border-zinc-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setDeleteTarget(null)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-750 disabled:opacity-50 text-zinc-300 hover:text-zinc-100 text-xs font-semibold rounded-lg transition-colors cursor-pointer border border-zinc-700/50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-md shadow-red-950"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>,
