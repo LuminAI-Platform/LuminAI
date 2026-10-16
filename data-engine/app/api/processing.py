@@ -317,7 +317,7 @@ async def trigger_pipeline(
         trigger.trigger_cleaning_pipeline,
         request.tenant_id,
         request.source_id,
-        {"run_id": run_id, **request.options},
+        {"run_id": run_id, "auto_er": True, **request.options},
         run_id=run_id,
     )
 

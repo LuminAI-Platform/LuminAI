@@ -258,10 +258,23 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
                 object_key,
                 exc,
             )
-            if object_key:
+            settings = get_settings()
+            if not settings.synthetic_data_allowed:
+                context.log.error(
+                    "❌ Cleaning pipeline failure: Raw ingestion data could not be retrieved from MinIO (bucket: %s, key: %s) and synthetic fallback is disabled.",
+                    bucket,
+                    object_key,
+                )
                 raise RuntimeError(
-                    f"Failed to load user dataset from s3://{bucket}/{object_key}: {exc}"
+                    f"Production safety violation: Unable to load raw dataset from s3://{bucket}/{object_key or '<missing>'} "
+                    "and synthetic data fallback is prohibited in production mode."
                 ) from exc
+            context.log.warning(
+                "⚠️ Failed to load raw data from MinIO (s3://%s/%s) in non-production mode; falling back to synthetic dataset: %s",
+                bucket,
+                object_key,
+                exc,
+            )
 
     settings = get_settings()
     if not settings.synthetic_data_allowed:

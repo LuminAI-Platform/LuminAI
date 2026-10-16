@@ -177,7 +177,7 @@ class DagsterTrigger:
                         duration,
                     )
                     # Automatically trigger Entity Resolution pipeline for complete pipeline orchestration
-                    if batch_metadata.get("auto_er", True):
+                    if batch_metadata.get("auto_er", False):
                         try:
                             logger.info(
                                 "🚀 Auto-triggering Entity Resolution pipeline post-cleaning — tenant=%s, source=%s",
