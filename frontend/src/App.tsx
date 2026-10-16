@@ -133,6 +133,12 @@ const callbackRoute = createRoute({
   component: CallbackPage,
 });
 
+const authCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/callback",
+  component: CallbackPage,
+});
+
 const sandboxRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/sandbox",
@@ -216,6 +222,7 @@ const adminTenantsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   loginRoute,
   callbackRoute,
+  authCallbackRoute,
   ...(import.meta.env.DEV ? [sandboxRoute] : []),
   shellRoute.addChildren([
     indexRoute,

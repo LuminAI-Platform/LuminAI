@@ -56,13 +56,8 @@ export const ExplorerPage: React.FC = () => {
       if (query.trim()) params.set("query", query.trim());
       if (selectedTypes.length > 0) params.set("entityType", selectedTypes[0]);
 
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/v1/explorer/export/csv?${params.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-        },
       );
 
       if (!res.ok) {

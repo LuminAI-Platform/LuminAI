@@ -25,6 +25,31 @@ const CLIENT_ID =
 
 const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
 
+export function persistTokens(user: User | null): void {
+  if (typeof localStorage === "undefined" || !user) {
+    return;
+  }
+  if (user.access_token) {
+    localStorage.setItem("lumin_access_token", user.access_token);
+    localStorage.setItem("token", user.access_token);
+  }
+  if (user.profile) {
+    localStorage.setItem("lumin_user", JSON.stringify(user.profile));
+  }
+}
+
+export function clearPersistedTokens(): void {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+  localStorage.removeItem("lumin_access_token");
+  localStorage.removeItem("lumin_user");
+  localStorage.removeItem("token");
+  localStorage.removeItem("local_ingested_files");
+  localStorage.removeItem("most_recent_ingested_file");
+  localStorage.removeItem("lumin_schema_mapping");
+}
+
 export function hasRealmRole(user: User | null, role: string): boolean {
   if (!user) {
     return false;
@@ -118,6 +143,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         session_state: null,
       };
       sessionStorage.setItem(OIDC_SESSION_KEY, JSON.stringify(mockUserData));
+      persistTokens(mockUserData as unknown as User);
       set({
         user: mockUserData as unknown as User,
         isAuthenticated: true,
@@ -142,11 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionStorage.removeItem(OIDC_SESSION_KEY);
         sessionStorage.removeItem("post_login_redirect");
       }
-      if (typeof localStorage !== "undefined") {
-        localStorage.removeItem("local_ingested_files");
-        localStorage.removeItem("most_recent_ingested_file");
-        localStorage.removeItem("lumin_schema_mapping");
-      }
+      clearPersistedTokens();
       queryClient.clear();
 
       if (!isMock) {
@@ -167,11 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionStorage.removeItem(OIDC_SESSION_KEY);
       sessionStorage.removeItem("post_login_redirect");
     }
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem("local_ingested_files");
-      localStorage.removeItem("most_recent_ingested_file");
-      localStorage.removeItem("lumin_schema_mapping");
-    }
+    clearPersistedTokens();
     queryClient.clear();
   },
 
@@ -179,6 +197,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const user = await userManager.signinRedirectCallback();
+      if (user) {
+        persistTokens(user);
+      }
       set({ user, isAuthenticated: !!user, isLoading: false });
       return user;
     } catch (err) {
@@ -231,6 +252,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: true, error: null });
       const user = await userManager.getUser();
       const isValid = user ? !user.expired : false;
+      if (isValid && user) {
+        persistTokens(user);
+      }
       set({
         user: isValid ? user : null,
         isAuthenticated: isValid,
@@ -260,6 +284,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 // Synchronize oidc-client-ts background events with Zustand store
 if (typeof window !== "undefined") {
   userManager.events.addUserLoaded((loadedUser) => {
+    persistTokens(loadedUser);
     useAuthStore.setState({
       user: loadedUser,
       isAuthenticated: !loadedUser.expired,

@@ -6,6 +6,7 @@ import {
 } from "../stores/authStore";
 import type { User } from "oidc-client-ts";
 import { queryClient } from "../lib/queryClient";
+import { getAccessToken } from "../lib/api";
 
 describe("Authentication & Authorization Security", () => {
   beforeEach(() => {
@@ -75,11 +76,39 @@ describe("Authentication & Authorization Security", () => {
       const state = useAuthStore.getState();
       expect(state.user).toBeNull();
       expect(state.isAuthenticated).toBe(false);
+      expect(localStorage.getItem("lumin_access_token")).toBeNull();
+      expect(localStorage.getItem("lumin_user")).toBeNull();
+      expect(localStorage.getItem("token")).toBeNull();
       expect(localStorage.getItem("local_ingested_files")).toBeNull();
       expect(localStorage.getItem("most_recent_ingested_file")).toBeNull();
       expect(localStorage.getItem("lumin_schema_mapping")).toBeNull();
       expect(sessionStorage.getItem("post_login_redirect")).toBeNull();
       expect(queryClientClearSpy).toHaveBeenCalled();
+    });
+
+    it("should persist lumin_access_token and lumin_user in localStorage on loginMock", async () => {
+      await useAuthStore
+        .getState()
+        .loginMock("alice@acme.com", "Alice Acme", ["admin", "PLATFORM_ADMIN"]);
+
+      const storedToken = localStorage.getItem("lumin_access_token");
+      const storedUser = localStorage.getItem("lumin_user");
+      const legacyToken = localStorage.getItem("token");
+
+      expect(storedToken).toBe("mock-access-token-123");
+      expect(legacyToken).toBe("mock-access-token-123");
+      expect(storedUser).not.toBeNull();
+      const parsedUser = JSON.parse(storedUser!);
+      expect(parsedUser.email).toBe("alice@acme.com");
+      expect(parsedUser.name).toBe("Alice Acme");
+      expect(getAccessToken()).toBe("mock-access-token-123");
+    });
+
+    it("should resolve access token via getAccessToken from localStorage if store is empty", () => {
+      useAuthStore.setState({ user: null, isAuthenticated: false });
+      localStorage.setItem("lumin_access_token", "test-local-token-xyz");
+
+      expect(getAccessToken()).toBe("test-local-token-xyz");
     });
   });
 });
