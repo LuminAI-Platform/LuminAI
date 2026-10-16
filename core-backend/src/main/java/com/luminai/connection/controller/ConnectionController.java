@@ -538,6 +538,16 @@ public class ConnectionController {
       tenantId = UUID.fromString("00000000-0000-0000-0000-000000000001");
     }
 
+    boolean isZip =
+        (file.getOriginalFilename() != null
+                && file.getOriginalFilename().toLowerCase().endsWith(".zip"))
+            || "application/zip".equalsIgnoreCase(file.getContentType())
+            || "application/x-zip-compressed".equalsIgnoreCase(file.getContentType());
+
+    if (isZip) {
+      return handleZipArchiveUpload(tenantId, id, file);
+    }
+
     String objectKey;
     try {
       objectKey = fileConnectorService.ingest(tenantId, id, file);
@@ -634,6 +644,152 @@ public class ConnectionController {
             "File processed and published to ingest pipeline"));
   }
 
+  private ResponseEntity<Map<String, Object>> handleZipArchiveUpload(
+      UUID tenantId, UUID connectionId, MultipartFile file) throws IOException {
+    String objectKey;
+    try {
+      objectKey = fileConnectorService.ingest(tenantId, connectionId, file);
+    } catch (Exception e) {
+      log.warn(
+          "MinIO storage unavailable ({}), proceeding with extracted memory payloads",
+          e.getMessage());
+      objectKey =
+          tenantId
+              + "/raw/"
+              + connectionId
+              + "/"
+              + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "archive.zip");
+    }
+
+    List<Map<String, Object>> tables = new ArrayList<>();
+    int totalExtractedRows = 0;
+    final int BATCH_SIZE = 1000;
+
+    try (java.util.zip.ZipInputStream zis =
+        new java.util.zip.ZipInputStream(file.getInputStream())) {
+      java.util.zip.ZipEntry entry;
+      while ((entry = zis.getNextEntry()) != null) {
+        if (!entry.isDirectory()) {
+          String entryName = entry.getName();
+          java.nio.file.Path normalized = java.nio.file.Paths.get(entryName).normalize();
+          if (normalized.startsWith("..") || normalized.isAbsolute()) {
+            log.warn("Skipping unsafe ZIP entry: {}", entryName);
+            zis.closeEntry();
+            continue;
+          }
+          String cleanName = normalized.getFileName().toString();
+          String lower = cleanName.toLowerCase();
+          if (lower.endsWith(".csv") || lower.endsWith(".json")) {
+            byte[] entryBytes = zis.readAllBytes();
+            String entryKey;
+            try {
+              entryKey =
+                  fileConnectorService.ingestBytes(
+                      tenantId,
+                      connectionId,
+                      cleanName,
+                      entryBytes,
+                      lower.endsWith(".json") ? "application/json" : "text/csv");
+            } catch (Exception e) {
+              entryKey = tenantId + "/raw/" + connectionId + "/" + cleanName;
+            }
+
+            List<Map<String, Object>> entryRows = parseBytesRows(cleanName, entryBytes);
+            if (!entryRows.isEmpty()) {
+              int total = entryRows.size();
+              for (int i = 0; i < total; i += BATCH_SIZE) {
+                int end = Math.min(i + BATCH_SIZE, total);
+                List<Map<String, Object>> chunk = entryRows.subList(i, end);
+                boolean isLast = (end == total);
+                try {
+                  connectionProducer.publishRows(
+                      tenantId, connectionId, cleanName, chunk, isLast, entryKey);
+                } catch (Exception e) {
+                  log.warn(
+                      "Kafka publishing skipped for table '{}': {}", cleanName, e.getMessage());
+                }
+              }
+            } else {
+              try {
+                connectionProducer.publishRows(
+                    tenantId, connectionId, cleanName, List.of(), true, entryKey);
+              } catch (Exception e) {
+                log.warn(
+                    "Kafka completion signal skipped for table '{}': {}",
+                    cleanName,
+                    e.getMessage());
+              }
+            }
+
+            Map<String, Object> tableSummary = new LinkedHashMap<>();
+            tableSummary.put("fileName", cleanName);
+            tableSummary.put("fileKey", entryKey);
+            tableSummary.put("recordsCount", entryRows.size());
+            if (!entryRows.isEmpty()) {
+              tableSummary.put("columns", new ArrayList<>(entryRows.get(0).keySet()));
+              tableSummary.put("sampleRows", entryRows.subList(0, Math.min(entryRows.size(), 50)));
+            }
+            tables.add(tableSummary);
+            totalExtractedRows += entryRows.size();
+          }
+        }
+        zis.closeEntry();
+      }
+    }
+
+    if (connectionRepository != null) {
+      try {
+        Optional<Connection> connOpt = connectionRepository.findById(connectionId);
+        if (connOpt.isPresent()) {
+          Connection connection = connOpt.get();
+          Map<String, Object> configMap = new LinkedHashMap<>();
+          if (connection.getConfig() != null && !connection.getConfig().isBlank()) {
+            try {
+              @SuppressWarnings("unchecked")
+              Map<String, Object> parsed =
+                  objectMapper.readValue(connection.getConfig(), Map.class);
+              configMap.putAll(parsed);
+            } catch (Exception ignored) {
+            }
+          }
+          configMap.put("fileName", file.getOriginalFilename());
+          configMap.put("fileKey", objectKey);
+          configMap.put("fileSize", file.getSize());
+          configMap.put("archive", true);
+          configMap.put("recordsCount", totalExtractedRows);
+          configMap.put("tables", tables);
+          connection.setConfig(objectMapper.writeValueAsString(configMap));
+          connection.setStatus(Connection.Status.ACTIVE);
+          connection.setLastSyncAt(java.time.Instant.now());
+          connectionRepository.save(connection);
+          log.info(
+              "Persisted connection config with {} archive tables for connection '{}'",
+              tables.size(),
+              connectionId);
+        }
+      } catch (Exception e) {
+        log.warn("Failed to update connection with archive config: {}", e.getMessage());
+      }
+    }
+
+    Map<String, Object> resp = new LinkedHashMap<>();
+    resp.put("fileKey", objectKey);
+    resp.put("status", "INGESTED");
+    resp.put(
+        "fileName",
+        file.getOriginalFilename() != null ? file.getOriginalFilename() : "archive.zip");
+    resp.put("archive", true);
+    resp.put("filesProcessed", tables.size());
+    resp.put("recordsCount", totalExtractedRows);
+    resp.put("tables", tables);
+    resp.put(
+        "message",
+        "Archive processed: "
+            + tables.size()
+            + " dataset files extracted and published to ingest pipeline");
+    return ResponseEntity.ok(resp);
+  }
+
   /** Discovers schemas and tables for a given database configuration. */
   @PostMapping("/discover")
   @org.springframework.security.access.prepost.PreAuthorize(
@@ -697,13 +853,12 @@ public class ConnectionController {
     return tokens;
   }
 
-  private List<Map<String, Object>> parseFileRows(MultipartFile file) {
+  private List<Map<String, Object>> parseBytesRows(String filename, byte[] data) {
     List<Map<String, Object>> rows = new ArrayList<>();
-    String filename =
-        file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+    String lower = filename != null ? filename.toLowerCase() : "";
 
-    try (InputStream is = file.getInputStream()) {
-      if (filename.endsWith(".json")) {
+    try (InputStream is = new java.io.ByteArrayInputStream(data)) {
+      if (lower.endsWith(".json")) {
         ObjectMapper mapper = new ObjectMapper();
         Object parsed = mapper.readValue(is, Object.class);
         if (parsed instanceof List<?> list) {
@@ -737,10 +892,18 @@ public class ConnectionController {
         }
       }
     } catch (Exception e) {
-      log.warn(
-          "Failed to parse uploaded file '{}': {}", file.getOriginalFilename(), e.getMessage());
+      log.warn("Failed to parse file bytes '{}': {}", filename, e.getMessage());
     }
     return rows;
+  }
+
+  private List<Map<String, Object>> parseFileRows(MultipartFile file) {
+    try {
+      return parseBytesRows(file.getOriginalFilename(), file.getBytes());
+    } catch (Exception e) {
+      log.warn("Failed to read file bytes '{}': {}", file.getOriginalFilename(), e.getMessage());
+      return List.of();
+    }
   }
 
   private void writeRecordsToCsv(List<GoldenRecord> records, PrintWriter writer) {

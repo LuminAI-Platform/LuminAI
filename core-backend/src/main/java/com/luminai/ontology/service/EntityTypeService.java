@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.exception.ConflictException;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
+import com.luminai.graph.repository.Neo4jGraphRepository;
 import com.luminai.ontology.dto.EntityTypeDto;
 import com.luminai.ontology.model.EntityType;
 import com.luminai.ontology.repository.EntityTypeRepository;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +29,20 @@ public class EntityTypeService {
 
   private final EntityTypeRepository repository;
   private final JwtClaimsExtractor claimsExtractor;
+  private final Neo4jGraphRepository neo4jGraphRepository;
 
   public EntityTypeService(EntityTypeRepository repository, JwtClaimsExtractor claimsExtractor) {
+    this(repository, claimsExtractor, null);
+  }
+
+  @Autowired
+  public EntityTypeService(
+      EntityTypeRepository repository,
+      JwtClaimsExtractor claimsExtractor,
+      @Autowired(required = false) Neo4jGraphRepository neo4jGraphRepository) {
     this.repository = repository;
     this.claimsExtractor = claimsExtractor;
+    this.neo4jGraphRepository = neo4jGraphRepository;
   }
 
   /** Lists all entity types defined for the current tenant. */
@@ -77,6 +89,9 @@ public class EntityTypeService {
             schemaJson);
 
     EntityType saved = repository.save(entityType);
+    if (neo4jGraphRepository != null) {
+      neo4jGraphRepository.ensureEntityTypeIndexes(saved.getName());
+    }
     log.info(
         "Created entity type '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
     return EntityTypeDto.Response.from(saved);

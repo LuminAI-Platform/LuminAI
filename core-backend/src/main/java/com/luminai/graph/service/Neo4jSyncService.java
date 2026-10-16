@@ -39,6 +39,7 @@ public class Neo4jSyncService {
     validate(event);
 
     String canonicalName = resolveCanonicalName(event);
+    repository.ensureEntityTypeIndexes(event.entityType());
     repository.mergeEntityNode(
         event.tenantId(), event.goldenId(), canonicalName, event.entityType());
     log.info(

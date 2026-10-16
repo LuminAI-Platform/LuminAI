@@ -583,3 +583,69 @@ class DuckDBAnalyticsEngine:
             return series
         finally:
             con.close()
+
+    def export_data(
+        self,
+        tenant_id: str,
+        entity_type: str = "*",
+        table_name: str = "golden_records",
+        filters: Optional[Dict[str, Any]] = None,
+        columns: Optional[List[str]] = None,
+        limit: Optional[int] = 10000,
+    ) -> pl.DataFrame:
+        """Export filtered analytical records as a clean Polars DataFrame.
+
+        Allows analysts to export tabular data to CSV, Parquet, or JSON.
+        """
+        filters = filters or {}
+        if columns:
+            for c in columns:
+                if not IDENTIFIER_RE.match(c):
+                    raise ValueError(f"Invalid column name '{c}' for export.")
+
+        df = self.load_table_dataframe(table_name, tenant_id)
+
+        if df.is_empty():
+            return df
+
+        con = duckdb.connect(":memory:")
+        try:
+            con.register("source_table", df)
+
+            where_clause, params = self._build_where_clause(
+                table_name=table_name,
+                tenant_id=tenant_id,
+                entity_type=entity_type,
+                filters=filters,
+                df_columns=df.columns,
+            )
+
+            # Construct column projection
+            if columns:
+                select_items = []
+                for c in columns:
+                    if not IDENTIFIER_RE.match(c):
+                        raise ValueError(f"Invalid column name '{c}' for export.")
+                    if c in df.columns:
+                        select_items.append(c)
+                    elif "attributes" in df.columns:
+                        select_items.append(
+                            f"json_extract_string(attributes, '$.{c}') AS {c}"
+                        )
+                    elif "data" in df.columns:
+                        select_items.append(
+                            f"json_extract_string(data, '$.{c}') AS {c}"
+                        )
+                projection = ", ".join(select_items) if select_items else "*"
+            else:
+                projection = "*"
+
+            limit_clause = f" LIMIT {int(limit)}" if limit and limit > 0 else ""
+            export_sql = (
+                f"SELECT {projection} FROM source_table {where_clause}{limit_clause}"
+            )
+
+            res_df = con.execute(export_sql, params).pl()
+            return res_df
+        finally:
+            con.close()

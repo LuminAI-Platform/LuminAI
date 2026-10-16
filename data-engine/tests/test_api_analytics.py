@@ -251,3 +251,88 @@ class TestAnalyticsReconciliationEndpoint:
         assert data["entity_type"] == "Person"
         assert "pg_count" in data
         assert "checksums" in data
+
+
+class TestAnalyticsExportEndpoint:
+    """POST /analytics/export endpoint tests."""
+
+    def test_export_csv_streaming_success(self, mock_golden_records):
+        """Streaming CSV export returns 200 with text/csv content."""
+        with patch.object(
+            DuckDBAnalyticsEngine,
+            "load_table_dataframe",
+            return_value=mock_golden_records,
+        ):
+            response = client.post(
+                "/analytics/export",
+                json={
+                    "tenant_id": "acme",
+                    "entity_type": "Person",
+                    "format": "csv",
+                    "columns": ["name", "age"],
+                },
+            )
+            assert response.status_code == 200
+            assert "text/csv" in response.headers["content-type"]
+            assert 'attachment; filename="person_export.csv"' in response.headers.get(
+                "content-disposition", ""
+            )
+            content = response.text
+            assert "name,age" in content
+            assert "Alice,30" in content
+            assert "Bob,40" in content
+
+    def test_export_json_streaming_success(self, mock_golden_records):
+        """Streaming JSON export returns 200 with application/json array content."""
+        with patch.object(
+            DuckDBAnalyticsEngine,
+            "load_table_dataframe",
+            return_value=mock_golden_records,
+        ):
+            response = client.post(
+                "/analytics/export",
+                json={
+                    "tenant_id": "acme",
+                    "entity_type": "Person",
+                    "format": "json",
+                    "columns": ["name"],
+                },
+            )
+            assert response.status_code == 200
+            assert "application/json" in response.headers["content-type"]
+            data = response.json()
+            assert len(data) == 2
+            assert data[0]["name"] == "Alice"
+
+    def test_export_parquet_streaming_success(self, mock_golden_records):
+        """Streaming Parquet export returns 200 with application/octet-stream content."""
+        with patch.object(
+            DuckDBAnalyticsEngine,
+            "load_table_dataframe",
+            return_value=mock_golden_records,
+        ):
+            response = client.post(
+                "/analytics/export",
+                json={
+                    "tenant_id": "acme",
+                    "entity_type": "Person",
+                    "format": "parquet",
+                },
+            )
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "application/octet-stream"
+            assert len(response.content) > 0
+
+    def test_export_invalid_column_raises_400(self):
+        """Invalid column name with SQL injection characters raises 400."""
+        response = client.post(
+            "/analytics/export",
+            json={
+                "tenant_id": "acme",
+                "entity_type": "Person",
+                "format": "csv",
+                "columns": ["name; DROP TABLE golden_records;--"],
+            },
+        )
+        assert response.status_code == 400
+        assert "Invalid column name" in response.json()["detail"]

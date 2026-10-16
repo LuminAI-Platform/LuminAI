@@ -1,8 +1,11 @@
 package com.luminai.connection;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -294,5 +297,49 @@ class ConnectionControllerTest {
         .andExpect(jsonPath("$.status").value("INGESTED"))
         .andExpect(jsonPath("$.fileName").value("large_dataset.csv"))
         .andExpect(jsonPath("$.recordsCount").value(1500));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/connections/{id}/upload extracts multi-table ZIP archive")
+  void uploadZipArchiveExtractsMultipleTables() throws Exception {
+    UUID connId = UUID.randomUUID();
+
+    // Create in-memory zip archive with two CSV files
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(baos)) {
+      zos.putNextEntry(new java.util.zip.ZipEntry("orders.csv"));
+      zos.write(
+          "order_id,customer_id\no-1,c-1\no-2,c-2\n"
+              .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      zos.closeEntry();
+
+      zos.putNextEntry(new java.util.zip.ZipEntry("customers.csv"));
+      zos.write(
+          "customer_id,name\nc-1,Alice\nc-2,Bob\n"
+              .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      zos.closeEntry();
+    }
+
+    MockMultipartFile zipFile =
+        new MockMultipartFile("file", "olist_archive.zip", "application/zip", baos.toByteArray());
+
+    when(fileConnectorService.ingest(any(), eq(connId), any()))
+        .thenReturn("tenant/raw/" + connId + "/olist_archive.zip");
+    when(fileConnectorService.ingestBytes(any(), eq(connId), any(), any(), any()))
+        .thenAnswer(inv -> "tenant/raw/" + connId + "/" + inv.getArgument(2));
+
+    mockMvc
+        .perform(multipart("/api/v1/connections/" + connId + "/upload").file(zipFile))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INGESTED"))
+        .andExpect(jsonPath("$.archive").value(true))
+        .andExpect(jsonPath("$.filesProcessed").value(2))
+        .andExpect(jsonPath("$.recordsCount").value(4))
+        .andExpect(jsonPath("$.tables.length()").value(2));
+
+    verify(connectionProducer, atLeastOnce())
+        .publishRows(any(), eq(connId), eq("orders.csv"), any(), anyBoolean(), any());
+    verify(connectionProducer, atLeastOnce())
+        .publishRows(any(), eq(connId), eq("customers.csv"), any(), anyBoolean(), any());
   }
 }

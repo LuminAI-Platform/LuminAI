@@ -6,8 +6,10 @@ GET  /analytics/reconciliation  →  Retrieve Cross-Store Reconciliation health 
 """
 
 import asyncio
-from typing import Any, Dict, List
+import io
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
@@ -237,3 +239,114 @@ async def get_reconciliation_report(
 ) -> ReconciliationReport:
     """Retrieve Cross-Store Reconciliation status report."""
     return run_cross_store_reconciliation(tenant_id=tenant_id, entity_type=entity_type)
+
+
+class ExportRequest(BaseModel):
+    """Request payload schema for streaming export of analytical query results."""
+
+    tenant_id: str = Field(
+        ...,
+        description="Tenant identifier scoping the export query.",
+        examples=["acme"],
+    )
+    entity_type: str = Field(
+        default="*",
+        description="Ontology entity type to export (or '*' for all).",
+        examples=["Person"],
+    )
+    table: str = Field(
+        default="golden_records",
+        description="Target database table ('golden_records' or 'staging_records').",
+        examples=["golden_records"],
+    )
+    columns: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of column names to project.",
+        examples=[["id", "name", "email"]],
+    )
+    filters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional key-value filters.",
+        examples=[{"country": "US"}],
+    )
+    format: str = Field(
+        default="csv",
+        description="Export format: 'csv', 'parquet', or 'json'.",
+        examples=["csv"],
+    )
+    limit: Optional[int] = Field(
+        default=10000,
+        description="Maximum number of rows to export.",
+        examples=[10000],
+    )
+
+
+@router.post(
+    "/export",
+    summary="Export query results as streaming CSV/Parquet file",
+    responses={
+        200: {
+            "description": "Streamed file attachment (CSV, Parquet, or JSON)",
+            "content": {
+                "text/csv": {},
+                "application/octet-stream": {},
+                "application/json": {},
+            },
+        }
+    },
+)
+async def export_query_results(request: ExportRequest) -> StreamingResponse:
+    """Execute analytical query and stream the clean results as a downloadable CSV/Parquet file."""
+    engine = DuckDBAnalyticsEngine()
+    try:
+        df = engine.export_data(
+            tenant_id=request.tenant_id,
+            entity_type=request.entity_type,
+            table_name=request.table,
+            filters=request.filters,
+            columns=request.columns,
+            limit=request.limit,
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+    clean_name = (
+        request.entity_type.lower()
+        if request.entity_type and request.entity_type != "*"
+        else request.table
+    )
+    fmt = request.format.lower().strip()
+
+    if fmt == "parquet":
+        buffer = io.BytesIO()
+        df.write_parquet(buffer)
+        buffer.seek(0)
+        return StreamingResponse(
+            buffer,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{clean_name}_export.parquet"',
+                "X-Total-Rows": str(df.height),
+            },
+        )
+    elif fmt == "json":
+        json_str = df.write_json()
+        return StreamingResponse(
+            io.BytesIO(json_str.encode("utf-8")),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{clean_name}_export.json"',
+                "X-Total-Rows": str(df.height),
+            },
+        )
+    else:
+        # Default CSV format
+        csv_str = df.write_csv()
+        return StreamingResponse(
+            io.BytesIO(csv_str.encode("utf-8")),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f'attachment; filename="{clean_name}_export.csv"',
+                "X-Total-Rows": str(df.height),
+            },
+        )
