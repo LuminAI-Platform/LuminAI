@@ -239,13 +239,25 @@ public class ConnectionController {
     double qualityScore = 98.4;
 
     List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-    if (rawRows.isEmpty() && connectionRepository != null) {
+    String configuredEntityType = null;
+    long actualTotalRows = 0;
+    if (connectionRepository != null) {
       Optional<Connection> connOpt = connectionRepository.findByIdAndTenantId(id, currentTenant);
       if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
         try {
           com.fasterxml.jackson.databind.JsonNode root =
               objectMapper.readTree(connOpt.get().getConfig());
-          if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
+          if (root.has("targetEntityType") && !root.get("targetEntityType").asText().isBlank()) {
+            configuredEntityType = root.get("targetEntityType").asText();
+          } else if (root.has("entityType") && !root.get("entityType").asText().isBlank()) {
+            configuredEntityType = root.get("entityType").asText();
+          }
+          if (root.has("rowsCount")) {
+            actualTotalRows = root.get("rowsCount").asLong();
+          } else if (root.has("recordsCount")) {
+            actualTotalRows = root.get("recordsCount").asLong();
+          }
+          if (rawRows.isEmpty() && root.has("sampleRows") && root.get("sampleRows").isArray()) {
             List<Map<String, Object>> cached = new ArrayList<>();
             for (com.fasterxml.jackson.databind.JsonNode rowNode : root.get("sampleRows")) {
               @SuppressWarnings("unchecked")
@@ -260,7 +272,7 @@ public class ConnectionController {
     }
 
     if (!rawRows.isEmpty()) {
-      rawCount = rawRows.size();
+      rawCount = actualTotalRows > 0 ? actualTotalRows : rawRows.size();
       long totalFields = 0;
       long validFields = 0;
 
@@ -304,8 +316,8 @@ public class ConnectionController {
           }
         }
 
-        String name = extractRowName(cleaned);
-        String type = inferEntityType(cleaned);
+        String name = extractRowName(cleaned, configuredEntityType);
+        String type = inferEntityType(cleaned, configuredEntityType);
         cleaned.put("_canonicalName", name);
         cleaned.put("_entityType", type);
         cleaned.put("_rowQuality", rowFields > 0 ? (double) rowValid / (double) rowFields : 1.0);
@@ -1017,19 +1029,41 @@ public class ConnectionController {
   }
 
   private static String extractRowName(Map<String, Object> raw) {
+    return extractRowName(raw, null);
+  }
+
+  private static String extractRowName(Map<String, Object> raw, String entityTypeHint) {
     if (raw == null || raw.isEmpty()) {
       return "Entity " + UUID.randomUUID().toString().substring(0, 8);
     }
-    // 1. Check for specific order / transaction ID identifiers
-    String orderId = null;
+
+    // 1. Check for specific natural person / entity name candidate keys first
+    String[] candidateKeys = {
+      "canonicalName",
+      "canonical_name",
+      "name",
+      "full_name",
+      "student_name",
+      "customer_name",
+      "user_name",
+      "username",
+      "person_name",
+      "employee_name",
+      "patient_name",
+      "title",
+      "company",
+      "organization"
+    };
+    for (String key : candidateKeys) {
+      if (raw.containsKey(key) && raw.get(key) != null && !String.valueOf(raw.get(key)).isBlank()) {
+        return String.valueOf(raw.get(key)).trim();
+      }
+    }
+
+    // 2. Check for item / product names
     String item = null;
     for (Map.Entry<String, Object> entry : raw.entrySet()) {
       String lk = entry.getKey().toLowerCase().replace("_", " ").trim();
-      if ((lk.equals("id") || lk.endsWith(" id") || lk.startsWith("id "))
-          && entry.getValue() != null
-          && !String.valueOf(entry.getValue()).isBlank()) {
-        orderId = String.valueOf(entry.getValue()).trim();
-      }
       if ((lk.contains("item")
               || lk.contains("product")
               || lk.contains("sku")
@@ -1037,33 +1071,57 @@ public class ConnectionController {
           && entry.getValue() != null
           && !String.valueOf(entry.getValue()).isBlank()) {
         item = String.valueOf(entry.getValue()).trim();
+        break;
       }
-    }
-    if (orderId != null) {
-      if (item != null) {
-        return item + " (#" + orderId + ")";
-      }
-      return "Order #" + orderId;
     }
 
-    String[] candidateKeys = {
-      "canonicalName",
-      "canonical_name",
-      "name",
-      "full_name",
-      "company",
-      "organization",
-      "customer_name",
-      "title",
-      "username",
-      "email",
-      "id"
-    };
-    for (String key : candidateKeys) {
-      if (raw.containsKey(key) && raw.get(key) != null && !String.valueOf(raw.get(key)).isBlank()) {
-        return String.valueOf(raw.get(key)).trim();
+    // 3. Check for specific ID identifiers
+    String idVal = null;
+    String idKey = null;
+    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+      String lk = entry.getKey().toLowerCase().replace("_", " ").trim();
+      if ((lk.equals("id")
+              || lk.endsWith(" id")
+              || lk.startsWith("id ")
+              || lk.contains("identifier")
+              || lk.contains("uuid")
+              || lk.endsWith(" code")
+              || lk.endsWith(" number")
+              || lk.equals("sku"))
+          && entry.getValue() != null
+          && !String.valueOf(entry.getValue()).isBlank()) {
+        idVal = String.valueOf(entry.getValue()).trim();
+        idKey = entry.getKey().trim();
+        break;
       }
     }
+
+    if (idVal != null) {
+      if (item != null) {
+        return item + " (#" + idVal + ")";
+      }
+      String lk = idKey != null ? idKey.toLowerCase() : "";
+      if (lk.contains("order")) {
+        return "Order #" + idVal;
+      } else if (lk.contains("student")) {
+        return "Student #" + idVal;
+      } else if (lk.contains("customer")) {
+        return "Customer #" + idVal;
+      } else if (lk.contains("patient")) {
+        return "Patient #" + idVal;
+      } else if (lk.contains("user")) {
+        return "User #" + idVal;
+      } else if (lk.contains("employee")) {
+        return "Employee #" + idVal;
+      } else if (entityTypeHint != null
+          && !entityTypeHint.isBlank()
+          && !"Organization".equalsIgnoreCase(entityTypeHint)
+          && !"Entity".equalsIgnoreCase(entityTypeHint)) {
+        return entityTypeHint + " #" + idVal;
+      }
+      return "#" + idVal;
+    }
+
     for (Object val : raw.values()) {
       if (val != null && !String.valueOf(val).isBlank()) {
         return String.valueOf(val).trim();
@@ -1073,8 +1131,15 @@ public class ConnectionController {
   }
 
   private static String inferEntityType(Map<String, Object> raw) {
+    return inferEntityType(raw, null);
+  }
+
+  private static String inferEntityType(Map<String, Object> raw, String entityTypeHint) {
+    if (entityTypeHint != null && !entityTypeHint.isBlank()) {
+      return entityTypeHint.trim();
+    }
     if (raw == null || raw.isEmpty()) {
-      return "Organization";
+      return "Entity";
     }
     if (raw.containsKey("entityType") && raw.get("entityType") != null) {
       return String.valueOf(raw.get("entityType")).trim();
@@ -1083,6 +1148,13 @@ public class ConnectionController {
       return String.valueOf(raw.get("entity_type")).trim();
     }
     String keys = String.join(" ", raw.keySet()).toLowerCase();
+    if (keys.contains("student")
+        || keys.contains("academic")
+        || keys.contains("school")
+        || keys.contains("grade")
+        || keys.contains("course")) {
+      return "Student";
+    }
     if (keys.contains("order")
         || keys.contains("transaction")
         || keys.contains("revenue")
@@ -1097,7 +1169,10 @@ public class ConnectionController {
         || keys.contains("first_name")
         || keys.contains("last_name")
         || keys.contains("user")
-        || keys.contains("person")) {
+        || keys.contains("person")
+        || keys.contains("age")
+        || keys.contains("gender")
+        || keys.contains("patient")) {
       return "Person";
     }
     if (keys.contains("company")
@@ -1112,7 +1187,7 @@ public class ConnectionController {
         || keys.contains("inventory")) {
       return "Product";
     }
-    return "Organization";
+    return "Entity";
   }
 
   private static String toTitleCase(String input) {

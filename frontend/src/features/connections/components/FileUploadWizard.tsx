@@ -253,7 +253,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     // If sliced sample, drop the potentially truncated trailing line
     const dataLines =
       isSample && lines.length > 2 ? lines.slice(1, -1) : lines.slice(1);
-    const previewLines = dataLines.slice(0, 200);
+    const previewLines = dataLines.slice(0, 1000);
 
     const rows = previewLines.map((line) => {
       const values = parseLine(line);
@@ -287,7 +287,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       });
       const columns = Array.from(columnsSet);
 
-      return { columns, rows: rows.slice(0, 200) };
+      return { columns, rows: rows.slice(0, 1000) };
     } catch (e) {
       throw new Error("Invalid JSON structure. Must be an array of objects.", {
         cause: e,
@@ -658,7 +658,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           fileSize: file.size,
           rowsCount: parsedData.rows.length,
           columns: parsedData.columns,
-          sampleRows: parsedData.rows.slice(0, 100),
+          sampleRows: parsedData.rows.slice(0, 1000),
+          targetEntityType:
+            primaryTargetEntity || inferredEntityName || "Entity",
         }),
         credentialsRef: "minio-bucket-raw",
       };
