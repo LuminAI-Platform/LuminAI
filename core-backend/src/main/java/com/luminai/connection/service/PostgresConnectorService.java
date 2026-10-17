@@ -103,6 +103,61 @@ public class PostgresConnectorService {
   }
 
   /**
+   * Discovers schemas and tables directly using connection credentials without requiring vault
+   * lookup. Sets a 5-second login timeout to prevent long hangs on unreachable hosts.
+   */
+  public Map<String, List<String>> discoverSchemasDirect(
+      String host, int port, String database, String username, String password) {
+    if (host == null || host.isBlank() || database == null || database.isBlank()) {
+      throw new IllegalArgumentException("Host and database name must not be blank");
+    }
+    String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, database);
+    Map<String, List<String>> schemaTableMap = new LinkedHashMap<>();
+
+    String sql =
+        """
+            SELECT table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_type = 'BASE TABLE'
+              AND table_schema NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY table_schema, table_name
+            """;
+
+    DriverManager.setLoginTimeout(5);
+    try (Connection conn = DriverManager.getConnection(jdbcUrl, username, password);
+        PreparedStatement stmt = conn.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery()) {
+
+      while (rs.next()) {
+        String schema = rs.getString("table_schema");
+        String table = rs.getString("table_name");
+        schemaTableMap.computeIfAbsent(schema, k -> new ArrayList<>()).add(table);
+      }
+
+      log.info(
+          "Discovered {} schemas directly from {}:{}/{}",
+          schemaTableMap.size(),
+          host,
+          port,
+          database);
+
+    } catch (SQLException e) {
+      throw new RuntimeException(
+          "Failed to connect to external PostgreSQL database at "
+              + host
+              + ":"
+              + port
+              + "/"
+              + database
+              + ": "
+              + e.getMessage(),
+          e);
+    }
+
+    return schemaTableMap;
+  }
+
+  /**
    * Returns column names for a specific table.
    *
    * @param tenantId the tenant UUID for vault key lookup
@@ -186,6 +241,13 @@ public class PostgresConnectorService {
       String schema,
       String table,
       Consumer<List<Map<String, Object>>> chunkConsumer) {
+
+    if (schema == null || schema.isBlank()) {
+      schema = "public";
+    }
+    if (!schema.matches("^[a-zA-Z0-9_]+$") || !table.matches("^[a-zA-Z0-9_]+$")) {
+      throw new IllegalArgumentException("Invalid schema or table name provided for extraction");
+    }
 
     DbCredentials creds = getCredentials(tenantId, connectionId);
     String jdbcUrl = buildJdbcUrl(creds);
@@ -325,13 +387,24 @@ public class PostgresConnectorService {
             .orElseThrow(
                 () -> new RuntimeException("No credentials found for connection: " + connectionId));
 
-    String host = extractJsonField(json, "host");
-    int port = Integer.parseInt(extractJsonField(json, "port"));
-    String database = extractJsonField(json, "database");
-    String username = extractJsonField(json, "username");
-    String password = extractJsonField(json, "password");
-
-    return new DbCredentials(host, port, database, username, password);
+    try {
+      com.fasterxml.jackson.databind.JsonNode node =
+          new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+      String host = node.has("host") ? node.get("host").asText() : "localhost";
+      int port = node.has("port") ? node.get("port").asInt(5432) : 5432;
+      String database = node.has("database") ? node.get("database").asText() : "";
+      String username = node.has("username") ? node.get("username").asText() : "";
+      String password = node.has("password") ? node.get("password").asText() : "";
+      return new DbCredentials(host, port, database, username, password);
+    } catch (Exception e) {
+      log.warn("ObjectMapper parsing failed for credentials, trying fallback: {}", e.getMessage());
+      String host = extractJsonField(json, "host");
+      int port = Integer.parseInt(extractJsonField(json, "port"));
+      String database = extractJsonField(json, "database");
+      String username = extractJsonField(json, "username");
+      String password = extractJsonField(json, "password");
+      return new DbCredentials(host, port, database, username, password);
+    }
   }
 
   private String buildJdbcUrl(DbCredentials creds) {
