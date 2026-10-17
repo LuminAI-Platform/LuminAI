@@ -712,9 +712,15 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       );
 
       if (!uploadRes.ok) {
-        throw new Error(
-          `File upload rejected by storage engine (HTTP ${uploadRes.status})`,
-        );
+        let errorDetail = `HTTP ${uploadRes.status}`;
+        try {
+          const errBody = await uploadRes.json();
+          if (errBody?.message) errorDetail = errBody.message;
+          else if (errBody?.error) errorDetail = errBody.error;
+        } catch {
+          // fallback
+        }
+        throw new Error(`File upload rejected: ${errorDetail}`);
       }
 
       const uploadJson = await uploadRes.json();
