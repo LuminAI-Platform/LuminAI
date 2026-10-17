@@ -35,7 +35,7 @@ import org.springframework.stereotype.Service;
 public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
 
   private static final Logger log = LoggerFactory.getLogger(ConnectionPreviewServiceImpl.class);
-  private static final int MAX_ROWS = 100;
+  private static final int MAX_ROWS = 1000;
 
   private final ConnectionRepository connectionRepository;
   private final PostgresConnectorService postgresConnectorService;
