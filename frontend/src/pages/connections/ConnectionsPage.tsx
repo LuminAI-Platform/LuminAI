@@ -17,6 +17,7 @@ import {
   Plus,
   Radio,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
