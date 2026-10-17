@@ -51,7 +51,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           <Skeleton className="w-36 h-3" />
         ) : (
           <>
-            <span>{subtitle}</span>
+            <span className="truncate">{subtitle}</span>
             {badge && (
               <div className="shrink-0">
                 <Badge variant={badge.variant ?? "default"} withDot>
