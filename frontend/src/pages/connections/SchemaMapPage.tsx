@@ -757,7 +757,10 @@ function parseEntityProperties(t: {
 
 function sanitizeEntityName(rawName: string): string {
   if (!rawName) return "CustomEntity";
-  let cleaned = rawName.split(".").pop() || rawName;
+  // Strip common file extensions first so "file.csv" doesn't become "Csv"
+  let cleaned = rawName.replace(/\.(csv|tsv|json|xlsx|parquet|zip)$/i, "");
+  // If a schema/db qualification remains (e.g. "public.orders"), take the table name
+  cleaned = cleaned.split(".").pop() || cleaned;
   cleaned = cleaned.replace(/(_csv|_xlsx|_json)$/i, "");
   cleaned = cleaned.replace(/[^a-zA-Z0-9]/g, " ").trim();
   const words = cleaned.split(/\s+/).filter(Boolean);
