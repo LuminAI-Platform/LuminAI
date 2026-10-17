@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../../../lib/api";
+import { Modal } from "../../../components/ui/Modal";
 import { PropertySchemaForm } from "./PropertySchemaForm";
 import type { PropertySchema } from "./PropertySchemaForm";
 
@@ -346,10 +347,15 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/60 flex flex-col max-h-[90vh]">
+    <Modal
+      open={true}
+      onOpenChange={(open) => !open && onClose()}
+      maxWidth="2xl"
+      hideHeader={true}
+    >
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0 select-none bg-zinc-950/60">
           <div className="flex items-center gap-3">
             {/* Entity icon preview */}
             <div
@@ -395,7 +401,6 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             </svg>
           </button>
         </div>
-
         {/* Icon picker dropdown */}
         {iconPickerOpen && (
           <div className="absolute z-60 mt-14 ml-6 bg-zinc-900 border border-zinc-700 rounded-xl p-3 shadow-xl flex flex-wrap gap-2 w-56">
@@ -419,7 +424,6 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             ))}
           </div>
         )}
-
         {/* Tabs */}
         <div className="flex border-b border-zinc-800/80 px-6 shrink-0">
           {(["meta", "properties"] as const).map((tab) => (
@@ -440,7 +444,6 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             </button>
           ))}
         </div>
-
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {activeTab === "meta" ? (
@@ -589,14 +592,12 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             />
           )}
         </div>
-
         {/* Error */}
         {error && (
           <div className="mx-6 mb-3 px-3 py-2.5 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs font-medium">
             {error}
           </div>
         )}
-
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800/80 bg-zinc-950/60 shrink-0">
           <div className="text-[10px] text-zinc-600">
@@ -652,6 +653,6 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
