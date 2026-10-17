@@ -400,7 +400,8 @@ public class ConnectionController {
         cleanRows.add(row);
       }
 
-      cleanCount = cleanRows.size();
+      cleanCount =
+          actualTotalRows > 0 ? Math.max(0, actualTotalRows - mergedCount) : cleanRows.size();
       qualityScore =
           totalFields > 0
               ? Math.round(((double) validFields / (double) totalFields) * 1000.0) / 10.0

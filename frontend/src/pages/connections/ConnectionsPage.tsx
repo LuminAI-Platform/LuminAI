@@ -1688,8 +1688,10 @@ export const ConnectionsPage: React.FC = () => {
                   />
                 </div>
                 <div className="text-xs text-zinc-400 hidden sm:block">
-                  Displaying canonical records reconciled for knowledge graph &
-                  analytics
+                  {cleanData?.totalRawRecords &&
+                  cleanData.totalRawRecords > cleanData.rows.length
+                    ? `Showing preview of ${cleanData.rows.length.toLocaleString()} of ${cleanData.totalRawRecords.toLocaleString()} total records`
+                    : `Displaying all ${cleanData?.rows?.length ?? 0} reconciled records`}
                 </div>
               </div>
 

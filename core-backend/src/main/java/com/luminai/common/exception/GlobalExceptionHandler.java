@@ -157,6 +157,21 @@ public class GlobalExceptionHandler {
                 getPath(request)));
   }
 
+  @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+  public ResponseEntity<ApiError> handleMaxUploadSizeExceeded(
+      org.springframework.web.multipart.MaxUploadSizeExceededException ex,
+      HttpServletRequest request) {
+    log.warn(
+        "Payload exceeds max upload limit on path '{}': {}", getPath(request), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+        .body(
+            ApiError.of(
+                413,
+                "PAYLOAD_TOO_LARGE",
+                "Uploaded file exceeds maximum allowed upload size (500 MB)",
+                getPath(request)));
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiError> handleGeneral(Exception ex, HttpServletRequest request) {
     log.error("Unhandled exception on path '{}': {}", getPath(request), ex.getMessage(), ex);
