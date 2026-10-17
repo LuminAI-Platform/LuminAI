@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { apiFetch } from "../../../lib/api";
+import { Modal } from "../../../components/ui/Modal";
 import { PropertySchemaForm } from "./PropertySchemaForm";
 import type { PropertySchema } from "./PropertySchemaForm";
 
@@ -346,21 +346,16 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
     }
   };
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="entity-editor-title"
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity animate-in fade-in duration-150"
-      onClick={onClose}
+  return (
+    <Modal
+      open={true}
+      onOpenChange={(open) => !open && onClose()}
+      maxWidth="2xl"
+      hideHeader={true}
     >
-      <div
-        className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/80 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {" "}
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0 select-none bg-zinc-950/60">
           <div className="flex items-center gap-3">
             {/* Entity icon preview */}
             <div
@@ -658,7 +653,6 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
           </div>
         </div>
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 };
