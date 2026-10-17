@@ -14,6 +14,61 @@ interface IngestionLog {
   message: string;
 }
 
+function sanitizeEntityName(rawName: string): string {
+  if (!rawName) return "CustomEntity";
+  let cleaned = rawName.replace(/\.(csv|tsv|json|xlsx|parquet|zip)$/i, "");
+  cleaned = cleaned.split(".").pop() || cleaned;
+  cleaned = cleaned.replace(/(_csv|_xlsx|_json)$/i, "");
+  cleaned = cleaned.replace(/[^a-zA-Z0-9]/g, " ").trim();
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  let pascal = words
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join("");
+  if (!/^[a-zA-Z]/.test(pascal)) {
+    pascal = "Entity_" + pascal;
+  }
+  if (pascal.length < 2) {
+    pascal = pascal + "_Record";
+  }
+  return pascal;
+}
+
+function sanitizePropertyName(rawName: string): string {
+  if (!rawName) return "field";
+  const words = rawName
+    .replace(/[^a-zA-Z0-9]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return "field";
+  let camel = words
+    .map((w, i) =>
+      i === 0
+        ? w.toLowerCase()
+        : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
+    )
+    .join("");
+  if (!/^[a-zA-Z]/.test(camel)) {
+    camel = "col_" + camel;
+  }
+  return camel;
+}
+
+function inferPropertyType(colType?: string): string {
+  switch (colType?.toLowerCase()) {
+    case "integer":
+      return "integer";
+    case "double":
+      return "double";
+    case "boolean":
+      return "boolean";
+    case "timestamp":
+      return "date";
+    default:
+      return "string";
+  }
+}
+
 export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   onClose,
   onSuccess,
@@ -75,6 +130,11 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     "Transaction",
     "Organization",
   ]);
+  const [backendEntityTypes, setBackendEntityTypes] = useState<string[]>([]);
+  const [primaryTargetEntity, setPrimaryTargetEntity] = useState<string>("");
+  const [inferredEntityName, setInferredEntityName] = useState<string>("");
+  const [isCreatingCustomEntity, setIsCreatingCustomEntity] = useState(false);
+  const [customEntityInput, setCustomEntityInput] = useState("");
   const [ontologyProperties, setOntologyProperties] = useState<
     Record<string, string[]>
   >({
@@ -100,7 +160,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 properties?: Array<{ name: string }>;
               }) => {
                 const name = item.name || item.label;
-                if (name) {
+                // Exclude any phantom "Csv" entity created previously
+                if (name && name.toLowerCase() !== "csv") {
                   types.push(name);
                   propsMap[name] = Array.isArray(item.properties)
                     ? item.properties.map((p) => p.name)
@@ -109,8 +170,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               },
             );
             if (types.length > 0) {
+              setBackendEntityTypes(types);
               setOntologyEntityTypes(types);
-              setOntologyProperties(propsMap);
+              setOntologyProperties((prev) => ({ ...prev, ...propsMap }));
             }
           }
         }
@@ -274,25 +336,36 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           };
         });
 
-        // Initialize ontology mappings
+        // Infer primary entity name from the uploaded filename (e.g. Social_media_impact_on_life.csv -> SocialMediaImpactOnLife)
+        const inferredEntity = sanitizeEntityName(selectedFile.name);
+        setInferredEntityName(inferredEntity);
+        setPrimaryTargetEntity(inferredEntity);
+
+        // Generate clean property names from column names
+        const inferredProps = configs.map((cfg) =>
+          sanitizePropertyName(cfg.name),
+        );
+
+        // Register inferred entity into ontology states if not present
+        setOntologyEntityTypes((prev) => {
+          const filtered = prev.filter((t) => t.toLowerCase() !== "csv");
+          return filtered.includes(inferredEntity)
+            ? filtered
+            : [inferredEntity, ...filtered];
+        });
+
+        setOntologyProperties((prev) => ({
+          ...prev,
+          [inferredEntity]: inferredProps,
+        }));
+
+        // Initialize ontology mappings: dynamically link each column to its own sanitized property
         const initialMappings: typeof mappings = {};
         configs.forEach((cfg) => {
-          // Default mapping rule to User entity types if found
-          let matchedEntity = "User";
-          let matchedProp = "id";
-
-          if (/name/i.test(cfg.name)) {
-            matchedProp = "name";
-          } else if (/email/i.test(cfg.name)) {
-            matchedProp = "email";
-          } else if (/price|amount/i.test(cfg.name)) {
-            matchedEntity = "Transaction";
-            matchedProp = "amount";
-          }
-
+          const propName = sanitizePropertyName(cfg.name);
           initialMappings[cfg.name] = {
-            targetEntityType: matchedEntity,
-            targetProperty: matchedProp,
+            targetEntityType: inferredEntity,
+            targetProperty: propName,
             transformation: "NONE",
           };
         });
@@ -349,6 +422,62 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     );
   };
 
+  const handlePrimaryEntityChange = (newEntity: string) => {
+    if (newEntity === "__CREATE_NEW__") {
+      setIsCreatingCustomEntity(true);
+      return;
+    }
+    setPrimaryTargetEntity(newEntity);
+    setMappings((prev) => {
+      const updated = { ...prev };
+      const props = ontologyProperties[newEntity] || [];
+      columnsConfig.forEach((col) => {
+        const cur = prev[col.name];
+        const cleanProp = sanitizePropertyName(col.name);
+        const matchedProp = props.includes(cleanProp)
+          ? cleanProp
+          : props[0] || cleanProp;
+        updated[col.name] = {
+          targetEntityType: newEntity,
+          targetProperty: matchedProp,
+          transformation: cur?.transformation || "NONE",
+        };
+      });
+      return updated;
+    });
+  };
+
+  const handleApplyCustomEntity = () => {
+    const sanitized = sanitizeEntityName(customEntityInput);
+    if (!sanitized) return;
+    setOntologyEntityTypes((prev) =>
+      prev.includes(sanitized) ? prev : [sanitized, ...prev],
+    );
+    const inferredProps = columnsConfig.map((c) =>
+      sanitizePropertyName(c.name),
+    );
+    setOntologyProperties((prev) => ({
+      ...prev,
+      [sanitized]: inferredProps,
+    }));
+    setPrimaryTargetEntity(sanitized);
+    setIsCreatingCustomEntity(false);
+    setCustomEntityInput("");
+
+    setMappings((prev) => {
+      const updated = { ...prev };
+      columnsConfig.forEach((col) => {
+        const cur = prev[col.name];
+        updated[col.name] = {
+          targetEntityType: sanitized,
+          targetProperty: sanitizePropertyName(col.name),
+          transformation: cur?.transformation || "NONE",
+        };
+      });
+      return updated;
+    });
+  };
+
   const updateMapping = (
     colName: string,
     key: "targetEntityType" | "targetProperty" | "transformation",
@@ -356,15 +485,22 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   ) => {
     setMappings((prev) => {
       const current = prev[colName] || {
-        targetEntityType: "User",
-        targetProperty: "id",
+        targetEntityType: primaryTargetEntity || "Entity",
+        targetProperty: sanitizePropertyName(colName),
         transformation: "NONE",
       };
       const updated = { ...current, [key]: value };
 
       // Reset property if entity type changes
       if (key === "targetEntityType") {
-        updated.targetProperty = ontologyProperties[value]?.[0] || "";
+        const available = ontologyProperties[value];
+        const cleanProp = sanitizePropertyName(colName);
+        updated.targetProperty =
+          available && available.length > 0
+            ? available.includes(cleanProp)
+              ? cleanProp
+              : available[0]
+            : cleanProp;
       }
 
       return {
@@ -398,8 +534,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
     for (const col of activeCols) {
       const mapCfg = mappings[col.name] || {
-        targetEntityType: "User",
-        targetProperty: "id",
+        targetEntityType: primaryTargetEntity || "Entity",
+        targetProperty: sanitizePropertyName(col.name),
         transformation: "NONE",
       };
       try {
@@ -410,8 +546,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             connectorId,
             name: `${file?.name} - ${col.name} Map`,
             sourceColumn: col.name,
-            targetEntityType: mapCfg.targetEntityType || "User",
-            targetProperty: mapCfg.targetProperty || "id",
+            targetEntityType:
+              mapCfg.targetEntityType || primaryTargetEntity || "Entity",
+            targetProperty:
+              mapCfg.targetProperty || sanitizePropertyName(col.name),
             transformation: (mapCfg.transformation || "NONE").toUpperCase(),
           }),
         });
@@ -443,6 +581,67 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     );
 
     let createdConnId: string | undefined;
+
+    // Step 0: Ensure target entities exist in backend ontology
+    try {
+      const activeCols = columnsConfig.filter((c) => c.active);
+      const usedEntityTypes = Array.from(
+        new Set(
+          activeCols
+            .map(
+              (c) => mappings[c.name]?.targetEntityType || primaryTargetEntity,
+            )
+            .filter(Boolean),
+        ),
+      );
+
+      for (const entName of usedEntityTypes) {
+        if (!backendEntityTypes.includes(entName)) {
+          addLog(
+            `[Ontology] Registering Entity Type '${entName}' in ontology graph...`,
+            "INFO",
+          );
+          const entityCols = activeCols.filter(
+            (c) =>
+              (mappings[c.name]?.targetEntityType || primaryTargetEntity) ===
+              entName,
+          );
+          const propertiesPayload = entityCols.map((c) => ({
+            name:
+              mappings[c.name]?.targetProperty || sanitizePropertyName(c.name),
+            type: inferPropertyType(c.type),
+            required:
+              c.name.toLowerCase().endsWith("id") ||
+              c.name.toLowerCase() === "id",
+            defaultValue: null,
+            description: c.name,
+          }));
+
+          const ontRes = await apiFetch("/api/v1/ontology/entity-types", {
+            method: "POST",
+            body: JSON.stringify({
+              name: entName,
+              label: entName.replace(/([A-Z])/g, " $1").trim(),
+              color: "#3b82f6",
+              icon: "database",
+              description: `Generated from ${file.name}`,
+              properties: propertiesPayload,
+            }),
+          });
+          if (ontRes.ok) {
+            addLog(
+              `[Ontology] Entity Type '${entName}' registered with ${propertiesPayload.length} properties.`,
+              "SUCCESS",
+            );
+          }
+        }
+      }
+    } catch (e) {
+      addLog(
+        `[Ontology] Note: Entity registration fallback active (${e instanceof Error ? e.message : "OK"}).`,
+        "INFO",
+      );
+    }
 
     try {
       // Step 1: Register Connection entity in core-backend
@@ -770,6 +969,93 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 </div>
               </div>
 
+              {/* Primary Target Entity Banner */}
+              <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold font-mono">
+                    Ω
+                  </div>
+                  <div>
+                    <div className="font-semibold text-zinc-200 flex items-center gap-2">
+                      <span>Target Entity:</span>
+                      <span className="font-mono text-blue-400 font-bold text-sm">
+                        {primaryTargetEntity || inferredEntityName || "None"}
+                      </span>
+                      {inferredEntityName &&
+                        primaryTargetEntity === inferredEntityName && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-500/15 border border-blue-500/30 text-blue-300">
+                            Auto-inferred
+                          </span>
+                        )}
+                    </div>
+                    <p className="text-[11px] text-zinc-500">
+                      All columns map to this Entity Type by default. You can
+                      switch target entity or fine-tune individual column
+                      properties below.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!isCreatingCustomEntity ? (
+                    <>
+                      <span className="text-zinc-400">Change Target:</span>
+                      <select
+                        value={primaryTargetEntity}
+                        onChange={(e) =>
+                          handlePrimaryEntityChange(e.target.value)
+                        }
+                        className="bg-zinc-900 border border-zinc-700 hover:border-zinc-600 rounded-lg px-2.5 py-1.5 text-zinc-200 outline-none focus:border-blue-500 cursor-pointer font-medium"
+                      >
+                        {ontologyEntityTypes
+                          .filter((e) => e.toLowerCase() !== "csv")
+                          .map((entity) => (
+                            <option key={entity} value={entity}>
+                              {entity === inferredEntityName
+                                ? `${entity} (Inferred from dataset)`
+                                : entity}
+                            </option>
+                          ))}
+                        <option value="__CREATE_NEW__">
+                          + Create New Entity Type...
+                        </option>
+                      </select>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="New Entity Name (e.g. StudentSurvey)"
+                        value={customEntityInput}
+                        onChange={(e) => setCustomEntityInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleApplyCustomEntity();
+                          if (e.key === "Escape")
+                            setIsCreatingCustomEntity(false);
+                        }}
+                        className="bg-zinc-900 border border-blue-500/60 rounded-lg px-2.5 py-1.5 text-zinc-200 text-xs outline-none focus:border-blue-400 w-56 font-mono"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleApplyCustomEntity}
+                        className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsCreatingCustomEntity(false);
+                          setCustomEntityInput("");
+                        }}
+                        className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Mappings Grid */}
               <div className="flex-1 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950 shadow-inner flex flex-col min-h-0">
                 <div className="overflow-x-auto min-w-0 flex-1 flex flex-col min-h-0">
@@ -785,8 +1071,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     <div className="divide-y divide-zinc-900 flex-1 overflow-y-auto min-h-[220px]">
                       {columnsConfig.map((col) => {
                         const colMap = mappings[col.name] || {
-                          targetEntityType: "User",
-                          targetProperty: "id",
+                          targetEntityType: primaryTargetEntity || "Entity",
+                          targetProperty: sanitizePropertyName(col.name),
                           transformation: "NONE",
                         };
                         return (
@@ -845,20 +1131,34 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                               <select
                                 disabled={!col.active}
                                 value={colMap.targetEntityType}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const newEntity = e.target.value;
+                                  if (newEntity === "__CREATE_NEW__") {
+                                    setIsCreatingCustomEntity(true);
+                                    return;
+                                  }
                                   updateMapping(
                                     col.name,
                                     "targetEntityType",
-                                    e.target.value,
-                                  )
-                                }
+                                    newEntity,
+                                  );
+                                }}
                                 className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
                               >
-                                {ontologyEntityTypes.map((entity) => (
-                                  <option key={entity} value={entity}>
-                                    {entity}
-                                  </option>
-                                ))}
+                                {ontologyEntityTypes
+                                  .filter(
+                                    (entity) => entity.toLowerCase() !== "csv",
+                                  )
+                                  .map((entity) => (
+                                    <option key={entity} value={entity}>
+                                      {entity === inferredEntityName
+                                        ? `${entity}`
+                                        : entity}
+                                    </option>
+                                  ))}
+                                <option value="__CREATE_NEW__">
+                                  + New Entity...
+                                </option>
                               </select>
                               <select
                                 disabled={!col.active}
@@ -872,14 +1172,30 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                                 }
                                 className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
                               >
-                                {(
-                                  ontologyProperties[colMap.targetEntityType] ||
-                                  []
-                                ).map((prop) => (
-                                  <option key={prop} value={prop}>
-                                    {prop}
-                                  </option>
-                                ))}
+                                {(() => {
+                                  const cleanProp = sanitizePropertyName(
+                                    col.name,
+                                  );
+                                  const available =
+                                    ontologyProperties[
+                                      colMap.targetEntityType
+                                    ] || [];
+                                  const opts =
+                                    available.length > 0
+                                      ? [...available]
+                                      : [cleanProp];
+                                  if (
+                                    colMap.targetProperty &&
+                                    !opts.includes(colMap.targetProperty)
+                                  ) {
+                                    opts.unshift(colMap.targetProperty);
+                                  }
+                                  return opts.map((prop) => (
+                                    <option key={prop} value={prop}>
+                                      {prop}
+                                    </option>
+                                  ));
+                                })()}
                               </select>
                             </div>
 
