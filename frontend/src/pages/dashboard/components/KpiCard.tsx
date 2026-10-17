@@ -53,9 +53,11 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           <>
             <span>{subtitle}</span>
             {badge && (
-              <Badge variant={badge.variant ?? "default"} withDot>
-                {badge.text}
-              </Badge>
+              <div className="shrink-0">
+                <Badge variant={badge.variant ?? "default"} withDot>
+                  {badge.text}
+                </Badge>
+              </div>
             )}
           </>
         )}
