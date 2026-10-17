@@ -296,6 +296,7 @@ export const ConnectionsPage: React.FC = () => {
   const [previewingFile, setPreviewingFile] = useState<IngestedFile | null>(
     null,
   );
+  const [isRawPreviewLoading, setIsRawPreviewLoading] = useState(false);
   const [cleanPreviewFile, setCleanPreviewFile] = useState<IngestedFile | null>(
     null,
   );
@@ -658,6 +659,61 @@ export const ConnectionsPage: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleOpenFilePreview = async (file: IngestedFile) => {
+    setPreviewingFile(file);
+    if (file.sampleRows && file.sampleRows.length > 0) {
+      return;
+    }
+    try {
+      const cached = JSON.parse(
+        localStorage.getItem("local_ingested_files") || "[]",
+      );
+      const match = cached.find(
+        (c: {
+          id?: string;
+          name?: string;
+          sampleRows?: Record<string, unknown>[];
+          columns?: string[];
+        }) => (c.id && c.id === file.id) || (c.name && c.name === file.name),
+      );
+      if (match && match.sampleRows && match.sampleRows.length > 0) {
+        setPreviewingFile({
+          ...file,
+          sampleRows: match.sampleRows,
+          columns: match.columns || Object.keys(match.sampleRows[0]),
+        });
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    setIsRawPreviewLoading(true);
+    try {
+      const res = await apiFetch(`/api/v1/connections/${file.id}/preview/file`);
+      if (res.ok) {
+        const rows = (await res.json()) as Record<string, unknown>[];
+        if (Array.isArray(rows) && rows.length > 0) {
+          const cols = Object.keys(rows[0]);
+          const updated: IngestedFile = {
+            ...file,
+            sampleRows: rows,
+            columns:
+              file.columns && file.columns.length > 0 ? file.columns : cols,
+          };
+          setPreviewingFile(updated);
+          setIngestedFiles((prev) =>
+            prev.map((f) => (f.id === file.id ? updated : f)),
+          );
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch remote raw file sample:", err);
+    } finally {
+      setIsRawPreviewLoading(false);
+    }
   };
 
   const openCleanPreview = async (file: IngestedFile) => {
@@ -1097,7 +1153,7 @@ export const ConnectionsPage: React.FC = () => {
                           className="grid grid-cols-12 p-4 text-xs items-center hover:bg-zinc-900/10"
                         >
                           <button
-                            onClick={() => setPreviewingFile(file)}
+                            onClick={() => handleOpenFilePreview(file)}
                             className="col-span-3 font-semibold text-zinc-200 flex items-center gap-2 hover:text-emerald-400 text-left transition-colors cursor-pointer group truncate pr-2"
                             title="Click to preview raw file sample"
                           >
@@ -1145,7 +1201,7 @@ export const ConnectionsPage: React.FC = () => {
                           </div>
                           <div className="col-span-3 flex items-center justify-end gap-1.5 select-none pr-1">
                             <button
-                              onClick={() => setPreviewingFile(file)}
+                              onClick={() => handleOpenFilePreview(file)}
                               className="p-1 hover:bg-zinc-800 hover:text-zinc-200 text-zinc-400 rounded transition-colors cursor-pointer"
                               title="Preview Raw File Sample"
                             >
@@ -1313,102 +1369,114 @@ export const ConnectionsPage: React.FC = () => {
 
               {/* Modal Content / Data Table */}
               <div className="p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
-                {(() => {
-                  const { columns, rows } = getPreviewData(previewingFile);
-                  if (rows.length === 0) {
-                    return (
-                      <div className="py-16 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-xl border border-zinc-800/80 my-auto">
-                        <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 mb-3 shadow-inner">
-                          <Layers className="w-6 h-6 text-zinc-400" />
-                        </div>
-                        <h4 className="text-sm font-semibold text-zinc-200">
-                          No Raw Sample Rows Cached
-                        </h4>
-                        <p className="text-xs text-zinc-500 max-w-md mt-1 mb-4 leading-relaxed">
-                          This dataset connection was registered with schema
-                          metadata. You can inspect its schema structure or view
-                          reconciled golden records processed by the Data
-                          Engine.
-                        </p>
-                        {columns.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 justify-center max-w-lg mb-5">
-                            {columns.map((col) => (
-                              <span
-                                key={col}
-                                className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 font-mono text-[11px]"
-                              >
-                                {col}
-                              </span>
-                            ))}
+                {isRawPreviewLoading ? (
+                  <div className="py-20 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-xl border border-zinc-800/80 my-auto">
+                    <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+                    <h4 className="text-sm font-semibold text-zinc-200">
+                      Streaming Raw File Sample
+                    </h4>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Reading first 100 records from MinIO raw object store...
+                    </p>
+                  </div>
+                ) : (
+                  (() => {
+                    const { columns, rows } = getPreviewData(previewingFile);
+                    if (rows.length === 0) {
+                      return (
+                        <div className="py-16 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-xl border border-zinc-800/80 my-auto">
+                          <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 mb-3 shadow-inner">
+                            <Layers className="w-6 h-6 text-zinc-400" />
                           </div>
-                        )}
-                        <button
-                          onClick={() => {
-                            const file = previewingFile;
-                            setPreviewingFile(null);
-                            openCleanPreview(file);
-                          }}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 shadow-md shadow-emerald-950 transition-colors cursor-pointer"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Inspect Clean Golden Records</span>
-                        </button>
+                          <h4 className="text-sm font-semibold text-zinc-200">
+                            No Raw Sample Rows Cached
+                          </h4>
+                          <p className="text-xs text-zinc-500 max-w-md mt-1 mb-4 leading-relaxed">
+                            This dataset connection was registered with schema
+                            metadata. You can inspect its schema structure or
+                            view reconciled golden records processed by the Data
+                            Engine.
+                          </p>
+                          {columns.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 justify-center max-w-lg mb-5">
+                              {columns.map((col) => (
+                                <span
+                                  key={col}
+                                  className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 font-mono text-[11px]"
+                                >
+                                  {col}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => {
+                              const file = previewingFile;
+                              setPreviewingFile(null);
+                              openCleanPreview(file);
+                            }}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 shadow-md shadow-emerald-950 transition-colors cursor-pointer"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Inspect Clean Golden Records</span>
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
+                        <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
+                          <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
+                            <tr className="text-zinc-300">
+                              <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
+                                #
+                              </th>
+                              {columns.map((col) => (
+                                <th
+                                  key={col}
+                                  className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
+                                >
+                                  {formatColumnHeader(col)}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-900">
+                            {rows.map((row, idx) => (
+                              <tr
+                                key={idx}
+                                className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
+                              >
+                                <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 font-mono text-[11px] shadow-sm">
+                                  {idx + 1}
+                                </td>
+                                {columns.map((col) => {
+                                  const val = (row as Record<string, unknown>)[
+                                    col
+                                  ];
+                                  return (
+                                    <td
+                                      key={col}
+                                      className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
+                                      title={
+                                        val !== undefined && val !== null
+                                          ? String(val)
+                                          : ""
+                                      }
+                                    >
+                                      {renderRawCellValue(col, val)}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     );
-                  }
-
-                  return (
-                    <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
-                      <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
-                        <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
-                          <tr className="text-zinc-300">
-                            <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
-                              #
-                            </th>
-                            {columns.map((col) => (
-                              <th
-                                key={col}
-                                className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
-                              >
-                                {formatColumnHeader(col)}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-900">
-                          {rows.map((row, idx) => (
-                            <tr
-                              key={idx}
-                              className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
-                            >
-                              <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 font-mono text-[11px] shadow-sm">
-                                {idx + 1}
-                              </td>
-                              {columns.map((col) => {
-                                const val = (row as Record<string, unknown>)[
-                                  col
-                                ];
-                                return (
-                                  <td
-                                    key={col}
-                                    className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
-                                    title={
-                                      val !== undefined && val !== null
-                                        ? String(val)
-                                        : ""
-                                    }
-                                  >
-                                    {renderRawCellValue(col, val)}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })()}
+                  })()
+                )}
               </div>
 
               {/* Modal Footer */}

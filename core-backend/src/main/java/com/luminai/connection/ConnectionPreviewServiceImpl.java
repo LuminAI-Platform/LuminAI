@@ -58,21 +58,17 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
 
   @Override
   public List<Map<String, Object>> previewFile(UUID connectionId) {
-    Optional<Connection> connOpt = connectionRepository.findById(connectionId);
-    if (connOpt.isEmpty()) {
-      UUID currentTenant = com.luminai.common.tenant.TenantContext.getTenantUuid();
-      if (currentTenant != null) {
-        connOpt = connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
-        if (connOpt.isEmpty()) {
-          List<Connection> all = connectionRepository.findAllByTenantId(currentTenant);
-          if (!all.isEmpty()) {
-            connOpt = Optional.of(all.get(0));
-          }
-        }
-      }
+    UUID currentTenant = com.luminai.common.tenant.TenantContext.getTenantUuid();
+    Optional<Connection> connOpt;
+    if (currentTenant != null) {
+      connOpt = connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
+    } else {
+      connOpt = connectionRepository.findById(connectionId);
     }
+
     if (connOpt.isEmpty()) {
-      log.warn("Connection '{}' not found for file preview", connectionId);
+      log.warn(
+          "Connection '{}' not found for file preview (tenant: {})", connectionId, currentTenant);
       return List.of();
     }
 
@@ -131,9 +127,17 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
 
   @Override
   public List<Map<String, Object>> previewTable(UUID connectionId, String table) {
-    Optional<Connection> connOpt = connectionRepository.findById(connectionId);
+    UUID currentTenant = com.luminai.common.tenant.TenantContext.getTenantUuid();
+    Optional<Connection> connOpt;
+    if (currentTenant != null) {
+      connOpt = connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
+    } else {
+      connOpt = connectionRepository.findById(connectionId);
+    }
+
     if (connOpt.isEmpty()) {
-      log.warn("Connection '{}' not found for table preview", connectionId);
+      log.warn(
+          "Connection '{}' not found for table preview (tenant: {})", connectionId, currentTenant);
       return List.of();
     }
 

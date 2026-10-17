@@ -213,6 +213,20 @@ public class ConnectionController {
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getCleanPreview(@PathVariable UUID id) {
+    UUID currentTenant = TenantContext.getTenantUuid();
+    if (currentTenant == null) {
+      currentTenant = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    }
+
+    if (connectionRepository != null) {
+      Optional<Connection> existingOpt = connectionRepository.findById(id);
+      if (existingOpt.isPresent() && !currentTenant.equals(existingOpt.get().getTenantId())) {
+        log.warn("Forbidden: connection '{}' does not belong to tenant '{}'", id, currentTenant);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(Map.of("error", "Access denied to connection " + id));
+      }
+    }
+
     List<Map<String, Object>> cleanRows = new ArrayList<>();
     Set<String> columnSet = new LinkedHashSet<>();
     columnSet.add("canonicalName");
@@ -226,7 +240,7 @@ public class ConnectionController {
 
     List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
     if (rawRows.isEmpty() && connectionRepository != null) {
-      Optional<Connection> connOpt = connectionRepository.findById(id);
+      Optional<Connection> connOpt = connectionRepository.findByIdAndTenantId(id, currentTenant);
       if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
         try {
           com.fasterxml.jackson.databind.JsonNode root =
@@ -241,20 +255,6 @@ public class ConnectionController {
             rawRows = cached;
           }
         } catch (Exception ignored) {
-        }
-      }
-    }
-
-    if (rawRows.isEmpty() && connectionRepository != null) {
-      UUID currentTenant = TenantContext.getTenantUuid();
-      if (currentTenant != null) {
-        List<Connection> connections = connectionRepository.findAllByTenantId(currentTenant);
-        for (Connection c : connections) {
-          List<Map<String, Object>> candidate = connectionPreviewService.previewFile(c.getId());
-          if (!candidate.isEmpty()) {
-            rawRows = candidate;
-            break;
-          }
         }
       }
     }
@@ -394,48 +394,84 @@ public class ConnectionController {
               ? Math.round(((double) validFields / (double) totalFields) * 1000.0) / 10.0
               : 100.0;
 
-      // Auto-persist into golden_records so Graph and Explorer are immediately alive
+      // Idempotently persist golden records once per connection (avoiding duplication on repeat GET
+      // requests)
       if (goldenRecordRepository != null) {
         try {
-          UUID currentTenant = TenantContext.getTenantUuid();
-          if (currentTenant == null) {
-            currentTenant = UUID.fromString("00000000-0000-0000-0000-000000000001");
-          }
-          List<GoldenRecord> savedList = new ArrayList<>();
-          for (Map<String, Object> cRow : cleanRows) {
-            GoldenRecord gr = GoldenRecord.newStandalone();
-            gr.setTenantId(currentTenant);
-            gr.setCanonicalName(String.valueOf(cRow.get("canonicalName")));
-            gr.setEntityType(String.valueOf(cRow.get("entityType")));
-            gr.setConfidenceScore(
-                java.math.BigDecimal.valueOf((Double) cRow.get("confidenceScore")));
-            gr.setSourceCount((Integer) cRow.get("sourceCount"));
-            Map<String, Object> props = new LinkedHashMap<>(cRow);
-            props.remove("id");
-            props.remove("canonicalName");
-            props.remove("entityType");
-            props.remove("confidenceScore");
-            props.remove("sourceCount");
-            gr.getProperties().putAll(props);
-            GoldenRecord saved = goldenRecordRepository.save(gr);
-            savedList.add(saved);
+          Optional<Connection> connOpt =
+              connectionRepository != null
+                  ? connectionRepository.findByIdAndTenantId(id, currentTenant)
+                  : Optional.empty();
 
-            syncNodeToNeo4j(
-                currentTenant, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
-          }
-
-          for (int i = 0; i < savedList.size() - 1 && i < 20; i++) {
-            GoldenRecord a = savedList.get(i);
-            GoldenRecord b = savedList.get(i + 1);
-            if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
-              syncRelationshipToNeo4j(currentTenant, a.getId(), b.getId(), "SAME_CATEGORY");
+          boolean alreadyPersisted = false;
+          if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
+            try {
+              com.fasterxml.jackson.databind.JsonNode conf =
+                  objectMapper.readTree(connOpt.get().getConfig());
+              if (conf.has("goldenRecordsPersisted")
+                  && conf.get("goldenRecordsPersisted").asBoolean()) {
+                alreadyPersisted = true;
+              }
+            } catch (Exception ignored) {
             }
           }
 
-          log.info(
-              "Persisted and graph-synced {} resolved golden records for tenant {}",
-              cleanRows.size(),
-              currentTenant);
+          if (!alreadyPersisted) {
+            List<GoldenRecord> savedList = new ArrayList<>();
+            for (Map<String, Object> cRow : cleanRows) {
+              GoldenRecord gr = GoldenRecord.newStandalone();
+              gr.setTenantId(currentTenant);
+              gr.setCanonicalName(String.valueOf(cRow.get("canonicalName")));
+              gr.setEntityType(String.valueOf(cRow.get("entityType")));
+              gr.setConfidenceScore(
+                  java.math.BigDecimal.valueOf((Double) cRow.get("confidenceScore")));
+              gr.setSourceCount((Integer) cRow.get("sourceCount"));
+              Map<String, Object> props = new LinkedHashMap<>(cRow);
+              props.remove("id");
+              props.remove("canonicalName");
+              props.remove("entityType");
+              props.remove("confidenceScore");
+              props.remove("sourceCount");
+              gr.getProperties().putAll(props);
+              GoldenRecord saved = goldenRecordRepository.save(gr);
+              savedList.add(saved);
+
+              syncNodeToNeo4j(
+                  currentTenant, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
+            }
+
+            for (int i = 0; i < savedList.size() - 1 && i < 20; i++) {
+              GoldenRecord a = savedList.get(i);
+              GoldenRecord b = savedList.get(i + 1);
+              if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
+                syncRelationshipToNeo4j(currentTenant, a.getId(), b.getId(), "SAME_CATEGORY");
+              }
+            }
+
+            // Flag as persisted in connection configuration so subsequent GETs remain idempotent
+            if (connOpt.isPresent() && connectionRepository != null) {
+              Connection conn = connOpt.get();
+              try {
+                Map<String, Object> confMap = new LinkedHashMap<>();
+                if (conn.getConfig() != null && !conn.getConfig().isBlank()) {
+                  @SuppressWarnings("unchecked")
+                  Map<String, Object> existing =
+                      objectMapper.readValue(conn.getConfig(), Map.class);
+                  confMap.putAll(existing);
+                }
+                confMap.put("goldenRecordsPersisted", true);
+                conn.setConfig(objectMapper.writeValueAsString(confMap));
+                connectionRepository.save(conn);
+              } catch (Exception ignored) {
+              }
+            }
+
+            log.info(
+                "Persisted and graph-synced {} resolved golden records for connection '{}' (tenant {})",
+                cleanRows.size(),
+                id,
+                currentTenant);
+          }
         } catch (Exception e) {
           log.debug(
               "Auto-persistence of golden records in clean-preview skipped: {}", e.getMessage());
@@ -499,11 +535,19 @@ public class ConnectionController {
   @PostMapping(value = "/{id}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
-  public ResponseEntity<Map<String, Object>> uploadFile(
+  public ResponseEntity<?> uploadFile(
       @PathVariable UUID id, @RequestParam("file") MultipartFile file) throws IOException {
     UUID tenantId = TenantContext.getTenantUuid();
     if (tenantId == null) {
       tenantId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    }
+
+    if (connectionRepository != null) {
+      Optional<Connection> existingOpt = connectionRepository.findById(id);
+      if (existingOpt.isPresent() && !tenantId.equals(existingOpt.get().getTenantId())) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(Map.of("error", "Access denied: connection belongs to another tenant"));
+      }
     }
 
     boolean isZip =
@@ -535,7 +579,7 @@ public class ConnectionController {
     // 1. Update Connection in database with parsed sample rows & metadata
     if (connectionRepository != null) {
       try {
-        Optional<Connection> connOpt = connectionRepository.findById(id);
+        Optional<Connection> connOpt = connectionRepository.findByIdAndTenantId(id, tenantId);
         if (connOpt.isPresent()) {
           Connection connection = connOpt.get();
           Map<String, Object> configMap = new LinkedHashMap<>();
@@ -707,7 +751,8 @@ public class ConnectionController {
 
     if (connectionRepository != null) {
       try {
-        Optional<Connection> connOpt = connectionRepository.findById(connectionId);
+        Optional<Connection> connOpt =
+            connectionRepository.findByIdAndTenantId(connectionId, tenantId);
         if (connOpt.isPresent()) {
           Connection connection = connOpt.get();
           Map<String, Object> configMap = new LinkedHashMap<>();
@@ -762,7 +807,7 @@ public class ConnectionController {
   @PostMapping("/discover")
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
-  public ResponseEntity<List<Map<String, Object>>> discoverSchemas(
+  public ResponseEntity<?> discoverSchemas(
       @RequestBody(required = false) Map<String, Object> config) {
     UUID tenantId = TenantContext.getTenantUuid();
     if (config != null
@@ -779,6 +824,35 @@ public class ConnectionController {
         return ResponseEntity.ok(schemas);
       } catch (Exception e) {
         log.warn("Database schema discovery failed: {}", e.getMessage());
+      }
+    } else if (config != null && config.containsKey("host") && postgresConnectorService != null) {
+      try {
+        String host = String.valueOf(config.get("host"));
+        int port = 5432;
+        if (config.containsKey("port") && config.get("port") != null) {
+          try {
+            port = Integer.parseInt(String.valueOf(config.get("port")));
+          } catch (NumberFormatException ignored) {
+          }
+        }
+        String database =
+            config.containsKey("database")
+                ? String.valueOf(config.get("database"))
+                : String.valueOf(config.getOrDefault("databaseName", ""));
+        String username = String.valueOf(config.getOrDefault("username", ""));
+        String password = String.valueOf(config.getOrDefault("password", ""));
+
+        Map<String, List<String>> discovered =
+            postgresConnectorService.discoverSchemasDirect(
+                host, port, database, username, password);
+        List<Map<String, Object>> schemas = new ArrayList<>();
+        discovered.forEach(
+            (schema, tables) -> schemas.add(Map.of("schema", schema, "tables", tables)));
+        return ResponseEntity.ok(schemas);
+      } catch (Exception e) {
+        log.warn("Direct database schema discovery failed: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("message", "Database connection rejected: " + e.getMessage()));
       }
     }
 

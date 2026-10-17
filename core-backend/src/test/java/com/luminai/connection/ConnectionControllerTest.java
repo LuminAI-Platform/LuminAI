@@ -2,6 +2,8 @@ package com.luminai.connection;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
@@ -29,6 +31,7 @@ import com.luminai.connection.service.FileConnectorService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -341,5 +344,98 @@ class ConnectionControllerTest {
         .publishRows(any(), eq(connId), eq("orders.csv"), any(), anyBoolean(), any());
     verify(connectionProducer, atLeastOnce())
         .publishRows(any(), eq(connId), eq("customers.csv"), any(), anyBoolean(), any());
+  }
+
+  @Test
+  @DisplayName(
+      "POST /api/v1/connections/{id}/upload returns 403 Forbidden when connection belongs to another tenant")
+  void uploadFileAccessDeniedDifferentTenant() throws Exception {
+    UUID connId = UUID.randomUUID();
+    UUID otherTenant = UUID.randomUUID();
+    Connection connection =
+        new Connection(otherTenant, "Other Conn", Connection.Type.FILE, "{}", null, null);
+
+    when(connectionRepository.findById(connId)).thenReturn(Optional.of(connection));
+
+    MockMultipartFile file =
+        new MockMultipartFile("file", "users.csv", "text/csv", "id,name\n1,Alice".getBytes());
+
+    mockMvc
+        .perform(multipart("/api/v1/connections/" + connId + "/upload").file(file))
+        .andExpect(status().isForbidden())
+        .andExpect(
+            jsonPath("$.error").value("Access denied: connection belongs to another tenant"));
+  }
+
+  @Test
+  @DisplayName(
+      "POST /api/v1/connections/discover directly tests connection and returns discovered schemas")
+  void discoverSchemasDirectSuccess() throws Exception {
+    when(postgresConnectorService.discoverSchemasDirect(
+            eq("db.internal.corp"), eq(5432), eq("analytics"), eq("admin"), eq("secret")))
+        .thenReturn(Map.of("public", List.of("events", "metrics")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/connections/discover")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "host": "db.internal.corp",
+                      "port": 5432,
+                      "database": "analytics",
+                      "username": "admin",
+                      "password": "secret"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].schema").value("public"))
+        .andExpect(jsonPath("$[0].tables[0]").value("events"));
+  }
+
+  @Test
+  @DisplayName(
+      "POST /api/v1/connections/discover returns 400 Bad Request when direct database connection fails")
+  void discoverSchemasDirectFailureReturnsBadRequest() throws Exception {
+    when(postgresConnectorService.discoverSchemasDirect(
+            eq("badhost.local"), anyInt(), anyString(), anyString(), anyString()))
+        .thenThrow(new RuntimeException("Connection refused to badhost.local:5432"));
+
+    mockMvc
+        .perform(
+            post("/api/v1/connections/discover")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "host": "badhost.local",
+                      "port": 5432,
+                      "database": "test",
+                      "username": "user",
+                      "password": "pw"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            jsonPath("$.message")
+                .value("Database connection rejected: Connection refused to badhost.local:5432"));
+  }
+
+  @Test
+  @DisplayName(
+      "GET /api/v1/connections/{id}/clean-preview returns 403 Forbidden for cross-tenant connection ID")
+  void getCleanPreviewAccessDeniedDifferentTenant() throws Exception {
+    UUID connId = UUID.randomUUID();
+    UUID otherTenant = UUID.randomUUID();
+    Connection connection =
+        new Connection(otherTenant, "Other Conn", Connection.Type.FILE, "{}", null, null);
+
+    when(connectionRepository.findById(connId)).thenReturn(Optional.of(connection));
+
+    mockMvc
+        .perform(get("/api/v1/connections/" + connId + "/clean-preview"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error").value("Access denied to connection " + connId));
   }
 }
