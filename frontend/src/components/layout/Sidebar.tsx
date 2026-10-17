@@ -294,7 +294,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 py-4 px-3 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
+        <nav className="flex-1 py-4 px-3.5 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
           {/* Section: Explore & Overview */}
           {!collapsed && (
             <div className="px-2 pt-1 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
