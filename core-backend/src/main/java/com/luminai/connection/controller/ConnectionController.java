@@ -252,11 +252,9 @@ public class ConnectionController {
           } else if (root.has("entityType") && !root.get("entityType").asText().isBlank()) {
             configuredEntityType = root.get("entityType").asText();
           }
-          if (root.has("rowsCount")) {
-            actualTotalRows = root.get("rowsCount").asLong();
-          } else if (root.has("recordsCount")) {
-            actualTotalRows = root.get("recordsCount").asLong();
-          }
+          long countFromRows = root.has("rowsCount") ? root.get("rowsCount").asLong() : 0;
+          long countFromRecords = root.has("recordsCount") ? root.get("recordsCount").asLong() : 0;
+          actualTotalRows = Math.max(countFromRows, countFromRecords);
           if (rawRows.isEmpty() && root.has("sampleRows") && root.get("sampleRows").isArray()) {
             List<Map<String, Object>> cached = new ArrayList<>();
             for (com.fasterxml.jackson.databind.JsonNode rowNode : root.get("sampleRows")) {
@@ -430,8 +428,11 @@ public class ConnectionController {
           }
 
           if (!alreadyPersisted) {
-            List<GoldenRecord> savedList = new ArrayList<>();
-            for (Map<String, Object> cRow : cleanRows) {
+            // Persist a representative sample batch (up to 50) of golden records to PostgreSQL
+            List<GoldenRecord> recordsToSave = new ArrayList<>();
+            int maxToPersist = Math.min(cleanRows.size(), 50);
+            for (int i = 0; i < maxToPersist; i++) {
+              Map<String, Object> cRow = cleanRows.get(i);
               GoldenRecord gr = GoldenRecord.newStandalone();
               gr.setTenantId(currentTenant);
               gr.setCanonicalName(String.valueOf(cRow.get("canonicalName")));
@@ -446,22 +447,13 @@ public class ConnectionController {
               props.remove("confidenceScore");
               props.remove("sourceCount");
               gr.getProperties().putAll(props);
-              GoldenRecord saved = goldenRecordRepository.save(gr);
-              savedList.add(saved);
-
-              syncNodeToNeo4j(
-                  currentTenant, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
+              recordsToSave.add(gr);
             }
 
-            for (int i = 0; i < savedList.size() - 1 && i < 20; i++) {
-              GoldenRecord a = savedList.get(i);
-              GoldenRecord b = savedList.get(i + 1);
-              if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
-                syncRelationshipToNeo4j(currentTenant, a.getId(), b.getId(), "SAME_CATEGORY");
-              }
-            }
+            List<GoldenRecord> savedList = goldenRecordRepository.saveAll(recordsToSave);
 
-            // Flag as persisted in connection configuration so subsequent GETs remain idempotent
+            // Flag as persisted in connection configuration immediately so repeat GETs remain
+            // idempotent
             if (connOpt.isPresent() && connectionRepository != null) {
               Connection conn = connOpt.get();
               try {
@@ -479,9 +471,35 @@ public class ConnectionController {
               }
             }
 
+            // Sync sample nodes and relationships to Neo4j asynchronously to avoid blocking the
+            // HTTP preview response
+            final UUID tenantForAsync = currentTenant;
+            java.util.concurrent.CompletableFuture.runAsync(
+                () -> {
+                  try {
+                    for (GoldenRecord saved : savedList) {
+                      syncNodeToNeo4j(
+                          tenantForAsync,
+                          saved.getId(),
+                          saved.getCanonicalName(),
+                          saved.getEntityType());
+                    }
+                    for (int i = 0; i < savedList.size() - 1 && i < 20; i++) {
+                      GoldenRecord a = savedList.get(i);
+                      GoldenRecord b = savedList.get(i + 1);
+                      if (a.getEntityType().equalsIgnoreCase(b.getEntityType())) {
+                        syncRelationshipToNeo4j(
+                            tenantForAsync, a.getId(), b.getId(), "SAME_CATEGORY");
+                      }
+                    }
+                  } catch (Exception asyncEx) {
+                    log.debug("Async Neo4j sync error: {}", asyncEx.getMessage());
+                  }
+                });
+
             log.info(
-                "Persisted and graph-synced {} resolved golden records for connection '{}' (tenant {})",
-                cleanRows.size(),
+                "Persisted {} golden records for connection '{}' (tenant {})",
+                savedList.size(),
                 id,
                 currentTenant);
           }
@@ -587,7 +605,10 @@ public class ConnectionController {
               + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload.csv");
     }
 
-    List<Map<String, Object>> rows = parseFileRows(file);
+    StreamingParseResult parseResult = parseFileStream(file, 1000);
+    List<Map<String, Object>> sampleRows = parseResult.sampleRows();
+    List<String> columns = parseResult.columns();
+    int totalRows = parseResult.totalRecords();
 
     // 1. Update Connection in database with parsed sample rows & metadata
     if (connectionRepository != null) {
@@ -608,10 +629,11 @@ public class ConnectionController {
           configMap.put("fileName", file.getOriginalFilename());
           configMap.put("fileKey", objectKey);
           configMap.put("fileSize", file.getSize());
-          configMap.put("recordsCount", rows.size());
-          if (!rows.isEmpty()) {
-            configMap.put("columns", new ArrayList<>(rows.get(0).keySet()));
-            configMap.put("sampleRows", rows.subList(0, Math.min(rows.size(), 100)));
+          configMap.put("recordsCount", totalRows);
+          configMap.put("rowsCount", totalRows);
+          if (!columns.isEmpty()) {
+            configMap.put("columns", columns);
+            configMap.put("sampleRows", sampleRows);
           }
           connection.setConfig(objectMapper.writeValueAsString(configMap));
           connection.setStatus(Connection.Status.ACTIVE);
@@ -626,32 +648,42 @@ public class ConnectionController {
 
     // 2. Stream parsed rows into Kafka in chunked batches with objectKey for Data Engine
     // consumption
-    final int BATCH_SIZE = 1000;
-    if (!rows.isEmpty()) {
-      try {
-        int totalRows = rows.size();
-        for (int i = 0; i < totalRows; i += BATCH_SIZE) {
-          int end = Math.min(i + BATCH_SIZE, totalRows);
-          List<Map<String, Object>> chunk = rows.subList(i, end);
-          boolean isLast = (end == totalRows);
+    if (totalRows <= 1000) {
+      if (!sampleRows.isEmpty()) {
+        try {
           connectionProducer.publishRows(
-              tenantId, id, file.getOriginalFilename(), chunk, isLast, objectKey);
+              tenantId, id, file.getOriginalFilename(), sampleRows, true, objectKey);
+          log.info(
+              "Streamed {} parsed rows to Kafka for connection '{}' (tenant={})",
+              totalRows,
+              id,
+              tenantId);
+        } catch (Exception e) {
+          log.warn("Kafka publishing skipped: {}", e.getMessage());
         }
+      } else {
+        try {
+          connectionProducer.publishRows(
+              tenantId, id, file.getOriginalFilename(), List.of(), true, objectKey);
+        } catch (Exception e) {
+          log.warn("Kafka completion signal skipped: {}", e.getMessage());
+        }
+      }
+    } else {
+      // For large files (> 1000 rows, up to hundreds of megabytes), dispatch sample rows with the
+      // MinIO objectKey.
+      // The Data Engine streams the complete raw dataset directly from MinIO using DuckDB/Polars.
+      try {
+        connectionProducer.publishRows(
+            tenantId, id, file.getOriginalFilename(), sampleRows, true, objectKey);
         log.info(
-            "Streamed {} parsed rows across {} Kafka batches for connection '{}' (tenant={})",
+            "Dispatched MinIO reference objectKey='{}' ({} records) to Data Engine for connection '{}' (tenant={})",
+            objectKey,
             totalRows,
-            (int) Math.ceil((double) totalRows / BATCH_SIZE),
             id,
             tenantId);
       } catch (Exception e) {
         log.warn("Kafka publishing skipped: {}", e.getMessage());
-      }
-    } else {
-      try {
-        connectionProducer.publishRows(
-            tenantId, id, file.getOriginalFilename(), List.of(), true, objectKey);
-      } catch (Exception e) {
-        log.warn("Kafka completion signal skipped: {}", e.getMessage());
       }
     }
 
@@ -664,7 +696,7 @@ public class ConnectionController {
             "fileName",
             file.getOriginalFilename() != null ? file.getOriginalFilename() : "file",
             "recordsCount",
-            rows.size(),
+            totalRows,
             "message",
             "File processed and published to ingest pipeline"));
   }
@@ -952,11 +984,83 @@ public class ConnectionController {
     return rows;
   }
 
+  public record StreamingParseResult(
+      List<String> columns, List<Map<String, Object>> sampleRows, int totalRecords) {}
+
+  private StreamingParseResult parseFileStream(MultipartFile file, int maxSampleRows) {
+    String filename = file.getOriginalFilename();
+    String lower = filename != null ? filename.toLowerCase() : "";
+    List<String> columns = new ArrayList<>();
+    List<Map<String, Object>> sampleRows = new ArrayList<>();
+    int totalCount = 0;
+
+    try (InputStream is = file.getInputStream()) {
+      if (lower.endsWith(".json")) {
+        ObjectMapper mapper = new ObjectMapper();
+        try (com.fasterxml.jackson.core.JsonParser parser = mapper.getFactory().createParser(is)) {
+          if (parser.nextToken() == com.fasterxml.jackson.core.JsonToken.START_ARRAY) {
+            while (parser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY
+                && parser.currentToken() != null) {
+              totalCount++;
+              if (sampleRows.size() < maxSampleRows) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> item = mapper.readValue(parser, Map.class);
+                sampleRows.add(item);
+                if (columns.isEmpty()) {
+                  columns.addAll(item.keySet());
+                }
+              } else {
+                parser.skipChildren();
+              }
+            }
+          } else {
+            Object parsed = mapper.readValue(is, Object.class);
+            if (parsed instanceof Map<?, ?> m) {
+              @SuppressWarnings("unchecked")
+              Map<String, Object> typedMap = (Map<String, Object>) m;
+              sampleRows.add(typedMap);
+              columns.addAll(typedMap.keySet());
+              totalCount = 1;
+            }
+          }
+        }
+      } else {
+        // Stream CSV/TSV without loading entire byte array into memory
+        try (BufferedReader reader =
+            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+          String headerLine = reader.readLine();
+          if (headerLine != null && !headerLine.isBlank()) {
+            columns = parseCsvLine(headerLine);
+            String line;
+            while ((line = reader.readLine()) != null) {
+              if (line.isBlank()) continue;
+              totalCount++;
+              if (sampleRows.size() < maxSampleRows) {
+                List<String> vals = parseCsvLine(line);
+                Map<String, Object> row = new LinkedHashMap<>();
+                for (int h = 0; h < columns.size(); h++) {
+                  String key = columns.get(h);
+                  String val = h < vals.size() ? vals.get(h) : "";
+                  row.put(key, val);
+                }
+                sampleRows.add(row);
+              }
+            }
+          }
+        }
+      }
+    } catch (Exception e) {
+      log.warn("Failed to stream parse file '{}': {}", filename, e.getMessage());
+    }
+
+    return new StreamingParseResult(columns, sampleRows, totalCount);
+  }
+
   private List<Map<String, Object>> parseFileRows(MultipartFile file) {
     try {
-      return parseBytesRows(file.getOriginalFilename(), file.getBytes());
+      return parseFileStream(file, 1000).sampleRows();
     } catch (Exception e) {
-      log.warn("Failed to read file bytes '{}': {}", file.getOriginalFilename(), e.getMessage());
+      log.warn("Failed to read file rows '{}': {}", file.getOriginalFilename(), e.getMessage());
       return List.of();
     }
   }

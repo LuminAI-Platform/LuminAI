@@ -18,6 +18,8 @@ import {
   Radio,
   Trash2,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
@@ -297,12 +299,18 @@ export const ConnectionsPage: React.FC = () => {
     null,
   );
   const [isRawPreviewLoading, setIsRawPreviewLoading] = useState(false);
+  const [rawPage, setRawPage] = useState(1);
+  const [rawPageSize, setRawPageSize] = useState(25);
+  const [rawSearchFilter, setRawSearchFilter] = useState("");
+
   const [cleanPreviewFile, setCleanPreviewFile] = useState<IngestedFile | null>(
     null,
   );
   const [cleanData, setCleanData] = useState<CleanDataResponse | null>(null);
   const [isCleanDataLoading, setIsCleanDataLoading] = useState(false);
   const [cleanSearchFilter, setCleanSearchFilter] = useState("");
+  const [cleanPage, setCleanPage] = useState(1);
+  const [cleanPageSize, setCleanPageSize] = useState(25);
   const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>([]);
   const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
     [],
@@ -359,11 +367,10 @@ export const ConnectionsPage: React.FC = () => {
               sizeDisplay = parsedConfig.fileSize;
             }
 
-            const rowCount = Number(
-              parsedConfig.rowsCount ??
-                parsedConfig.recordsCount ??
-                parsedConfig.rows ??
-                0,
+            const rowCount = Math.max(
+              Number(parsedConfig.recordsCount || 0),
+              Number(parsedConfig.rowsCount || 0),
+              Number(parsedConfig.rows || 0),
             );
 
             const columns = Array.isArray(parsedConfig.columns)
@@ -443,6 +450,10 @@ export const ConnectionsPage: React.FC = () => {
           if (localMatch) {
             return {
               ...f,
+              recordsCount: Math.max(
+                f.recordsCount,
+                localMatch.recordsCount || 0,
+              ),
               columns:
                 f.columns && f.columns.length > 0
                   ? f.columns
@@ -662,6 +673,8 @@ export const ConnectionsPage: React.FC = () => {
   };
 
   const handleOpenFilePreview = async (file: IngestedFile) => {
+    setRawPage(1);
+    setRawSearchFilter("");
     setPreviewingFile(file);
     if (file.sampleRows && file.sampleRows.length > 0) {
       return;
@@ -717,9 +730,10 @@ export const ConnectionsPage: React.FC = () => {
   };
 
   const openCleanPreview = async (file: IngestedFile) => {
+    setCleanPage(1);
+    setCleanSearchFilter("");
     setCleanPreviewFile(file);
     setIsCleanDataLoading(true);
-    setCleanSearchFilter("");
     try {
       const res = await apiFetch(
         `/api/v1/connections/${file.id}/clean-preview`,
@@ -1367,6 +1381,29 @@ export const ConnectionsPage: React.FC = () => {
                 </button>
               </div>
 
+              {/* Filter Search Bar & Info */}
+              <div className="px-6 py-2.5 border-b border-zinc-800/80 bg-zinc-950/80 flex items-center justify-between gap-4 shrink-0">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Filter raw sample records by keyword, value, or column..."
+                    value={rawSearchFilter}
+                    onChange={(e) => {
+                      setRawSearchFilter(e.target.value);
+                      setRawPage(1);
+                    }}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
+                  />
+                </div>
+                <div className="text-xs text-zinc-400 hidden sm:block">
+                  {previewingFile.recordsCount >
+                  (previewingFile.sampleRows?.length || 0)
+                    ? `Showing sample of ${(previewingFile.sampleRows?.length || 0).toLocaleString()} of ${previewingFile.recordsCount.toLocaleString()} total records`
+                    : `Displaying all ${(previewingFile.sampleRows?.length || 0).toLocaleString()} records`}
+                </div>
+              </div>
+
               {/* Modal Content / Data Table */}
               <div className="p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
                 {isRawPreviewLoading ? (
@@ -1424,55 +1461,149 @@ export const ConnectionsPage: React.FC = () => {
                       );
                     }
 
+                    const filteredRows = rows.filter((row) => {
+                      if (!rawSearchFilter.trim()) return true;
+                      const f = rawSearchFilter.toLowerCase();
+                      return Object.values(row).some((val) =>
+                        String(val ?? "")
+                          .toLowerCase()
+                          .includes(f),
+                      );
+                    });
+
+                    const totalRawFiltered = filteredRows.length;
+                    const totalRawPages =
+                      Math.ceil(totalRawFiltered / rawPageSize) || 1;
+                    const currentRawPage = Math.min(rawPage, totalRawPages);
+                    const startRawIdx = (currentRawPage - 1) * rawPageSize;
+                    const pagedRows = filteredRows.slice(
+                      startRawIdx,
+                      startRawIdx + rawPageSize,
+                    );
+
                     return (
-                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
-                        <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
-                          <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
-                            <tr className="text-zinc-300">
-                              <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
-                                #
-                              </th>
-                              {columns.map((col) => (
-                                <th
-                                  key={col}
-                                  className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
-                                >
-                                  {formatColumnHeader(col)}
+                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl flex flex-col overflow-hidden bg-zinc-950 shadow-inner">
+                        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
+                          <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
+                            <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
+                              <tr className="text-zinc-300">
+                                <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
+                                  #
                                 </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-900">
-                            {rows.map((row, idx) => (
-                              <tr
-                                key={idx}
-                                className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
-                              >
-                                <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 font-mono text-[11px] shadow-sm">
-                                  {idx + 1}
-                                </td>
-                                {columns.map((col) => {
-                                  const val = (row as Record<string, unknown>)[
-                                    col
-                                  ];
-                                  return (
-                                    <td
-                                      key={col}
-                                      className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
-                                      title={
-                                        val !== undefined && val !== null
-                                          ? String(val)
-                                          : ""
-                                      }
-                                    >
-                                      {renderRawCellValue(col, val)}
-                                    </td>
-                                  );
-                                })}
+                                {columns.map((col) => (
+                                  <th
+                                    key={col}
+                                    className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
+                                  >
+                                    {formatColumnHeader(col)}
+                                  </th>
+                                ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-900">
+                              {filteredRows.length === 0 ? (
+                                <tr>
+                                  <td
+                                    colSpan={columns.length + 1}
+                                    className="p-8 text-center text-zinc-500"
+                                  >
+                                    No records match filter "{rawSearchFilter}".
+                                  </td>
+                                </tr>
+                              ) : (
+                                pagedRows.map((row, idx) => {
+                                  const globalIdx = startRawIdx + idx + 1;
+                                  return (
+                                    <tr
+                                      key={globalIdx}
+                                      className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
+                                    >
+                                      <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 font-mono text-[11px] shadow-sm">
+                                        {globalIdx}
+                                      </td>
+                                      {columns.map((col) => {
+                                        const val = (
+                                          row as Record<string, unknown>
+                                        )[col];
+                                        return (
+                                          <td
+                                            key={col}
+                                            className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
+                                            title={
+                                              val !== undefined && val !== null
+                                                ? String(val)
+                                                : ""
+                                            }
+                                          >
+                                            {renderRawCellValue(col, val)}
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Pagination Bar */}
+                        <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-800 bg-zinc-900/60 text-xs text-zinc-400 shrink-0">
+                          <div className="flex items-center gap-2">
+                            <span>Rows per page:</span>
+                            <select
+                              value={rawPageSize}
+                              onChange={(e) => {
+                                setRawPageSize(Number(e.target.value));
+                                setRawPage(1);
+                              }}
+                              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700"
+                            >
+                              <option value={25}>25</option>
+                              <option value={50}>50</option>
+                              <option value={100}>100</option>
+                            </select>
+                            <span className="ml-2">
+                              Showing{" "}
+                              {totalRawFiltered > 0 ? startRawIdx + 1 : 0} -{" "}
+                              {Math.min(
+                                startRawIdx + rawPageSize,
+                                totalRawFiltered,
+                              )}{" "}
+                              of {totalRawFiltered}{" "}
+                              {totalRawFiltered !== rows.length
+                                ? `(filtered from ${rows.length})`
+                                : ""}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                setRawPage((p) => Math.max(1, p - 1))
+                              }
+                              disabled={currentRawPage <= 1}
+                              className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                              title="Previous Page"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <span className="font-mono text-xs">
+                              Page {currentRawPage} of {totalRawPages}
+                            </span>
+                            <button
+                              onClick={() =>
+                                setRawPage((p) =>
+                                  Math.min(totalRawPages, p + 1),
+                                )
+                              }
+                              disabled={currentRawPage >= totalRawPages}
+                              className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                              title="Next Page"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     );
                   })()
@@ -1683,7 +1814,10 @@ export const ConnectionsPage: React.FC = () => {
                     type="text"
                     placeholder="Filter clean records by name, ID, or property..."
                     value={cleanSearchFilter}
-                    onChange={(e) => setCleanSearchFilter(e.target.value)}
+                    onChange={(e) => {
+                      setCleanSearchFilter(e.target.value);
+                      setCleanPage(1);
+                    }}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
                   />
                 </div>
@@ -1716,71 +1850,149 @@ export const ConnectionsPage: React.FC = () => {
                       );
                     });
 
+                    const totalCleanFiltered = filteredRows.length;
+                    const totalCleanPages =
+                      Math.ceil(totalCleanFiltered / cleanPageSize) || 1;
+                    const currentCleanPage = Math.min(
+                      cleanPage,
+                      totalCleanPages,
+                    );
+                    const startCleanIdx =
+                      (currentCleanPage - 1) * cleanPageSize;
+                    const pagedRows = filteredRows.slice(
+                      startCleanIdx,
+                      startCleanIdx + cleanPageSize,
+                    );
+
                     const columns =
                       cleanData.columns && cleanData.columns.length > 0
                         ? cleanData.columns
                         : Object.keys(cleanData.rows[0]);
 
                     return (
-                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
-                        <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
-                          <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
-                            <tr className="text-zinc-300">
-                              <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
-                                #
-                              </th>
-                              {columns.map((col) => (
-                                <th
-                                  key={col}
-                                  className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
-                                >
-                                  {formatColumnHeader(col)}
+                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl flex flex-col overflow-hidden bg-zinc-950 shadow-inner">
+                        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
+                          <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
+                            <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
+                              <tr className="text-zinc-300">
+                                <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
+                                  #
                                 </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-900">
-                            {filteredRows.length === 0 ? (
-                              <tr>
-                                <td
-                                  colSpan={columns.length + 1}
-                                  className="p-8 text-center text-zinc-500"
-                                >
-                                  No records match filter "{cleanSearchFilter}".
-                                </td>
+                                {columns.map((col) => (
+                                  <th
+                                    key={col}
+                                    className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
+                                  >
+                                    {formatColumnHeader(col)}
+                                  </th>
+                                ))}
                               </tr>
-                            ) : (
-                              filteredRows.map((row, idx) => (
-                                <tr
-                                  key={idx}
-                                  className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
-                                >
-                                  <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 font-mono text-[11px] shadow-sm">
-                                    {idx + 1}
+                            </thead>
+                            <tbody className="divide-y divide-zinc-900">
+                              {filteredRows.length === 0 ? (
+                                <tr>
+                                  <td
+                                    colSpan={columns.length + 1}
+                                    className="p-8 text-center text-zinc-500"
+                                  >
+                                    No records match filter "{cleanSearchFilter}
+                                    ".
                                   </td>
-                                  {columns.map((col) => {
-                                    const val = (
-                                      row as Record<string, unknown>
-                                    )[col];
-                                    return (
-                                      <td
-                                        key={col}
-                                        className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
-                                        title={
-                                          val !== undefined && val !== null
-                                            ? String(val)
-                                            : ""
-                                        }
-                                      >
-                                        {renderCleanCellValue(col, val)}
-                                      </td>
-                                    );
-                                  })}
                                 </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
+                              ) : (
+                                pagedRows.map((row, idx) => {
+                                  const globalIdx = startCleanIdx + idx + 1;
+                                  return (
+                                    <tr
+                                      key={globalIdx}
+                                      className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
+                                    >
+                                      <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 font-mono text-[11px] shadow-sm">
+                                        {globalIdx}
+                                      </td>
+                                      {columns.map((col) => {
+                                        const val = (
+                                          row as Record<string, unknown>
+                                        )[col];
+                                        return (
+                                          <td
+                                            key={col}
+                                            className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
+                                            title={
+                                              val !== undefined && val !== null
+                                                ? String(val)
+                                                : ""
+                                            }
+                                          >
+                                            {renderCleanCellValue(col, val)}
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Pagination Bar */}
+                        <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-800 bg-zinc-900/60 text-xs text-zinc-400 shrink-0">
+                          <div className="flex items-center gap-2">
+                            <span>Rows per page:</span>
+                            <select
+                              value={cleanPageSize}
+                              onChange={(e) => {
+                                setCleanPageSize(Number(e.target.value));
+                                setCleanPage(1);
+                              }}
+                              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700"
+                            >
+                              <option value={25}>25</option>
+                              <option value={50}>50</option>
+                              <option value={100}>100</option>
+                            </select>
+                            <span className="ml-2">
+                              Showing{" "}
+                              {totalCleanFiltered > 0 ? startCleanIdx + 1 : 0} -{" "}
+                              {Math.min(
+                                startCleanIdx + cleanPageSize,
+                                totalCleanFiltered,
+                              )}{" "}
+                              of {totalCleanFiltered}{" "}
+                              {totalCleanFiltered !== cleanData.rows.length
+                                ? `(filtered from ${cleanData.rows.length})`
+                                : ""}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                setCleanPage((p) => Math.max(1, p - 1))
+                              }
+                              disabled={currentCleanPage <= 1}
+                              className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                              title="Previous Page"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <span className="font-mono text-xs">
+                              Page {currentCleanPage} of {totalCleanPages}
+                            </span>
+                            <button
+                              onClick={() =>
+                                setCleanPage((p) =>
+                                  Math.min(totalCleanPages, p + 1),
+                                )
+                              }
+                              disabled={currentCleanPage >= totalCleanPages}
+                              className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                              title="Next Page"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     );
                   })()

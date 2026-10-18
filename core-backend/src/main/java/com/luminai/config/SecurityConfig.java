@@ -1,5 +1,6 @@
 package com.luminai.config;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -11,8 +12,12 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
@@ -150,10 +155,29 @@ public class SecurityConfig {
       }
       JwtDecoder created = null;
       try {
+        NimbusJwtDecoder nimbusDecoder = null;
         if (jwkSetUri != null && !jwkSetUri.isBlank()) {
-          created = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+          nimbusDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
         } else if (issuerUri != null && !issuerUri.isBlank()) {
-          created = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
+          nimbusDecoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
+        }
+
+        if (nimbusDecoder != null) {
+          // Provide 15-minute clock skew leeway so large file uploads (200MB+) that stream over
+          // several
+          // minutes across the public internet are not rejected with 401 when the token expires
+          // in-flight.
+          OAuth2TokenValidator<Jwt> timestampValidator =
+              new JwtTimestampValidator(Duration.ofMinutes(15));
+          if (issuerUri != null && !issuerUri.isBlank()) {
+            OAuth2TokenValidator<Jwt> defaultWithIssuer =
+                JwtValidators.createDefaultWithIssuer(issuerUri);
+            nimbusDecoder.setJwtValidator(
+                new DelegatingOAuth2TokenValidator<>(defaultWithIssuer, timestampValidator));
+          } else {
+            nimbusDecoder.setJwtValidator(timestampValidator);
+          }
+          created = nimbusDecoder;
         }
       } catch (Exception e) {
         org.slf4j.LoggerFactory.getLogger(SecurityConfig.class)
