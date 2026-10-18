@@ -259,12 +259,19 @@ public class SecurityConfig {
     CorsConfiguration config = new CorsConfiguration();
     String envOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
     if (envOrigins != null && !envOrigins.isBlank()) {
-      config.setAllowedOriginPatterns(List.of(envOrigins.split(",")));
+      List<String> origins =
+          java.util.Arrays.stream(envOrigins.split(","))
+              .map(String::trim)
+              .filter(s -> !s.isBlank())
+              .toList();
+      config.setAllowedOriginPatterns(origins);
     } else {
       config.setAllowedOriginPatterns(
           List.of(
               "http://localhost:*",
               "http://127.0.0.1:*",
+              "https://*.vercel.app",
+              "https://luminai*.vercel.app",
               "https://*.luminai.com",
               "https://*.luminai.dev"));
     }

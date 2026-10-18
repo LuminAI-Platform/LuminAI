@@ -134,7 +134,7 @@ public class ConnectionController {
 
   @PostMapping
   @org.springframework.security.access.prepost.PreAuthorize(
-      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER')")
   public ResponseEntity<ConnectionDto.Response> create(
       @Valid @RequestBody ConnectionDto.CreateRequest request) {
     ConnectionDto.Response created = connectionService.create(request);
@@ -157,7 +157,7 @@ public class ConnectionController {
 
   @PutMapping("/{id}")
   @org.springframework.security.access.prepost.PreAuthorize(
-      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER')")
   public ResponseEntity<ConnectionDto.Response> update(
       @PathVariable UUID id, @RequestBody ConnectionDto.UpdateRequest request) {
     return ResponseEntity.ok(connectionService.update(id, request));
@@ -165,7 +165,7 @@ public class ConnectionController {
 
   @DeleteMapping("/{id}")
   @org.springframework.security.access.prepost.PreAuthorize(
-      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER')")
   public ResponseEntity<Void> delete(@PathVariable UUID id) {
     connectionService.delete(id);
     return ResponseEntity.noContent().build();

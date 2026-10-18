@@ -200,6 +200,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: true, error: null });
       const user = await userManager.signinRedirectCallback();
       if (user) {
+        if (typeof localStorage !== "undefined") {
+          localStorage.removeItem("local_ingested_files");
+          localStorage.removeItem("most_recent_ingested_file");
+        }
         persistTokens(user);
       }
       set({ user, isAuthenticated: !!user, isLoading: false });
