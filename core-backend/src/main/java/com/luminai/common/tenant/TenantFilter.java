@@ -92,6 +92,15 @@ public class TenantFilter extends OncePerRequestFilter {
       String keycloakId = jwt.get().getSubject();
       Optional<TenantResolutionService.ResolvedTenant> resolved =
           tenantResolutionService.resolveForKeycloakUser(keycloakId);
+      if (resolved.isEmpty()) {
+        String email = jwt.get().getClaimAsString("email");
+        if (email == null || email.isBlank()) {
+          email = jwt.get().getClaimAsString("preferred_username");
+        }
+        if (email != null && !email.isBlank()) {
+          resolved = tenantResolutionService.resolveForKeycloakUserWithEmail(keycloakId, email);
+        }
+      }
 
       if (resolved.isEmpty()) {
         log.warn(

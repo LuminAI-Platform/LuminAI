@@ -467,11 +467,18 @@ export const ConnectionsPage: React.FC = () => {
           return f;
         });
 
-        localFiles.forEach((lf) => {
-          if (!mergedFiles.some((f) => f.id === lf.id || f.name === lf.name)) {
-            mergedFiles.push(lf);
-          }
-        });
+        // Clean local_ingested_files in localStorage so it only contains files that still exist in the backend
+        try {
+          const survivingLocal = localFiles.filter((lf) =>
+            fileItems.some((f) => f.id === lf.id || f.name === lf.name),
+          );
+          localStorage.setItem(
+            "local_ingested_files",
+            JSON.stringify(survivingLocal),
+          );
+        } catch {
+          // ignore
+        }
 
         setCustomConnectors(dbItems);
         setIngestedFiles(mergedFiles);
@@ -487,16 +494,7 @@ export const ConnectionsPage: React.FC = () => {
           : "Failed to load registered connections";
       setError(msg);
       setCustomConnectors([]);
-      try {
-        const cached = localStorage.getItem("local_ingested_files");
-        if (cached) {
-          setIngestedFiles(JSON.parse(cached));
-        } else {
-          setIngestedFiles([]);
-        }
-      } catch {
-        setIngestedFiles([]);
-      }
+      setIngestedFiles([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -538,19 +536,24 @@ export const ConnectionsPage: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [cleanPreviewFile, previewingFile, deleteTarget]);
 
-  const deleteConnector = async (id: string) => {
+  const deleteConnector = async (id: string, name?: string) => {
     try {
       await apiFetch(`/api/v1/connections/${id}`, {
         method: "DELETE",
       });
-      setCustomConnectors((prev) => prev.filter((c) => c.id !== id));
-      setIngestedFiles((prev) => prev.filter((f) => f.id !== id));
+      setCustomConnectors((prev) =>
+        prev.filter((c) => c.id !== id && (!name || c.name !== name)),
+      );
+      setIngestedFiles((prev) =>
+        prev.filter((f) => f.id !== id && (!name || f.name !== name)),
+      );
       try {
         const cached = JSON.parse(
           localStorage.getItem("local_ingested_files") || "[]",
         );
         const filtered = cached.filter(
-          (item: { id?: string }) => item.id !== id,
+          (item: { id?: string; name?: string }) =>
+            item.id !== id && (!name || item.name !== name),
         );
         localStorage.setItem("local_ingested_files", JSON.stringify(filtered));
       } catch {
@@ -566,14 +569,22 @@ export const ConnectionsPage: React.FC = () => {
     setIsDeleting(true);
     try {
       if (deleteTarget.type === "file") {
-        await deleteFile(deleteTarget.id);
+        await deleteFile(deleteTarget.id, deleteTarget.name);
       } else {
-        await deleteConnector(deleteTarget.id);
+        await deleteConnector(deleteTarget.id, deleteTarget.name);
       }
-      if (cleanPreviewFile && cleanPreviewFile.id === deleteTarget.id) {
+      if (
+        cleanPreviewFile &&
+        (cleanPreviewFile.id === deleteTarget.id ||
+          cleanPreviewFile.name === deleteTarget.name)
+      ) {
         setCleanPreviewFile(null);
       }
-      if (previewingFile && previewingFile.id === deleteTarget.id) {
+      if (
+        previewingFile &&
+        (previewingFile.id === deleteTarget.id ||
+          previewingFile.name === deleteTarget.name)
+      ) {
         setPreviewingFile(null);
       }
       if (
@@ -585,7 +596,10 @@ export const ConnectionsPage: React.FC = () => {
         const recent = JSON.parse(
           localStorage.getItem("most_recent_ingested_file") || "{}",
         );
-        if (recent?.id === deleteTarget.id) {
+        if (
+          recent?.id === deleteTarget.id ||
+          recent?.name === deleteTarget.name
+        ) {
           localStorage.removeItem("most_recent_ingested_file");
         }
       } catch {
@@ -857,7 +871,7 @@ export const ConnectionsPage: React.FC = () => {
     setIsWizardOpen(true);
   };
 
-  const deleteFile = async (id: string) => {
+  const deleteFile = async (id: string, name?: string) => {
     try {
       if (
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -871,8 +885,21 @@ export const ConnectionsPage: React.FC = () => {
     } catch (err: unknown) {
       console.error("Failed to delete file connection on backend", err);
     }
-    const updated = ingestedFiles.filter((f) => f.id !== id);
-    localStorage.setItem("local_ingested_files", JSON.stringify(updated));
+    const updated = ingestedFiles.filter(
+      (f) => f.id !== id && (!name || f.name !== name),
+    );
+    try {
+      const cached = JSON.parse(
+        localStorage.getItem("local_ingested_files") || "[]",
+      );
+      const filtered = cached.filter(
+        (item: { id?: string; name?: string }) =>
+          item.id !== id && (!name || item.name !== name),
+      );
+      localStorage.setItem("local_ingested_files", JSON.stringify(filtered));
+    } catch {
+      // ignore
+    }
     setIngestedFiles(updated);
   };
 

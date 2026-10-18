@@ -2,6 +2,7 @@ package com.luminai.common.tenant;
 
 import com.luminai.auth.model.Tenant;
 import com.luminai.auth.model.User;
+import com.luminai.auth.repository.TenantRepository;
 import com.luminai.auth.repository.UserRepository;
 import com.luminai.config.CacheConfig;
 import java.io.Serializable;
@@ -9,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -34,9 +36,18 @@ public class TenantResolutionService {
   private static final Logger log = LoggerFactory.getLogger(TenantResolutionService.class);
 
   private final UserRepository userRepository;
+  private final TenantRepository tenantRepository;
 
   public TenantResolutionService(UserRepository userRepository) {
+    this(userRepository, null);
+  }
+
+  @Autowired
+  public TenantResolutionService(
+      UserRepository userRepository,
+      @Autowired(required = false) TenantRepository tenantRepository) {
     this.userRepository = userRepository;
+    this.tenantRepository = tenantRepository;
   }
 
   /**
@@ -75,7 +86,65 @@ public class TenantResolutionService {
       return Optional.empty();
     }
 
-    User u = user.get();
+    return checkUserAndTenant(user.get(), keycloakId);
+  }
+
+  /**
+   * Resolves the tenant for the LuminAI user linked to Keycloak {@code sub}, with fallback email
+   * linking and provision.
+   */
+  @Cacheable(
+      value = CacheConfig.CACHE_TENANT_RESOLUTION,
+      key = "#keycloakId",
+      unless = "#result == null")
+  @Transactional
+  public Optional<ResolvedTenant> resolveForKeycloakUserWithEmail(String keycloakId, String email) {
+    if (!StringUtils.hasText(keycloakId)) {
+      return Optional.empty();
+    }
+
+    Optional<User> user = userRepository.findByKeycloakId(keycloakId);
+    if (user.isEmpty() && StringUtils.hasText(email)) {
+      user = userRepository.findByEmailIgnoreCase(email.trim());
+      if (user.isPresent()) {
+        User u = user.get();
+        u.setKeycloakId(keycloakId);
+        userRepository.save(u);
+        log.info(
+            "Linked existing user {} ({}) to Keycloak ID {}", u.getId(), u.getEmail(), keycloakId);
+      }
+    }
+    if (user.isEmpty() && tenantRepository != null) {
+      Optional<Tenant> fallbackTenant =
+          tenantRepository.findBySlug("acme").or(() -> tenantRepository.findBySlug("default"));
+      if (fallbackTenant.isPresent()) {
+        String effectiveEmail =
+            StringUtils.hasText(email) ? email.trim() : (keycloakId + "@luminai.user");
+        User newUser =
+            new User(
+                null,
+                keycloakId,
+                effectiveEmail,
+                "LuminAI User",
+                fallbackTenant.get(),
+                "ADMIN",
+                true);
+        user = Optional.of(userRepository.save(newUser));
+        log.info(
+            "Auto-provisioned new authenticated user (keycloak_id={}, email={}) into tenant '{}'",
+            keycloakId,
+            effectiveEmail,
+            fallbackTenant.get().getSlug());
+      }
+    }
+    if (user.isEmpty()) {
+      return Optional.empty();
+    }
+
+    return checkUserAndTenant(user.get(), keycloakId);
+  }
+
+  private Optional<ResolvedTenant> checkUserAndTenant(User u, String keycloakId) {
     if (!u.isActive()) {
       log.warn("User '{}' (keycloak_id={}) is deactivated", u.getId(), keycloakId);
       return Optional.empty();
