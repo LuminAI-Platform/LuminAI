@@ -45,13 +45,43 @@ public final class RelationshipTypeDto {
       UUID tenantId,
       UUID ontologyId,
       String name,
+      String label,
       String description,
       UUID sourceEntityTypeId,
       UUID targetEntityTypeId,
       RelationshipType.Cardinality cardinality,
+      boolean directed,
       String propertiesSchema,
       Instant createdAt,
       Instant updatedAt) {
+
+    public Response(
+        UUID id,
+        UUID tenantId,
+        UUID ontologyId,
+        String name,
+        String description,
+        UUID sourceEntityTypeId,
+        UUID targetEntityTypeId,
+        RelationshipType.Cardinality cardinality,
+        String propertiesSchema,
+        Instant createdAt,
+        Instant updatedAt) {
+      this(
+          id,
+          tenantId,
+          ontologyId,
+          name,
+          formatLabel(name),
+          description,
+          sourceEntityTypeId,
+          targetEntityTypeId,
+          cardinality,
+          true,
+          propertiesSchema,
+          createdAt,
+          updatedAt);
+    }
 
     public static Response from(RelationshipType entity) {
       return new Response(
@@ -59,13 +89,22 @@ public final class RelationshipTypeDto {
           entity.getTenantId(),
           entity.getOntologyId(),
           entity.getName(),
+          formatLabel(entity.getName()),
           entity.getDescription(),
           entity.getSourceEntityTypeId(),
           entity.getTargetEntityTypeId(),
           entity.getCardinality(),
+          true,
           entity.getPropertiesSchema(),
           entity.getCreatedAt(),
           entity.getUpdatedAt());
+    }
+
+    private static String formatLabel(String name) {
+      if (name == null || name.isBlank()) {
+        return "";
+      }
+      return name.replace('_', ' ').trim();
     }
   }
 }
