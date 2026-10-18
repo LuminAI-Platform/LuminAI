@@ -7,7 +7,7 @@ import { useAuthStore } from "../../../stores/authStore";
 interface UploadResult {
   ok: boolean;
   status: number;
-  data: any;
+  data: Record<string, unknown> | null;
   error?: string;
 }
 
@@ -27,36 +27,57 @@ function uploadMultipartWithProgress(
 
     xhr.upload.onprogress = (evt) => {
       if (evt.lengthComputable && evt.total > 0) {
-        const percent = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+        const percent = Math.min(
+          100,
+          Math.round((evt.loaded / evt.total) * 100),
+        );
         onProgress(percent, evt.loaded, evt.total);
       }
     };
 
     xhr.onload = () => {
-      let responseData: any = null;
+      let responseData: Record<string, unknown> | null = null;
       try {
-        responseData = JSON.parse(xhr.responseText);
+        const parsed: unknown = JSON.parse(xhr.responseText);
+        if (parsed && typeof parsed === "object") {
+          responseData = parsed as Record<string, unknown>;
+        }
       } catch {
-        responseData = xhr.responseText;
+        responseData = null;
       }
 
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve({ ok: true, status: xhr.status, data: responseData });
       } else {
         const errorMsg =
-          responseData?.message ||
-          responseData?.error ||
+          (typeof responseData?.message === "string" && responseData.message) ||
+          (typeof responseData?.error === "string" && responseData.error) ||
           `HTTP ${xhr.status} ${xhr.statusText || "Upload rejected"}`;
-        resolve({ ok: false, status: xhr.status, data: responseData, error: errorMsg });
+        resolve({
+          ok: false,
+          status: xhr.status,
+          data: responseData,
+          error: errorMsg,
+        });
       }
     };
 
     xhr.onerror = () => {
-      resolve({ ok: false, status: 0, data: null, error: "Network error during file upload" });
+      resolve({
+        ok: false,
+        status: 0,
+        data: null,
+        error: "Network error during file upload",
+      });
     };
 
     xhr.ontimeout = () => {
-      resolve({ ok: false, status: 408, data: null, error: "Upload request timed out" });
+      resolve({
+        ok: false,
+        status: 408,
+        data: null,
+        error: "Upload request timed out",
+      });
     };
 
     xhr.send(formData);
@@ -820,12 +841,16 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
       if (!uploadResult.ok) {
         throw new Error(
-          uploadResult.error || `File upload rejected (HTTP ${uploadResult.status})`,
+          uploadResult.error ||
+            `File upload rejected (HTTP ${uploadResult.status})`,
         );
       }
 
       const uploadJson = uploadResult.data || {};
-      if (typeof uploadJson.recordsCount === "number" && uploadJson.recordsCount > 0) {
+      if (
+        typeof uploadJson.recordsCount === "number" &&
+        uploadJson.recordsCount > 0
+      ) {
         finalRecordsCount = uploadJson.recordsCount;
       }
       setIngestionProgress(75);

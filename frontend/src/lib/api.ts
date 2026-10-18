@@ -99,7 +99,9 @@ export async function apiFetch(
       try {
         const { refreshToken, isAuthenticated } = useAuthStore.getState();
         if (isAuthenticated) {
-          console.info("[API] 401 encountered. Attempting silent token renewal and request retry...");
+          console.info(
+            "[API] 401 encountered. Attempting silent token renewal and request retry...",
+          );
           const newToken = await refreshToken();
           if (newToken) {
             const retryHeaders = new Headers(resolvedInit.headers);

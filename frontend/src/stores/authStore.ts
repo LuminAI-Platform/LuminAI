@@ -301,7 +301,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = user?.expires_at ?? 0;
     if (!user || expiresAt - now < 300) {
-      console.info("[Auth] Token expires soon or is expired. Proactively renewing...");
+      console.info(
+        "[Auth] Token expires soon or is expired. Proactively renewing...",
+      );
       const refreshedToken = await refreshToken();
       if (refreshedToken) {
         return refreshedToken;

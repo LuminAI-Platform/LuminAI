@@ -450,7 +450,10 @@ export const ConnectionsPage: React.FC = () => {
           if (localMatch) {
             return {
               ...f,
-              recordsCount: Math.max(f.recordsCount, localMatch.recordsCount || 0),
+              recordsCount: Math.max(
+                f.recordsCount,
+                localMatch.recordsCount || 0,
+              ),
               columns:
                 f.columns && f.columns.length > 0
                   ? f.columns
@@ -1394,7 +1397,8 @@ export const ConnectionsPage: React.FC = () => {
                   />
                 </div>
                 <div className="text-xs text-zinc-400 hidden sm:block">
-                  {previewingFile.recordsCount > (previewingFile.sampleRows?.length || 0)
+                  {previewingFile.recordsCount >
+                  (previewingFile.sampleRows?.length || 0)
                     ? `Showing sample of ${(previewingFile.sampleRows?.length || 0).toLocaleString()} of ${previewingFile.recordsCount.toLocaleString()} total records`
                     : `Displaying all ${(previewingFile.sampleRows?.length || 0).toLocaleString()} records`}
                 </div>
@@ -1468,10 +1472,14 @@ export const ConnectionsPage: React.FC = () => {
                     });
 
                     const totalRawFiltered = filteredRows.length;
-                    const totalRawPages = Math.ceil(totalRawFiltered / rawPageSize) || 1;
+                    const totalRawPages =
+                      Math.ceil(totalRawFiltered / rawPageSize) || 1;
                     const currentRawPage = Math.min(rawPage, totalRawPages);
                     const startRawIdx = (currentRawPage - 1) * rawPageSize;
-                    const pagedRows = filteredRows.slice(startRawIdx, startRawIdx + rawPageSize);
+                    const pagedRows = filteredRows.slice(
+                      startRawIdx,
+                      startRawIdx + rawPageSize,
+                    );
 
                     return (
                       <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl flex flex-col overflow-hidden bg-zinc-950 shadow-inner">
@@ -1514,9 +1522,9 @@ export const ConnectionsPage: React.FC = () => {
                                         {globalIdx}
                                       </td>
                                       {columns.map((col) => {
-                                        const val = (row as Record<string, unknown>)[
-                                          col
-                                        ];
+                                        const val = (
+                                          row as Record<string, unknown>
+                                        )[col];
                                         return (
                                           <td
                                             key={col}
@@ -1556,9 +1564,13 @@ export const ConnectionsPage: React.FC = () => {
                               <option value={100}>100</option>
                             </select>
                             <span className="ml-2">
-                              Showing {totalRawFiltered > 0 ? startRawIdx + 1 : 0} -{" "}
-                              {Math.min(startRawIdx + rawPageSize, totalRawFiltered)} of{" "}
-                              {totalRawFiltered}{" "}
+                              Showing{" "}
+                              {totalRawFiltered > 0 ? startRawIdx + 1 : 0} -{" "}
+                              {Math.min(
+                                startRawIdx + rawPageSize,
+                                totalRawFiltered,
+                              )}{" "}
+                              of {totalRawFiltered}{" "}
                               {totalRawFiltered !== rows.length
                                 ? `(filtered from ${rows.length})`
                                 : ""}
@@ -1566,7 +1578,9 @@ export const ConnectionsPage: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => setRawPage((p) => Math.max(1, p - 1))}
+                              onClick={() =>
+                                setRawPage((p) => Math.max(1, p - 1))
+                              }
                               disabled={currentRawPage <= 1}
                               className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
                               title="Previous Page"
@@ -1578,7 +1592,9 @@ export const ConnectionsPage: React.FC = () => {
                             </span>
                             <button
                               onClick={() =>
-                                setRawPage((p) => Math.min(totalRawPages, p + 1))
+                                setRawPage((p) =>
+                                  Math.min(totalRawPages, p + 1),
+                                )
                               }
                               disabled={currentRawPage >= totalRawPages}
                               className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
@@ -1835,10 +1851,18 @@ export const ConnectionsPage: React.FC = () => {
                     });
 
                     const totalCleanFiltered = filteredRows.length;
-                    const totalCleanPages = Math.ceil(totalCleanFiltered / cleanPageSize) || 1;
-                    const currentCleanPage = Math.min(cleanPage, totalCleanPages);
-                    const startCleanIdx = (currentCleanPage - 1) * cleanPageSize;
-                    const pagedRows = filteredRows.slice(startCleanIdx, startCleanIdx + cleanPageSize);
+                    const totalCleanPages =
+                      Math.ceil(totalCleanFiltered / cleanPageSize) || 1;
+                    const currentCleanPage = Math.min(
+                      cleanPage,
+                      totalCleanPages,
+                    );
+                    const startCleanIdx =
+                      (currentCleanPage - 1) * cleanPageSize;
+                    const pagedRows = filteredRows.slice(
+                      startCleanIdx,
+                      startCleanIdx + cleanPageSize,
+                    );
 
                     const columns =
                       cleanData.columns && cleanData.columns.length > 0
@@ -1871,7 +1895,8 @@ export const ConnectionsPage: React.FC = () => {
                                     colSpan={columns.length + 1}
                                     className="p-8 text-center text-zinc-500"
                                   >
-                                    No records match filter "{cleanSearchFilter}".
+                                    No records match filter "{cleanSearchFilter}
+                                    ".
                                   </td>
                                 </tr>
                               ) : (
@@ -1928,9 +1953,13 @@ export const ConnectionsPage: React.FC = () => {
                               <option value={100}>100</option>
                             </select>
                             <span className="ml-2">
-                              Showing {totalCleanFiltered > 0 ? startCleanIdx + 1 : 0} -{" "}
-                              {Math.min(startCleanIdx + cleanPageSize, totalCleanFiltered)} of{" "}
-                              {totalCleanFiltered}{" "}
+                              Showing{" "}
+                              {totalCleanFiltered > 0 ? startCleanIdx + 1 : 0} -{" "}
+                              {Math.min(
+                                startCleanIdx + cleanPageSize,
+                                totalCleanFiltered,
+                              )}{" "}
+                              of {totalCleanFiltered}{" "}
                               {totalCleanFiltered !== cleanData.rows.length
                                 ? `(filtered from ${cleanData.rows.length})`
                                 : ""}
@@ -1938,7 +1967,9 @@ export const ConnectionsPage: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => setCleanPage((p) => Math.max(1, p - 1))}
+                              onClick={() =>
+                                setCleanPage((p) => Math.max(1, p - 1))
+                              }
                               disabled={currentCleanPage <= 1}
                               className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
                               title="Previous Page"
@@ -1950,7 +1981,9 @@ export const ConnectionsPage: React.FC = () => {
                             </span>
                             <button
                               onClick={() =>
-                                setCleanPage((p) => Math.min(totalCleanPages, p + 1))
+                                setCleanPage((p) =>
+                                  Math.min(totalCleanPages, p + 1),
+                                )
                               }
                               disabled={currentCleanPage >= totalCleanPages}
                               className="p-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
