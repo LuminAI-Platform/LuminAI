@@ -1,7 +1,67 @@
 import React, { useState, useRef, useEffect } from "react";
 import { DataPreviewTable } from "./DataPreviewTable";
 import type { ColumnConfig } from "./DataPreviewTable";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, API_BASE_URL, getAccessToken } from "../../../lib/api";
+import { useAuthStore } from "../../../stores/authStore";
+
+interface UploadResult {
+  ok: boolean;
+  status: number;
+  data: any;
+  error?: string;
+}
+
+function uploadMultipartWithProgress(
+  url: string,
+  formData: FormData,
+  token: string | null,
+  onProgress: (pct: number, loaded: number, total: number) => void,
+): Promise<UploadResult> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url, true);
+
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+
+    xhr.upload.onprogress = (evt) => {
+      if (evt.lengthComputable && evt.total > 0) {
+        const percent = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+        onProgress(percent, evt.loaded, evt.total);
+      }
+    };
+
+    xhr.onload = () => {
+      let responseData: any = null;
+      try {
+        responseData = JSON.parse(xhr.responseText);
+      } catch {
+        responseData = xhr.responseText;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({ ok: true, status: xhr.status, data: responseData });
+      } else {
+        const errorMsg =
+          responseData?.message ||
+          responseData?.error ||
+          `HTTP ${xhr.status} ${xhr.statusText || "Upload rejected"}`;
+        resolve({ ok: false, status: xhr.status, data: responseData, error: errorMsg });
+      }
+    };
+
+    xhr.onerror = () => {
+      resolve({ ok: false, status: 0, data: null, error: "Network error during file upload" });
+    };
+
+    xhr.ontimeout = () => {
+      resolve({ ok: false, status: 408, data: null, error: "Upload request timed out" });
+    };
+
+    xhr.send(formData);
+  });
+}
 
 interface FileUploadWizardProps {
   onClose: () => void;
@@ -692,6 +752,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       return;
     }
 
+    let finalRecordsCount = parsedData.rows.length;
+
     try {
       // Step 2: Multipart upload to MinIO via Backend /upload endpoint
       setIngestionProgress(50);
@@ -700,37 +762,79 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         "INFO",
       );
 
+      // Ensure token has at least 5 minutes validity remaining prior to large file upload
+      try {
+        await useAuthStore.getState().ensureFreshToken();
+      } catch {
+        // Continue even if silent renewal fails
+      }
+
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadRes = await apiFetch(
-        `/api/v1/connections/${createdConnId}/upload`,
-        {
-          method: "POST",
-          body: formData,
+      const uploadUrl = `${API_BASE_URL}/api/v1/connections/${createdConnId}/upload`;
+      const currentToken = getAccessToken();
+
+      let uploadResult = await uploadMultipartWithProgress(
+        uploadUrl,
+        formData,
+        currentToken,
+        (pct, loaded, total) => {
+          // Progress bar smoothly goes from 50% to 74% as bytes are transmitted
+          const mapped = Math.min(74, Math.round(50 + pct * 0.24));
+          setIngestionProgress(mapped);
+          const loadedMb = (loaded / (1024 * 1024)).toFixed(1);
+          const totalMb = (total / (1024 * 1024)).toFixed(1);
+          addLog(
+            `[MinIO] Upload progress: ${pct}% (${loadedMb} MB / ${totalMb} MB)...`,
+            "INFO",
+          );
         },
       );
 
-      if (!uploadRes.ok) {
-        let errorDetail = `HTTP ${uploadRes.status}`;
-        try {
-          const errBody = await uploadRes.json();
-          if (errBody?.message) errorDetail = errBody.message;
-          else if (errBody?.error) errorDetail = errBody.error;
-        } catch {
-          // fallback
+      // If token expired during a long upload window (returning 401), attempt an immediate refresh and retry
+      if (!uploadResult.ok && uploadResult.status === 401) {
+        addLog(
+          `[Auth] Session token expired during upload window; renewing credentials and retrying...`,
+          "WARN",
+        );
+        const refreshedToken = await useAuthStore.getState().refreshToken();
+        if (refreshedToken) {
+          uploadResult = await uploadMultipartWithProgress(
+            uploadUrl,
+            formData,
+            refreshedToken,
+            (pct, loaded, total) => {
+              const mapped = Math.min(74, Math.round(50 + pct * 0.24));
+              setIngestionProgress(mapped);
+              const loadedMb = (loaded / (1024 * 1024)).toFixed(1);
+              const totalMb = (total / (1024 * 1024)).toFixed(1);
+              addLog(
+                `[MinIO] Retrying upload: ${pct}% (${loadedMb} MB / ${totalMb} MB)...`,
+                "INFO",
+              );
+            },
+          );
         }
-        throw new Error(`File upload rejected: ${errorDetail}`);
       }
 
-      const uploadJson = await uploadRes.json();
+      if (!uploadResult.ok) {
+        throw new Error(
+          uploadResult.error || `File upload rejected (HTTP ${uploadResult.status})`,
+        );
+      }
+
+      const uploadJson = uploadResult.data || {};
+      if (typeof uploadJson.recordsCount === "number" && uploadJson.recordsCount > 0) {
+        finalRecordsCount = uploadJson.recordsCount;
+      }
       setIngestionProgress(75);
       addLog(
         `[MinIO] Upload complete. Key: ${uploadJson.fileKey || file.name}`,
         "SUCCESS",
       );
       addLog(
-        `[Kafka] Published ${uploadJson.recordsCount ?? parsedData.rows.length} rows onto topic 'ingest.raw' for Data Engine processing.`,
+        `[Kafka] Published ${finalRecordsCount.toLocaleString()} rows onto topic 'ingest.raw' for Data Engine processing.`,
         "SUCCESS",
       );
     } catch (err) {
@@ -758,7 +862,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     }
 
     // Step 4: Finished
-    setIngestedCount(parsedData.rows.length);
+    setIngestedCount(finalRecordsCount);
     setIngestionProgress(100);
     setIngestionFinished(true);
     setIngestionFailed(false);
@@ -776,7 +880,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         file.size > 1024 * 1024
           ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
           : `${Math.round(file.size / 1024)} KB`,
-      recordsCount: parsedData.rows.length,
+      recordsCount: finalRecordsCount,
       status: "Synced",
       createdAt: new Date().toLocaleString(),
       columns: parsedData.columns,

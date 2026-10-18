@@ -14,6 +14,8 @@ interface AuthState {
   clearAuthSession: () => void;
   handleCallback: () => Promise<User | null>;
   checkUser: () => Promise<User | null>;
+  refreshToken: () => Promise<string | null>;
+  ensureFreshToken: () => Promise<string | null>;
   clearError: () => void;
 }
 
@@ -276,6 +278,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       checkUserInFlight = false;
       return null;
     }
+  },
+
+  refreshToken: async (): Promise<string | null> => {
+    try {
+      const user = await userManager.signinSilent();
+      if (user && !user.expired) {
+        persistTokens(user);
+        set({ user, isAuthenticated: true, error: null });
+        return user.access_token;
+      }
+      return null;
+    } catch (err) {
+      console.warn("Silent token refresh failed:", err);
+      return null;
+    }
+  },
+
+  ensureFreshToken: async (): Promise<string | null> => {
+    const { user, refreshToken } = get();
+    // Proactively refresh if token expires within 5 minutes (300s) or is already expired
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = user?.expires_at ?? 0;
+    if (!user || expiresAt - now < 300) {
+      console.info("[Auth] Token expires soon or is expired. Proactively renewing...");
+      const refreshedToken = await refreshToken();
+      if (refreshedToken) {
+        return refreshedToken;
+      }
+    }
+    return user?.access_token ?? null;
   },
 
   clearError: () => set({ error: null }),

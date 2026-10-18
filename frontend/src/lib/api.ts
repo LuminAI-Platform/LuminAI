@@ -93,25 +93,59 @@ export async function apiFetch(
   const response = await fetch(url, { ...resolvedInit, headers });
 
   if (!response.ok) {
-    if (response.status === 401 && !isHandlingUnauthorized) {
-      isHandlingUnauthorized = true;
+    const isRetry = Boolean((resolvedInit as { _isRetry?: boolean })._isRetry);
+
+    if (response.status === 401 && !isRetry) {
       try {
-        const { isAuthenticated, clearAuthSession } = useAuthStore.getState();
+        const { refreshToken, isAuthenticated } = useAuthStore.getState();
         if (isAuthenticated) {
-          console.warn(
-            "401 Unauthorized encountered. Clearing local session without window redirect.",
-          );
-          clearAuthSession();
-          showToastNotification(
-            "warning",
-            "Session Expired",
-            "Your session has ended. Please sign in again.",
-          );
+          console.info("[API] 401 encountered. Attempting silent token renewal and request retry...");
+          const newToken = await refreshToken();
+          if (newToken) {
+            const retryHeaders = new Headers(resolvedInit.headers);
+            if (
+              !retryHeaders.has("Content-Type") &&
+              !(resolvedInit.body instanceof FormData)
+            ) {
+              retryHeaders.set("Content-Type", "application/json");
+            }
+            retryHeaders.set("Authorization", `Bearer ${newToken}`);
+
+            const retryResponse = await fetch(url, {
+              ...resolvedInit,
+              headers: retryHeaders,
+              _isRetry: true,
+            } as RequestInit);
+
+            if (retryResponse.ok) {
+              return retryResponse;
+            }
+          }
         }
-      } catch (err) {
-        console.error("Failed to reset auth store state on 401:", err);
-      } finally {
-        isHandlingUnauthorized = false;
+      } catch (retryErr) {
+        console.warn("[API] Token refresh during 401 retry failed:", retryErr);
+      }
+
+      if (!isHandlingUnauthorized) {
+        isHandlingUnauthorized = true;
+        try {
+          const { isAuthenticated, clearAuthSession } = useAuthStore.getState();
+          if (isAuthenticated) {
+            console.warn(
+              "401 Unauthorized encountered and renewal failed. Clearing local session without window redirect.",
+            );
+            clearAuthSession();
+            showToastNotification(
+              "warning",
+              "Session Expired",
+              "Your session has ended. Please sign in again.",
+            );
+          }
+        } catch (err) {
+          console.error("Failed to reset auth store state on 401:", err);
+        } finally {
+          isHandlingUnauthorized = false;
+        }
       }
     }
 
