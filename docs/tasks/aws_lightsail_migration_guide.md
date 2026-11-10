@@ -312,6 +312,11 @@ newgrp docker
    # Keycloak Admin
    KEYCLOAK_ADMIN=admin
    KEYCLOAK_ADMIN_PASSWORD=CreateAStrongKeycloakAdminPass123!
+
+   # (Optional) AI Insights Engine (Gemini / OpenAI API)
+   AI_INSIGHTS_PROVIDER=auto
+   GEMINI_API_KEY=
+   OPENAI_API_KEY=
    ```
 3. Run the container test build:
    ```bash
