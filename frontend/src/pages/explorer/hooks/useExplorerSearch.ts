@@ -9,6 +9,8 @@ import type {
 import { DEFAULT_PAGE_SIZE, DEFAULT_DEBOUNCE_MS } from "../constants";
 import { normalizeSearchResponse } from "../utils";
 
+
+
 /**
  * Custom React hook grouping search query state, pagination, facet filtering,
  * input debouncing, abortable network requests, and CSV export side effects.
