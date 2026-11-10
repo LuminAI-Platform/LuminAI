@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React from "react";
+import { SchemaAccordionItem } from "./SchemaAccordionItem";
+import { useTableSelector } from "../hooks/useTableSelector";
+import type { SchemaDiscovery } from "../types";
 
-export interface SchemaDiscovery {
-  schema: string;
-  tables: string[];
-}
+export type { SchemaDiscovery };
 
 interface TableSelectorProps {
   discovered: SchemaDiscovery[];
@@ -16,90 +16,17 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
   selectedTables,
   onChange,
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [expandedSchemas, setExpandedSchemas] = useState<
-    Record<string, boolean>
-  >(() => {
-    // Expand first schema by default
-    if (discovered.length > 0) {
-      return { [discovered[0].schema]: true };
-    }
-    return {};
-  });
-
-  // Toggle schema accordion expansion
-  const toggleExpand = (schema: string) => {
-    setExpandedSchemas((prev) => ({
-      ...prev,
-      [schema]: !prev[schema],
-    }));
-  };
-
-  // Check if a specific table is selected
-  const isSelected = (schema: string, table: string) => {
-    return selectedTables.includes(`${schema}.${table}`);
-  };
-
-  // Toggle selection for a single table
-  const handleToggleTable = (schema: string, table: string) => {
-    const key = `${schema}.${table}`;
-    if (selectedTables.includes(key)) {
-      onChange(selectedTables.filter((t) => t !== key));
-    } else {
-      onChange([...selectedTables, key]);
-    }
-  };
-
-  // Toggle selection for an entire schema
-  const handleToggleSchema = (schema: string, tables: string[]) => {
-    const schemaTableKeys = tables.map((t) => `${schema}.${t}`);
-    const allSelected = schemaTableKeys.every((key) =>
-      selectedTables.includes(key),
-    );
-
-    if (allSelected) {
-      // Remove all tables of this schema
-      onChange(selectedTables.filter((key) => !schemaTableKeys.includes(key)));
-    } else {
-      // Add missing tables of this schema
-      const otherSelected = selectedTables.filter(
-        (key) => !schemaTableKeys.includes(key),
-      );
-      onChange([...otherSelected, ...schemaTableKeys]);
-    }
-  };
-
-  // Filter discovered schemas and tables based on search term
-  const filteredDiscovered = useMemo(() => {
-    if (!searchTerm.trim()) return discovered;
-    const lower = searchTerm.toLowerCase();
-
-    return discovered
-      .map((item) => {
-        const matchingTables = item.tables.filter(
-          (t) =>
-            t.toLowerCase().includes(lower) ||
-            item.schema.toLowerCase().includes(lower),
-        );
-        return {
-          schema: item.schema,
-          tables: matchingTables,
-        };
-      })
-      .filter((item) => item.tables.length > 0);
-  }, [discovered, searchTerm]);
-
-  // Count helper
-  const getSchemaSelectionStatus = (schema: string, tables: string[]) => {
-    const keys = tables.map((t) => `${schema}.${t}`);
-    const selectedCount = keys.filter((k) => selectedTables.includes(k)).length;
-
-    return {
-      all: selectedCount === tables.length && tables.length > 0,
-      some: selectedCount > 0 && selectedCount < tables.length,
-      count: selectedCount,
-    };
-  };
+  const {
+    searchTerm,
+    setSearchTerm,
+    expandedSchemas,
+    toggleExpand,
+    isSelected,
+    handleToggleTable,
+    handleToggleSchema,
+    filteredDiscovered,
+    getSchemaSelectionStatus,
+  } = useTableSelector({ discovered, selectedTables, onChange });
 
   return (
     <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800/80 rounded-xl overflow-hidden shadow-xl shadow-black/40">
@@ -173,85 +100,19 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
             const isExpanded = expandedSchemas[item.schema] ?? false;
 
             return (
-              <div
+              <SchemaAccordionItem
                 key={item.schema}
-                className="border border-zinc-850/80 rounded-lg overflow-hidden bg-zinc-900/10"
-              >
-                {/* Schema Header row */}
-                <div className="flex items-center justify-between p-3 bg-zinc-900/30 border-b border-zinc-850/60 hover:bg-zinc-900/50 transition-colors select-none">
-                  <div className="flex items-center gap-3">
-                    {/* Checkbox */}
-                    <input
-                      type="checkbox"
-                      ref={(el) => {
-                        if (el) el.indeterminate = some;
-                      }}
-                      checked={all}
-                      onChange={() =>
-                        handleToggleSchema(item.schema, item.tables)
-                      }
-                      className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950 cursor-pointer"
-                    />
-
-                    {/* Schema name & count */}
-                    <div
-                      className="flex items-center gap-2 cursor-pointer"
-                      onClick={() => toggleExpand(item.schema)}
-                    >
-                      <span className="text-xs font-mono font-bold text-zinc-200">
-                        {item.schema}
-                      </span>
-                      <span className="text-[10px] bg-zinc-850 text-zinc-500 px-1.5 py-0.5 rounded font-mono">
-                        {count}/{item.tables.length}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Expand toggle arrow */}
-                  <button
-                    onClick={() => toggleExpand(item.schema)}
-                    className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      className={`transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Table List (Accordion content) */}
-                {isExpanded && (
-                  <div className="p-3 bg-zinc-950/20 divide-y divide-zinc-900/60">
-                    {item.tables.map((table) => {
-                      const checked = isSelected(item.schema, table);
-                      return (
-                        <div
-                          key={table}
-                          onClick={() => handleToggleTable(item.schema, table)}
-                          className="flex items-center gap-3 py-2 px-1 hover:bg-zinc-900/30 rounded cursor-pointer group transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => {}} // Handled by outer click
-                            className="w-3.5 h-3.5 rounded border-zinc-800 bg-zinc-950 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950 cursor-pointer"
-                          />
-                          <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-200 transition-colors">
-                            {table}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                schema={item.schema}
+                tables={item.tables}
+                isExpanded={isExpanded}
+                onToggleExpand={toggleExpand}
+                allSelected={all}
+                someSelected={some}
+                selectedCount={count}
+                onToggleSchema={handleToggleSchema}
+                isTableSelected={isSelected}
+                onToggleTable={handleToggleTable}
+              />
             );
           })
         )}
