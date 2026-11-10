@@ -86,5 +86,13 @@ def build_sigv4_headers(
         f"Signature={signature}"
     )
 
-    headers_to_sign["Authorization"] = auth_header
-    return headers_to_sign
+    final_headers = {
+        "Host": host_header,
+        "x-amz-date": amz_date,
+        "x-amz-content-sha256": payload_hash,
+        "Authorization": auth_header,
+    }
+    if content_type:
+        final_headers["Content-Type"] = content_type
+
+    return final_headers
