@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "../../../lib/api";
 import type { ProvenanceLine } from "../../../features/explorer/components/EntityPropertyTable";
 import type { EntityDetail, UseEntityDetailResult } from "../types";

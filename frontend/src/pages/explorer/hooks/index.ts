@@ -7,4 +7,3 @@ export type {
 } from "./useExplorerSearch";
 export { useEntityDetail } from "./useEntityDetail";
 export type { EntityDetail, UseEntityDetailResult } from "./useEntityDetail";
-

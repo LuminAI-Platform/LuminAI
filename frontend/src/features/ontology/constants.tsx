@@ -173,4 +173,3 @@ export const ENTITY_ICON_MAP: Record<string, React.ReactNode> = {
     </svg>
   ),
 };
-

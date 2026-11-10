@@ -71,4 +71,3 @@ export interface UseEntityDetailResult {
   setActiveProvenanceKey: React.Dispatch<React.SetStateAction<string | null>>;
   refetch: () => Promise<void>;
 }
-

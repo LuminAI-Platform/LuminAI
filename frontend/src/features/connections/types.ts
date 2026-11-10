@@ -25,4 +25,3 @@ export interface UseTableSelectorResult {
     tables: string[],
   ) => { all: boolean; some: boolean; count: number };
 }
-

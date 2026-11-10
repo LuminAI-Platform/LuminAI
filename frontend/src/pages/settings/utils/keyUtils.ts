@@ -14,4 +14,3 @@ export function getDisplayedKey(
   }
   return "No active API key. Click 'Roll Key' to generate one.";
 }
-

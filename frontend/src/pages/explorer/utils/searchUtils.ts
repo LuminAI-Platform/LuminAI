@@ -59,4 +59,3 @@ export function normalizeSearchResponse(
 
   return { content: items, facets, totalElements, totalPages, size, number };
 }
-

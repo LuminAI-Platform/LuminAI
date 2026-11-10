@@ -21,4 +21,3 @@ export const SYSTEM_CAPABILITIES: SystemCapability[] = [
     value: "Apache Kafka (Batch 100)",
   },
 ];
-

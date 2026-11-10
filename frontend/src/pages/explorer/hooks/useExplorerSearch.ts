@@ -1,9 +1,4 @@
-import { useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useMemo,
-} from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { apiFetch } from "../../../lib/api";
 import type { EntityType } from "../../../features/ontology/types";
 import type {
@@ -21,10 +16,8 @@ import { normalizeSearchResponse } from "../utils";
 export function useExplorerSearch(
   options: UseExplorerSearchOptions = {},
 ): UseExplorerSearchResult {
-  const {
-    pageSize = DEFAULT_PAGE_SIZE,
-    debounceMs = DEFAULT_DEBOUNCE_MS,
-  } = options;
+  const { pageSize = DEFAULT_PAGE_SIZE, debounceMs = DEFAULT_DEBOUNCE_MS } =
+    options;
 
   const getInitialParam = (key: string) => {
     if (typeof window !== "undefined") {

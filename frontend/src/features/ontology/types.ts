@@ -31,4 +31,3 @@ export interface EntityType {
   createdAt?: string;
   updatedAt?: string;
 }
-
