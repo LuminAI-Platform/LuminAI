@@ -151,7 +151,6 @@ export function useExplorerSearch(
     return Array.from(new Set(matches));
   }, [inputValue, searchData]);
 
-  // 6. CSV Export action
   const handleExportCsv = async () => {
     setIsExporting(true);
     try {

@@ -4,6 +4,6 @@ export type {
   SearchResponse,
   UseExplorerSearchOptions,
   UseExplorerSearchResult,
-} from "./useExplorerSearch";
+} from "../types";
 export { useEntityDetail } from "./useEntityDetail";
-export type { EntityDetail, UseEntityDetailResult } from "./useEntityDetail";
+export type { EntityDetail, UseEntityDetailResult } from "../types";
