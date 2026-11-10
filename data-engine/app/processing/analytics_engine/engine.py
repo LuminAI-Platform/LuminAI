@@ -1,67 +1,32 @@
-"""DuckDB OLAP Analytics Engine for LuminAI Data Engine.
-
-Provides high-performance analytical queries and time-series rollups over
-golden records (canonical entities) and staging records, querying PostgreSQL
-with transparent fallback to local SQLite storage or in-memory Polars DataFrames.
-"""
+"""OLAP analytics query engine implementation powered by DuckDB."""
 
 from __future__ import annotations
 
 import logging
-import os
-import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import duckdb
 import polars as pl
-from sqlalchemy import text
 
 from app.config import get_settings
+from app.processing.analytics_engine.constants import (
+    GOLDEN_COLUMNS,
+    IDENTIFIER_RE,
+    INTERVAL_MAP,
+    STAGING_COLUMNS,
+)
+from app.processing.analytics_engine.data_loader import (
+    get_pg_engine,
+    load_table_dataframe as _load_table_df,
+    normalize_dataframe,
+)
+from app.processing.analytics_engine.query_builder import (
+    build_aggregation_expressions,
+    build_where_clause,
+)
 
 logger = logging.getLogger(__name__)
-
-# Valid identifier pattern to prevent SQL injection in dynamic column names
-IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
-
-INTERVAL_MAP = {
-    "1h": "hour",
-    "hour": "hour",
-    "hourly": "hour",
-    "1d": "day",
-    "d": "day",
-    "day": "day",
-    "daily": "day",
-    "1w": "week",
-    "w": "week",
-    "week": "week",
-    "weekly": "week",
-    "1m": "month",
-    "1month": "month",
-    "month": "month",
-    "monthly": "month",
-    "1y": "year",
-    "year": "year",
-    "yearly": "year",
-}
-
-GOLDEN_COLUMNS = {
-    "golden_id",
-    "id",
-    "tenant_id",
-    "cluster_size",
-    "source_record_ids",
-    "source_count",
-    "attributes",
-    "properties",
-    "entity_type",
-    "canonical_name",
-    "confidence_score",
-    "version",
-    "created_at",
-    "updated_at",
-}
-STAGING_COLUMNS = {"id", "tenant_id", "source_id", "raw_id", "data", "staged_at"}
 
 
 class DuckDBAnalyticsEngine:
@@ -78,127 +43,15 @@ class DuckDBAnalyticsEngine:
 
     def _get_pg_engine(self):
         """Return pooled SQLAlchemy engine for PostgreSQL."""
-        from app.db import get_engine
-
-        return get_engine()
+        return get_pg_engine()
 
     def _normalize_dataframe(self, df: pl.DataFrame, target_table: str) -> pl.DataFrame:
         """Normalize dataframe columns across PostgreSQL and SQLite schema variations."""
-        cols = df.columns
-        if not cols:
-            return df
-        exprs = []
-        if "golden" in target_table.lower():
-            if "properties" in cols and "attributes" not in cols:
-                exprs.append(pl.col("properties").cast(pl.Utf8).alias("attributes"))
-            elif "attributes" in cols and "properties" not in cols:
-                exprs.append(pl.col("attributes").cast(pl.Utf8).alias("properties"))
-
-            if "id" in cols and "golden_id" not in cols:
-                exprs.append(pl.col("id").cast(pl.Utf8).alias("golden_id"))
-            elif "golden_id" in cols and "id" not in cols:
-                exprs.append(pl.col("golden_id").cast(pl.Utf8).alias("id"))
-
-        if "entity_type" not in cols:
-            exprs.append(pl.lit("").alias("entity_type"))
-
-        if exprs:
-            df = df.with_columns(exprs)
-        return df
+        return normalize_dataframe(df, target_table)
 
     def load_table_dataframe(self, table_name: str, tenant_id: str) -> pl.DataFrame:
         """Load records for the requested tenant from PostgreSQL or SQLite fallback."""
-        target_table = (
-            "golden_records" if "golden" in table_name.lower() else "staging_records"
-        )
-        if self.override_df is not None:
-            return self._normalize_dataframe(self.override_df, target_table)
-
-        records: List[Dict[str, Any]] = []
-
-        # 1. Try PostgreSQL
-        try:
-            engine = self._get_pg_engine()
-            with engine.connect() as conn:
-                query = text(
-                    f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id"
-                )
-                result = conn.execute(query, {"tenant_id": tenant_id})
-                for row in result.mappings():
-                    records.append(dict(row))
-            if records:
-                logger.debug(
-                    "Loaded %d rows for tenant %s from PostgreSQL %s",
-                    len(records),
-                    tenant_id,
-                    target_table,
-                )
-                return self._normalize_dataframe(pl.DataFrame(records), target_table)
-        except Exception as exc:
-            logger.debug("PostgreSQL query failed (%s). Checking SQLite fallback.", exc)
-
-        # 2. Try SQLite Fallback
-        from app.db import get_sqlite_engine
-
-        sqlite_candidates = (
-            [
-                os.path.join("storage", "sqlite", "er_staging.db"),
-                os.path.join("storage", "sqlite", "staging.db"),
-            ]
-            if target_table == "golden_records"
-            else [
-                os.path.join("storage", "sqlite", "staging.db"),
-                os.path.join("storage", "sqlite", "er_staging.db"),
-            ]
-        )
-
-        for sqlite_path in sqlite_candidates:
-            if os.path.exists(sqlite_path):
-                try:
-                    sqlite_engine = get_sqlite_engine(sqlite_path)
-                    with sqlite_engine.connect() as conn:
-                        query = text(
-                            f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id"
-                        )
-                        result = conn.execute(query, {"tenant_id": tenant_id})
-                        for row in result.mappings():
-                            records.append(dict(row))
-                    if records:
-                        logger.debug(
-                            "Loaded %d rows for tenant %s from SQLite %s",
-                            len(records),
-                            tenant_id,
-                            sqlite_path,
-                        )
-                        return self._normalize_dataframe(
-                            pl.DataFrame(records), target_table
-                        )
-                except Exception as sqle:
-                    logger.debug("SQLite check failed for %s: %s", sqlite_path, sqle)
-
-        # If no records found, return an empty DataFrame with expected schema
-        if target_table == "golden_records":
-            return pl.DataFrame(
-                schema={
-                    "golden_id": pl.Utf8,
-                    "tenant_id": pl.Utf8,
-                    "cluster_size": pl.Int64,
-                    "source_record_ids": pl.Utf8,
-                    "attributes": pl.Utf8,
-                    "created_at": pl.Datetime,
-                }
-            )
-        else:
-            return pl.DataFrame(
-                schema={
-                    "id": pl.Utf8,
-                    "tenant_id": pl.Utf8,
-                    "source_id": pl.Utf8,
-                    "raw_id": pl.Utf8,
-                    "data": pl.Utf8,
-                    "staged_at": pl.Datetime,
-                }
-            )
+        return _load_table_df(table_name, tenant_id, self.override_df)
 
     def _build_where_clause(
         self,
@@ -208,70 +61,14 @@ class DuckDBAnalyticsEngine:
         filters: Dict[str, Any],
         df_columns: Optional[List[str]] = None,
     ) -> Tuple[str, List[Any]]:
-        """Construct WHERE clause and parameter list safely.
-
-        Sanitizes all column names and JSON keys to prevent SQL injection.
-        """
-        is_golden = "golden" in table_name.lower()
-        json_col = "attributes" if is_golden else "data"
-        known_cols = GOLDEN_COLUMNS if is_golden else STAGING_COLUMNS
-
-        conditions = ["tenant_id = ?"]
-        params: List[Any] = [tenant_id]
-
-        # Entity type filter (skip if wildcard or ALL)
-        if entity_type and entity_type.upper() not in {"*", "ALL"}:
-            has_entity_type_col = df_columns is not None and "entity_type" in df_columns
-            has_json_col = df_columns is not None and json_col in df_columns
-            if df_columns is None:
-                conditions.append(
-                    f"(COALESCE(NULLIF(TRY_CAST(entity_type AS VARCHAR), ''), json_extract_string({json_col}, '$.entity_type')) = ?)"
-                )
-            elif has_entity_type_col and has_json_col:
-                conditions.append(
-                    f"(COALESCE(NULLIF(TRY_CAST(entity_type AS VARCHAR), ''), json_extract_string({json_col}, '$.entity_type')) = ?)"
-                )
-            elif has_entity_type_col:
-                conditions.append("TRY_CAST(entity_type AS VARCHAR) = ?")
-            elif has_json_col:
-                conditions.append(
-                    f"json_extract_string({json_col}, '$.entity_type') = ?"
-                )
-            else:
-                conditions.append("1 = 0")
-            params.append(entity_type)
-
-        # Dynamic filters
-        for key, val in filters.items():
-            if not IDENTIFIER_RE.match(key):
-                raise ValueError(
-                    f"Invalid filter field name: '{key}'. Must be alphanumeric identifier."
-                )
-
-            if key in known_cols and (df_columns is None or key in df_columns):
-                # Top level table column
-                conditions.append(f"{key} = ?")
-                params.append(val)
-            elif df_columns is None or json_col in df_columns:
-                # Nested JSON field
-                if isinstance(val, bool):
-                    conditions.append(
-                        f"TRY_CAST(json_extract({json_col}, '$.{key}') AS BOOLEAN) = ?"
-                    )
-                    params.append(True if val else False)
-                elif isinstance(val, (int, float)):
-                    conditions.append(
-                        f"TRY_CAST(json_extract({json_col}, '$.{key}') AS DOUBLE) = ?"
-                    )
-                    params.append(float(val))
-                else:
-                    conditions.append(f"json_extract_string({json_col}, '$.{key}') = ?")
-                    params.append(str(val))
-            else:
-                conditions.append("1 = 0")
-
-        where_clause = " WHERE " + " AND ".join(conditions)
-        return where_clause, params
+        """Construct WHERE clause and parameter list safely."""
+        return build_where_clause(
+            table_name=table_name,
+            tenant_id=tenant_id,
+            entity_type=entity_type,
+            filters=filters,
+            df_columns=df_columns,
+        )
 
     def execute_query(
         self,
@@ -289,74 +86,9 @@ class DuckDBAnalyticsEngine:
         if not aggregations:
             aggregations = ["count"]
 
-        # 1. Build and validate aggregation expressions
-        is_golden = "golden" in table_name.lower()
-        json_col = "attributes" if is_golden else "data"
-        known_cols = GOLDEN_COLUMNS if is_golden else STAGING_COLUMNS
-
-        select_exprs = ["COUNT(*) as count"]
-        res_keys = ["count"]
-
-        for agg in aggregations:
-            agg_clean = agg.strip()
-            if agg_clean.lower() in {"count", "count(*)"}:
-                if "count" not in res_keys:
-                    select_exprs.append("COUNT(*) as count")
-                    res_keys.append("count")
-                continue
-
-            if ":" not in agg_clean:
-                raise ValueError(
-                    f"Unsupported aggregation format: '{agg_clean}'. Expected 'operation:field' e.g. 'avg:age'"
-                )
-
-            op, field = agg_clean.split(":", 1)
-            op = op.lower().strip()
-            field = field.strip()
-
-            if not IDENTIFIER_RE.match(field):
-                raise ValueError(
-                    f"Invalid field name '{field}' in aggregation '{agg_clean}'."
-                )
-
-            if op not in {"avg", "sum", "min", "max", "distinct", "count_distinct"}:
-                raise ValueError(
-                    f"Unsupported aggregation operation '{op}'. Supported: avg, sum, min, max, count, distinct."
-                )
-
-            target_ref = (
-                field
-                if field in known_cols
-                else (
-                    f"json_extract_string({json_col}, '$.{field}')"
-                    if op in {"distinct", "count_distinct"}
-                    else f"json_extract({json_col}, '$.{field}')"
-                )
-            )
-
-            if op == "avg":
-                select_exprs.append(
-                    f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}"
-                )
-                res_keys.append(f"avg_{field}")
-            elif op == "sum":
-                select_exprs.append(
-                    f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}"
-                )
-                res_keys.append(f"sum_{field}")
-            elif op == "min":
-                select_exprs.append(
-                    f"MIN(TRY_CAST({target_ref} AS DOUBLE)) as min_{field}"
-                )
-                res_keys.append(f"min_{field}")
-            elif op == "max":
-                select_exprs.append(
-                    f"MAX(TRY_CAST({target_ref} AS DOUBLE)) as max_{field}"
-                )
-                res_keys.append(f"max_{field}")
-            elif op in {"distinct", "count_distinct"}:
-                select_exprs.append(f"COUNT(DISTINCT {target_ref}) as distinct_{field}")
-                res_keys.append(f"distinct_{field}")
+        select_exprs, res_keys = build_aggregation_expressions(
+            aggregations, table_name
+        )
 
         df = self.load_table_dataframe(table_name, tenant_id)
         df = self._normalize_dataframe(df, table_name)
@@ -377,7 +109,7 @@ class DuckDBAnalyticsEngine:
                 df_columns=df.columns,
             )
 
-            # 2. Calculate matching row count
+            # Calculate matching row count
             count_query = (
                 f"SELECT COUNT(*) as row_count FROM source_table {where_clause}"
             )
@@ -385,7 +117,6 @@ class DuckDBAnalyticsEngine:
             row_count = int(count_res[0]) if count_res else 0
 
             if row_count == 0:
-                # If no matching rows, return zero/empty aggregation payload
                 empty_result: Dict[str, Any] = {}
                 for key in res_keys:
                     if (
@@ -489,7 +220,6 @@ class DuckDBAnalyticsEngine:
         df = self.load_table_dataframe(table_name, tenant_id)
         df = self._normalize_dataframe(df, table_name)
 
-        # Map interval
         norm_interval = interval.lower().strip()
         duckdb_interval = INTERVAL_MAP.get(norm_interval)
         if not duckdb_interval:
@@ -510,13 +240,11 @@ class DuckDBAnalyticsEngine:
             json_col = "attributes" if is_golden else "data"
             known_cols = GOLDEN_COLUMNS if is_golden else STAGING_COLUMNS
 
-            # Determine timestamp expression
             if time_field in known_cols:
                 ts_expr = f"TRY_CAST({time_field} AS TIMESTAMP)"
             else:
                 ts_expr = f"TRY_CAST(json_extract_string({json_col}, '$.{time_field}') AS TIMESTAMP)"
 
-            # Metric expression
             metric_clean = metric.strip().lower()
             if metric_clean in {"count", "count(*)"}:
                 metric_sql = "COUNT(*)"
@@ -554,7 +282,6 @@ class DuckDBAnalyticsEngine:
                 df_columns=df.columns,
             )
 
-            # Add timestamp NOT NULL requirement
             where_clause += f" AND {ts_expr} IS NOT NULL"
 
             ts_sql = f"""
@@ -593,10 +320,7 @@ class DuckDBAnalyticsEngine:
         columns: Optional[List[str]] = None,
         limit: Optional[int] = 10000,
     ) -> pl.DataFrame:
-        """Export filtered analytical records as a clean Polars DataFrame.
-
-        Allows analysts to export tabular data to CSV, Parquet, or JSON.
-        """
+        """Export filtered analytical records as a clean Polars DataFrame."""
         filters = filters or {}
         if columns:
             for c in columns:
@@ -620,7 +344,6 @@ class DuckDBAnalyticsEngine:
                 df_columns=df.columns,
             )
 
-            # Construct column projection
             if columns:
                 select_items = []
                 for c in columns:
