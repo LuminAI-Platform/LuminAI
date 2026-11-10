@@ -1,122 +1,25 @@
-"""Cross-Store Data Reconciliation Engine (Sprint 3 · S3-14).
-
-Compares primary entity record counts and checksum hashes across PostgreSQL,
-Neo4j, and OpenSearch to detect data sync drifts and ensure cross-store consistency.
-
-Security & Performance Standards:
-- Strict parameterized queries to prevent SQL injection.
-- Context managers for database sessions and client connections to prevent resource leaks.
-- Streaming and chunked hashing using Polars and SHA-256 for O(N) memory efficiency.
-- Multi-tenant scoping and isolation.
-"""
+"""Cross-Store Reconciler engine implementation."""
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
-import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy import text
 
 from app.config import get_settings
+from app.processing.reconciliation.hashing import (
+    compute_record_hash,
+    compute_store_aggregate_checksum,
+)
+from app.processing.reconciliation.models import (
+    ReconciliationReport,
+    StoreEntityRecord,
+)
 
 logger = logging.getLogger(__name__)
-
-ReconciliationStatus = Literal["HEALTHY", "DRIFT_DETECTED"]
-
-
-class StoreEntityRecord(BaseModel):
-    """Normalized entity representation from any storage backend for reconciliation."""
-
-    entity_id: str
-    tenant_id: str
-    entity_type: str
-    attributes_hash: str
-    raw_data: Optional[Dict[str, Any]] = None
-
-
-class StoreSyncMetrics(BaseModel):
-    """Metrics snapshot for a specific storage engine."""
-
-    store_name: str
-    record_count: int
-    checksum_hash: str
-    entity_ids: List[str] = Field(default_factory=list)
-
-
-class ReconciliationReport(BaseModel):
-    """Structured report returned by the Cross-Store Reconciliation Engine."""
-
-    report_id: str = Field(default_factory=lambda: f"rec-{uuid.uuid4()}")
-    status: ReconciliationStatus
-    tenant_id: str
-    entity_type: str
-    pg_count: int
-    neo4j_count: int
-    opensearch_count: int
-    missing_in_neo4j: List[str] = Field(default_factory=list)
-    missing_in_opensearch: List[str] = Field(default_factory=list)
-    missing_in_postgres: List[str] = Field(default_factory=list)
-    checksum_match: bool
-    checksums: Dict[str, str] = Field(default_factory=dict)
-    drift_details: List[Dict[str, Any]] = Field(default_factory=list)
-    reconciled_at: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-
-
-def compute_record_hash(record_data: Dict[str, Any]) -> str:
-    """Compute a deterministic SHA-256 hash for an entity attribute dictionary.
-
-    Sorts keys recursively and handles standard types and None values.
-    Excludes non-deterministic or metadata keys (e.g. created_at, timestamps).
-    """
-    excluded_keys = {
-        "created_at",
-        "updated_at",
-        "staged_at",
-        "synced_at",
-        "reconciled_at",
-        "source_record_ids",
-        "cluster_size",
-    }
-
-    filtered_data = {
-        k: v for k, v in record_data.items() if k not in excluded_keys and v is not None
-    }
-
-    # Normalize data types to string representations for deterministic hashing
-    normalized = {}
-    for k, v in sorted(filtered_data.items()):
-        if isinstance(v, (dict, list)):
-            normalized[k] = json.dumps(v, sort_keys=True)
-        else:
-            normalized[k] = str(v).strip().lower()
-
-    canonical_str = json.dumps(normalized, sort_keys=True)
-    return hashlib.sha256(canonical_str.encode("utf-8")).hexdigest()
-
-
-def compute_store_aggregate_checksum(entity_records: List[StoreEntityRecord]) -> str:
-    """Compute a combined aggregate SHA-256 checksum over sorted entity records.
-
-    Provides O(N) aggregate checksum verification across entire tenant dataset.
-    """
-    if not entity_records:
-        return hashlib.sha256(b"EMPTY_STORE").hexdigest()
-
-    # Sort records by entity_id to ensure determinism across stores
-    sorted_records = sorted(entity_records, key=lambda r: r.entity_id)
-    hasher = hashlib.sha256()
-
-    for r in sorted_records:
-        hasher.update(f"{r.entity_id}:{r.attributes_hash}".encode("utf-8"))
-
-    return hasher.hexdigest()
 
 
 class CrossStoreReconciler:
@@ -147,7 +50,6 @@ class CrossStoreReconciler:
 
         records: List[StoreEntityRecord] = []
 
-        # Try PostgreSQL first
         try:
             engine = get_engine()
             with engine.connect() as conn:
@@ -224,8 +126,6 @@ class CrossStoreReconciler:
         if override_records is not None:
             return self._normalize_records(override_records)
 
-        # In production without live Neo4j driver during offline tests, query or return normalized records
-        # Uses neo4j bolt driver if neo4j library is available, or fallback to mock/sqlite
         try:
             import neo4j  # type: ignore
 
@@ -349,11 +249,7 @@ class CrossStoreReconciler:
         neo4j_override: Optional[List[Dict[str, Any]]] = None,
         opensearch_override: Optional[List[Dict[str, Any]]] = None,
     ) -> ReconciliationReport:
-        """Run full cross-store reconciliation comparing PostgreSQL, Neo4j, and OpenSearch.
-
-        Returns a detailed ReconciliationReport indicating HEALTHY or DRIFT_DETECTED.
-        """
-        # Fetch from all three storage engines
+        """Run full cross-store reconciliation comparing PostgreSQL, Neo4j, and OpenSearch."""
         pg_records = self.fetch_postgres_records(override_records=pg_override)
         neo4j_records = self.fetch_neo4j_records(override_records=neo4j_override)
         opensearch_records = self.fetch_opensearch_records(
@@ -368,19 +264,14 @@ class CrossStoreReconciler:
         neo4j_checksum = compute_store_aggregate_checksum(neo4j_records)
         opensearch_checksum = compute_store_aggregate_checksum(opensearch_records)
 
-        # Identify missing entity IDs across stores
         all_ids = pg_ids | neo4j_ids | opensearch_ids
         missing_in_neo4j = sorted(list(pg_ids - neo4j_ids))
         missing_in_opensearch = sorted(list(pg_ids - opensearch_ids))
         missing_in_postgres = sorted(list((neo4j_ids | opensearch_ids) - pg_ids))
 
-        # Check count consistency
         counts_match = len(pg_records) == len(neo4j_records) == len(opensearch_records)
-
-        # Check checksum consistency
         checksums_match = pg_checksum == neo4j_checksum == opensearch_checksum
 
-        # Check attribute level drifts for entities present in multiple stores
         drift_details: List[Dict[str, Any]] = []
 
         pg_map = {r.entity_id: r for r in pg_records}
@@ -420,7 +311,6 @@ class CrossStoreReconciler:
                     }
                 )
 
-        # Final health evaluation
         is_healthy = counts_match and checksums_match and len(drift_details) == 0
 
         report = ReconciliationReport(

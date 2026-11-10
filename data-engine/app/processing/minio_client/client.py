@@ -1,25 +1,17 @@
-"""MinIO and S3-compatible raw object storage client.
-
-Provides authenticated object retrieval (AWS SigV4), multi-format parsing
-(CSV, Parquet, JSON, NDJSON, Excel) into Polars DataFrames, and transparent
-local filesystem fallback for development and testing.
-"""
+"""MinIO and S3-compatible raw object storage client implementation."""
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-import io
 import logging
 import os
-import urllib.parse
-from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
 import polars as pl
 
 from app.config import get_settings
+from app.processing.minio_client.auth import build_sigv4_headers
+from app.processing.minio_client.parsers import parse_raw_data_to_dataframe
 
 logger = logging.getLogger(__name__)
 
@@ -27,22 +19,11 @@ MULTIPART_THRESHOLD: int = 100 * 1024 * 1024  # 100MB threshold
 DEFAULT_PART_SIZE: int = 10 * 1024 * 1024  # 10MB parts
 
 
-def _sign(key: bytes, msg: str) -> bytes:
-    return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
-
-
-def get_signature_key(
-    key: str, date_stamp: str, region_name: str, service_name: str
-) -> bytes:
-    k_date = _sign(("AWS4" + key).encode("utf-8"), date_stamp)
-    k_region = _sign(k_date, region_name)
-    k_service = _sign(k_region, service_name)
-    k_signing = _sign(k_service, "aws4_request")
-    return k_signing
-
-
 class MinioRawStorageClient:
     """Client for reading and writing raw files in MinIO / S3 object storage."""
+
+    MULTIPART_THRESHOLD: int = MULTIPART_THRESHOLD
+    DEFAULT_PART_SIZE: int = DEFAULT_PART_SIZE
 
     def __init__(
         self,
@@ -76,140 +57,83 @@ class MinioRawStorageClient:
         content_type: Optional[str] = None,
     ) -> dict[str, str]:
         """Generate AWS SigV4 authentication headers for MinIO/S3."""
-        now = datetime.now(timezone.utc)
-        amz_date = now.strftime("%Y%m%dT%H%M%SZ")
-        date_stamp = now.strftime("%Y%m%d")
-
-        payload_hash = hashlib.sha256(payload).hexdigest()
-
-        headers_to_sign = {
-            "host": self.host_header,
-            "x-amz-date": amz_date,
-            "x-amz-content-sha256": payload_hash,
-        }
-        if content_type:
-            headers_to_sign["content-type"] = content_type
-
-        signed_headers = ";".join(sorted(headers_to_sign.keys()))
-        canonical_headers = "".join(
-            f"{k}:{headers_to_sign[k]}\n" for k in sorted(headers_to_sign.keys())
+        return build_sigv4_headers(
+            host_header=self.host_header,
+            access_key=self.access_key,
+            secret_key=self.secret_key,
+            region=self.region,
+            method=method,
+            path=path,
+            payload=payload,
+            content_type=content_type,
         )
-
-        # Clean canonical URI
-        encoded_path = urllib.parse.quote(path, safe="/-_.~")
-        canonical_request = (
-            f"{method.upper()}\n"
-            f"{encoded_path}\n"
-            f"\n"
-            f"{canonical_headers}\n"
-            f"{signed_headers}\n"
-            f"{payload_hash}"
-        )
-
-        credential_scope = f"{date_stamp}/{self.region}/s3/aws4_request"
-        string_to_sign = (
-            f"AWS4-HMAC-SHA256\n"
-            f"{amz_date}\n"
-            f"{credential_scope}\n"
-            f"{hashlib.sha256(canonical_request.encode('utf-8')).hexdigest()}"
-        )
-
-        signing_key = get_signature_key(self.secret_key, date_stamp, self.region, "s3")
-        signature = hmac.new(
-            signing_key, string_to_sign.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-
-        authorization_header = (
-            f"AWS4-HMAC-SHA256 "
-            f"Credential={self.access_key}/{credential_scope}, "
-            f"SignedHeaders={signed_headers}, "
-            f"Signature={signature}"
-        )
-
-        final_headers = {
-            "Host": self.host_header,
-            "x-amz-date": amz_date,
-            "x-amz-content-sha256": payload_hash,
-            "Authorization": authorization_header,
-        }
-        if content_type:
-            final_headers["Content-Type"] = content_type
-
-        return final_headers
 
     def get_object_bytes(self, bucket: str, object_key: str) -> bytes:
-        """Fetch raw object bytes from MinIO or fallback local storage."""
+        """Fetch raw object bytes from MinIO, falling back to local storage."""
         clean_key = object_key.lstrip("/")
         path = f"/{bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
-        # 1. Attempt MinIO HTTP request
         try:
             headers = self._build_sigv4_headers("GET", path)
-            with httpx.Client(timeout=5.0) as client:
+            with httpx.Client(timeout=10.0) as client:
                 resp = client.get(url, headers=headers)
                 if resp.status_code == 200:
                     logger.debug(
-                        "Successfully fetched %d bytes from MinIO: s3://%s/%s",
-                        len(resp.content),
+                        "Retrieved s3://%s/%s from MinIO (%d bytes)",
                         bucket,
                         clean_key,
+                        len(resp.content),
                     )
                     return resp.content
-                elif resp.status_code != 404:
-                    logger.debug(
-                        "MinIO returned status %d for %s", resp.status_code, url
-                    )
+                logger.debug(
+                    "MinIO GET %s returned %s. Trying local fallback.",
+                    url,
+                    resp.status_code,
+                )
         except Exception as exc:
             logger.debug(
-                "Could not reach MinIO at %s (%s). Checking local storage fallback.",
-                url,
-                exc,
+                "MinIO unreachable (%s). Checking local storage fallback.", exc
             )
 
-        # 2. Check local storage fallbacks
-        candidates = [
-            os.path.join(self.local_fallback_dir, bucket, clean_key),
-            os.path.join(self.local_fallback_dir, clean_key),
-            clean_key,
-        ]
+        local_path = os.path.join(self.local_fallback_dir, bucket, clean_key)
+        if os.path.exists(local_path):
+            with open(local_path, "rb") as f:
+                logger.debug(
+                    "Loaded s3://%s/%s from local fallback: %s",
+                    bucket,
+                    clean_key,
+                    local_path,
+                )
+                return f.read()
 
-        for cand in candidates:
-            if os.path.isfile(cand):
-                logger.debug("Found local raw file at: %s", cand)
-                with open(cand, "rb") as f:
-                    return f.read()
+        alt_local_path = os.path.join(self.local_fallback_dir, clean_key)
+        if os.path.exists(alt_local_path):
+            with open(alt_local_path, "rb") as f:
+                logger.debug(
+                    "Loaded %s from local fallback: %s", clean_key, alt_local_path
+                )
+                return f.read()
 
         raise FileNotFoundError(
-            f"Raw object '{clean_key}' was not found in MinIO (bucket: {bucket}) or local fallback paths: {candidates}"
+            f"Object s3://{bucket}/{clean_key} not found in MinIO or local storage ({local_path})"
         )
-
-    MULTIPART_THRESHOLD: int = 100 * 1024 * 1024  # 100MB threshold
-    DEFAULT_PART_SIZE: int = 10 * 1024 * 1024  # 10MB parts
 
     def put_object_multipart(
         self,
         bucket: str,
         object_key: str,
         data: bytes,
-        content_type: str = "application/octet-stream",
+        content_type: str = "text/csv",
         part_size: int = DEFAULT_PART_SIZE,
     ) -> bool:
-        """Upload large objects (>100MB) using S3/MinIO multipart upload protocol.
-
-        Workflow:
-          1. Writes full payload to local fallback cache.
-          2. Initiates multipart upload (POST /{bucket}/{key}?uploads).
-          3. Uploads 10MB chunk parts (PUT /{bucket}/{key}?partNumber={i}&uploadId={id}).
-          4. Completes multipart upload with part manifests (POST /{bucket}/{key}?uploadId={id}).
-        """
+        """Upload large object to MinIO using S3 multipart upload protocol."""
         import xml.etree.ElementTree as ET
 
         clean_key = object_key.lstrip("/")
         path = f"/{bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
-        # 1. Save local copy first
         local_path = os.path.join(self.local_fallback_dir, bucket, clean_key)
         try:
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -230,7 +154,6 @@ class MinioRawStorageClient:
 
         try:
             with httpx.Client(timeout=30.0) as client:
-                # Step 1: Initiate multipart upload
                 init_headers = self._build_sigv4_headers(
                     "POST", f"{path}?uploads", payload=b"", content_type=content_type
                 )
@@ -241,7 +164,7 @@ class MinioRawStorageClient:
                         init_resp.status_code,
                         init_resp.text,
                     )
-                    return True  # Fallback cached locally
+                    return True
 
                 upload_id = None
                 try:
@@ -259,7 +182,6 @@ class MinioRawStorageClient:
                     )
                     return True
 
-                # Step 2: Upload parts
                 parts_info = []
                 for part_num in range(1, num_parts + 1):
                     start = (part_num - 1) * part_size
@@ -285,7 +207,6 @@ class MinioRawStorageClient:
                     etag = part_resp.headers.get("ETag", f'"{part_num}"').strip('"')
                     parts_info.append((part_num, etag))
 
-                # Step 3: Complete multipart upload
                 complete_xml = (
                     "<CompleteMultipartUpload>"
                     + "".join(
@@ -333,10 +254,7 @@ class MinioRawStorageClient:
         data: bytes,
         content_type: str = "text/csv",
     ) -> bool:
-        """Upload raw object bytes to MinIO and local fallback cache.
-
-        Automatically uses multipart upload protocol when size exceeds MULTIPART_THRESHOLD (100MB).
-        """
+        """Upload raw object bytes to MinIO and local fallback cache."""
         if len(data) >= self.MULTIPART_THRESHOLD:
             return self.put_object_multipart(
                 bucket, object_key, data, content_type=content_type
@@ -346,7 +264,6 @@ class MinioRawStorageClient:
         path = f"/{bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
-        # 1. Save to local fallback cache
         try:
             local_path = os.path.join(self.local_fallback_dir, bucket, clean_key)
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -355,7 +272,6 @@ class MinioRawStorageClient:
         except Exception as exc:
             logger.debug("Failed to cache local copy of %s: %s", clean_key, exc)
 
-        # 2. Try MinIO HTTP PUT
         try:
             headers = self._build_sigv4_headers(
                 "PUT", path, payload=data, content_type=content_type
@@ -385,61 +301,9 @@ class MinioRawStorageClient:
             return False
 
     def load_dataframe(self, bucket: str, object_key: str) -> pl.DataFrame:
-        """Download raw object from MinIO / local storage and parse into a Polars DataFrame.
-
-        Supports:
-          - CSV / TSV (.csv, .tsv, .txt)
-          - Parquet (.parquet)
-          - JSON / NDJSON (.json, .ndjson, .jsonl)
-          - Excel (.xlsx, .xls)
-        """
+        """Download raw object from MinIO / local storage and parse into a Polars DataFrame."""
         data = self.get_object_bytes(bucket, object_key)
-        ext = os.path.splitext(object_key)[1].lower()
-
-        df: pl.DataFrame
-        bio = io.BytesIO(data)
-
-        if ext in (".parquet", ".pq"):
-            df = pl.read_parquet(bio)
-        elif ext in (".json", ".jsonl", ".ndjson"):
-            try:
-                df = pl.read_json(bio)
-            except Exception:
-                bio.seek(0)
-                df = pl.read_ndjson(bio)
-        elif ext in (".xlsx", ".xls"):
-            df = pl.read_excel(bio)
-        else:
-            # Default to CSV parser
-            separator = "\t" if ext == ".tsv" else ","
-            df = pl.read_csv(
-                bio,
-                separator=separator,
-                infer_schema_length=10000,
-                ignore_errors=True,
-                truncate_ragged_lines=True,
-            )
-
-        # Clean column names (strip whitespace)
-        clean_cols = [c.strip() for c in df.columns]
-        df = df.rename(dict(zip(df.columns, clean_cols)))
-
-        # Ensure 'id' column exists for downstream pipelines
-        cols_lower = [c.lower() for c in df.columns]
-        if "id" not in cols_lower and "rec_id" not in cols_lower:
-            # Generate deterministic record ID
-            record_ids = [f"rec-{i + 1:04d}" for i in range(df.height)]
-            df = df.with_columns(pl.Series("id", record_ids))
-
-        logger.info(
-            "Parsed %d rows from s3://%s/%s (format: %s, cols: %s)",
-            df.height,
-            bucket,
-            object_key,
-            ext or "csv",
-            df.columns,
-        )
-        return df
+        return parse_raw_data_to_dataframe(data, object_key, bucket)
 
 
 _default_minio_client: Optional[MinioRawStorageClient] = None
