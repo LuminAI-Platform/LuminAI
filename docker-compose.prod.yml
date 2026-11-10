@@ -1,80 +1,72 @@
 # ==============================================================================
-# PRODUCTION OVERRIDES — docker-compose.prod.yml
+# LUMINAI PRODUCTION OVERRIDES (AWS UNIFIED LIGHTSAIL)
 # ==============================================================================
-# Use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# All secrets must come from environment variables or a secrets manager.
-# DO NOT hardcode credentials in this file.
-# ==============================================================================
-
 services:
   postgres:
-    ports: []                          # Remove public port exposure in production
+    ports: []
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB:-luminai}
+      POSTGRES_USER: ${POSTGRES_USER:-luminai_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     deploy:
       resources:
         limits:
-          memory: 1g
-          cpus: "1.0"
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
+          memory: 768m
+          cpus: "0.75"
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: luminai-neo4j
+    restart: unless-stopped
+    ports: []
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/luminai_dev_password}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    volumes:
+      - neo4j_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "0.5"
 
   keycloak:
     ports: []
     environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
+      KC_DB_USERNAME: ${POSTGRES_USER:-luminai_admin}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HTTP_PORT: 8180
+      JAVA_OPTS_APPEND: "-Xms256m -Xmx512m"
     deploy:
       resources:
         limits:
-          memory: 1g
-          cpus: "1.0"
-
-  kafka:
-    ports: []
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: "1.0"
+          memory: 768m
+          cpus: "0.75"
 
   redis:
     ports: []
     deploy:
       resources:
         limits:
+          memory: 128m
+          cpus: "0.25"
+
+  zookeeper:
+    ports: []
+    deploy:
+      resources:
+        limits:
           memory: 256m
-          cpus: "0.5"
+          cpus: "0.25"
 
-  neo4j:
+  kafka:
     ports: []
-    environment:
-      NEO4J_AUTH: ${NEO4J_AUTH}
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: "1.0"
-
-  opensearch:
-    ports: []
-    deploy:
-      resources:
-        limits:
-          memory: 2g
-          cpus: "1.0"
-
-  minio:
-    ports: []
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     deploy:
       resources:
         limits:
@@ -82,72 +74,68 @@ services:
           cpus: "0.5"
 
   core-backend:
-    ports: []
+    ports:
+      - "127.0.0.1:8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      SPRING_FLYWAY_URL: ${SPRING_FLYWAY_URL}
-      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST}
-      SPRING_DATA_REDIS_PASSWORD: ${SPRING_DATA_REDIS_PASSWORD}
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-      KAFKA_USERNAME: ${KAFKA_USERNAME}
-      KAFKA_PASSWORD: ${KAFKA_PASSWORD}
-      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
-      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI}
-      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
-      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
-      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY}
-      DATA_ENGINE_URL: ${DATA_ENGINE_URL:-http://data-engine:8000}
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: "1.0"
-
-  data-engine:
-    ports: []
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
-      KAFKA_USERNAME: ${KAFKA_USERNAME}
-      KAFKA_PASSWORD: ${KAFKA_PASSWORD}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-luminai_admin}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
+      SPRING_FLYWAY_USER: ${POSTGRES_USER:-luminai_admin}
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      # Neo4j Knowledge Graph parameters
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-luminai_dev_password}
+      # Keycloak OIDC Authentication
+      KEYCLOAK_ISSUER_URI: https://auth.${DOMAIN_NAME}/realms/${KEYCLOAK_REALM:-luminai}
+      KEYCLOAK_JWK_SET_URI: https://auth.${DOMAIN_NAME}/realms/${KEYCLOAK_REALM:-luminai}/protocol/openid-connect/certs
+      DATA_ENGINE_URL: http://data-engine:8000
       MINIO_ENDPOINT: ${MINIO_ENDPOINT}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      CORS_ALLOWED_ORIGINS: https://app.${DOMAIN_NAME},http://localhost:5173
     deploy:
       resources:
         limits:
-          memory: 1g
+          memory: 1200m
           cpus: "1.0"
 
-  dagster-webserver:
-    ports: []
+  data-engine:
+    ports:
+      - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-luminai_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-luminai}
+      REDIS_URL: redis://redis:6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-luminai_dev_password}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_SECURE: "true"
+      APP_FRONTEND_URL: https://app.${DOMAIN_NAME}
     deploy:
       resources:
         limits:
-          memory: 1g
-          cpus: "1.0"
-
-  dagster-daemon:
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: "1.0"
+          memory: 768m
+          cpus: "0.75"
 
   frontend:
-    ports: []
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://api.${DOMAIN_NAME}
+        VITE_AUTH_URL: https://auth.${DOMAIN_NAME}/realms/${KEYCLOAK_REALM:-luminai}
+        VITE_AUTH_CLIENT_ID: luminai-spa
+    ports:
+      - "127.0.0.1:3000:80"
     deploy:
       resources:
         limits:
