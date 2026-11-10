@@ -10,7 +10,7 @@ ARG VITE_API_URL
 ARG VITE_AUTH_URL
 ARG VITE_AUTH_CLIENT_ID
 
-# Pass them as environment variables into the Vite compiler
+# Expose them to the Vite build engine
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_AUTH_URL=$VITE_AUTH_URL
 ENV VITE_AUTH_CLIENT_ID=$VITE_AUTH_CLIENT_ID
