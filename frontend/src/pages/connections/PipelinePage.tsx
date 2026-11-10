@@ -32,7 +32,7 @@ export const PipelinePage: React.FC = () => {
             </Link>
             <Link
               to="/connections/schema-map"
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-blue-900/30"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span>Schema Studio</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -42,7 +42,7 @@ export const PipelinePage: React.FC = () => {
       />
 
       {/* Main monitor widget */}
-      <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-5 shadow-2xl shadow-black/40">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
         <PipelineMonitor />
       </div>
     </div>

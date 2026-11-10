@@ -117,12 +117,7 @@ export const DashboardPage: React.FC = () => {
         breadcrumbs={[{ label: "Dashboard" }]}
         title="Platform Overview"
         description="System status, connected data sources, pipeline executions, and resolved records."
-        icon={<Layers className="w-5 h-5 text-blue-400" />}
-        badge={{
-          label: "System Healthy",
-          variant: "emerald",
-          pulse: true,
-        }}
+        icon={<Layers className="w-5 h-5 text-zinc-300" />}
         actions={
           <>
             <Button
@@ -153,7 +148,7 @@ export const DashboardPage: React.FC = () => {
 
       {/* Error state if backend endpoint is unavailable */}
       {summaryError && (
-        <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 flex items-center justify-between text-xs text-red-200">
+        <div className="bg-red-950/30 border border-red-500/40 rounded-lg p-4 flex items-center justify-between text-xs text-red-200">
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
             <span>
@@ -216,7 +211,6 @@ export const DashboardPage: React.FC = () => {
           value={summary ? `${summary.dataQualityScore}%` : "98.5%"}
           subtitle="Completeness & accuracy"
           icon={<ShieldCheck className="w-4 h-4" />}
-          badge={{ text: "Grade A", variant: "purple" }}
           isLoading={isSummaryLoading}
         />
       </div>
@@ -227,7 +221,7 @@ export const DashboardPage: React.FC = () => {
       {/* 2. Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Pipeline Telemetry Chart (2 cols) */}
-        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800/80 rounded-xl p-5 shadow-lg shadow-black/20">
+        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold text-zinc-100">
@@ -261,7 +255,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Right: Entity Type Distribution (1 col) */}
-        <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5 shadow-lg shadow-black/20 flex flex-col justify-between">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">
               Entity Type Distribution
@@ -281,7 +275,7 @@ export const DashboardPage: React.FC = () => {
       {/* 3. Bottom Row: Activity Feed & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Activity Feed (2 cols) */}
-        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800/80 rounded-xl p-5 shadow-lg shadow-black/20">
+        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
           <div className="flex items-center justify-between mb-3 pb-3 border-b border-zinc-800/60">
             <div>
               <h3 className="text-sm font-semibold text-zinc-100">
@@ -293,7 +287,7 @@ export const DashboardPage: React.FC = () => {
             </div>
             <Link
               to="/connections/pipelines"
-              className="text-xs text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs text-zinc-400 hover:text-zinc-200 font-medium inline-flex items-center gap-1 cursor-pointer"
             >
               All Pipelines <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -311,15 +305,15 @@ export const DashboardPage: React.FC = () => {
         <div className="flex flex-col gap-3">
           <Link
             to="/connections"
-            className="group p-4 bg-zinc-900 border border-zinc-800/80 hover:border-blue-500/60 rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/5 cursor-pointer"
+            className="group p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
                 <Database className="w-4 h-4" />
               </div>
-              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
             </div>
-            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-blue-300 transition-colors">
+            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-zinc-200 transition-colors">
               Data Connections
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
@@ -329,15 +323,15 @@ export const DashboardPage: React.FC = () => {
 
           <Link
             to="/graph"
-            className="group p-4 bg-zinc-900 border border-zinc-800/80 hover:border-purple-500/60 rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-500/5 cursor-pointer"
+            className="group p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
                 <GitBranch className="w-4 h-4" />
               </div>
-              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
             </div>
-            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-purple-300 transition-colors">
+            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-zinc-200 transition-colors">
               Knowledge Graph
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
@@ -347,15 +341,15 @@ export const DashboardPage: React.FC = () => {
 
           <Link
             to="/ontology"
-            className="group p-4 bg-zinc-900 border border-zinc-800/80 hover:border-emerald-500/60 rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/5 cursor-pointer"
+            className="group p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
                 <Layers className="w-4 h-4" />
               </div>
-              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
             </div>
-            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-emerald-300 transition-colors">
+            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-zinc-200 transition-colors">
               Data Model & Ontology
             </h4>
             <p className="text-[11px] text-zinc-400 mt-1 leading-normal">

@@ -57,7 +57,7 @@ export function SandboxLoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-zinc-100">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-xl border border-amber-500/30 bg-zinc-900 p-6 shadow-2xl shadow-black/30"
+        className="w-full max-w-md rounded-lg border border-amber-500/30 bg-zinc-900 p-6 shadow-2xl shadow-black/30"
       >
         <div className="mb-6">
           <img

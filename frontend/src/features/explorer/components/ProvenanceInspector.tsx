@@ -152,8 +152,8 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-              <GitBranch className="w-4 h-4 text-blue-400" />
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center">
+              <GitBranch className="w-4 h-4 text-zinc-300" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-zinc-100">
@@ -161,7 +161,7 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
               </h2>
               {propertyKey && (
                 <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
-                  property: <span className="text-blue-400">{propertyKey}</span>
+                  property: <span className="text-zinc-300">{propertyKey}</span>
                 </p>
               )}
             </div>
@@ -188,7 +188,7 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
           ) : lines.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center flex-1 py-16 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4">
                 <Info className="w-5 h-5 text-zinc-600" />
               </div>
               <h3 className="text-sm font-semibold text-zinc-400 mb-1.5">
@@ -220,7 +220,7 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
                   return (
                     <div
                       key={`${line.sourceDataset}-${idx}`}
-                      className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex flex-col gap-4 hover:border-zinc-700/80 transition-colors"
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col gap-4 hover:border-zinc-700 transition-colors"
                     >
                       {/* Source name + confidence */}
                       <div className="flex items-start justify-between gap-3">
@@ -229,7 +229,7 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
                             <Database className="w-3.5 h-3.5 text-zinc-400" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-zinc-200 font-mono truncate">
+                            <p className="text-xs font-bold text-zinc-200 truncate">
                               {line.sourceDataset}
                             </p>
                             <p className="text-[10px] text-zinc-500 mt-0.5">
@@ -249,7 +249,7 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
 
                       {/* Details grid */}
                       <div className="grid grid-cols-1 gap-2">
-                        <div className="flex items-center gap-2.5 bg-zinc-950/60 border border-zinc-900 rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-2.5 bg-zinc-950/60 border border-zinc-900 rounded-lg px-3 py-2">
                           <Tag className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                           <div className="min-w-0">
                             <p className="text-[9px] text-zinc-600 uppercase tracking-wider font-bold mb-0.5">
@@ -261,7 +261,7 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 bg-zinc-950/60 border border-zinc-900 rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-2.5 bg-zinc-950/60 border border-zinc-900 rounded-lg px-3 py-2">
                           <Clock className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                           <div className="min-w-0">
                             <p className="text-[9px] text-zinc-600 uppercase tracking-wider font-bold mb-0.5">
@@ -279,8 +279,8 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
               </div>
 
               {/* Footer note */}
-              <div className="flex items-start gap-2.5 bg-blue-500/5 border border-blue-500/15 rounded-xl p-3.5">
-                <Info className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-2.5 bg-zinc-900 border border-zinc-800 rounded-lg p-3.5">
+                <Info className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
                 <p className="text-[11px] text-zinc-500 leading-relaxed">
                   Provenance data reflects the last known ingestion snapshot.
                   Values may have since been updated by a more recent pipeline

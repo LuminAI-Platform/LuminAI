@@ -54,7 +54,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   if (!node) return null;
 
   return (
-    <div className="absolute top-4 right-4 z-20 w-84 bg-zinc-900/95 backdrop-blur-md border border-zinc-800 rounded-xl shadow-2xl p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 max-h-[calc(100%-2rem)] overflow-y-auto">
+    <div className="absolute top-4 right-4 z-20 w-84 bg-zinc-900/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 max-h-[calc(100%-2rem)] overflow-y-auto">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 pb-3 border-b border-zinc-800/80">
         <div className="min-w-0">
@@ -86,7 +86,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
       {/* Degree & Topology Metrics */}
       <div>
         <h4 className="text-xs font-semibold text-zinc-400 mb-2 flex items-center gap-1.5">
-          <Network className="w-3.5 h-3.5 text-blue-400" />
+          <Network className="w-3.5 h-3.5 text-zinc-400" />
           Graph Centrality
         </h4>
         {isStatsLoading ? (
@@ -107,7 +107,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             </div>
             <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
               <span className="text-[10px] text-zinc-500 block mb-0.5 flex items-center justify-center gap-0.5">
-                <ArrowDownLeft className="w-2.5 h-2.5 text-emerald-400" /> In
+                <ArrowDownLeft className="w-2.5 h-2.5 text-zinc-400" /> In
               </span>
               <span className="text-sm font-bold text-zinc-200">
                 {stats?.inDegree ?? 0}
@@ -115,7 +115,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             </div>
             <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80">
               <span className="text-[10px] text-zinc-500 block mb-0.5 flex items-center justify-center gap-0.5">
-                <ArrowUpRight className="w-2.5 h-2.5 text-blue-400" /> Out
+                <ArrowUpRight className="w-2.5 h-2.5 text-zinc-400" /> Out
               </span>
               <span className="text-sm font-bold text-zinc-200">
                 {stats?.outDegree ?? 0}
@@ -130,7 +130,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         Object.keys(stats.relationshipTypeCounts).length > 0 && (
           <div>
             <h4 className="text-[11px] font-semibold text-zinc-400 mb-1.5 flex items-center gap-1.5">
-              <GitFork className="w-3.5 h-3.5 text-purple-400" />
+              <GitFork className="w-3.5 h-3.5 text-zinc-400" />
               Adjacent Edges
             </h4>
             <div className="flex flex-wrap gap-1.5">
@@ -141,7 +141,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                     className="px-2 py-0.5 rounded-md text-[10px] bg-zinc-950 border border-zinc-800 text-zinc-300 flex items-center gap-1"
                   >
                     <span>{type}</span>
-                    <span className="font-bold text-blue-400">×{count}</span>
+                    <span className="font-bold text-zinc-400">×{count}</span>
                   </span>
                 ),
               )}

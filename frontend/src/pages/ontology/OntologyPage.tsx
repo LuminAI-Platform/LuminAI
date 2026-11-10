@@ -40,7 +40,7 @@ const EmptyState: React.FC<{
   sub: string;
   action?: React.ReactNode;
 }> = ({ icon, title, sub, action }) => (
-  <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-zinc-800 rounded-2xl bg-zinc-950/40">
+  <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-zinc-800 rounded-lg bg-zinc-950/40">
     <div className="text-zinc-600 mb-3">{icon}</div>
     <span className="text-sm font-semibold text-zinc-400">{title}</span>
     <span className="text-xs text-zinc-600 mt-1 mb-4">{sub}</span>
@@ -271,7 +271,7 @@ export const OntologyPage: React.FC = () => {
         ].map((s) => (
           <div
             key={s.label}
-            className="flex items-center gap-3 px-4 py-3 bg-zinc-900/60 border border-zinc-800/80 rounded-xl"
+            className="flex items-center gap-3 px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg"
           >
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
@@ -314,7 +314,7 @@ export const OntologyPage: React.FC = () => {
 
       {/* Error banner */}
       {error && (
-        <div className="mb-4 px-4 py-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center justify-between shrink-0">
+        <div className="mb-4 px-4 py-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-between shrink-0">
           <span>{error}</span>
           <button
             onClick={() => setError(null)}
@@ -338,7 +338,7 @@ export const OntologyPage: React.FC = () => {
                   setEditingEntity(undefined);
                   setEntityEditorOpen(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/40 rounded-lg shadow-lg shadow-blue-500/10 transition-all cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/40 rounded-lg transition-all cursor-pointer"
               >
                 <svg
                   width="12"
@@ -405,13 +405,13 @@ export const OntologyPage: React.FC = () => {
                 {entities.map((entity) => (
                   <div
                     key={entity.id ?? entity.name}
-                    className="group relative bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 flex flex-col gap-3 hover:border-zinc-700/80 transition-all hover:shadow-xl hover:shadow-black/30"
+                    className="group relative bg-zinc-900 border border-zinc-800 rounded-lg p-5 flex flex-col gap-3 hover:border-zinc-700 transition-all"
                   >
                     {/* Card header */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center border-2 shrink-0"
+                          className="w-10 h-10 rounded-lg flex items-center justify-center border-2 shrink-0"
                           style={{
                             backgroundColor: `${entity.color ?? "#3b82f6"}18`,
                             borderColor: `${entity.color ?? "#3b82f6"}35`,
@@ -600,7 +600,7 @@ export const OntologyPage: React.FC = () => {
                 }
               />
             ) : (
-              <div className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-950/40 shadow-inner">
+              <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/40">
                 <div className="overflow-x-auto min-w-0">
                   <div className="min-w-[680px]">
                     <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
@@ -635,7 +635,7 @@ export const OntologyPage: React.FC = () => {
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="2"
-                              className="text-purple-500 shrink-0"
+                              className="text-zinc-500 shrink-0"
                             >
                               <line x1="5" y1="12" x2="19" y2="12" />
                               <polyline points="13 6 19 12 13 18" />
@@ -645,7 +645,7 @@ export const OntologyPage: React.FC = () => {
                             </span>
                           </div>
                           <div className="col-span-2">
-                            <span className="font-mono font-bold text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                            <span className="font-bold text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
                               {rel.cardinality.replace(/_/g, ":")}
                             </span>
                           </div>
@@ -732,7 +732,7 @@ export const OntologyPage: React.FC = () => {
                 sub='Click "Publish Version" to snapshot the current ontology schema'
               />
             ) : (
-              <div className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-950/40 shadow-inner">
+              <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/40">
                 <div className="overflow-x-auto min-w-0">
                   <div className="min-w-[680px]">
                     <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">

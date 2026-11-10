@@ -28,11 +28,11 @@ export const EntityHeaderCard: React.FC<EntityHeaderCardProps> = ({
   });
 
   return (
-    <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
       <div className="flex items-start gap-5">
         {/* Icon Badge */}
         <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center border-2 shrink-0"
+          className="w-14 h-14 rounded-lg flex items-center justify-center border-2 shrink-0"
           style={{
             backgroundColor: `${typeColor}15`,
             borderColor: `${typeColor}35`,
@@ -79,7 +79,7 @@ export const EntityHeaderCard: React.FC<EntityHeaderCardProps> = ({
         <button
           id="explore-graph-btn"
           onClick={onExploreGraph}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl border border-blue-500/50 hover:border-blue-400/60 transition-all duration-200 shadow-md shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg border border-blue-500/50 hover:border-blue-400/60 transition-all duration-200 cursor-pointer"
         >
           <Share2 className="w-3.5 h-3.5" />
           <span>Explore Graph</span>

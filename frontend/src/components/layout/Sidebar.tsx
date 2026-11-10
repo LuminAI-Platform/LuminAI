@@ -256,7 +256,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-sm font-bold text-zinc-100 tracking-tight leading-none">
                   LuminAI
                 </span>
-                <span className="text-[9px] font-mono font-semibold text-zinc-500 tracking-widest uppercase mt-0.5">
+                <span className="text-[9px] font-semibold text-zinc-500 tracking-widest uppercase mt-0.5">
                   Data Platform
                 </span>
               </div>
@@ -289,7 +289,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="flex-1 py-4 px-3.5 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
           {/* Section: Explore & Overview */}
           {!collapsed && (
-            <div className="px-2 pt-1 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+            <div className="px-2 pt-1 pb-1 text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
               Explore & Overview
             </div>
           )}
@@ -326,7 +326,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Section: Data Integration */}
           {!collapsed && (
-            <div className="px-2 pt-4 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+            <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
               Data Integration
             </div>
           )}
@@ -364,7 +364,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Section: Configuration */}
           {!collapsed && (
-            <div className="px-2 pt-4 pb-1 text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+            <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
               Configuration
             </div>
           )}
@@ -559,7 +559,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               enabled
             >
               <div
-                className="group flex items-center p-2.5 text-zinc-400 hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 cursor-pointer transition-all"
+                className="group flex items-center p-2.5 text-zinc-400 hover:bg-red-950/30 hover:border-red-500/30 hover:text-red-400 bg-zinc-850/60 border border-zinc-800/80 rounded-lg mt-2 cursor-pointer transition-all"
                 onClick={() => logout()}
               >
                 <svg
@@ -579,7 +579,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </SidebarTooltip>
           ) : (
-            <div className="group flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-xl mt-2 transition-all">
+            <div className="group flex items-center gap-3 p-2 bg-zinc-850/60 border border-zinc-800/80 rounded-lg mt-2 transition-all">
               <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden">
                 <svg
                   className="text-zinc-400"

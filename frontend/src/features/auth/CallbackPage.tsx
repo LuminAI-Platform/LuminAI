@@ -85,14 +85,14 @@ export const CallbackPage: React.FC = () => {
           <>
             <div className="relative w-16 h-16">
               <div className="absolute inset-0 rounded-full border-2 border-zinc-800/80" />
-              <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 border-r-blue-500/30 animate-spin" />
+              <div className="absolute inset-0 rounded-full border-2 border-t-zinc-400 border-r-zinc-600 animate-spin" />
               <div className="absolute inset-2 rounded-full border border-zinc-900 bg-zinc-950/80 flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-zinc-400" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400 font-mono">
+              <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400">
                 Finalizing Session
               </h3>
               <p className="text-[11px] text-zinc-500">

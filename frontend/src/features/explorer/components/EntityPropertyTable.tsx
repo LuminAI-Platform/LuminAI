@@ -57,7 +57,7 @@ export const EntityPropertyTable: React.FC<EntityPropertyTableProps> = ({
 
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 border border-dashed border-zinc-800/80 rounded-2xl text-center">
+      <div className="flex flex-col items-center justify-center py-12 border border-dashed border-zinc-800/80 rounded-lg text-center">
         <span className="text-xs text-zinc-500 italic">
           No properties recorded for this entity.
         </span>
@@ -66,7 +66,7 @@ export const EntityPropertyTable: React.FC<EntityPropertyTableProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto scrollbar-thin rounded-2xl border border-zinc-800/80">
+    <div className="overflow-x-auto scrollbar-thin rounded-lg border border-zinc-800/80">
       <div className="min-w-[480px] sm:min-w-full">
         {/* Table Header */}
         <div className="grid grid-cols-[2fr_3fr_auto] gap-0 bg-zinc-950/60 border-b border-zinc-800/80 px-5 py-2.5">
@@ -133,7 +133,7 @@ export const EntityPropertyTable: React.FC<EntityPropertyTableProps> = ({
                     title={`View provenance for "${key}"`}
                     className={`p-1.5 rounded-lg border transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? "bg-blue-500/15 border-blue-500/40 text-blue-400 shadow-md shadow-blue-500/10"
+                        ? "bg-blue-500/15 border-blue-500/40 text-blue-400"
                         : "border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/60 group-hover:border-zinc-700"
                     }`}
                   >

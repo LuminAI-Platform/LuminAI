@@ -26,12 +26,12 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   isLoading = false,
 }) => {
   return (
-    <div className="bg-zinc-900/90 border border-zinc-800/80 hover:border-zinc-700/80 rounded-xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-black/20 flex flex-col justify-between">
+    <div className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg p-5 transition-colors flex flex-col justify-between">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-zinc-400 select-none">
           {title}
         </span>
-        <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center text-blue-400">
+        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400">
           {icon}
         </div>
       </div>

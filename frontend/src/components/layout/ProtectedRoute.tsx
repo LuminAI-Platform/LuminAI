@@ -59,21 +59,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         {/* Subtle grid background */}
         <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
 
-        {/* Glowing backdrop element */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-
         <div className="flex flex-col items-center gap-6 relative z-10">
-          {/* Futuristic loading ring */}
           <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full border-2 border-zinc-800/80" />
-            <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 border-r-blue-500/30 animate-spin" />
+            <div className="absolute inset-0 rounded-full border-2 border-zinc-800" />
+            <div className="absolute inset-0 rounded-full border-2 border-t-zinc-400 border-r-zinc-600 animate-spin" />
             <div className="absolute inset-2 rounded-full border border-zinc-900 bg-zinc-950/80 flex items-center justify-center">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-zinc-400" />
             </div>
           </div>
 
           <div className="flex flex-col items-center gap-1.5">
-            <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400 font-mono">
+            <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400">
               Authenticating
             </h3>
             <p className="text-[11px] text-zinc-500">
