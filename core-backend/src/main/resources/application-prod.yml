@@ -4,7 +4,7 @@
 # Activated via: SPRING_PROFILES_ACTIVE=prod (set on Render dashboard)
 #
 # All sensitive values are injected via environment variables.
-# See API_key.example at the repo root for the full variable registry.
+# See .env.example at the repo root for the full variable registry.
 # ==============================================================================
 
 spring:
