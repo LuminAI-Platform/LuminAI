@@ -23,3 +23,4 @@ __all__ = [
     "MetricSummary",
     "get_ai_insights_service",
 ]
+
