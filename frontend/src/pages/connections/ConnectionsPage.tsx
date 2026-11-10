@@ -1919,7 +1919,8 @@ export const ConnectionsPage: React.FC = () => {
                                     colSpan={columns.length + 1}
                                     className="p-8 text-center text-zinc-500"
                                   >
-                                    No records match filter "{cleanSearchFilter}".
+                                    No records match filter "{cleanSearchFilter}
+                                    ".
                                   </td>
                                 </tr>
                               ) : (
