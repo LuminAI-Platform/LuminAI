@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "@tanstack/react-router";
 import { isPlatformAdmin, useAuthStore } from "../../stores/authStore";
 import { SidebarTooltip, TooltipProvider } from "../ui/Tooltip";
+import luminaiMark from "../../assets/luminai-mark.svg";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -241,23 +242,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 localStorage.setItem("luminai_sidebar_collapsed", String(next));
               }}
               title="Toggle Sidebar Navigation"
-              className="w-8 h-8 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center justify-center shrink-0 font-bold shadow-md shadow-blue-500/20 cursor-pointer transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 cursor-pointer transition-transform hover:scale-105"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-              </svg>
+              <img
+                src={luminaiMark}
+                alt="LuminAI"
+                className="w-7 h-7 object-contain select-none"
+                draggable={false}
+              />
             </button>
             {!collapsed && (
               <div className="flex flex-col overflow-hidden">

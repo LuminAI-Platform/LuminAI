@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
+import logoImg from "../../assets/luminai-logo.svg";
 
 const SANDBOX_ROLES = [
   {
@@ -59,6 +60,12 @@ export function SandboxLoginPage() {
         className="w-full max-w-md rounded-xl border border-amber-500/30 bg-zinc-900 p-6 shadow-2xl shadow-black/30"
       >
         <div className="mb-6">
+          <img
+            src={logoImg}
+            alt="LuminAI"
+            className="h-7 w-auto mb-5 select-none"
+            draggable={false}
+          />
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
             Development only
           </p>
