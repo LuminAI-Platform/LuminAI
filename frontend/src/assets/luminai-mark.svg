@@ -1,0 +1,17 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top Face (lighter blue) -->
+  <path d="M18 3L31 10.5L18 18L5 10.5L18 3Z" fill="#3B82F6"/>
+  <!-- Left Face (deep royal) -->
+  <path d="M5 10.5L18 18V33L5 25.5V10.5Z" fill="#1D4ED8"/>
+  <!-- Right Face (vibrant cobalt) -->
+  <path d="M18 18L31 10.5V25.5L18 33V18Z" fill="#2563EB"/>
+  
+  <!-- Interior radiating light paths -->
+  <path d="M18 18V6" stroke="#93C5FD" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M18 18L7.5 24" stroke="#93C5FD" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M18 18L28.5 24" stroke="#93C5FD" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Central illuminated core node -->
+  <circle cx="18" cy="18" r="3" fill="#FFFFFF"/>
+</svg>
+
