@@ -46,22 +46,16 @@ def init_db(db_path: str) -> None:
             # Ensure new columns exist if table was previously created with older schema
             existing_cols = {
                 row[1]
-                for row in conn.execute(
-                    "PRAGMA table_info(pipeline_runs)"
-                ).fetchall()
+                for row in conn.execute("PRAGMA table_info(pipeline_runs)").fetchall()
             }
             if "retry_count" not in existing_cols:
                 conn.execute(
                     "ALTER TABLE pipeline_runs ADD COLUMN retry_count INTEGER DEFAULT 0"
                 )
             if "failed_step" not in existing_cols:
-                conn.execute(
-                    "ALTER TABLE pipeline_runs ADD COLUMN failed_step TEXT"
-                )
+                conn.execute("ALTER TABLE pipeline_runs ADD COLUMN failed_step TEXT")
             if "error_history" not in existing_cols:
-                conn.execute(
-                    "ALTER TABLE pipeline_runs ADD COLUMN error_history TEXT"
-                )
+                conn.execute("ALTER TABLE pipeline_runs ADD COLUMN error_history TEXT")
             if "metadata" not in existing_cols:
                 conn.execute("ALTER TABLE pipeline_runs ADD COLUMN metadata TEXT")
     except Exception as exc:

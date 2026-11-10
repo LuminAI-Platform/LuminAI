@@ -86,9 +86,7 @@ class DuckDBAnalyticsEngine:
         if not aggregations:
             aggregations = ["count"]
 
-        select_exprs, res_keys = build_aggregation_expressions(
-            aggregations, table_name
-        )
+        select_exprs, res_keys = build_aggregation_expressions(aggregations, table_name)
 
         df = self.load_table_dataframe(table_name, tenant_id)
         df = self._normalize_dataframe(df, table_name)

@@ -62,9 +62,7 @@ def load_table_dataframe(
     try:
         engine = get_pg_engine()
         with engine.connect() as conn:
-            query = text(
-                f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id"
-            )
+            query = text(f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id")
             result = conn.execute(query, {"tenant_id": tenant_id})
             for row in result.mappings():
                 records.append(dict(row))

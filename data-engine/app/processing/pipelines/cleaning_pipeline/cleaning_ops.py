@@ -34,7 +34,9 @@ def clean_records(
       7. Currency parsing into amount and currency code
     """
     initial_rows = raw_df.height
-    context.log.info("🧹 cleaned_ingestion_data: starting — %d input rows", initial_rows)
+    context.log.info(
+        "🧹 cleaned_ingestion_data: starting — %d input rows", initial_rows
+    )
 
     with trace_span(
         "pipeline.clean",

@@ -58,7 +58,9 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
         or tags.get("key")
     )
     bucket = (
-        tags.get("bucket") or tags.get("s3_bucket") or cp.get_settings().minio_bucket_raw
+        tags.get("bucket")
+        or tags.get("s3_bucket")
+        or cp.get_settings().minio_bucket_raw
     )
 
     if object_key:

@@ -84,7 +84,5 @@ def query_dagster_graphql(graphql_url: str, run_id: str) -> Optional[RunRecord]:
                     message=f"Dagster run status: {raw_status}",
                 )
     except Exception as exc:
-        logger.debug(
-            "Dagster GraphQL query unreachable for run %s (%s)", run_id, exc
-        )
+        logger.debug("Dagster GraphQL query unreachable for run %s (%s)", run_id, exc)
     return None

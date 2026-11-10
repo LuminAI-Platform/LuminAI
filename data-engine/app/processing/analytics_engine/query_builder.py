@@ -44,9 +44,7 @@ def build_where_clause(
         elif has_entity_type_col:
             conditions.append("TRY_CAST(entity_type AS VARCHAR) = ?")
         elif has_json_col:
-            conditions.append(
-                f"json_extract_string({json_col}, '$.entity_type') = ?"
-            )
+            conditions.append(f"json_extract_string({json_col}, '$.entity_type') = ?")
         else:
             conditions.append("1 = 0")
         params.append(entity_type)
@@ -134,24 +132,16 @@ def build_aggregation_expressions(
         )
 
         if op == "avg":
-            select_exprs.append(
-                f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}"
-            )
+            select_exprs.append(f"AVG(TRY_CAST({target_ref} AS DOUBLE)) as avg_{field}")
             res_keys.append(f"avg_{field}")
         elif op == "sum":
-            select_exprs.append(
-                f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}"
-            )
+            select_exprs.append(f"SUM(TRY_CAST({target_ref} AS DOUBLE)) as sum_{field}")
             res_keys.append(f"sum_{field}")
         elif op == "min":
-            select_exprs.append(
-                f"MIN(TRY_CAST({target_ref} AS DOUBLE)) as min_{field}"
-            )
+            select_exprs.append(f"MIN(TRY_CAST({target_ref} AS DOUBLE)) as min_{field}")
             res_keys.append(f"min_{field}")
         elif op == "max":
-            select_exprs.append(
-                f"MAX(TRY_CAST({target_ref} AS DOUBLE)) as max_{field}"
-            )
+            select_exprs.append(f"MAX(TRY_CAST({target_ref} AS DOUBLE)) as max_{field}")
             res_keys.append(f"max_{field}")
         elif op in {"distinct", "count_distinct"}:
             select_exprs.append(f"COUNT(DISTINCT {target_ref}) as distinct_{field}")

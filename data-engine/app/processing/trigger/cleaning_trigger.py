@@ -43,8 +43,7 @@ def execute_cleaning_pipeline(
         "Triggering cleaning pipeline — tenant=%s, source=%s, rows=%s, run_id=%s",
         tenant_id,
         source_id,
-        batch_metadata.get("total_rows")
-        or batch_metadata.get("totalRows", "unknown"),
+        batch_metadata.get("total_rows") or batch_metadata.get("totalRows", "unknown"),
         active_run_id,
     )
 
@@ -184,9 +183,7 @@ def execute_cleaning_pipeline(
                 return dagster_run_id
             else:
                 duration = time.perf_counter() - start_time
-                record_pipeline_duration(
-                    "cleaning_pipeline", duration, status="failed"
-                )
+                record_pipeline_duration("cleaning_pipeline", duration, status="failed")
                 tracker.fail_run(
                     active_run_id,
                     error="Dagster materialization completed with errors.",

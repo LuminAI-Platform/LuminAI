@@ -1,7 +1,6 @@
 """Dagster asset definitions for Entity Resolution (ER) pipeline."""
 
 import logging
-from typing import Any, Dict, List, Optional
 
 import polars as pl
 from dagster import AssetExecutionContext, asset

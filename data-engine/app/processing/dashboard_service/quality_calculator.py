@@ -42,9 +42,7 @@ def compute_uniqueness(df: pl.DataFrame, total_rows: int) -> float:
     con = duckdb.connect()
     try:
         con.register("golden", df)
-        result = con.execute(
-            "SELECT COUNT(DISTINCT golden_id) FROM golden"
-        ).fetchone()
+        result = con.execute("SELECT COUNT(DISTINCT golden_id) FROM golden").fetchone()
         distinct = int(result[0]) if result else 0
         return round((distinct / total_rows) * 100, 1)
     finally:
