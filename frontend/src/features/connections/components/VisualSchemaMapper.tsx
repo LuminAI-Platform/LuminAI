@@ -635,11 +635,11 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
       {showPayload && (
         <div className="px-6 py-3 border-b border-zinc-800/80 bg-black/60 flex-shrink-0 animate-in fade-in duration-150">
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              API Payload Config (Active Live State)
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+              API Payload Config
             </p>
-            <span className="text-[10px] font-mono text-zinc-400">
+            <span className="text-[10px] text-zinc-400">
               {mappings.length} mapped · {fkCount} graph{" "}
               {fkCount === 1 ? "link" : "links"}
             </span>
@@ -715,7 +715,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
                 relationship link
               </p>
             </div>
-            <span className="text-[10px] font-mono text-zinc-600 px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded">
+            <span className="text-[10px] text-zinc-600 px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded">
               {sourceColumns.length} cols
             </span>
           </div>
@@ -997,11 +997,11 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         >
           <div
             id="fk-modal-container"
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 w-full max-w-md shadow-2xl space-y-4"
+            className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 w-full max-w-md shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300">
                   <svg
                     width="14"
                     height="14"

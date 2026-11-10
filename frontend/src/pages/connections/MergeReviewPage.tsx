@@ -218,7 +218,7 @@ export const MergeReviewPage: React.FC = () => {
       {/* Main Split Layout */}
       <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
         {/* Left: Candidates Master List */}
-        <div className="w-full lg:w-96 flex flex-col bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shrink-0 max-h-[30vh] lg:max-h-none">
+        <div className="w-full lg:w-96 flex flex-col bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden shrink-0 max-h-[30vh] lg:max-h-none">
           <div className="p-3 border-b border-zinc-800 bg-zinc-900/80">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -265,9 +265,9 @@ export const MergeReviewPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <span
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded border font-semibold ${getScoreColor(c.similarityScore)}`}
+                        className={`text-[10px] px-2 py-0.5 rounded border font-medium ${getScoreColor(c.similarityScore)}`}
                       >
-                        {Math.round(c.similarityScore * 100)}% Match
+                        Suggested match · {Math.round(c.similarityScore * 100)}%
                       </span>
                       <Badge
                         variant={
@@ -301,7 +301,7 @@ export const MergeReviewPage: React.FC = () => {
         </div>
 
         {/* Right: Side-by-Side Comparison & Action Console */}
-        <div className="flex-1 flex flex-col bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="flex-1 flex flex-col bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
           {activeCandidate ? (
             <>
               {/* Review Inspector Header */}
@@ -312,10 +312,11 @@ export const MergeReviewPage: React.FC = () => {
                       ID: {activeCandidate.candidateId}
                     </span>
                     <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${getScoreColor(activeCandidate.similarityScore)}`}
+                      className={`text-[10px] px-2 py-0.5 rounded border font-medium ${getScoreColor(activeCandidate.similarityScore)}`}
                     >
+                      Suggested match ·{" "}
                       {Math.round(activeCandidate.similarityScore * 100)}%
-                      Confidence
+                      confidence
                     </span>
                   </div>
                   <p className="text-xs text-zinc-300 font-medium mt-1">
@@ -361,7 +362,7 @@ export const MergeReviewPage: React.FC = () => {
 
               {/* Side-by-Side Comparison Table */}
               <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col">
-                <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950/60 shadow-inner flex-1 min-h-0 flex flex-col">
+                <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/60 shadow-inner flex-1 min-h-0 flex flex-col">
                   <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 scrollbar-thin">
                     <table className="w-full min-w-[650px] text-left text-xs border-collapse">
                       <thead className="sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 shadow-xs">

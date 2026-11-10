@@ -81,8 +81,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <div ref={containerRef} className="relative w-full max-w-2xl select-none">
       {/* Search Input Container */}
-      <div className="relative flex items-center bg-zinc-900/50 backdrop-blur-md border border-zinc-800/80 rounded-xl px-4 py-2.5 transition-all duration-300 focus-within:border-blue-500/50 focus-within:shadow-[0_0_12px_rgba(59,130,246,0.15)] group">
-        <Search className="w-4 h-4 text-zinc-500 group-focus-within:text-blue-500 transition-colors mr-3 shrink-0" />
+      <div className="relative flex items-center bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 transition-colors focus-within:border-zinc-700 group">
+        <Search className="w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 transition-colors mr-3 shrink-0" />
 
         <input
           ref={inputRef}
@@ -130,7 +130,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* Autocomplete Dropdown */}
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl shadow-black/80 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute z-50 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden shadow-2xl shadow-black/80 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
           <div className="px-3.5 py-2 text-[10px] font-bold text-zinc-500 border-b border-zinc-850 uppercase tracking-widest bg-zinc-900/80">
             Suggested matches
           </div>

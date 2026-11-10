@@ -100,11 +100,10 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800/80 rounded-xl overflow-hidden shadow-xl shadow-black/30">
+    <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden shadow-xl shadow-black/30">
       {/* Header toolbar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-b border-zinc-800/80 bg-zinc-900/40">
         <div className="flex items-center gap-2.5 select-none">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs font-semibold tracking-wider uppercase text-zinc-400">
             Preview Dataset
           </span>
@@ -349,7 +348,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
-          <span className="text-zinc-400 text-xs px-3 font-semibold font-mono">
+          <span className="text-zinc-400 text-xs px-3 font-semibold">
             Page {currentPage} of {totalPages}
           </span>
           <button

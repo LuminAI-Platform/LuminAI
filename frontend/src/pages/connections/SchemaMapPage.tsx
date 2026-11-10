@@ -4,7 +4,6 @@ import {
   History,
   Layers,
   Plus,
-  Sparkles,
   Database,
   Loader2,
   AlertCircle,
@@ -1469,13 +1468,13 @@ export const SchemaMapPage: React.FC = () => {
       {/* ── Selectors ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 shrink-0 select-none">
         {/* Source selector */}
-        <div className="p-3.5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl">
+        <div className="p-3.5 bg-zinc-900 border border-zinc-800 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">
               Source Table
             </p>
             {sourceData.columns.length > 0 && (
-              <span className="text-[10px] text-zinc-400 font-mono">
+              <span className="text-[10px] text-zinc-400">
                 {sourceData.columns.length} columns found
               </span>
             )}
@@ -1494,7 +1493,7 @@ export const SchemaMapPage: React.FC = () => {
                   onClick={() => setSelectedSource(key)}
                   className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg border transition-all cursor-pointer ${
                     selectedSource === key
-                      ? "bg-blue-600 border-blue-500/40 text-white shadow-lg shadow-blue-500/15"
+                      ? "bg-blue-600 border-blue-500/40 text-white"
                       : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
@@ -1506,7 +1505,7 @@ export const SchemaMapPage: React.FC = () => {
         </div>
 
         {/* Target Entity Selector */}
-        <div className="p-3.5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl">
+        <div className="p-3.5 bg-zinc-900 border border-zinc-800 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">
@@ -1527,9 +1526,10 @@ export const SchemaMapPage: React.FC = () => {
                   className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
                   title="Create an entity automatically using the columns from your data"
                 >
-                  <Sparkles className="w-3 h-3 text-blue-400" />
                   <span>
-                    {generatingFromDataset ? "Creating…" : "Create from Data"}
+                    {generatingFromDataset
+                      ? "Creating…"
+                      : "Auto-detect from Data"}
                   </span>
                 </button>
               )}
@@ -1582,7 +1582,7 @@ export const SchemaMapPage: React.FC = () => {
                     selectedOntology === key ||
                     (!selectedOntology &&
                       key === Object.keys(dynamicOntologyLabels)[0])
-                      ? "bg-emerald-600 border-emerald-500/40 text-white shadow-lg shadow-emerald-500/15"
+                      ? "bg-emerald-600 border-emerald-500/40 text-white"
                       : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                   }`}
                 >
@@ -1596,7 +1596,7 @@ export const SchemaMapPage: React.FC = () => {
 
       {/* ── Mapping History Drawer ── */}
       {showHistory && (
-        <div className="mb-4 p-4 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex-shrink-0">
+        <div className="mb-4 p-4 bg-zinc-900 border border-zinc-800 rounded-lg flex-shrink-0">
           <p className="text-xs font-semibold text-zinc-300 mb-3">
             Saved Mappings
           </p>
@@ -1621,7 +1621,7 @@ export const SchemaMapPage: React.FC = () => {
                   className="flex items-center justify-between p-3 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg text-[11px] cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-zinc-400">
+                    <span className="text-zinc-300">
                       {(m.sourceTable ?? "table").split(".").pop()}
                     </span>
                     <svg
@@ -1635,7 +1635,7 @@ export const SchemaMapPage: React.FC = () => {
                     >
                       <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
-                    <span className="font-mono text-emerald-400">
+                    <span className="text-zinc-200">
                       {m.targetEntity ?? "Entity"}
                     </span>
                   </div>
@@ -1658,12 +1658,12 @@ export const SchemaMapPage: React.FC = () => {
       )}
 
       {/* ── Mapper Canvas ── */}
-      <div className="flex-1 min-h-0 bg-zinc-950/80 border border-zinc-800/80 rounded-xl overflow-hidden relative">
+      <div className="flex-1 min-h-0 bg-zinc-950/80 border border-zinc-800 rounded-lg overflow-hidden relative">
         <div className="absolute inset-0 bg-grid-dots opacity-60 pointer-events-none" />
         <div className="relative h-full">
           {Object.keys(dynamicOntologyLabels).length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8 z-10 relative">
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-4 shadow-xl shadow-blue-500/5">
+              <div className="w-14 h-14 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center mb-4">
                 <Database className="w-7 h-7" />
               </div>
               <h3 className="text-base font-bold text-zinc-100 mb-1.5">
@@ -1682,17 +1682,16 @@ export const SchemaMapPage: React.FC = () => {
                       ? handleAutoGenerateFromDataset
                       : undefined
                   }
-                  className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+                  className={`p-4 rounded-lg border transition-all flex flex-col justify-between ${
                     sourceData.columns.length > 0
-                      ? "bg-zinc-900/80 border-blue-500/30 hover:border-blue-500/60 hover:bg-zinc-900 cursor-pointer shadow-lg shadow-blue-500/5"
+                      ? "bg-zinc-900 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 cursor-pointer"
                       : "bg-zinc-900/30 border-zinc-800/60 opacity-60 cursor-not-allowed"
                   }`}
                 >
                   <div>
-                    <div className="flex items-center gap-2 mb-2 text-blue-400">
-                      <Sparkles className="w-4 h-4" />
+                    <div className="flex items-center gap-2 mb-2 text-zinc-300">
                       <span className="text-xs font-bold text-zinc-100">
-                        Create from Data
+                        Auto-detect from Data
                       </span>
                     </div>
                     <p className="text-[11px] text-zinc-400 leading-normal">
@@ -1708,11 +1707,11 @@ export const SchemaMapPage: React.FC = () => {
                   >
                     {generatingFromDataset ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    )}
+                    ) : null}
                     <span>
-                      {generatingFromDataset ? "Creating…" : "Create from Data"}
+                      {generatingFromDataset
+                        ? "Creating…"
+                        : "Auto-detect from Data"}
                     </span>
                   </button>
                 </div>
@@ -1720,11 +1719,11 @@ export const SchemaMapPage: React.FC = () => {
                 {/* 2. Industry Starter Pack */}
                 <div
                   onClick={() => setIsSeedModalOpen(true)}
-                  className="p-4 rounded-xl bg-zinc-900/80 border border-indigo-500/30 hover:border-indigo-500/60 hover:bg-zinc-900 transition-all cursor-pointer flex flex-col justify-between shadow-lg shadow-indigo-500/5"
+                  className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 transition-all cursor-pointer flex flex-col justify-between"
                 >
                   <div>
-                    <div className="flex items-center gap-2 mb-2 text-indigo-400">
-                      <FolderDown className="w-4 h-4" />
+                    <div className="flex items-center gap-2 mb-2 text-zinc-300">
+                      <FolderDown className="w-4 h-4 text-zinc-400" />
                       <span className="text-xs font-bold text-zinc-100">
                         Use a Template
                       </span>
@@ -1734,7 +1733,7 @@ export const SchemaMapPage: React.FC = () => {
                       shipping.
                     </p>
                   </div>
-                  <button className="mt-4 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                  <button className="mt-4 px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
                     <FolderDown className="w-3.5 h-3.5" />
                     <span>View Templates</span>
                   </button>
@@ -1743,11 +1742,11 @@ export const SchemaMapPage: React.FC = () => {
                 {/* 3. Custom Entity */}
                 <div
                   onClick={() => setIsEntityEditorOpen(true)}
-                  className="p-4 rounded-xl bg-zinc-900/80 border border-emerald-500/30 hover:border-emerald-500/60 hover:bg-zinc-900 transition-all cursor-pointer flex flex-col justify-between shadow-lg shadow-emerald-500/5"
+                  className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 transition-all cursor-pointer flex flex-col justify-between"
                 >
                   <div>
-                    <div className="flex items-center gap-2 mb-2 text-emerald-400">
-                      <Plus className="w-4 h-4" />
+                    <div className="flex items-center gap-2 mb-2 text-zinc-300">
+                      <Plus className="w-4 h-4 text-zinc-400" />
                       <span className="text-xs font-bold text-zinc-100">
                         Create Custom
                       </span>
@@ -1807,7 +1806,7 @@ export const SchemaMapPage: React.FC = () => {
               return (
                 <div
                   key={pack.id}
-                  className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between group"
+                  className="p-5 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all flex flex-col justify-between group"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -1816,7 +1815,7 @@ export const SchemaMapPage: React.FC = () => {
                       >
                         {pack.badge}
                       </span>
-                      <span className="text-[10px] text-zinc-500 font-mono">
+                      <span className="text-[10px] text-zinc-500">
                         {pack.entityTypes.length} Tables
                       </span>
                     </div>

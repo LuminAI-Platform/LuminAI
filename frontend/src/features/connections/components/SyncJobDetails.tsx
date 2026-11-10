@@ -402,7 +402,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
   if (!job || !job.id || !job.datasets || job.datasets.length === 0) {
     return (
       <div
-        className="flex flex-col items-center justify-center p-8 bg-zinc-950 border border-zinc-800/80 rounded-xl shadow-2xl shadow-black/40 text-center select-none min-h-[280px]"
+        className="flex flex-col items-center justify-center p-8 bg-zinc-900 border border-zinc-800 rounded-lg text-center select-none min-h-[280px]"
         data-testid="sync-job-details-empty"
       >
         <svg
@@ -442,7 +442,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
 
   return (
     <div
-      className="flex flex-col gap-4 bg-zinc-950 border border-zinc-800/80 rounded-xl overflow-hidden shadow-2xl shadow-black/40"
+      className="flex flex-col gap-4 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden"
       data-testid="sync-job-details"
     >
       {/* ── Job Header ──────────────────────────────────────────────────────── */}
@@ -540,13 +540,13 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
       {/* ── KPI Row ─────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5">
         {/* Overall Progress */}
-        <div className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-3">
+        <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
           <div className="relative flex-shrink-0">
             <ProgressRing
               pct={overallPct}
               color={job.status === "failed" ? "#ef4444" : "#3b82f6"}
             />
-            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-zinc-300 font-mono">
+            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-zinc-300">
               {Math.floor(overallPct)}%
             </span>
           </div>
@@ -554,7 +554,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
             <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
               Progress
             </div>
-            <div className="text-xs font-mono text-zinc-200 font-semibold leading-tight mt-0.5">
+            <div className="text-xs text-zinc-200 font-semibold leading-tight mt-0.5">
               {formatNumber(totalSynced)}
               <span className="text-zinc-500 font-normal">
                 /{formatNumber(totalRecords)}
@@ -564,7 +564,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
         </div>
 
         {/* Speed */}
-        <div className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-3">
+        <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
           <div className="flex-shrink-0">
             <Sparkline data={speedHistory} color="#3b82f6" />
           </div>
@@ -572,7 +572,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
             <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
               Speed
             </div>
-            <div className="text-xs font-mono text-blue-400 font-bold leading-tight mt-0.5">
+            <div className="text-xs text-blue-400 font-bold leading-tight mt-0.5">
               {formatNumber(currentSpeed)}
               <span className="text-zinc-500 font-normal text-[10px]">
                 {" "}
@@ -586,7 +586,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
         </div>
 
         {/* Errors */}
-        <div className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-3">
+        <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
           <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center">
             <svg
               width="14"
@@ -606,7 +606,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
               Errors
             </div>
             <div
-              className={`text-xs font-mono font-bold leading-tight mt-0.5 ${totalFailed > 0 ? "text-red-400" : "text-zinc-400"}`}
+              className={`text-xs font-bold leading-tight mt-0.5 ${totalFailed > 0 ? "text-red-400" : "text-zinc-400"}`}
             >
               {formatNumber(totalFailed)}
               <span className="text-zinc-600 font-normal text-[10px]">
@@ -618,7 +618,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
         </div>
 
         {/* Duration / active datasets */}
-        <div className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-3">
+        <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
           <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center">
             <svg
               width="14"
@@ -639,7 +639,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
             {/* re-render each tick to show live elapsed time */}
             <div
               key={tick}
-              className="text-xs font-mono text-zinc-200 font-semibold leading-tight mt-0.5"
+              className="text-xs text-zinc-200 font-semibold leading-tight mt-0.5"
             >
               {formatDuration(job.startedAt)}
             </div>
@@ -669,7 +669,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
             return (
               <div
                 key={ds.id}
-                className="bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-3"
+                className="bg-zinc-900/30 border border-zinc-800/60 rounded-lg p-3"
               >
                 <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3 mb-2">
                   <div className="flex items-center gap-2 min-w-0">

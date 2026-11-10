@@ -177,7 +177,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
           <div className="flex items-center gap-3">
             {/* Entity icon preview */}
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center border-2 shrink-0 cursor-pointer select-none transition-all hover:scale-105"
+              className="w-9 h-9 rounded-lg flex items-center justify-center border-2 shrink-0 cursor-pointer select-none transition-all hover:scale-105"
               style={{
                 backgroundColor: `${form.color}20`,
                 borderColor: `${form.color}40`,
@@ -221,7 +221,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
         </div>
         {/* Icon picker dropdown */}
         {iconPickerOpen && (
-          <div className="absolute z-60 mt-14 ml-6 bg-zinc-900 border border-zinc-700 rounded-xl p-3 shadow-xl flex flex-wrap gap-2 w-56">
+          <div className="absolute z-60 mt-14 ml-6 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl flex flex-wrap gap-2 w-56">
             {ENTITY_ICON_KEYS.map((key) => (
               <button
                 key={key}
@@ -374,7 +374,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
                   Preview
                 </label>
                 <div
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border-2 self-start"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border-2 self-start"
                   style={{
                     backgroundColor: `${form.color}15`,
                     borderColor: `${form.color}35`,

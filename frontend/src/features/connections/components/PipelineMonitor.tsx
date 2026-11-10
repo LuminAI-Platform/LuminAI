@@ -155,7 +155,7 @@ const KpiCard: React.FC<{
   accent?: string;
   icon: React.ReactNode;
 }> = ({ label, value, sub, accent = "text-zinc-100", icon }) => (
-  <div className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-4">
+  <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-4">
     <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400">
       {icon}
     </div>
@@ -163,9 +163,7 @@ const KpiCard: React.FC<{
       <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
         {label}
       </div>
-      <div
-        className={`text-sm font-bold font-mono leading-tight mt-0.5 ${accent}`}
-      >
+      <div className={`text-sm font-bold leading-tight mt-0.5 ${accent}`}>
         {value}
       </div>
       {sub && <div className="text-[10px] text-zinc-600 mt-0.5">{sub}</div>}
@@ -211,11 +209,7 @@ const ConnectionDot: React.FC<{ connected: boolean; polling: boolean }> = ({
   <div className="flex items-center gap-1.5">
     <span
       className={`w-1.5 h-1.5 rounded-full ${
-        connected
-          ? "bg-emerald-500 animate-pulse"
-          : polling
-            ? "bg-amber-500 animate-pulse"
-            : "bg-zinc-600"
+        connected ? "bg-emerald-500" : polling ? "bg-amber-500" : "bg-zinc-600"
       }`}
     />
     <span className="text-[10px] text-zinc-500 select-none">
@@ -373,7 +367,7 @@ export const PipelineMonitor: React.FC = () => {
         <div className="flex items-center gap-4">
           <ConnectionDot connected={sseConnected} polling={polling} />
           {lastUpdated && (
-            <span className="text-[10px] text-zinc-600 font-mono select-none">
+            <span className="text-[10px] text-zinc-600 select-none">
               Updated {lastUpdated.toLocaleTimeString()}
             </span>
           )}
@@ -386,7 +380,7 @@ export const PipelineMonitor: React.FC = () => {
           {sseErrors.slice(0, 3).map((err, idx) => (
             <div
               key={`${err.runId}-${idx}`}
-              className={`p-3 rounded-xl border text-xs flex items-center justify-between font-medium ${
+              className={`p-3 rounded-lg border text-xs flex items-center justify-between font-medium ${
                 err.severity === "error"
                   ? "bg-red-950/40 border-red-500/30 text-red-300"
                   : "bg-amber-950/40 border-amber-500/30 text-amber-300"
@@ -417,13 +411,13 @@ export const PipelineMonitor: React.FC = () => {
       {/* ── KPI Summary Row ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Active pipelines + gauge */}
-        <div className="col-span-2 lg:col-span-1 flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-4">
+        <div className="col-span-2 lg:col-span-1 flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-4">
           <ThroughputGauge value={totalThroughput} />
           <div>
             <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
               Total Throughput
             </div>
-            <div className="text-sm font-bold font-mono text-blue-400 leading-tight mt-0.5">
+            <div className="text-sm font-bold text-zinc-100 leading-tight mt-0.5">
               {formatNumber(totalThroughput)}
               <span className="text-zinc-500 font-normal text-[10px]">
                 {" "}
@@ -548,11 +542,11 @@ export const PipelineMonitor: React.FC = () => {
           Loading pipeline jobs…
         </div>
       ) : fetchError ? (
-        <div className="p-4 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs font-medium">
+        <div className="p-4 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs font-medium">
           {fetchError}
         </div>
       ) : visible.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center border border-zinc-800/80 rounded-xl bg-zinc-950/60 select-none">
+        <div className="flex flex-col items-center justify-center p-12 text-center border border-zinc-800/80 rounded-lg bg-zinc-950/60 select-none">
           <svg
             width="36"
             height="36"

@@ -50,14 +50,14 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   return (
     <div
       data-id={id}
-      className="bg-zinc-900/40 hover:bg-zinc-900/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between gap-4 group"
+      className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg p-5 transition-colors flex flex-col justify-between gap-4 group"
     >
       {/* Header Section */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           {/* Icon Badge */}
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center border-2 shrink-0 select-none"
+            className="w-9 h-9 rounded-lg flex items-center justify-center border-2 shrink-0 select-none"
             style={{
               backgroundColor: `${typeColor}15`,
               borderColor: `${typeColor}35`,
@@ -69,7 +69,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
 
           <div className="min-w-0">
             {/* Title / Name */}
-            <h3 className="text-sm font-bold text-zinc-100 leading-tight truncate group-hover:text-blue-400 transition-colors">
+            <h3 className="text-sm font-bold text-zinc-100 leading-tight truncate group-hover:text-zinc-200 transition-colors">
               {nameHighlighted ? (
                 <span
                   dangerouslySetInnerHTML={{

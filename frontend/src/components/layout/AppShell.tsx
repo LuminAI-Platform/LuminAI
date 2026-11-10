@@ -61,14 +61,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </main>
 
         {/* Status Bar */}
-        <footer className="h-9 bg-zinc-900 border-t border-zinc-800/80 px-6 flex items-center justify-between text-[10px] font-mono text-zinc-500 z-10 shrink-0 select-none">
+        <footer className="h-9 bg-zinc-900 border-t border-zinc-800/80 px-6 flex items-center justify-between text-xs text-zinc-500 z-10 shrink-0 select-none">
           <div className="flex items-center gap-4">
             <span className="flex items-center">
               <span
-                className={`w-1.5 h-1.5 rounded-full mr-2 shadow-sm ${
-                  isOnline
-                    ? "bg-emerald-500 shadow-emerald-500/50"
-                    : "bg-red-500 shadow-red-500/50"
+                className={`w-1.5 h-1.5 rounded-full mr-2 ${
+                  isOnline ? "bg-emerald-500" : "bg-red-500"
                 }`}
               />
               Network:{" "}
@@ -78,7 +76,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </span>
             <span>|</span>
             <span>
-              SYSTEM: <span className="text-emerald-400">ONLINE</span>
+              SYSTEM: <span className="text-zinc-300">ONLINE</span>
             </span>
             <span>|</span>
             <span>

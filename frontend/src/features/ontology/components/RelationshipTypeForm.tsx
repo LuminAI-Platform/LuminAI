@@ -132,11 +132,11 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col">
+      <div className="w-full max-w-xl bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl shadow-black/60 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/25 flex items-center justify-center text-purple-400">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300">
               <svg
                 width="15"
                 height="15"
@@ -331,13 +331,13 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
                   type="button"
                   id={`rel-cardinality-${c.value}`}
                   onClick={() => set("cardinality", c.value)}
-                  className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                     form.cardinality === c.value
                       ? "border-purple-500/40 bg-purple-500/10 text-purple-300"
                       : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700"
                   }`}
                 >
-                  <span className="text-xs font-bold font-mono">{c.label}</span>
+                  <span className="text-xs font-bold">{c.label}</span>
                   <span className="text-[10px] opacity-70">{c.desc}</span>
                 </button>
               ))}
