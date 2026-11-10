@@ -87,4 +87,3 @@ def get_ai_insights_service() -> AIInsightsService:
     if _default_service is None:
         _default_service = AIInsightsService()
     return _default_service
-

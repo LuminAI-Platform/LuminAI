@@ -155,18 +155,27 @@ services:
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_SSL_ENABLED: "false"
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       # Neo4j Knowledge Graph parameters
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-luminai_dev_password}
-      # Keycloak OIDC Authentication
+      # Keycloak OIDC Authentication & Admin REST
       KEYCLOAK_ISSUER_URI: https://auth.${DOMAIN_NAME}/realms/${KEYCLOAK_REALM:-luminai}
       KEYCLOAK_JWK_SET_URI: https://auth.${DOMAIN_NAME}/realms/${KEYCLOAK_REALM:-luminai}/protocol/openid-connect/certs
+      KEYCLOAK_BASE_URL: http://keycloak:8180
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-luminai}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-luminai-admin-cli}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-}
+      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-01234567890123456789012345678901}
       DATA_ENGINE_URL: http://data-engine:8000
+      DATA_ENGINE_API_KEY: ${DATA_ENGINE_API_KEY:-luminai-internal-secret-key}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET_RAW:-luminai-raw}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
       CORS_ALLOWED_ORIGINS: https://app.${DOMAIN_NAME},http://localhost:5173
     deploy:
       resources:
@@ -181,14 +190,23 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-luminai_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-luminai}
       REDIS_URL: redis://redis:6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_ENABLED: "true"
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-luminai_dev_password}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_SECURE: "true"
+      MINIO_SECURE: ${MINIO_SECURE:-true}
+      MINIO_BUCKET_RAW: ${MINIO_BUCKET_RAW:-luminai-raw}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
       APP_FRONTEND_URL: https://app.${DOMAIN_NAME}
+      API_KEY: ${DATA_ENGINE_API_KEY:-luminai-internal-secret-key}
+      KEYCLOAK_URL: http://keycloak:8180
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-luminai}
+      AI_INSIGHTS_PROVIDER: ${AI_INSIGHTS_PROVIDER:-auto}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     deploy:
       resources:
         limits:
@@ -210,6 +228,24 @@ services:
         limits:
           memory: 128m
           cpus: "0.25"
+
+  # ---------------------------------------------------------------------------
+  # Disable RAM-heavy non-production services from base compose
+  # ---------------------------------------------------------------------------
+  opensearch:
+    profiles: ["disabled"]
+    deploy:
+      replicas: 0
+
+  dagster-webserver:
+    profiles: ["disabled"]
+    deploy:
+      replicas: 0
+
+  dagster-daemon:
+    profiles: ["disabled"]
+    deploy:
+      replicas: 0
 ```
 
 ### Fix 3: Git Commit and Push

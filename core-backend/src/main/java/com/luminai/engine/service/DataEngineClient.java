@@ -220,6 +220,32 @@ public class DataEngineClient {
     }
   }
 
+  public Map<String, Object> getInsights(Object requestPayload) {
+    try {
+      return restClient
+          .post()
+          .uri("/analytics/insights")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(requestPayload)
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(MAP_TYPE);
+    } catch (Exception e) {
+      log.warn("Failed to fetch AI insights from Data Engine: {}", e.getMessage());
+      return Map.of(
+          "status",
+          "DEGRADED",
+          "available",
+          false,
+          "summary",
+          "AI Insights unavailable: " + e.getMessage(),
+          "insights",
+          java.util.List.of(),
+          "metrics",
+          java.util.List.of());
+    }
+  }
+
   public Map<String, Object> getJobStatus(String jobId) {
     try {
       return restClient
