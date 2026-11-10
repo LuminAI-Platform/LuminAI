@@ -19,11 +19,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-500/20 active:scale-[0.98] border border-blue-500/40",
+    "bg-blue-600 hover:bg-blue-500 text-white shadow-xs active:scale-[0.98] border border-blue-500/40",
   secondary:
     "bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 active:scale-[0.98]",
   danger:
-    "bg-red-600/90 hover:bg-red-500 text-white shadow-sm shadow-red-500/20 active:scale-[0.98] border border-red-500/40",
+    "bg-red-600/90 hover:bg-red-500 text-white shadow-xs active:scale-[0.98] border border-red-500/40",
   ghost:
     "bg-transparent hover:bg-zinc-800/60 text-zinc-300 hover:text-zinc-100",
   outline:
@@ -31,10 +31,10 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  xs: "px-2 py-1 text-[11px] gap-1 rounded-md",
+  xs: "px-2 py-1 text-[11px] gap-1 rounded-lg",
   sm: "px-3 py-1.5 text-xs gap-1.5 rounded-lg",
   md: "px-4 py-2 text-sm gap-2 rounded-lg",
-  lg: "px-5 py-2.5 text-base gap-2.5 rounded-xl",
+  lg: "px-5 py-2.5 text-base gap-2.5 rounded-lg",
 };
 
 /**

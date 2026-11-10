@@ -129,7 +129,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
   }, []);
 
   if (isLoading) {
-    return <Skeleton className="w-full h-64 rounded-xl" />;
+    return <Skeleton className="w-full h-64 rounded-lg" />;
   }
 
   return (

@@ -267,7 +267,7 @@ export const GraphPage: React.FC = () => {
         {/* Empty State Overlay */}
         {!isLoading && filteredElements.nodes.length === 0 && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-xs text-center p-6 select-none">
-            <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
+            <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
               <Network className="w-6 h-6" />
             </div>
             <h3 className="text-sm font-semibold text-zinc-200">

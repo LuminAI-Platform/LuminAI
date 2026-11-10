@@ -27,9 +27,9 @@ interface ActivityFeedProps {
 }
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
-  PIPELINE_RUN: <Play className="w-3.5 h-3.5 text-blue-400" />,
-  ENTITY_SYNC: <Network className="w-3.5 h-3.5 text-purple-400" />,
-  CONNECTION_CREATE: <Database className="w-3.5 h-3.5 text-emerald-400" />,
+  PIPELINE_RUN: <Play className="w-3.5 h-3.5 text-zinc-400" />,
+  ENTITY_SYNC: <Network className="w-3.5 h-3.5 text-zinc-400" />,
+  CONNECTION_CREATE: <Database className="w-3.5 h-3.5 text-zinc-400" />,
   DEFAULT: <Activity className="w-3.5 h-3.5 text-zinc-400" />,
 };
 
@@ -84,7 +84,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
     return (
       <div className="flex flex-col gap-3">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="w-full h-16 rounded-xl" />
+          <Skeleton key={i} className="w-full h-16 rounded-lg" />
         ))}
       </div>
     );
@@ -92,7 +92,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
 
   if (activities.length === 0) {
     return (
-      <div className="p-8 text-center border border-dashed border-zinc-800 rounded-xl">
+      <div className="p-8 text-center border border-dashed border-zinc-800 rounded-lg">
         <p className="text-xs text-zinc-500">
           No activity events recorded yet.
         </p>

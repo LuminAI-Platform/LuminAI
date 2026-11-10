@@ -72,9 +72,6 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
           className="bg-transparent border-none outline-none text-zinc-100 placeholder-zinc-500 text-xs w-full"
           placeholder="Search entities, connections, or pipelines..."
         />
-        <span className="bg-zinc-900 border border-zinc-800 text-zinc-500 text-[9px] px-1.5 py-0.5 rounded font-mono hidden sm:inline-block shrink-0">
-          CMD K
-        </span>
       </div>
 
       {/* Action Buttons */}
@@ -98,7 +95,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-zinc-400 rounded-full" />
         </button>
 
         {/* History/Clock Icon */}
@@ -128,7 +125,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         {/* New Connection Action */}
         <Link
           to="/connections"
-          className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs shadow-blue-500/20 shrink-0 cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
         >
           <svg
             width="13"
@@ -154,7 +151,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
           <div className="flex items-center gap-2.5 group relative">
             {/* Avatar with initials */}
             <div
-              className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-[11px] font-bold shrink-0 select-none"
+              className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 text-[11px] font-bold shrink-0 select-none"
               aria-label={`Logged in as ${displayName}`}
             >
               {initials}

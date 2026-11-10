@@ -5,7 +5,6 @@ import {
   Activity,
   CheckCircle2,
   Clock,
-  Sparkles,
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
@@ -67,14 +66,11 @@ export const DataEngineTelemetryCard: React.FC = () => {
   const isOnline = health?.status === "ONLINE";
 
   return (
-    <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
-      {/* Background ambient glow */}
-      <div className="absolute -top-12 -right-12 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
       {/* Header */}
       <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-800/80">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
             <Cpu className="w-5 h-5" />
           </div>
           <div>
@@ -95,7 +91,7 @@ export const DataEngineTelemetryCard: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {health?.latencyMs !== undefined && (
-            <span className="text-[11px] font-mono text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-zinc-800">
+            <span className="text-xs text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-zinc-800">
               {health.latencyMs}ms RTT
             </span>
           )}
@@ -117,12 +113,12 @@ export const DataEngineTelemetryCard: React.FC = () => {
 
       {/* Grid Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800/80 rounded-lg">
+        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
           <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            <Activity className="w-3.5 h-3.5 text-zinc-400" />
             <span>Records Processed</span>
           </div>
-          <div className="text-lg font-bold font-mono text-zinc-100">
+          <div className="text-lg font-bold text-zinc-100">
             {stats?.recordsProcessed?.toLocaleString() ?? "—"}
           </div>
           <div className="text-[10px] text-zinc-500 mt-0.5">
@@ -130,12 +126,12 @@ export const DataEngineTelemetryCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800/80 rounded-lg">
+        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
           <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-zinc-400" />
             <span>Success Rate</span>
           </div>
-          <div className="text-lg font-bold font-mono text-emerald-400">
+          <div className="text-lg font-bold text-zinc-100">
             {stats?.successRate !== undefined
               ? `${stats.successRate.toFixed(1)}%`
               : "—"}
@@ -145,12 +141,12 @@ export const DataEngineTelemetryCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800/80 rounded-lg">
+        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
           <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <Clock className="w-3.5 h-3.5 text-zinc-400" />
             <span>Avg Polars Compute</span>
           </div>
-          <div className="text-lg font-bold font-mono text-zinc-100">
+          <div className="text-lg font-bold text-zinc-100">
             {stats?.avgDuration !== undefined
               ? `${stats.avgDuration.toFixed(2)}s`
               : "—"}
@@ -160,12 +156,12 @@ export const DataEngineTelemetryCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800/80 rounded-lg">
+        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
           <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
             <span>Data Quality Index</span>
           </div>
-          <div className="text-lg font-bold font-mono text-blue-400">
+          <div className="text-lg font-bold text-zinc-100">
             {quality?.overallScore !== undefined
               ? `${quality.overallScore.toFixed(1)}%`
               : "—"}
@@ -178,38 +174,34 @@ export const DataEngineTelemetryCard: React.FC = () => {
 
       {/* Quality Dimensions Breakdown */}
       {quality && (
-        <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-3">
+        <div className="bg-zinc-950/40 border border-zinc-800 rounded-lg p-3">
           <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
-            <span className="flex items-center gap-1 font-medium text-zinc-300">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="font-medium text-zinc-300">
               Engine Data Quality Dimensions
-            </span>
-            <span className="text-[11px] font-mono text-zinc-500">
-              Real-time audit
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <div className="flex flex-col">
               <span className="text-[11px] text-zinc-500">Completeness</span>
-              <span className="font-mono text-zinc-200 font-semibold">
+              <span className="text-zinc-200 font-semibold">
                 {quality.completeness?.toFixed(1)}%
               </span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] text-zinc-500">Uniqueness</span>
-              <span className="font-mono text-zinc-200 font-semibold">
+              <span className="text-zinc-200 font-semibold">
                 {quality.uniqueness?.toFixed(1)}%
               </span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] text-zinc-500">Consistency</span>
-              <span className="font-mono text-zinc-200 font-semibold">
+              <span className="text-zinc-200 font-semibold">
                 {quality.consistency?.toFixed(1)}%
               </span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] text-zinc-500">Timeliness</span>
-              <span className="font-mono text-zinc-200 font-semibold">
+              <span className="text-zinc-200 font-semibold">
                 {quality.timeliness?.toFixed(1)}%
               </span>
             </div>

@@ -29,7 +29,7 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
   } = useTableSelector({ discovered, selectedTables, onChange });
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800/80 rounded-xl overflow-hidden shadow-xl shadow-black/40">
+    <div className="flex flex-col h-full bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
       {/* Search Header */}
       <div className="p-4 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between gap-4 select-none">
         <div className="flex flex-col">

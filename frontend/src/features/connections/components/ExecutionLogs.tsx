@@ -69,7 +69,7 @@ const ErrorBlock: React.FC<ErrorBlockProps> = ({ error, onDismiss }) => {
 
   return (
     <div
-      className={`border rounded-xl overflow-hidden transition-all ${
+      className={`border rounded-lg overflow-hidden transition-all ${
         error.retryable
           ? "border-amber-500/25 bg-amber-500/5"
           : "border-red-500/25 bg-red-500/5"
@@ -124,9 +124,7 @@ const ErrorBlock: React.FC<ErrorBlockProps> = ({ error, onDismiss }) => {
             >
               {error.code}
             </span>
-            <span className="text-[10px] text-zinc-500 font-mono">
-              {error.source}
-            </span>
+            <span className="text-[10px] text-zinc-500">{error.source}</span>
             <span className="text-[10px] text-zinc-600 ml-auto">
               {formatTs(error.ts)}
             </span>
@@ -391,7 +389,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
   return (
     <div
-      className="flex flex-col bg-zinc-950 border border-zinc-800/80 rounded-xl overflow-hidden shadow-2xl shadow-black/40"
+      className="flex flex-col bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden shadow-2xl shadow-black/40"
       data-testid="execution-logs"
     >
       {/* ── Panel header ──────────────────────────────────────────────────────── */}
@@ -399,10 +397,10 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         <div className="flex items-center gap-2.5">
           {/* Live indicator dot */}
           <span
-            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${paused ? "bg-zinc-600" : "bg-emerald-500 animate-pulse"}`}
+            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${paused ? "bg-zinc-600" : "bg-emerald-500"}`}
           />
           <span className="text-xs font-semibold text-zinc-100">{title}</span>
-          <span className="text-[10px] text-zinc-600 font-mono">
+          <span className="text-[10px] text-zinc-600">
             {logs.length} entries
           </span>
 
@@ -422,7 +420,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         <div className="flex items-center gap-2">
           {/* Auto-scroll badge */}
           {isFollowing && !paused && (
-            <span className="text-[9px] text-emerald-500 font-mono px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded">
+            <span className="text-[9px] text-emerald-500 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded font-medium">
               LIVE
             </span>
           )}
@@ -515,7 +513,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
             placeholder="Search logs..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-7 pr-3 py-1 bg-zinc-900 border border-zinc-800/80 rounded-lg text-[11px] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-blue-500/60 transition-colors font-mono"
+            className="w-full pl-7 pr-3 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-[11px] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
           />
         </div>
       </div>
@@ -599,7 +597,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400">
               Error Blocks
             </span>
-            <span className="text-[10px] text-zinc-500 font-mono">
+            <span className="text-[10px] text-zinc-500">
               {errorCount} active
             </span>
           </div>
@@ -614,7 +612,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
       {/* ── Footer status bar ─────────────────────────────────────────────────── */}
       <div className="px-4 py-2 bg-zinc-900/40 border-t border-zinc-800/60 flex items-center justify-between select-none">
-        <span className="text-[10px] text-zinc-600 font-mono">
+        <span className="text-[10px] text-zinc-600">
           Showing {displayedLogs.length} / {logs.length} lines
         </span>
         <button

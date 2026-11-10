@@ -44,7 +44,7 @@ export const SettingsPage: React.FC = () => {
         ]}
         title="Workspace & Tenant Settings"
         description="Manage authenticated user identity, multi-tenant boundaries, access control roles, and API configuration."
-        icon={<Sliders className="w-5 h-5 text-blue-400" />}
+        icon={<Sliders className="w-5 h-5 text-zinc-400" />}
         badge={{
           label: "Tenant Settings",
           variant: "zinc",

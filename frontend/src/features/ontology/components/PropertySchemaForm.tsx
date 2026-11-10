@@ -102,7 +102,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
       </div>
 
       {properties.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 border border-dashed border-zinc-800 rounded-xl text-center">
+        <div className="flex flex-col items-center justify-center py-8 border border-dashed border-zinc-800 rounded-lg text-center">
           <svg
             width="28"
             height="28"
@@ -130,7 +130,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
             return (
               <div
                 key={prop.id}
-                className="border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/50"
+                className="border border-zinc-800/80 rounded-lg overflow-hidden bg-zinc-950/50"
               >
                 <div
                   className="flex items-center gap-3 p-3 cursor-pointer hover:bg-zinc-900/40 transition-all select-none"

@@ -944,11 +944,11 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
       aria-labelledby="file-wizard-title"
       className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity"
     >
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-[96vw] max-w-7xl h-[92vh] max-h-[920px] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-[96vw] max-w-7xl h-[92vh] max-h-[920px] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600/10 border border-blue-500/30 flex items-center justify-center text-blue-500">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300">
               <svg
                 width="18"
                 height="18"
@@ -1002,9 +1002,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           ].map((item) => (
             <div key={item.s} className="flex items-center gap-2">
               <span
-                className={`w-6 h-6 rounded-full flex items-center justify-center border font-mono transition-all ${
+                className={`w-6 h-6 rounded-full flex items-center justify-center border text-xs font-medium transition-all ${
                   step === item.s
-                    ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
+                    ? "bg-blue-600 border-blue-500 text-white"
                     : step > item.s
                       ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                       : "bg-zinc-950 border-zinc-800 text-zinc-500"
@@ -1034,9 +1034,9 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 onDragOver={handleDrag}
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
-                className={`w-full max-w-2xl border-2 border-dashed rounded-2xl p-12 text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
+                className={`w-full max-w-2xl border-2 border-dashed rounded-lg p-12 text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
                   dragActive
-                    ? "border-blue-500 bg-blue-500/5 shadow-2xl shadow-blue-500/5"
+                    ? "border-blue-500 bg-blue-500/5"
                     : "border-zinc-800 hover:border-zinc-700 bg-zinc-950/45 hover:bg-zinc-950/60"
                 }`}
                 onClick={() => fileInputRef.current?.click()}
@@ -1048,7 +1048,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   className="hidden"
                   onChange={handleChange}
                 />
-                <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-zinc-200 transition-colors mb-6 shadow-inner">
+                <div className="w-16 h-16 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-zinc-200 transition-colors mb-6 shadow-inner">
                   <svg
                     width="28"
                     height="28"
@@ -1084,7 +1084,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           {/* STEP 2: SCHEMA CONFIG */}
           {step === 2 && (
             <div className="h-full flex flex-col gap-4">
-              <div className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-xl flex items-center justify-between select-none">
+              <div className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-lg flex items-center justify-between select-none">
                 <div>
                   <h3 className="text-sm font-semibold text-zinc-200">
                     Map columns to Ontology Properties
@@ -1096,10 +1096,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="text-xs px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded font-mono text-blue-400 font-semibold">
+                  <div className="text-xs px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-300 font-medium">
                     {columnsConfig.length} Columns Detected
                   </div>
-                  <div className="text-xs px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded font-mono text-zinc-400">
+                  <div className="text-xs px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400">
                     File: {file?.name} ({Math.round((file?.size || 0) / 1024)}{" "}
                     KB)
                   </div>
@@ -1107,21 +1107,21 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </div>
 
               {/* Primary Target Entity Banner */}
-              <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-lg p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold font-mono">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300 font-bold">
                     Ω
                   </div>
                   <div>
                     <div className="font-semibold text-zinc-200 flex items-center gap-2">
                       <span>Target Entity:</span>
-                      <span className="font-mono text-blue-400 font-bold text-sm">
+                      <span className="text-zinc-100 font-semibold text-sm">
                         {primaryTargetEntity || inferredEntityName || "None"}
                       </span>
                       {inferredEntityName &&
                         primaryTargetEntity === inferredEntityName && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-500/15 border border-blue-500/30 text-blue-300">
-                            Auto-inferred
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-300 font-medium">
+                            Auto-detected
                           </span>
                         )}
                     </div>
@@ -1194,7 +1194,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </div>
 
               {/* Mappings Grid */}
-              <div className="flex-1 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950 shadow-inner flex flex-col min-h-0">
+              <div className="flex-1 border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950 shadow-inner flex flex-col min-h-0">
                 <div className="overflow-x-auto min-w-0 flex-1 flex flex-col min-h-0">
                   <div className="min-w-[760px] flex-1 flex flex-col min-h-0">
                     <div className="grid grid-cols-12 bg-zinc-900/90 border-b border-zinc-800/80 px-3.5 py-2.5 text-xs font-semibold text-zinc-400 select-none sticky top-0 z-10 backdrop-blur-xs">
@@ -1370,8 +1370,8 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   </div>
                 </div>
                 <div className="bg-zinc-900/80 border-t border-zinc-800/80 px-4 py-2.5 flex items-center justify-between text-xs text-zinc-400 select-none">
-                  <span className="font-mono flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                     Showing{" "}
                     <strong className="text-zinc-200">
                       {columnsConfig.filter((c) => c.active).length}
@@ -1408,7 +1408,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                   Reviewing interactive records layout mapping to destination
                   nodes.
                 </span>
-                <span className="text-xs text-zinc-500 font-mono">
+                <span className="text-xs text-zinc-500">
                   {columnsConfig.filter((c) => c.active).length} of{" "}
                   {columnsConfig.length} columns active
                 </span>
@@ -1428,7 +1428,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full min-h-0 overflow-y-auto">
               {/* Left pane: file summary */}
               <div className="md:col-span-2 flex flex-col gap-4">
-                <div className="bg-zinc-950/40 border border-zinc-800 p-5 rounded-xl flex flex-col gap-4">
+                <div className="bg-zinc-950/40 border border-zinc-800 p-5 rounded-lg flex flex-col gap-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 select-none">
                     Ingestion Summary
                   </h3>
@@ -1445,13 +1445,13 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                     </div>
                     <div className="flex justify-between py-1 border-b border-zinc-900">
                       <span className="text-zinc-500">File Size:</span>
-                      <span className="font-mono text-zinc-300">
+                      <span className="text-zinc-300">
                         {Math.round((file?.size || 0) / 1024)} KB
                       </span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-zinc-900">
                       <span className="text-zinc-500">Records Count:</span>
-                      <span className="font-mono text-zinc-300">
+                      <span className="text-zinc-300">
                         {parsedData.rows.length} rows
                       </span>
                     </div>
@@ -1515,7 +1515,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 </div>
 
                 {/* mini mapping preview list */}
-                <div className="bg-zinc-950/40 border border-zinc-800/80 p-4 rounded-xl flex-1 max-h-[180px] overflow-y-auto">
+                <div className="bg-zinc-950/40 border border-zinc-800/80 p-4 rounded-lg flex-1 max-h-[180px] overflow-y-auto">
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2.5 select-none">
                     Ontology Actions
                   </h4>
@@ -1551,17 +1551,17 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               </div>
 
               {/* Right pane: console logs and progress */}
-              <div className="md:col-span-3 flex flex-col border border-zinc-850 rounded-xl overflow-hidden bg-zinc-950 h-full">
+              <div className="md:col-span-3 flex flex-col border border-zinc-850 rounded-lg overflow-hidden bg-zinc-950 h-full">
                 {/* Console Bar */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-850 bg-zinc-900/60 select-none">
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-[10px] font-bold font-mono tracking-wider uppercase text-zinc-300">
+                    <div className="w-2 h-2 rounded-full bg-zinc-400" />
+                    <span className="text-[10px] font-semibold tracking-wider uppercase text-zinc-300">
                       Sync Progress Console
                     </span>
                   </div>
                   {ingesting && (
-                    <span className="text-[10px] font-mono text-blue-400">
+                    <span className="text-[10px] text-zinc-300">
                       {ingestionProgress}%
                     </span>
                   )}
@@ -1571,7 +1571,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
                 {ingesting && (
                   <div className="w-full h-1.5 bg-zinc-900 relative">
                     <div
-                      className="absolute top-0 left-0 bottom-0 bg-blue-500 transition-all duration-300 shadow-glow"
+                      className="absolute top-0 left-0 bottom-0 bg-blue-500 transition-all duration-300"
                       style={{ width: `${ingestionProgress}%` }}
                     />
                   </div>

@@ -210,7 +210,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   }, [selectedNodeId]);
 
   return (
-    <div className="relative w-full h-full bg-zinc-950 rounded-xl overflow-hidden border border-zinc-800/80">
+    <div className="relative w-full h-full bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800/80">
       {/* Background dot pattern */}
       <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
       <div

@@ -43,7 +43,7 @@ const STATUS_META: Record<
 > = {
   RUNNING: {
     label: "RUNNING",
-    dotClass: "bg-blue-500 animate-pulse",
+    dotClass: "bg-blue-500",
     badgeClass: "bg-blue-500/10 border-blue-500/30 text-blue-400",
     barColor: "#3b82f6",
   },
@@ -194,7 +194,7 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
   return (
     <div
       id={`pipeline-job-${job.id}`}
-      className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl overflow-hidden transition-all duration-200 hover:border-zinc-700/80"
+      className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden transition-all duration-200 hover:border-zinc-700"
     >
       {/* ── Main Row ─────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-12 items-center gap-3 px-4 py-3.5 select-none">
@@ -228,10 +228,10 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
         {/* Progress bar */}
         <div className="col-span-3 flex flex-col gap-1">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] text-zinc-500 font-mono">
+            <span className="text-[10px] text-zinc-500">
               {Math.round(job.progress)}%
             </span>
-            <span className="text-[10px] text-zinc-600 font-mono">
+            <span className="text-[10px] text-zinc-600">
               {formatNumber(job.recordsOutput)}/{formatNumber(job.recordsInput)}
             </span>
           </div>
@@ -252,21 +252,21 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
 
         {/* Throughput */}
         <div className="col-span-2 flex flex-col items-start">
-          <div className="text-xs font-mono font-bold text-blue-400 leading-tight">
+          <div className="text-xs font-bold text-zinc-200 leading-tight">
             {formatNumber(job.throughput)}
             <span className="text-zinc-500 font-normal text-[10px]">
               {" "}
               rec/s
             </span>
           </div>
-          <div className="text-[10px] text-zinc-600 mt-0.5 font-mono">
+          <div className="text-[10px] text-zinc-600 mt-0.5">
             {formatDuration(job.durationSeconds)}
           </div>
         </div>
 
         {/* Start time + expand button */}
         <div className="col-span-2 flex items-center justify-between">
-          <div className="text-[10px] text-zinc-500 font-mono">
+          <div className="text-[10px] text-zinc-500">
             {formatTime(job.startedAt)}
           </div>
           <button
@@ -345,7 +345,7 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
                 <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
                   Execution Error Log
                 </span>
-                <span className="text-[10px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
+                <span className="text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
                   {job.errors.length} entries
                 </span>
               </div>

@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import {
   RefreshCw,
   Clock,
-  Sparkles,
   Download,
   CheckCircle2,
   ShieldCheck,
@@ -167,7 +166,7 @@ function renderCleanCellValue(col: string, val: unknown) {
       const isMed = numVal >= 75;
       return (
         <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold border ${
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
             isHigh
               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
               : isMed
@@ -1012,7 +1011,7 @@ export const ConnectionsPage: React.FC = () => {
             )}
 
             {error && (
-              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center justify-between font-medium">
+              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-between font-medium">
                 <span>{error}</span>
                 <button
                   onClick={() => loadConnectors(true)}
@@ -1024,7 +1023,7 @@ export const ConnectionsPage: React.FC = () => {
             )}
 
             {!isLoading && customConnectors.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center select-none border border-zinc-800/80 rounded-xl bg-zinc-950/60">
+              <div className="flex flex-col items-center justify-center p-12 text-center select-none border border-zinc-800/80 rounded-lg bg-zinc-950/60">
                 <svg
                   width="36"
                   height="36"
@@ -1056,7 +1055,7 @@ export const ConnectionsPage: React.FC = () => {
                   return (
                     <div
                       key={conn.id || conn.name}
-                      className="p-5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex flex-col justify-between gap-4 transition-all hover:border-zinc-700/80 hover:shadow-lg hover:shadow-black/25 relative group"
+                      className="p-5 bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col justify-between gap-4 transition-all hover:border-zinc-700 relative group"
                     >
                       <div className="flex justify-between items-start">
                         <div className="pr-8">
@@ -1140,7 +1139,7 @@ export const ConnectionsPage: React.FC = () => {
         {activeTab === "files" && (
           <div className="flex flex-col gap-4">
             {error && (
-              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center justify-between font-medium">
+              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-between font-medium">
                 <span>{error}</span>
                 <button
                   onClick={() => loadConnectors(true)}
@@ -1150,7 +1149,7 @@ export const ConnectionsPage: React.FC = () => {
                 </button>
               </div>
             )}
-            <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/60 shadow-lg">
+            <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/60 shadow-lg">
               <div className="overflow-x-auto min-w-0">
                 <div className="min-w-[860px]">
                   <div className="grid grid-cols-12 bg-zinc-900/50 p-4 font-semibold border-b border-zinc-800/80 text-xs text-zinc-400 select-none">
@@ -1214,10 +1213,10 @@ export const ConnectionsPage: React.FC = () => {
                               {file.name}
                             </span>
                           </button>
-                          <div className="col-span-1 font-mono text-zinc-400">
+                          <div className="col-span-1 text-zinc-400">
                             {file.size}
                           </div>
-                          <div className="col-span-2 font-mono text-zinc-400">
+                          <div className="col-span-2 text-zinc-400">
                             {file.recordsCount.toLocaleString()} rows
                           </div>
                           <div className="col-span-2 text-zinc-500">
@@ -1260,10 +1259,9 @@ export const ConnectionsPage: React.FC = () => {
                             </button>
                             <button
                               onClick={() => openCleanPreview(file)}
-                              className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:shadow-emerald-500/10"
+                              className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer"
                               title="View Cleaned & Reconciled Golden Records"
                             >
-                              <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
                               <span>Clean Data</span>
                             </button>
                             <button
@@ -1364,13 +1362,13 @@ export const ConnectionsPage: React.FC = () => {
             onClick={() => setPreviewingFile(null)}
           >
             <div
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-7xl h-[90vh] max-h-[900px] flex flex-col shadow-2xl shadow-black/90 overflow-hidden animate-in zoom-in-95 duration-200 relative"
+              className="bg-zinc-950 border border-zinc-800 rounded-lg w-full max-w-7xl h-[90vh] max-h-[900px] flex flex-col shadow-2xl shadow-black/90 overflow-hidden animate-in zoom-in-95 duration-200 relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3.5">
-                  <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shadow-inner">
+                  <div className="p-2 bg-zinc-800 border border-zinc-700/60 text-zinc-300 rounded-lg shadow-inner">
                     <svg
                       width="20"
                       height="20"
@@ -1386,14 +1384,14 @@ export const ConnectionsPage: React.FC = () => {
                   <div>
                     <h3 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
                       {previewingFile.name}
-                      <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
+                      <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
                         {previewingFile.size} ·{" "}
                         {previewingFile.recordsCount.toLocaleString()} records
                       </span>
                     </h3>
                     <p className="text-xs text-zinc-400 mt-1">
                       Uploaded on {previewingFile.createdAt} · Status:{" "}
-                      <span className="text-emerald-400 font-medium">
+                      <span className="text-zinc-300 font-medium">
                         {previewingFile.status}
                       </span>
                     </p>
@@ -1434,8 +1432,8 @@ export const ConnectionsPage: React.FC = () => {
               {/* Modal Content / Data Table */}
               <div className="p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
                 {isRawPreviewLoading ? (
-                  <div className="py-20 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-xl border border-zinc-800/80 my-auto">
-                    <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+                  <div className="py-20 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-lg border border-zinc-800 my-auto">
+                    <Loader2 className="w-8 h-8 text-zinc-400 animate-spin mb-3" />
                     <h4 className="text-sm font-semibold text-zinc-200">
                       Streaming Raw File Sample
                     </h4>
@@ -1448,8 +1446,8 @@ export const ConnectionsPage: React.FC = () => {
                     const { columns, rows } = getPreviewData(previewingFile);
                     if (rows.length === 0) {
                       return (
-                        <div className="py-16 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-xl border border-zinc-800/80 my-auto">
-                          <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 mb-3 shadow-inner">
+                        <div className="py-16 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-lg border border-zinc-800 my-auto">
+                          <div className="p-3.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 mb-3 shadow-inner">
                             <Layers className="w-6 h-6 text-zinc-400" />
                           </div>
                           <h4 className="text-sm font-semibold text-zinc-200">
@@ -1479,9 +1477,8 @@ export const ConnectionsPage: React.FC = () => {
                               setPreviewingFile(null);
                               openCleanPreview(file);
                             }}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 shadow-md shadow-emerald-950 transition-colors cursor-pointer"
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
                           >
-                            <Sparkles className="w-3.5 h-3.5" />
                             <span>Inspect Clean Golden Records</span>
                           </button>
                         </div>
@@ -1509,7 +1506,7 @@ export const ConnectionsPage: React.FC = () => {
                     );
 
                     return (
-                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl flex flex-col overflow-hidden bg-zinc-950 shadow-inner">
+                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-lg flex flex-col overflow-hidden bg-zinc-950 shadow-inner">
                         <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
                           <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
                             <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
@@ -1545,7 +1542,7 @@ export const ConnectionsPage: React.FC = () => {
                                       key={globalIdx}
                                       className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
                                     >
-                                      <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 font-mono text-[11px] shadow-sm">
+                                      <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 text-[11px] shadow-sm">
                                         {globalIdx}
                                       </td>
                                       {columns.map((col) => {
@@ -1672,7 +1669,7 @@ export const ConnectionsPage: React.FC = () => {
                   </Link>
                   <Link
                     to="/explorer"
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-950"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                     onClick={() => setPreviewingFile(null)}
                   >
                     <svg
@@ -1703,25 +1700,25 @@ export const ConnectionsPage: React.FC = () => {
             onClick={() => setCleanPreviewFile(null)}
           >
             <div
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-[1580px] h-[92vh] max-h-[920px] flex flex-col shadow-2xl shadow-black/90 overflow-hidden animate-in zoom-in-95 duration-200 relative"
+              className="bg-zinc-950 border border-zinc-800 rounded-lg w-full max-w-[1580px] h-[92vh] max-h-[920px] flex flex-col shadow-2xl shadow-black/90 overflow-hidden animate-in zoom-in-95 duration-200 relative"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 rounded-xl shadow-inner shrink-0">
-                    <Sparkles className="w-5 h-5" />
+                  <div className="p-2.5 bg-zinc-800 border border-zinc-700/60 text-zinc-300 rounded-lg shadow-inner shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2.5 flex-wrap">
                       <h3 className="text-base font-semibold text-zinc-100">
                         {cleanPreviewFile.name}
                       </h3>
-                      <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold">
-                        <ShieldCheck className="w-3.5 h-3.5" />
+                      <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold">
+                        <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
                         Cleaned Golden Records
                       </span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-400 font-mono">
+                      <span className="text-xs px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-400">
                         {cleanPreviewFile.size}
                       </span>
                     </div>
@@ -1735,7 +1732,7 @@ export const ConnectionsPage: React.FC = () => {
                       <span className="text-zinc-600">•</span>
                       <span>
                         Status:{" "}
-                        <strong className="text-emerald-400">
+                        <strong className="text-zinc-200">
                           Canonical Records Resolved
                         </strong>
                       </span>
@@ -1750,7 +1747,7 @@ export const ConnectionsPage: React.FC = () => {
                         cleanPreviewFile.name,
                       )
                     }
-                    className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-md shadow-emerald-900/40 cursor-pointer"
+                    className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
                     title="Download RFC-4180 Clean CSV"
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -1768,7 +1765,7 @@ export const ConnectionsPage: React.FC = () => {
 
               {/* Metric KPI Cards Bar - Sleek & Compact */}
               <div className="px-6 py-3 bg-zinc-900/40 border-b border-zinc-800 grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800/80 rounded-xl flex items-center justify-between">
+                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
                   <div>
                     <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
                       Raw Ingested Records
@@ -1777,55 +1774,55 @@ export const ConnectionsPage: React.FC = () => {
                       Original messy rows
                     </div>
                   </div>
-                  <div className="text-base font-bold text-zinc-100 font-mono">
+                  <div className="text-base font-bold text-zinc-100">
                     {cleanData?.totalRawRecords?.toLocaleString() ??
                       cleanPreviewFile.recordsCount.toLocaleString()}
                   </div>
                 </div>
 
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800/80 rounded-xl flex items-center justify-between">
+                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
                   <div>
                     <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
                       Canonical Entities
                     </div>
-                    <div className="text-[10px] text-emerald-500/80 mt-0.5">
+                    <div className="text-[10px] text-zinc-500 mt-0.5">
                       Active Golden Records
                     </div>
                   </div>
-                  <div className="text-base font-bold text-emerald-400 font-mono">
+                  <div className="text-base font-bold text-zinc-100">
                     {cleanData?.totalCleanRecords !== undefined
                       ? cleanData.totalCleanRecords.toLocaleString()
                       : "—"}
                   </div>
                 </div>
 
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800/80 rounded-xl flex items-center justify-between">
+                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
                   <div>
                     <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
                       Deduplicated / Merged
                     </div>
-                    <div className="text-[10px] text-blue-400/80 mt-0.5">
+                    <div className="text-[10px] text-zinc-500 mt-0.5">
                       Ratio {cleanData?.compressionRatio ?? "0.0%"}
                     </div>
                   </div>
-                  <div className="text-base font-bold text-blue-400 font-mono">
+                  <div className="text-base font-bold text-zinc-100">
                     {cleanData?.duplicatesMerged !== undefined
                       ? cleanData.duplicatesMerged.toLocaleString()
                       : "0"}
                   </div>
                 </div>
 
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800/80 rounded-xl flex items-center justify-between">
+                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
                   <div>
                     <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
                       Quality Pass Score
                     </div>
-                    <div className="text-[10px] text-purple-400/80 mt-0.5">
+                    <div className="text-[10px] text-zinc-500 mt-0.5">
                       Field completeness & validation
                     </div>
                   </div>
-                  <div className="text-base font-bold text-purple-400 font-mono flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-purple-400" />
+                  <div className="text-base font-bold text-zinc-100 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-zinc-400" />
                     {cleanData?.dataQualityScore !== undefined
                       ? `${cleanData.dataQualityScore}%`
                       : "—"}
@@ -1897,7 +1894,7 @@ export const ConnectionsPage: React.FC = () => {
                         : Object.keys(cleanData.rows[0]);
 
                     return (
-                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-xl flex flex-col overflow-hidden bg-zinc-950 shadow-inner">
+                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-lg flex flex-col overflow-hidden bg-zinc-950 shadow-inner">
                         <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
                           <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
                             <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
@@ -1922,8 +1919,7 @@ export const ConnectionsPage: React.FC = () => {
                                     colSpan={columns.length + 1}
                                     className="p-8 text-center text-zinc-500"
                                   >
-                                    No records match filter "{cleanSearchFilter}
-                                    ".
+                                    No records match filter "{cleanSearchFilter}".
                                   </td>
                                 </tr>
                               ) : (
@@ -2050,7 +2046,7 @@ export const ConnectionsPage: React.FC = () => {
                   </Link>
                   <Link
                     to="/explorer"
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-950"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                     onClick={() => setCleanPreviewFile(null)}
                   >
                     <span>Search in Explorer</span>

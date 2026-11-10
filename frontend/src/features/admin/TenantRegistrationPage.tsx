@@ -93,7 +93,7 @@ export function TenantRegistrationPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
         <form
           onSubmit={handleSubmit}
-          className="rounded-xl border border-zinc-800/80 bg-zinc-900 p-6 shadow-lg shadow-black/10"
+          className="rounded-lg border border-zinc-800 bg-zinc-900 p-6"
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block sm:col-span-2">
@@ -151,7 +151,7 @@ export function TenantRegistrationPage() {
           </div>
         </form>
 
-        <aside className="h-fit rounded-xl border border-zinc-800/80 bg-zinc-950 p-5">
+        <aside className="h-fit rounded-lg border border-zinc-800 bg-zinc-950 p-5">
           <h2 className="text-sm font-semibold text-zinc-100">
             What happens next
           </h2>

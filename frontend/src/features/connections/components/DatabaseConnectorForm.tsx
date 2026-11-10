@@ -231,7 +231,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-xs z-[99999] p-4">
       <div
-        className="w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-2xl flex flex-col max-h-[85vh] overflow-hidden shadow-2xl relative"
+        className="w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col max-h-[85vh] overflow-hidden shadow-2xl relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -398,7 +398,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
                 </div>
 
                 {validationError && (
-                  <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-xl text-xs flex gap-2 font-medium">
+                  <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex gap-2 font-medium">
                     <svg
                       width="14"
                       height="14"
@@ -419,7 +419,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
                 <button
                   type="submit"
                   disabled={isVerifying}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 disabled:opacity-50 disabled:pointer-events-none mt-2"
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none mt-2"
                 >
                   {isVerifying ? (
                     <>
@@ -468,7 +468,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
               </form>
             ) : (
               // Connected / Success Credentials View
-              <div className="flex flex-col h-full bg-zinc-950/40 border border-zinc-850/60 p-5 rounded-xl justify-between gap-6 select-none">
+              <div className="flex flex-col h-full bg-zinc-950/40 border border-zinc-850/60 p-5 rounded-lg justify-between gap-6 select-none">
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
@@ -530,7 +530,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
                       setIsConnected(false);
                       setSelectedTables([]);
                     }}
-                    className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                    className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all cursor-pointer"
                   >
                     Edit Credentials
                   </button>
@@ -538,7 +538,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
                   <button
                     onClick={handleRegister}
                     disabled={isSaving || selectedTables.length === 0}
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer shadow-lg shadow-blue-500/10 disabled:opacity-50 disabled:pointer-events-none"
+                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                   >
                     {isSaving ? (
                       <>
@@ -593,7 +593,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
           <div className="md:col-span-6 flex flex-col min-h-0">
             {isVerifying ? (
               // Verification Checklist Dashboard
-              <div className="flex flex-col h-full bg-zinc-950/60 border border-zinc-850/60 p-6 rounded-xl justify-center gap-6 select-none">
+              <div className="flex flex-col h-full bg-zinc-950/60 border border-zinc-850/60 p-6 rounded-lg justify-center gap-6 select-none">
                 <div className="flex flex-col gap-2 mb-2">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                     Connection Handshake Checklist
@@ -648,14 +648,14 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
                           </div>
                         )}
                         <span
-                          className={`font-mono ${step.status === "loading" ? "text-zinc-200 font-bold" : step.status === "success" ? "text-zinc-300" : "text-zinc-500"}`}
+                          className={`text-xs ${step.status === "loading" ? "text-zinc-200 font-semibold" : step.status === "success" ? "text-zinc-300" : "text-zinc-500"}`}
                         >
                           {step.label}
                         </span>
                       </div>
 
                       {step.status === "error" && step.errorMsg && (
-                        <span className="text-[10px] bg-red-950/40 text-red-400 border border-red-500/25 px-2 py-0.5 rounded font-semibold font-mono">
+                        <span className="text-[10px] bg-red-950/40 text-red-400 border border-red-500/25 px-2 py-0.5 rounded font-medium">
                           {step.errorMsg}
                         </span>
                       )}
@@ -679,7 +679,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
               </div>
             ) : (
               // Default Welcome Panel before validation
-              <div className="flex flex-col h-full bg-zinc-950/20 border border-zinc-850/60 p-6 rounded-xl items-center justify-center text-center select-none">
+              <div className="flex flex-col h-full bg-zinc-950/20 border border-zinc-850/60 p-6 rounded-lg items-center justify-center text-center select-none">
                 <svg
                   width="40"
                   height="40"
@@ -687,7 +687,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.25"
-                  className="text-zinc-700 mb-4 animate-pulse"
+                  className="text-zinc-700 mb-4"
                 >
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   <polyline points="9 11 12 14 22 4" className="opacity-30" />

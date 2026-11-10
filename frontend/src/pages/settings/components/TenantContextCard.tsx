@@ -8,10 +8,10 @@ export const TenantContextCard: React.FC<TenantContextCardProps> = ({
   tenantId,
 }) => {
   return (
-    <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6 flex flex-col justify-between">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 flex flex-col justify-between">
       <div>
         <div className="flex items-center gap-3 mb-5 pb-4 border-b border-zinc-800/80">
-          <div className="w-12 h-12 rounded-xl bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
             <Building className="w-6 h-6" />
           </div>
           <div>
