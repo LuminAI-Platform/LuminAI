@@ -12,16 +12,20 @@ from typing import Any, Dict, List, Optional, Tuple
 import polars as pl
 
 from app.processing.schema_detector.models import (
-    BOOLEAN_TERMS,
-    COMMON_DATE_FORMATS,
-    EMAIL_REGEX,
     MAX_NULL_PERCENTAGE_THRESHOLD,
-    PHONE_REGEX,
     ColumnType,
     ColumnValidationReport,
     PreflightValidationReport,
 )
 from app.processing.schema_detector.ontology import ONTOLOGY_REGISTRY
+from app.processing.schema_detector.type_parsers import (
+    is_null_or_empty,
+    try_parse_boolean,
+    try_parse_date,
+    try_parse_email,
+    try_parse_number,
+    try_parse_phone,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,100 +36,13 @@ class SchemaDetector:
     def __init__(self, max_null_pct: float = MAX_NULL_PERCENTAGE_THRESHOLD):
         self.max_null_pct = max_null_pct
 
-    # 1. Type Detection Logic
-    @staticmethod
-    def _is_null_or_empty(val: Any) -> bool:
-        """Check if a value represents null, empty string, or whitespace."""
-        if val is None:
-            return True
-        if isinstance(val, str) and val.strip() == "":
-            return True
-        return False
-
-    @staticmethod
-    def _try_parse_number(val: Any) -> bool:
-        """Check if a value can be parsed as a numeric value (int, float, or currency)."""
-        if isinstance(val, (int, float)) and not isinstance(val, bool):
-            return True
-        if not isinstance(val, str):
-            return False
-        s = val.strip()
-        # Strip common currency signs and commas: $1,250.50 -> 1250.50
-        s_clean = re.sub(r"^[\$€£¥₹]\s*|\s*[\$€£¥₹]$", "", s)
-        s_clean = s_clean.replace(",", "")
-        try:
-            float(s_clean)
-            return True
-        except ValueError:
-            return False
-
-    @staticmethod
-    def _try_parse_boolean(val: Any) -> bool:
-        """Check if a value represents a boolean term."""
-        if isinstance(val, bool):
-            return True
-        if isinstance(val, (int, float)):
-            return val in (0, 1)
-        if isinstance(val, str):
-            return val.strip().lower() in BOOLEAN_TERMS
-        return False
-
-    @staticmethod
-    def _try_parse_email(val: Any) -> bool:
-        """Check if a string matches RFC email address formatting."""
-        if not isinstance(val, str):
-            return False
-        s = val.strip()
-        return bool(EMAIL_REGEX.match(s))
-
-    @classmethod
-    def _try_parse_date(cls, val: Any) -> bool:
-        """Check if a value represents a valid date or timestamp."""
-        if isinstance(val, (datetime, pl.Date, pl.Datetime)):
-            return True
-        if not isinstance(val, str):
-            return False
-        s = val.strip()
-        if len(s) < 6:
-            return False
-        # Discard pure numbers (which should be classified as NUMBER, not epoch date)
-        if re.match(r"^-?\d+(\.\d+)?$", s):
-            return False
-        for fmt in COMMON_DATE_FORMATS:
-            try:
-                datetime.strptime(s, fmt)
-                return True
-            except ValueError:
-                continue
-        # Also try ISO format parsing
-        try:
-            datetime.fromisoformat(s.replace("Z", "+00:00"))
-            return True
-        except Exception:
-            pass
-        return False
-
-    @classmethod
-    def _try_parse_phone(cls, val: Any) -> bool:
-        """Check if a string matches telephone number formatting."""
-        if not isinstance(val, (str, int)):
-            return False
-        s = str(val).strip()
-        if len(s) < 7 or len(s) > 25:
-            return False
-        # Dates must not be classified as phone numbers
-        if cls._try_parse_date(s):
-            return False
-        # Must only contain phone-valid characters: +, digits, spaces, hyphens, parens, dots
-        if not re.match(r"^\+?[0-9\s\-\(\)\.]{7,25}$", s):
-            return False
-        digits = re.sub(r"\D", "", s)
-        if len(digits) < 7 or len(digits) > 15:
-            return False
-        # Pure numeric strings without '+' or punctuation are numbers, not phone numbers
-        if s.isdigit() and not s.startswith("+"):
-            return False
-        return True
+    # Type Detection Helpers (re-exported on class for compatibility)
+    _is_null_or_empty = staticmethod(is_null_or_empty)
+    _try_parse_number = staticmethod(try_parse_number)
+    _try_parse_boolean = staticmethod(try_parse_boolean)
+    _try_parse_email = staticmethod(try_parse_email)
+    _try_parse_date = staticmethod(try_parse_date)
+    _try_parse_phone = staticmethod(try_parse_phone)
 
     def detect_column_type(
         self, raw_values: List[Any]
