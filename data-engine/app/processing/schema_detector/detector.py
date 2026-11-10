@@ -1,295 +1,33 @@
-"""Ingestion pipeline input validation, schema auto-detection, and ontology property mapping.
-
-Provides:
-  1. Auto-detection of column data types: 'string', 'number', 'date', 'boolean', 'email', 'phone'
-  2. Ontology property mapping suggestions using normalized fuzzy matching
-  3. Pre-flight data quality validation reports (null percentage, unique count, type distribution)
-  4. Automatic rejection of files containing >50% null columns with clear error messages
-"""
+"""Automated schema detection, fuzzy ontology mapping, and pre-flight data quality validator."""
 
 from __future__ import annotations
 
 import io
 import logging
 import re
-from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from difflib import SequenceMatcher
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import polars as pl
 
-logger = logging.getLogger(__name__)
-
-# Max null threshold allowed for any column (50%)
-MAX_NULL_PERCENTAGE_THRESHOLD: float = 50.0
-
-
-# Supported detected types
-class ColumnType(str, Enum):
-    STRING = "string"
-    NUMBER = "number"
-    DATE = "date"
-    BOOLEAN = "boolean"
-    EMAIL = "email"
-    PHONE = "phone"
-
-
-# Regex patterns for type identification
-EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
-
-PHONE_REGEX = re.compile(
-    r"^\+?[0-9]{1,4}?[-.\s]?\(?[0-9]{1,4}?\)?[-.\s]?[0-9]{1,4}[-.\s]?[0-9]{1,9}$"
+from app.processing.schema_detector.models import (
+    BOOLEAN_TERMS,
+    COMMON_DATE_FORMATS,
+    EMAIL_REGEX,
+    MAX_NULL_PERCENTAGE_THRESHOLD,
+    PHONE_REGEX,
+    ColumnType,
+    ColumnValidationReport,
+    PreflightValidationReport,
 )
+from app.processing.schema_detector.ontology import ONTOLOGY_REGISTRY
 
-BOOLEAN_TERMS = {"true", "false", "1", "0", "yes", "no", "y", "n", "t", "f"}
-
-COMMON_DATE_FORMATS = [
-    "%Y-%m-%d",
-    "%Y-%m-%d %H:%M:%S",
-    "%Y-%m-%dT%H:%M:%S",
-    "%Y-%m-%dT%H:%M:%SZ",
-    "%Y-%m-%dT%H:%M:%S%z",
-    "%d/%m/%Y",
-    "%m/%d/%Y",
-    "%Y/%m/%d",
-    "%d-%m-%Y",
-    "%m-%d-%Y",
-    "%b %d, %Y",
-    "%d %b %Y",
-]
-
-# Standard LuminAI Ontology Property Registry
-ONTOLOGY_REGISTRY: Dict[str, Dict[str, Dict[str, Any]]] = {
-    "Person": {
-        "id": {
-            "aliases": [
-                "id",
-                "rec_id",
-                "user_id",
-                "person_id",
-                "uuid",
-                "uid",
-                "customer_id",
-            ],
-            "expected_type": ColumnType.STRING,
-        },
-        "name": {
-            "aliases": [
-                "name",
-                "full_name",
-                "first_name",
-                "last_name",
-                "contact_name",
-                "username",
-                "customer_name",
-            ],
-            "expected_type": ColumnType.STRING,
-        },
-        "email": {
-            "aliases": ["email", "e_mail", "email_address", "contact_email", "mail"],
-            "expected_type": ColumnType.EMAIL,
-        },
-        "phone": {
-            "aliases": [
-                "phone",
-                "telephone",
-                "mobile",
-                "cell",
-                "phone_number",
-                "contact_phone",
-                "tel",
-            ],
-            "expected_type": ColumnType.PHONE,
-        },
-        "age": {
-            "aliases": ["age", "years_old", "dob_years", "age_years"],
-            "expected_type": ColumnType.NUMBER,
-        },
-        "country": {
-            "aliases": [
-                "country",
-                "nation",
-                "country_code",
-                "location_country",
-                "nationality",
-                "residence",
-            ],
-            "expected_type": ColumnType.STRING,
-        },
-        "joined_at": {
-            "aliases": [
-                "joined_at",
-                "created_at",
-                "signup_date",
-                "registered_at",
-                "registration_date",
-                "start_date",
-            ],
-            "expected_type": ColumnType.DATE,
-        },
-        "score": {
-            "aliases": ["score", "confidence", "rating", "rank", "credit_score"],
-            "expected_type": ColumnType.NUMBER,
-        },
-        "salary": {
-            "aliases": ["salary", "income", "compensation", "earnings", "wage", "pay"],
-            "expected_type": ColumnType.NUMBER,
-        },
-    },
-    "Organization": {
-        "id": {
-            "aliases": ["id", "org_id", "company_id", "business_id"],
-            "expected_type": ColumnType.STRING,
-        },
-        "name": {
-            "aliases": [
-                "name",
-                "org_name",
-                "company_name",
-                "business_name",
-                "firm_name",
-            ],
-            "expected_type": ColumnType.STRING,
-        },
-        "industry": {
-            "aliases": ["industry", "sector", "business_sector", "domain"],
-            "expected_type": ColumnType.STRING,
-        },
-        "employee_count": {
-            "aliases": [
-                "employee_count",
-                "employees",
-                "size",
-                "headcount",
-                "staff",
-                "num_employees",
-            ],
-            "expected_type": ColumnType.NUMBER,
-        },
-        "country": {
-            "aliases": ["country", "hq_country", "location", "headquarters"],
-            "expected_type": ColumnType.STRING,
-        },
-        "website": {
-            "aliases": ["website", "url", "domain", "web_address", "homepage"],
-            "expected_type": ColumnType.STRING,
-        },
-    },
-    "Product": {
-        "id": {
-            "aliases": ["id", "product_id", "sku", "item_id", "code"],
-            "expected_type": ColumnType.STRING,
-        },
-        "name": {
-            "aliases": ["name", "product_name", "title", "item_name"],
-            "expected_type": ColumnType.STRING,
-        },
-        "price": {
-            "aliases": ["price", "cost", "amount", "unit_price", "retail_price"],
-            "expected_type": ColumnType.NUMBER,
-        },
-        "stock_quantity": {
-            "aliases": [
-                "stock_quantity",
-                "stock",
-                "quantity",
-                "inventory",
-                "inventory_count",
-                "qty",
-            ],
-            "expected_type": ColumnType.NUMBER,
-        },
-        "category": {
-            "aliases": ["category", "product_type", "department", "genre"],
-            "expected_type": ColumnType.STRING,
-        },
-    },
-    "Transaction": {
-        "id": {
-            "aliases": ["id", "transaction_id", "tx_id", "payment_id", "order_id"],
-            "expected_type": ColumnType.STRING,
-        },
-        "amount": {
-            "aliases": ["amount", "total", "total_amount", "sum", "value", "price"],
-            "expected_type": ColumnType.NUMBER,
-        },
-        "timestamp": {
-            "aliases": [
-                "timestamp",
-                "tx_date",
-                "date",
-                "created_at",
-                "transacted_at",
-                "transaction_date",
-            ],
-            "expected_type": ColumnType.DATE,
-        },
-        "user_id": {
-            "aliases": ["user_id", "customer_id", "buyer_id", "payer_id", "account_id"],
-            "expected_type": ColumnType.STRING,
-        },
-        "status": {
-            "aliases": [
-                "status",
-                "tx_status",
-                "payment_status",
-                "state",
-                "order_status",
-            ],
-            "expected_type": ColumnType.STRING,
-        },
-    },
-}
-
-
-@dataclass
-class ColumnValidationReport:
-    """Detailed validation and schema detection report for a single column."""
-
-    column_name: str
-    detected_type: str
-    total_count: int
-    null_count: int
-    null_percentage: float
-    unique_count: int
-    unique_percentage: float
-    type_distribution: Dict[str, float]
-    sample_values: List[Any]
-    is_rejected: bool = False
-    rejection_reason: Optional[str] = None
-    suggested_property: Optional[str] = None
-    suggested_entity_type: Optional[str] = None
-    mapping_confidence: float = 0.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass
-class PreflightValidationReport:
-    """Comprehensive pre-flight schema and data quality report for an entire dataset."""
-
-    is_valid: bool
-    total_rows: int
-    total_columns: int
-    columns: List[ColumnValidationReport]
-    rejected_columns: List[str] = field(default_factory=list)
-    error_message: Optional[str] = None
-    suggested_entity_type: Optional[str] = None
-    entity_confidence: float = 0.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        res = asdict(self)
-        res["columns"] = [col.to_dict() for col in self.columns]
-        return res
+logger = logging.getLogger(__name__)
 
 
 class SchemaDetector:
-    """
-    Automated schema detection, fuzzy ontology mapping, and pre-flight data quality validator.
-    """
+    """Automated schema detection, fuzzy ontology mapping, and pre-flight data quality validator."""
 
     def __init__(self, max_null_pct: float = MAX_NULL_PERCENTAGE_THRESHOLD):
         self.max_null_pct = max_null_pct
@@ -392,12 +130,7 @@ class SchemaDetector:
     def detect_column_type(
         self, raw_values: List[Any]
     ) -> Tuple[ColumnType, Dict[str, float]]:
-        """
-        Analyze a list of values to determine the predominant column type and type distribution.
-
-        Returns:
-            Tuple of (detected_type, type_distribution_dict).
-        """
+        """Analyze a list of values to determine the predominant column type and type distribution."""
         non_null_values = [v for v in raw_values if not self._is_null_or_empty(v)]
         total_count = len(raw_values)
         non_null_count = len(non_null_values)
@@ -467,12 +200,7 @@ class SchemaDetector:
         column_name: str,
         detected_type: ColumnType,
     ) -> Tuple[Optional[str], Optional[str], float]:
-        """
-        Suggest ontology property mapping based on column name fuzzy matching and type alignment.
-
-        Returns:
-            Tuple of (suggested_entity_type, suggested_property_name, confidence_score).
-        """
+        """Suggest ontology property mapping based on column name fuzzy matching and type alignment."""
         norm_col = self._normalize_name(column_name)
         best_entity: Optional[str] = None
         best_property: Optional[str] = None
@@ -522,16 +250,7 @@ class SchemaDetector:
         df: pl.DataFrame,
         max_null_pct: Optional[float] = None,
     ) -> PreflightValidationReport:
-        """
-        Perform comprehensive pre-flight validation on a Polars DataFrame.
-
-        Validates:
-          - Column data types and distributions
-          - Null percentages against max_null_pct (default 50.0%)
-          - Unique value cardinalities
-          - Ontology property mapping suggestions
-          - Rejection of datasets violating quality thresholds
-        """
+        """Perform comprehensive pre-flight validation on a Polars DataFrame."""
         threshold = max_null_pct if max_null_pct is not None else self.max_null_pct
         total_rows = df.height
         total_cols = df.width
@@ -657,9 +376,7 @@ class SchemaDetector:
         file_name: str = "upload.csv",
         max_null_pct: Optional[float] = None,
     ) -> PreflightValidationReport:
-        """
-        Parse raw file bytes (CSV, JSON, NDJSON, Parquet, or Excel) and validate schema.
-        """
+        """Parse raw file bytes (CSV, JSON, NDJSON, Parquet, or Excel) and validate schema."""
         ext = file_name.split(".")[-1].lower() if "." in file_name else "csv"
         bio = io.BytesIO(data)
 
