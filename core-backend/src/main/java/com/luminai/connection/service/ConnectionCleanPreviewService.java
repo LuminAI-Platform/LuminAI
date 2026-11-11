@@ -64,7 +64,8 @@ public class ConnectionCleanPreviewService {
   public ResponseEntity<Map<String, Object>> getCleanPreview(UUID id) {
     UUID currentTenant = TenantContext.getTenantUuid();
     if (currentTenant == null) {
-      log.warn("Unauthorized clean preview request for connection '{}': missing tenant context", id);
+      log.warn(
+          "Unauthorized clean preview request for connection '{}': missing tenant context", id);
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
           .body(Map.of("error", "Unauthorized: missing tenant context"));
     }
