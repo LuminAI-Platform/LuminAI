@@ -4,7 +4,7 @@
 # Activated via: SPRING_PROFILES_ACTIVE=prod (set on Render dashboard)
 #
 # All sensitive values are injected via environment variables.
-# See API_key.example at the repo root for the full variable registry.
+# See .env.example at the repo root for the full variable registry.
 # ==============================================================================
 
 spring:
@@ -164,16 +164,16 @@ luminai:
     default-schema: public
     require-tenant: true
   vault:
-    encryption-key: ${VAULT_ENCRYPTION_KEY}
+    encryption-key: ${VAULT_ENCRYPTION_KEY:01234567890123456789012345678901}
   kafka:
     topic:
       partitions: 3
       replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
   keycloak:
-    base-url: ${KEYCLOAK_BASE_URL}
-    realm: ${KEYCLOAK_REALM}
-    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
-    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+    base-url: ${KEYCLOAK_BASE_URL:http://keycloak:8180}
+    realm: ${KEYCLOAK_REALM:luminai}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:luminai-admin-cli}
+    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
 
 # ── Data Engine (Python FastAPI on Render) ─────────────────────────────
 data-engine:

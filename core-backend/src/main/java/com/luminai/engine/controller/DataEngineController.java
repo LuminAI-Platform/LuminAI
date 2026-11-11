@@ -105,4 +105,20 @@ public class DataEngineController {
   public ResponseEntity<Map<String, Object>> getJobStatus(@PathVariable String jobId) {
     return ResponseEntity.ok(dataEngineClient.getJobStatus(jobId));
   }
+
+  @Operation(
+      summary = "Generate AI Insights",
+      description =
+          "Dispatches an analytical profiling request to the Python Data Engine AI Insights module.")
+  @PostMapping("/insights")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
+  public ResponseEntity<Map<String, Object>> generateInsights(
+      @RequestBody Map<String, Object> requestPayload) {
+    Map<String, Object> enrichedPayload = new HashMap<>(requestPayload);
+    if (!enrichedPayload.containsKey("tenant_id") || enrichedPayload.get("tenant_id") == null) {
+      enrichedPayload.put("tenant_id", TenantContext.getTenantSlug());
+    }
+    return ResponseEntity.ok(dataEngineClient.getInsights(enrichedPayload));
+  }
 }

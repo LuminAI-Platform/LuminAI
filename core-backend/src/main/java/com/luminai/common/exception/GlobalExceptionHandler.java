@@ -157,8 +157,42 @@ public class GlobalExceptionHandler {
                 getPath(request)));
   }
 
+  @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+  public ResponseEntity<ApiError> handleMaxUploadSizeExceeded(
+      org.springframework.web.multipart.MaxUploadSizeExceededException ex,
+      HttpServletRequest request) {
+    log.warn(
+        "Payload exceeds max upload limit on path '{}': {}", getPath(request), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+        .body(
+            ApiError.of(
+                413,
+                "PAYLOAD_TOO_LARGE",
+                "Uploaded file exceeds maximum allowed upload size (500 MB)",
+                getPath(request)));
+  }
+
+  @ExceptionHandler({
+    org.apache.catalina.connector.ClientAbortException.class,
+    org.springframework.web.context.request.async.AsyncRequestNotUsableException.class
+  })
+  public void handleClientAbort(Exception ex, HttpServletRequest request) {
+    // Client closed/aborted the connection (e.g., browser refreshed, session expired, or broken
+    // pipe).
+    // Log as debug without dumping error stack traces or writing to the already closed response
+    // stream.
+    log.debug(
+        "Client connection closed/aborted on path '{}': {}", getPath(request), ex.getMessage());
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiError> handleGeneral(Exception ex, HttpServletRequest request) {
+    if (ex instanceof java.io.IOException
+        && ex.getMessage() != null
+        && ex.getMessage().toLowerCase().contains("broken pipe")) {
+      log.debug("Client closed socket pipe on path '{}': {}", getPath(request), ex.getMessage());
+      return null;
+    }
     log.error("Unhandled exception on path '{}': {}", getPath(request), ex.getMessage(), ex);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(

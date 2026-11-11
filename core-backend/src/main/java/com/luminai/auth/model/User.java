@@ -94,6 +94,10 @@ public class User {
     return keycloakId;
   }
 
+  public void setKeycloakId(String keycloakId) {
+    this.keycloakId = keycloakId;
+  }
+
   public String getEmail() {
     return email;
   }

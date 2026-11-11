@@ -245,6 +245,14 @@ class Settings(BaseSettings):
         url = self.keycloak_url.rstrip("/")
         return f"{url}/realms/{self.keycloak_realm}"
 
+    # AI & Automated Insights Configuration
+    ai_insights_provider: str = "auto"  # "auto", "gemini", "openai", "heuristic"
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-1.5-flash"
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    ai_insights_timeout_seconds: float = 12.0
+
 
 @lru_cache
 def get_settings() -> Settings:

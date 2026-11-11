@@ -13,6 +13,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.processing.ai_insights import (
+    InsightsRequest,
+    InsightsResponse,
+    get_ai_insights_service,
+)
 from app.processing.analytics_engine import DuckDBAnalyticsEngine
 from app.processing.reconciliation import (
     ReconciliationReport,
@@ -349,4 +354,24 @@ async def export_query_results(request: ExportRequest) -> StreamingResponse:
                 "Content-Disposition": f'attachment; filename="{clean_name}_export.csv"',
                 "X-Total-Rows": str(df.height),
             },
+        )
+
+
+@router.post(
+    "/insights",
+    response_model=InsightsResponse,
+    summary="Generate AI-powered statistical insights and anomaly summaries",
+)
+async def generate_insights(request: InsightsRequest) -> InsightsResponse:
+    """Generate executive summary, operational metrics, and anomalies for an entity dataset.
+
+    Uses cloud LLM APIs (Gemini / OpenAI) when configured, or deterministic statistical
+    heuristics as instant fallback.
+    """
+    service = get_ai_insights_service()
+    try:
+        return await service.generate_insights(request)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"AI insight generation failed: {exc}"
         )

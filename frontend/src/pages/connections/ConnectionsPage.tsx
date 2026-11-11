@@ -115,21 +115,19 @@ export const ConnectionsPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setActiveTab("connectors")}
-            className={`text-xs font-semibold pb-1 border-b-2 transition-colors cursor-pointer ${
-              activeTab === "connectors"
+            className={`text-xs font-semibold pb-1 border-b-2 transition-colors cursor-pointer ${activeTab === "connectors"
                 ? "border-blue-500 text-zinc-100"
                 : "border-transparent text-zinc-400 hover:text-zinc-200"
-            }`}
+              }`}
           >
             Database Connectors ({customConnectors.length})
           </button>
           <button
             onClick={() => setActiveTab("files")}
-            className={`text-xs font-semibold pb-1 border-b-2 transition-colors cursor-pointer ${
-              activeTab === "files"
+            className={`text-xs font-semibold pb-1 border-b-2 transition-colors cursor-pointer ${activeTab === "files"
                 ? "border-blue-500 text-zinc-100"
                 : "border-transparent text-zinc-400 hover:text-zinc-200"
-            }`}
+              }`}
           >
             Flat Files & Datasets ({ingestedFiles.length})
           </button>

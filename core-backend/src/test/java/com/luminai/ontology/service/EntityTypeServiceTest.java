@@ -102,6 +102,10 @@ class EntityTypeServiceTest {
     assertThat(result.color()).isEqualTo("#f59e0b");
     assertThat(result.propertiesSchema()).contains("email");
     assertThat(result.propertiesSchema()).contains("required");
+    assertThat(result.properties()).hasSize(2);
+    assertThat(result.properties().get(0).name()).isEqualTo("email");
+    assertThat(result.properties().get(0).required()).isTrue();
+    assertThat(result.properties().get(1).name()).isEqualTo("age");
   }
 
   @Test

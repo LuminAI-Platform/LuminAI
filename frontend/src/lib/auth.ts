@@ -16,7 +16,7 @@ const oidcConfig: UserManagerSettings = {
   client_id: clientId,
   redirect_uri: `${appOrigin}/callback`,
   response_type: "code",
-  scope: "openid profile email",
+  scope: "openid profile email offline_access",
   post_logout_redirect_uri: `${appOrigin}/`,
 
   // Use PKCE S256 explicitly (default in oidc-client-ts v3, stated for clarity)
