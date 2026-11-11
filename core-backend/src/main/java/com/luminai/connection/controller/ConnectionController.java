@@ -164,7 +164,9 @@ public class ConnectionController {
       @PathVariable UUID id, @RequestParam("file") MultipartFile file) throws IOException {
     UUID tenantId = TenantContext.getTenantUuid();
     if (tenantId == null) {
-      tenantId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+      log.warn("Unauthorized file upload request for connection '{}': missing tenant context", id);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(Map.of("error", "Unauthorized: missing tenant context"));
     }
     return uploadService.uploadFile(tenantId, id, file);
   }
@@ -221,6 +223,7 @@ public class ConnectionController {
       }
     }
 
+    // Prototype schema discovery fallback when offline or demo config supplied
     List<Map<String, Object>> schemas =
         List.of(
             Map.of(
