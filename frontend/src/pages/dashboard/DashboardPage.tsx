@@ -1,114 +1,37 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import {
   Database,
-  Network,
-  Play,
-  ShieldCheck,
   RefreshCw,
   ArrowRight,
-  GitBranch,
   Layers,
   AlertCircle,
 } from "lucide-react";
-import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
-import { KpiCard } from "./components/KpiCard";
 import { EntityBreakdownChart } from "./components/EntityBreakdownChart";
-import {
-  PipelineTimelineChart,
-  type TimeSeriesPoint,
-} from "./components/PipelineTimelineChart";
-import { ActivityFeed, type ActivityItem } from "./components/ActivityFeed";
+import { PipelineTimelineChart } from "./components/PipelineTimelineChart";
+import { ActivityFeed } from "./components/ActivityFeed";
 import { DataEngineTelemetryCard } from "../../features/dashboard/components/DataEngineTelemetryCard";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { useDashboardData } from "./useDashboardData";
+import { DashboardKpiRow } from "./components/DashboardKpiRow";
+import { DashboardQuickActions } from "./components/DashboardQuickActions";
 
-interface DashboardSummary {
-  totalEntities: number;
-  totalConnections: number;
-  totalPipelines: number;
-  entityBreakdown: Record<string, number>;
-  recentActivity: ActivityItem[];
-  dataQualityScore: number;
-  pipelineHealth: {
-    running: number;
-    completed: number;
-    failed: number;
-  };
-  lastSyncAt: string | null;
-}
-
-/**
- * Production Dashboard Page with real-time KPI aggregations, charts, and activity feeds
- */
 export const DashboardPage: React.FC = () => {
-  const [timeRange, setTimeRange] = useState<"7d" | "14d" | "30d">("7d");
-
-  // 1. Fetch dashboard summary with 30s auto-refresh
   const {
-    data: summary,
-    isLoading: isSummaryLoading,
-    error: summaryError,
-    refetch: refetchSummary,
+    timeRange,
+    setTimeRange,
+    summary,
+    isSummaryLoading,
+    summaryError,
+    timeSeries,
+    isTimeSeriesLoading,
+    activity,
+    isActivityLoading,
     isRefetching,
-  } = useQuery<DashboardSummary>({
-    queryKey: ["dashboard", "summary"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/v1/dashboard/summary", {
-        headers: { "X-Suppress-Toast": "true" },
-      });
-      return res.json();
-    },
-    refetchInterval: 60000,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
-
-  // 2. Fetch time-series telemetry for charts
-  const {
-    data: timeSeries = [],
-    isLoading: isTimeSeriesLoading,
-    refetch: refetchTimeSeries,
-  } = useQuery<TimeSeriesPoint[]>({
-    queryKey: ["dashboard", "timeseries", timeRange],
-    queryFn: async () => {
-      const res = await apiFetch(
-        `/api/v1/dashboard/stats/timeseries?range=${timeRange}`,
-        {
-          headers: { "X-Suppress-Toast": "true" },
-        },
-      );
-      return res.json();
-    },
-    refetchInterval: 60000,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
-
-  // 3. Fetch recent platform activity
-  const {
-    data: activity = [],
-    isLoading: isActivityLoading,
-    refetch: refetchActivity,
-  } = useQuery<ActivityItem[]>({
-    queryKey: ["dashboard", "activity"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/v1/dashboard/activity?limit=15", {
-        headers: { "X-Suppress-Toast": "true" },
-      });
-      return res.json();
-    },
-    refetchInterval: 60000,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
-
-  const handleManualRefresh = () => {
-    refetchSummary();
-    refetchTimeSeries();
-    refetchActivity();
-  };
+    handleManualRefresh,
+    refetchSummary,
+  } = useDashboardData();
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-8">
@@ -146,7 +69,6 @@ export const DashboardPage: React.FC = () => {
         }
       />
 
-      {/* Error state if backend endpoint is unavailable */}
       {summaryError && (
         <div className="bg-red-950/30 border border-red-500/40 rounded-lg p-4 flex items-center justify-between text-xs text-red-200">
           <div className="flex items-center gap-2.5">
@@ -167,60 +89,13 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* 1. KPI Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Resolved Entities"
-          value={summary?.totalEntities ?? 0}
-          subtitle="Golden semantic records"
-          icon={<Network className="w-4 h-4" />}
-          badge={{ text: "Active", variant: "success" }}
-          isLoading={isSummaryLoading}
-        />
-
-        <KpiCard
-          title="Active Connectors"
-          value={summary?.totalConnections ?? 0}
-          subtitle="Data sources integrated"
-          icon={<Database className="w-4 h-4" />}
-          badge={{ text: "Online", variant: "info" }}
-          isLoading={isSummaryLoading}
-        />
-
-        <KpiCard
-          title="Pipeline Executions"
-          value={summary?.totalPipelines ?? 0}
-          subtitle={
-            summary?.pipelineHealth
-              ? `${summary.pipelineHealth.completed} completed · ${summary.pipelineHealth.running} running`
-              : "Execution history"
-          }
-          icon={<Play className="w-4 h-4" />}
-          badge={{
-            text:
-              (summary?.pipelineHealth?.failed ?? 0) > 0 ? "Issues" : "Healthy",
-            variant:
-              (summary?.pipelineHealth?.failed ?? 0) > 0
-                ? "warning"
-                : "success",
-          }}
-          isLoading={isSummaryLoading}
-        />
-
-        <KpiCard
-          title="Data Quality Score"
-          value={summary ? `${summary.dataQualityScore}%` : "98.5%"}
-          subtitle="Completeness & accuracy"
-          icon={<ShieldCheck className="w-4 h-4" />}
-          isLoading={isSummaryLoading}
-        />
-      </div>
+      <DashboardKpiRow summary={summary} isLoading={isSummaryLoading} />
 
       {/* Python Data Engine Telemetry & Polars Compute */}
       <DataEngineTelemetryCard />
 
       {/* 2. Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left: Pipeline Telemetry Chart (2 cols) */}
         <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -254,7 +129,6 @@ export const DashboardPage: React.FC = () => {
           />
         </div>
 
-        {/* Right: Entity Type Distribution (1 col) */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">
@@ -274,7 +148,6 @@ export const DashboardPage: React.FC = () => {
 
       {/* 3. Bottom Row: Activity Feed & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Activity Feed (2 cols) */}
         <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
           <div className="flex items-center justify-between mb-3 pb-3 border-b border-zinc-800/60">
             <div>
@@ -286,7 +159,7 @@ export const DashboardPage: React.FC = () => {
               </p>
             </div>
             <Link
-              to="/connections/pipelines"
+              to="/connections/pipeline"
               className="text-xs text-zinc-400 hover:text-zinc-200 font-medium inline-flex items-center gap-1 cursor-pointer"
             >
               All Pipelines <ArrowRight className="w-3.5 h-3.5" />
@@ -301,62 +174,7 @@ export const DashboardPage: React.FC = () => {
           />
         </div>
 
-        {/* Quick Actions (1 col) */}
-        <div className="flex flex-col gap-3">
-          <Link
-            to="/connections"
-            className="group p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
-                <Database className="w-4 h-4" />
-              </div>
-              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-zinc-200 transition-colors">
-              Data Connections
-            </h4>
-            <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Connect external databases or upload flat files (CSV, JSON).
-            </p>
-          </Link>
-
-          <Link
-            to="/graph"
-            className="group p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
-                <GitBranch className="w-4 h-4" />
-              </div>
-              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-zinc-200 transition-colors">
-              Knowledge Graph
-            </h4>
-            <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Explore interconnected records and semantic relationships.
-            </p>
-          </Link>
-
-          <Link
-            to="/ontology"
-            className="group p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
-                <Layers className="w-4 h-4" />
-              </div>
-              <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all" />
-            </div>
-            <h4 className="text-xs font-semibold text-zinc-100 group-hover:text-zinc-200 transition-colors">
-              Data Model & Ontology
-            </h4>
-            <p className="text-[11px] text-zinc-400 mt-1 leading-normal">
-              Manage entity types, field properties, and relationship schemas.
-            </p>
-          </Link>
-        </div>
+        <DashboardQuickActions />
       </div>
     </div>
   );

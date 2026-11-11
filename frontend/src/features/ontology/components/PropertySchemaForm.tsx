@@ -1,54 +1,20 @@
 import React, { useState } from "react";
+import {
+  type PropertySchema,
+  type PropertyType,
+  PROPERTY_TYPES,
+  emptyProperty,
+  getTypeColor,
+} from "./property-schema/propertySchemaTypes";
 
-export type PropertyType =
-  | "STRING"
-  | "INTEGER"
-  | "FLOAT"
-  | "BOOLEAN"
-  | "DATE"
-  | "DATETIME"
-  | "ARRAY"
-  | "OBJECT";
-
-export interface PropertySchema {
-  id: string;
-  name: string;
-  type: PropertyType;
-  required: boolean;
-  defaultValue: string;
-  description: string;
-}
+export type {
+  PropertyType,
+  PropertySchema,
+} from "./property-schema/propertySchemaTypes";
 
 interface PropertySchemaFormProps {
   properties: PropertySchema[];
   onChange: (properties: PropertySchema[]) => void;
-}
-
-const PROPERTY_TYPES: { value: PropertyType; label: string; color: string }[] =
-  [
-    { value: "STRING", label: "String", color: "#60a5fa" },
-    { value: "INTEGER", label: "Integer", color: "#a78bfa" },
-    { value: "FLOAT", label: "Float", color: "#c084fc" },
-    { value: "BOOLEAN", label: "Boolean", color: "#34d399" },
-    { value: "DATE", label: "Date", color: "#fb923c" },
-    { value: "DATETIME", label: "DateTime", color: "#f97316" },
-    { value: "ARRAY", label: "Array", color: "#facc15" },
-    { value: "OBJECT", label: "Object", color: "#94a3b8" },
-  ];
-
-function generateId() {
-  return Math.random().toString(36).substring(2, 10);
-}
-
-function emptyProperty(): PropertySchema {
-  return {
-    id: generateId(),
-    name: "",
-    type: "STRING",
-    required: false,
-    defaultValue: "",
-    description: "",
-  };
 }
 
 export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
@@ -70,9 +36,6 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
     onChange(properties.filter((p) => p.id !== id));
     if (expandedId === id) setExpandedId(null);
   };
-
-  const getColor = (type: PropertyType) =>
-    PROPERTY_TYPES.find((t) => t.value === type)?.color ?? "#94a3b8";
 
   return (
     <div className="flex flex-col gap-2">
@@ -125,16 +88,17 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
       ) : (
         <div className="flex flex-col gap-1.5">
           {properties.map((prop) => {
-            const expanded = expandedId === prop.id;
-            const color = getColor(prop.type);
+            const isExpanded = expandedId === prop.id;
+            const color = getTypeColor(prop.type);
             return (
               <div
                 key={prop.id}
                 className="border border-zinc-800/80 rounded-lg overflow-hidden bg-zinc-950/50"
               >
+                {/* Row header */}
                 <div
                   className="flex items-center gap-3 p-3 cursor-pointer hover:bg-zinc-900/40 transition-all select-none"
-                  onClick={() => setExpandedId(expanded ? null : prop.id)}
+                  onClick={() => setExpandedId(isExpanded ? null : prop.id)}
                 >
                   <svg
                     width="12"
@@ -181,13 +145,14 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2.5"
-                    className={`text-zinc-600 shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+                    className={`text-zinc-600 shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
                   >
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
 
-                {expanded && (
+                {/* Expanded fields */}
+                {isExpanded && (
                   <div className="px-4 pb-4 pt-2 border-t border-zinc-800/60 flex flex-col gap-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">

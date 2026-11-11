@@ -181,7 +181,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           Expand Node (1 Hop)
         </Button>
 
-        <Link to="/explorer/entity/$entityId" params={{ entityId: node.id }}>
+        <Link to="/explorer/$entityId" params={{ entityId: node.id }}>
           <Button
             size="sm"
             variant="ghost"

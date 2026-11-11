@@ -3,7 +3,12 @@ import { apiFetch } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 import { PropertySchemaForm } from "./PropertySchemaForm";
 import type { EntityType, PropertySchema } from "../types";
-import { ENTITY_COLORS, ENTITY_ICON_MAP } from "../constants";
+import {
+  EntityIcon,
+  ENTITY_ICON_KEYS,
+  ENTITY_ICON_LABELS,
+} from "./entity-editor/EntityIcon";
+import { EntityMetaTab } from "./entity-editor/EntityMetaTab";
 
 interface EntityTypeEditorProps {
   initial?: EntityType;
@@ -12,42 +17,7 @@ interface EntityTypeEditorProps {
 }
 
 export type { EntityType };
-
-const ENTITY_ICON_KEYS = Object.keys(ENTITY_ICON_MAP);
-
-/** Shared renderer â€” pass the stored key, get an SVG back */
-export const EntityIcon: React.FC<{ iconKey: string; size?: number }> = ({
-  iconKey,
-  size = 16,
-}) => {
-  const icon = ENTITY_ICON_MAP[iconKey] ?? ENTITY_ICON_MAP["package"];
-  return (
-    <span
-      style={{
-        width: size,
-        height: size,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {icon}
-    </span>
-  );
-};
-
-const ENTITY_ICON_LABELS: Record<string, string> = {
-  building: "Building",
-  user: "User",
-  package: "Package",
-  briefcase: "Briefcase",
-  link: "Link",
-  chart: "Chart",
-  globe: "Globe",
-  settings: "Settings",
-  clipboard: "Clipboard",
-  target: "Target",
-};
+export { EntityIcon };
 
 const EMPTY: EntityType = {
   name: "",
@@ -117,20 +87,14 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
   const [activeTab, setActiveTab] = useState<"meta" | "properties">("meta");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
-
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   const set = (k: keyof EntityType, v: unknown) =>
@@ -149,10 +113,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
       const url = form.id
         ? `/api/v1/ontology/entity-types/${form.id}`
         : "/api/v1/ontology/entity-types";
-      const res = await apiFetch(url, {
-        method,
-        body: JSON.stringify(form),
-      });
+      const res = await apiFetch(url, { method, body: JSON.stringify(form) });
       const saved = (await res.json()) as EntityType;
       onSaved(saved);
     } catch (err: unknown) {
@@ -175,7 +136,6 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0 select-none bg-zinc-950/60">
           <div className="flex items-center gap-3">
-            {/* Entity icon preview */}
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center border-2 shrink-0 cursor-pointer select-none transition-all hover:scale-105"
               style={{
@@ -183,10 +143,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
                 borderColor: `${form.color}40`,
                 color: form.color,
               }}
-              onClick={() => {
-                setIconPickerOpen(!iconPickerOpen);
-                setColorPickerOpen(false);
-              }}
+              onClick={() => setIconPickerOpen(!iconPickerOpen)}
               title="Change icon"
             >
               <EntityIcon iconKey={form.icon} size={16} />
@@ -219,6 +176,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             </svg>
           </button>
         </div>
+
         {/* Icon picker dropdown */}
         {iconPickerOpen && (
           <div className="absolute z-60 mt-14 ml-6 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl flex flex-wrap gap-2 w-56">
@@ -242,6 +200,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             ))}
           </div>
         )}
+
         {/* Tabs */}
         <div className="flex border-b border-zinc-800/80 px-6 shrink-0">
           {(["meta", "properties"] as const).map((tab) => (
@@ -262,147 +221,11 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             </button>
           ))}
         </div>
+
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {activeTab === "meta" ? (
-            <div className="flex flex-col gap-4">
-              {/* Name + Label */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="entity-name"
-                    className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider"
-                  >
-                    Internal Name *
-                  </label>
-                  <input
-                    id="entity-name"
-                    type="text"
-                    value={form.name}
-                    onChange={(e) =>
-                      set("name", e.target.value.replace(/\s+/g, ""))
-                    }
-                    placeholder="CustomerProfile"
-                    className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 font-mono placeholder:text-zinc-600 transition-colors"
-                  />
-                  <span className="text-[10px] text-zinc-600">
-                    PascalCase, no spaces
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="entity-label"
-                    className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider"
-                  >
-                    Display Label *
-                  </label>
-                  <input
-                    id="entity-label"
-                    type="text"
-                    value={form.label}
-                    onChange={(e) => set("label", e.target.value)}
-                    placeholder="Customer Profile"
-                    className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 placeholder:text-zinc-600 transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="entity-desc"
-                  className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="entity-desc"
-                  value={form.description}
-                  onChange={(e) => set("description", e.target.value)}
-                  rows={3}
-                  placeholder="Describe what this entity type represents in the domain model..."
-                  className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 placeholder:text-zinc-600 transition-colors resize-none"
-                />
-              </div>
-
-              {/* Color picker */}
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                  Node Color
-                </label>
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-2 flex-wrap">
-                    {ENTITY_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        id={`entity-color-${c.replace("#", "")}`}
-                        onClick={() => set("color", c)}
-                        className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-all hover:scale-110 ${
-                          form.color === c
-                            ? "border-white scale-110"
-                            : "border-transparent"
-                        }`}
-                        style={{ backgroundColor: c }}
-                        title={c}
-                      />
-                    ))}
-                  </div>
-                  <div
-                    className="w-7 h-7 rounded-full border-2 cursor-pointer transition-all"
-                    style={{
-                      backgroundColor: form.color,
-                      borderColor: form.color,
-                    }}
-                    title="Custom color"
-                    onClick={() => setColorPickerOpen(!colorPickerOpen)}
-                  />
-                  {colorPickerOpen && (
-                    <input
-                      type="color"
-                      value={form.color}
-                      onChange={(e) => set("color", e.target.value)}
-                      className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Preview badge */}
-              <div className="flex flex-col gap-2 mt-2">
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                  Preview
-                </label>
-                <div
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border-2 self-start"
-                  style={{
-                    backgroundColor: `${form.color}15`,
-                    borderColor: `${form.color}35`,
-                  }}
-                >
-                  <span style={{ color: form.color }}>
-                    <EntityIcon iconKey={form.icon} size={16} />
-                  </span>
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: form.color }}
-                  >
-                    {form.label || form.name || "Entity Label"}
-                  </span>
-                  {form.properties.length > 0 && (
-                    <span
-                      className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                      style={{
-                        color: form.color,
-                        backgroundColor: `${form.color}20`,
-                      }}
-                    >
-                      {form.properties.length} props
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+            <EntityMetaTab form={form} set={set} />
           ) : (
             <PropertySchemaForm
               properties={form.properties}
@@ -410,12 +233,13 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
             />
           )}
         </div>
-        {/* Error */}
+
         {error && (
           <div className="mx-6 mb-3 px-3 py-2.5 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs font-medium">
             {error}
           </div>
         )}
+
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800/80 bg-zinc-950/60 shrink-0">
           <div className="text-[10px] text-zinc-600">
@@ -463,7 +287,7 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
                 </svg>
               )}
               {saving
-                ? "Savingâ€¦"
+                ? "Saving…"
                 : form.id
                   ? "Update Entity Type"
                   : "Create Entity Type"}

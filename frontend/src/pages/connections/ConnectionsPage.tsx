@@ -1,1845 +1,227 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
+import React from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  RefreshCw,
-  Clock,
-  Download,
-  CheckCircle2,
-  ShieldCheck,
-  Layers,
-  Network,
-  ArrowRight,
-  Search,
-  X,
-  Database,
-  Plus,
-  Radio,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { RefreshCw, Clock, Layers, Network, Plus, Radio } from "lucide-react";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { apiFetch } from "../../lib/api";
-
-interface IngestedFile {
-  id: string;
-  name: string;
-  size: string;
-  recordsCount: number;
-  status: "Synced" | "Failed" | "Syncing";
-  createdAt: string;
-  columns?: string[];
-  sampleRows?: Record<string, unknown>[];
-}
-
-interface CleanDataResponse {
-  connectionId: string;
-  totalRawRecords: number;
-  totalCleanRecords: number;
-  duplicatesMerged: number;
-  compressionRatio: string;
-  dataQualityScore: number;
-  status: string;
-  columns: string[];
-  rows: Record<string, unknown>[];
-}
-
-interface DatabaseConnector {
-  id?: string;
-  name: string;
-  status: string;
-  pipelines: number;
-  type: string;
-  desc: string;
-  lastSyncedAt?: string;
-}
-
-// Format relative timestamp helper
-function formatRelativeTime(dateInput?: string | Date | null): string {
-  if (!dateInput) return "Just now";
-  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  if (isNaN(date.getTime())) return "Recently";
-  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diffSec < 15) return "Just now";
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${Math.floor(diffHours / 24)}d ago`;
-}
-
-// Compute health indicator dot and badge styles
-function getHealthStatusBadge(status: string) {
-  const s = status.toLowerCase();
-  if (
-    s.includes("connect") ||
-    (s.includes("sync") && !s.includes("syncing") && !s.includes("fail"))
-  ) {
-    return {
-      dotColor: "bg-emerald-500",
-      pingColor: "bg-emerald-400",
-      badgeStyle: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-      isSyncing: false,
-    };
-  }
-  if (s.includes("syncing") || s.includes("pending") || s.includes("running")) {
-    return {
-      dotColor: "bg-amber-400",
-      pingColor: "bg-amber-300",
-      badgeStyle: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-      isSyncing: true,
-    };
-  }
-  if (s.includes("fail") || s.includes("error") || s.includes("inactive")) {
-    return {
-      dotColor: "bg-red-500",
-      pingColor: "bg-red-400",
-      badgeStyle: "bg-red-500/10 border-red-500/20 text-red-400",
-      isSyncing: false,
-    };
-  }
-  return {
-    dotColor: "bg-zinc-500",
-    pingColor: "bg-zinc-400",
-    badgeStyle: "bg-zinc-900 border-zinc-800 text-zinc-400",
-    isSyncing: false,
-  };
-}
-
-// Format column header from camelCase, snake_case or kebab-case to readable Title Case
-function formatColumnHeader(col: string): string {
-  if (!col) return "";
-  const lower = col.toLowerCase();
-  if (lower === "id") return "ID";
-  if (lower === "canonicalname") return "Canonical Name";
-  if (lower === "entitytype") return "Entity Type";
-  if (lower === "confidencescore") return "Confidence Score";
-  if (lower === "sourcecount") return "Source Count";
-  if (lower === "createdat" || lower === "created_at") return "Created At";
-  if (lower === "updatedat" || lower === "updated_at") return "Updated At";
-  if (lower === "records_count" || lower === "recordscount")
-    return "Records Count";
-
-  return col
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[-_]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
-}
-
-// Render clean cell value with Palantir Foundry style badges and formatting
-function renderCleanCellValue(col: string, val: unknown) {
-  if (
-    val === undefined ||
-    val === null ||
-    String(val).trim() === "" ||
-    String(val).trim().toLowerCase() === "null" ||
-    String(val).trim().toLowerCase() === "undefined"
-  ) {
-    return <span className="text-zinc-600 select-none font-sans">—</span>;
-  }
-
-  const colLower = col.toLowerCase();
-
-  // 1. Confidence score badge
-  if (colLower.includes("confidence")) {
-    let numVal: number | null = null;
-    if (typeof val === "number") {
-      numVal = val <= 1 ? Math.round(val * 100) : Math.round(val);
-    } else if (typeof val === "string") {
-      const parsed = parseFloat(val.replace("%", ""));
-      if (!isNaN(parsed)) {
-        numVal = parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed);
-      }
-    }
-
-    if (numVal !== null) {
-      const isHigh = numVal >= 90;
-      const isMed = numVal >= 75;
-      return (
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-            isHigh
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
-              : isMed
-                ? "bg-amber-500/10 text-amber-400 border-amber-500/25"
-                : "bg-red-500/10 text-red-400 border-red-500/25"
-          }`}
-        >
-          {numVal}%
-        </span>
-      );
-    }
-  }
-
-  // 2. Entity Type badge
-  if (
-    colLower === "entitytype" ||
-    colLower === "entity_type" ||
-    colLower === "type"
-  ) {
-    const typeStr = String(val);
-    const t = typeStr.toLowerCase();
-    let badgeColor = "bg-zinc-800/80 text-zinc-300 border-zinc-700/60";
-    if (t.includes("person") || t.includes("user") || t.includes("contact")) {
-      badgeColor = "bg-violet-500/15 text-violet-300 border-violet-500/30";
-    } else if (
-      t.includes("org") ||
-      t.includes("company") ||
-      t.includes("business")
-    ) {
-      badgeColor = "bg-sky-500/15 text-sky-300 border-sky-500/30";
-    } else if (
-      t.includes("dataset") ||
-      t.includes("table") ||
-      t.includes("file")
-    ) {
-      badgeColor = "bg-teal-500/15 text-teal-300 border-teal-500/30";
-    } else if (
-      t.includes("transaction") ||
-      t.includes("event") ||
-      t.includes("order")
-    ) {
-      badgeColor = "bg-amber-500/15 text-amber-300 border-amber-500/30";
-    }
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${badgeColor}`}
-      >
-        {typeStr}
-      </span>
-    );
-  }
-
-  // 3. Status badge
-  if (colLower.includes("status")) {
-    const s = String(val).toLowerCase();
-    let badgeClass = "bg-blue-500/10 text-blue-400 border-blue-500/25";
-    if (
-      s.includes("active") ||
-      s.includes("sync") ||
-      s.includes("verified") ||
-      s.includes("clean") ||
-      s.includes("valid")
-    ) {
-      badgeClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/25";
-    } else if (
-      s.includes("fail") ||
-      s.includes("error") ||
-      s.includes("corrupt")
-    ) {
-      badgeClass = "bg-red-500/10 text-red-400 border-red-500/25";
-    } else if (
-      s.includes("pend") ||
-      s.includes("queue") ||
-      s.includes("wait")
-    ) {
-      badgeClass = "bg-amber-500/10 text-amber-400 border-amber-500/25";
-    }
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${badgeClass}`}
-      >
-        {String(val)}
-      </span>
-    );
-  }
-
-  // 4. Primary canonical name
-  if (colLower === "canonicalname" || colLower === "name") {
-    return (
-      <span className="font-medium text-zinc-100 font-sans">{String(val)}</span>
-    );
-  }
-
-  // 5. IDs and hashes
-  if (colLower === "id" || colLower.includes("_id") || colLower === "uuid") {
-    return (
-      <span className="font-mono text-[11px] text-zinc-400">{String(val)}</span>
-    );
-  }
-
-  // 6. Default text
-  return <span className="text-zinc-300 font-sans">{String(val)}</span>;
-}
-
-// Render raw sample cell value
-function renderRawCellValue(col: string, val: unknown) {
-  if (
-    val === undefined ||
-    val === null ||
-    String(val).trim() === "" ||
-    String(val).trim().toLowerCase() === "null" ||
-    String(val).trim().toLowerCase() === "undefined"
-  ) {
-    return <span className="text-zinc-600 select-none font-sans">—</span>;
-  }
-  const colLower = col.toLowerCase();
-  if (colLower === "id" || colLower.includes("_id") || colLower === "uuid") {
-    return (
-      <span className="font-mono text-[11px] text-zinc-400">{String(val)}</span>
-    );
-  }
-  return <span className="text-zinc-300 font-sans">{String(val)}</span>;
-}
+import { useConnectionsData } from "./connections/useConnectionsData";
+import { FilesTable } from "./connections/FilesTable";
+import { ConnectorsTable } from "./connections/ConnectorsTable";
+import { CleanDataModal } from "./connections/CleanDataModal";
+import { RawPreviewModal } from "./connections/RawPreviewModal";
+import {
+  type IngestedFile,
+  type DatabaseConnector,
+  formatRelativeTime,
+} from "./connections/connectionsTypes";
 
 export const ConnectionsPage: React.FC = () => {
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
-  const [previewingFile, setPreviewingFile] = useState<IngestedFile | null>(
-    null,
-  );
-  const [isRawPreviewLoading, setIsRawPreviewLoading] = useState(false);
-  const [cleanPreviewFile, setCleanPreviewFile] = useState<IngestedFile | null>(
-    null,
-  );
-  const [cleanData, setCleanData] = useState<CleanDataResponse | null>(null);
-  const [isCleanDataLoading, setIsCleanDataLoading] = useState(false);
-  const [cleanSearchFilter, setCleanSearchFilter] = useState("");
-  const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>([]);
-  const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
-    [],
-  );
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    name: string;
-    type: "file" | "connection";
-  } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
-  const [error, setError] = useState<string | null>(null);
-
-  const [activeTab, setActiveTab] = useState<"connectors" | "files">(
-    "connectors",
-  );
-
-  // Fetch connectors from GET /api/v1/connections (MVP-16 auto-refresh)
-  const loadConnectors = useCallback(async (isInitial = false) => {
-    if (isInitial) {
-      setIsLoading(true);
-    } else {
-      setIsRefreshing(true);
-    }
-    setError(null);
-    try {
-      const res = await apiFetch("/api/v1/connections", {
-        headers: { "X-Suppress-Toast": "true" },
-      });
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const fileItems: IngestedFile[] = [];
-        const dbItems: DatabaseConnector[] = [];
-
-        data.forEach((item: Record<string, unknown>) => {
-          let parsedConfig: Record<string, unknown> = {};
-          if (typeof item.config === "string") {
-            try {
-              parsedConfig = JSON.parse(item.config);
-            } catch {
-              // ignore parse errors
-            }
-          } else if (item.config && typeof item.config === "object") {
-            parsedConfig = item.config as Record<string, unknown>;
-          }
-
-          if (String(item.type || "").toUpperCase() === "FILE") {
-            let sizeDisplay = "1.2 MB";
-            if (typeof parsedConfig.fileSize === "number") {
-              sizeDisplay = `${(Number(parsedConfig.fileSize) / (1024 * 1024)).toFixed(2)} MB`;
-            } else if (typeof parsedConfig.fileSize === "string") {
-              sizeDisplay = parsedConfig.fileSize;
-            }
-
-            const rowCount = Number(
-              parsedConfig.rowsCount ??
-                parsedConfig.recordsCount ??
-                parsedConfig.rows ??
-                0,
-            );
-
-            const columns = Array.isArray(parsedConfig.columns)
-              ? (parsedConfig.columns as string[])
-              : undefined;
-            const sampleRows = Array.isArray(parsedConfig.sampleRows)
-              ? (parsedConfig.sampleRows as Record<string, unknown>[])
-              : undefined;
-
-            fileItems.push({
-              id: String(item.id || Math.random().toString(36).substring(7)),
-              name: String(
-                item.name || parsedConfig.fileName || "File Ingestion",
-              ),
-              size: sizeDisplay,
-              recordsCount: rowCount,
-              status: item.status === "FAILED" ? "Failed" : "Synced",
-              createdAt:
-                typeof item.createdAt === "string"
-                  ? new Date(item.createdAt).toLocaleString()
-                  : new Date().toLocaleString(),
-              columns,
-              sampleRows,
-            });
-          } else {
-            let pipelinesCount = 0;
-            let configDesc = "";
-            if (Array.isArray(parsedConfig.selectedTables)) {
-              pipelinesCount = parsedConfig.selectedTables.length;
-            }
-            if (parsedConfig.database) {
-              configDesc = `Connected to ${parsedConfig.database} database.`;
-            }
-
-            const rawStatus = String(item.status || "ACTIVE");
-            const normalizedStatus =
-              rawStatus === "ACTIVE" || rawStatus === "CONNECTED"
-                ? "Connected"
-                : rawStatus === "SYNCING"
-                  ? "Syncing"
-                  : rawStatus === "FAILED"
-                    ? "Failed"
-                    : rawStatus;
-
-            dbItems.push({
-              id: typeof item.id === "string" ? item.id : undefined,
-              name: String(item.name || ""),
-              status: normalizedStatus,
-              pipelines: pipelinesCount || 1,
-              type: String(item.type || "Database"),
-              desc:
-                configDesc ||
-                (typeof item.credentialsRef === "string"
-                  ? item.credentialsRef
-                  : "Registered database pipeline connector."),
-              lastSyncedAt:
-                typeof item.updatedAt === "string" ? item.updatedAt : undefined,
-            });
-          }
-        });
-
-        // Merge with local cache so newly uploaded files are immediately visible
-        let localFiles: IngestedFile[] = [];
-        try {
-          const cached = localStorage.getItem("local_ingested_files");
-          if (cached) {
-            localFiles = JSON.parse(cached);
-          }
-        } catch {
-          // ignore
-        }
-
-        const mergedFiles = fileItems.map((f) => {
-          const localMatch = localFiles.find(
-            (lf) => lf.id === f.id || lf.name === f.name,
-          );
-          if (localMatch) {
-            return {
-              ...f,
-              columns:
-                f.columns && f.columns.length > 0
-                  ? f.columns
-                  : localMatch.columns,
-              sampleRows:
-                f.sampleRows && f.sampleRows.length > 0
-                  ? f.sampleRows
-                  : localMatch.sampleRows,
-            };
-          }
-          return f;
-        });
-
-        localFiles.forEach((lf) => {
-          if (!mergedFiles.some((f) => f.id === lf.id || f.name === lf.name)) {
-            mergedFiles.push(lf);
-          }
-        });
-
-        setCustomConnectors(dbItems);
-        setIngestedFiles(mergedFiles);
-      } else {
-        setCustomConnectors([]);
-        setIngestedFiles([]);
-      }
-      setLastRefreshedAt(new Date());
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Failed to load registered connections";
-      setError(msg);
-      setCustomConnectors([]);
-      try {
-        const cached = localStorage.getItem("local_ingested_files");
-        if (cached) {
-          setIngestedFiles(JSON.parse(cached));
-        } else {
-          setIngestedFiles([]);
-        }
-      } catch {
-        setIngestedFiles([]);
-      }
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  // MVP-16: Auto-refresh polling every 15 seconds (paused while inspecting modals to prevent UI jitter or modal closing)
-  useEffect(() => {
-    loadConnectors(true);
-    const interval = setInterval(() => {
-      if (
-        !cleanPreviewFile &&
-        !previewingFile &&
-        !isWizardOpen &&
-        !isDbModalOpen
-      ) {
-        loadConnectors(false);
-      }
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [
-    loadConnectors,
-    cleanPreviewFile,
-    previewingFile,
+  const {
     isWizardOpen,
+    setIsWizardOpen,
     isDbModalOpen,
-  ]);
-
-  // Handle ESC key to dismiss any active modal
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (deleteTarget) setDeleteTarget(null);
-        if (cleanPreviewFile) setCleanPreviewFile(null);
-        if (previewingFile) setPreviewingFile(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cleanPreviewFile, previewingFile, deleteTarget]);
-
-  const deleteConnector = async (id: string) => {
-    try {
-      await apiFetch(`/api/v1/connections/${id}`, {
-        method: "DELETE",
-      });
-      setCustomConnectors((prev) => prev.filter((c) => c.id !== id));
-      setIngestedFiles((prev) => prev.filter((f) => f.id !== id));
-      try {
-        const cached = JSON.parse(
-          localStorage.getItem("local_ingested_files") || "[]",
-        );
-        const filtered = cached.filter(
-          (item: { id?: string }) => item.id !== id,
-        );
-        localStorage.setItem("local_ingested_files", JSON.stringify(filtered));
-      } catch {
-        // ignore
-      }
-    } catch (err: unknown) {
-      console.error("Failed to delete connection", err);
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setIsDeleting(true);
-    try {
-      if (deleteTarget.type === "file") {
-        await deleteFile(deleteTarget.id);
-      } else {
-        await deleteConnector(deleteTarget.id);
-      }
-      if (cleanPreviewFile && cleanPreviewFile.id === deleteTarget.id) {
-        setCleanPreviewFile(null);
-      }
-      if (previewingFile && previewingFile.id === deleteTarget.id) {
-        setPreviewingFile(null);
-      }
-      if (
-        localStorage.getItem("lumin_selected_connection_id") === deleteTarget.id
-      ) {
-        localStorage.removeItem("lumin_selected_connection_id");
-      }
-      try {
-        const recent = JSON.parse(
-          localStorage.getItem("most_recent_ingested_file") || "{}",
-        );
-        if (recent?.id === deleteTarget.id) {
-          localStorage.removeItem("most_recent_ingested_file");
-        }
-      } catch {
-        // ignore
-      }
-      setDeleteTarget(null);
-    } catch (err: unknown) {
-      console.error("Failed to delete", err);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleWizardSuccess = () => {
-    loadConnectors(false);
-  };
-
-  const getPreviewData = (
-    file: IngestedFile,
-  ): { columns: string[]; rows: Record<string, unknown>[] } => {
-    // 1. Return actual parsed rows from file ingestion if available
-    if (file.sampleRows && file.sampleRows.length > 0) {
-      const cols =
-        file.columns && file.columns.length > 0
-          ? file.columns
-          : Object.keys(file.sampleRows[0]);
-      return { columns: cols, rows: file.sampleRows };
-    }
-    // 2. Check local_ingested_files in localStorage for this file by id or name
-    try {
-      const cached = JSON.parse(
-        localStorage.getItem("local_ingested_files") || "[]",
-      );
-      const match = cached.find(
-        (c: {
-          id?: string;
-          name?: string;
-          sampleRows?: Record<string, unknown>[];
-        }) => (c.id && c.id === file.id) || (c.name && c.name === file.name),
-      );
-      if (match && match.sampleRows && match.sampleRows.length > 0) {
-        const cols =
-          match.columns && match.columns.length > 0
-            ? match.columns
-            : Object.keys(match.sampleRows[0]);
-        return { columns: cols, rows: match.sampleRows };
-      }
-    } catch {
-      // ignore
-    }
-    // 3. If columns are configured but rows not yet cached locally
-    if (file.columns && file.columns.length > 0) {
-      return { columns: file.columns, rows: [] };
-    }
-    return { columns: [], rows: [] };
-  };
-
-  const exportLocalCsv = (fileName: string) => {
-    if (!cleanData || !cleanData.rows || cleanData.rows.length === 0) return;
-    const cols: string[] =
-      cleanData.columns && cleanData.columns.length > 0
-        ? cleanData.columns
-        : Object.keys(cleanData.rows[0]);
-    const csvLines = [cols.join(",")];
-    cleanData.rows.forEach((r: Record<string, unknown>) => {
-      csvLines.push(
-        cols
-          .map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`)
-          .join(","),
-      );
-    });
-    const blob = new Blob([csvLines.join("\r\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute(
-      "download",
-      `clean-${fileName.replace(/\.[^/.]+$/, "")}.csv`,
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleOpenFilePreview = async (file: IngestedFile) => {
-    setPreviewingFile(file);
-    if (file.sampleRows && file.sampleRows.length > 0) {
-      return;
-    }
-    try {
-      const cached = JSON.parse(
-        localStorage.getItem("local_ingested_files") || "[]",
-      );
-      const match = cached.find(
-        (c: {
-          id?: string;
-          name?: string;
-          sampleRows?: Record<string, unknown>[];
-          columns?: string[];
-        }) => (c.id && c.id === file.id) || (c.name && c.name === file.name),
-      );
-      if (match && match.sampleRows && match.sampleRows.length > 0) {
-        setPreviewingFile({
-          ...file,
-          sampleRows: match.sampleRows,
-          columns: match.columns || Object.keys(match.sampleRows[0]),
-        });
-        return;
-      }
-    } catch {
-      // ignore
-    }
-
-    setIsRawPreviewLoading(true);
-    try {
-      const res = await apiFetch(`/api/v1/connections/${file.id}/preview/file`);
-      if (res.ok) {
-        const rows = (await res.json()) as Record<string, unknown>[];
-        if (Array.isArray(rows) && rows.length > 0) {
-          const cols = Object.keys(rows[0]);
-          const updated: IngestedFile = {
-            ...file,
-            sampleRows: rows,
-            columns:
-              file.columns && file.columns.length > 0 ? file.columns : cols,
-          };
-          setPreviewingFile(updated);
-          setIngestedFiles((prev) =>
-            prev.map((f) => (f.id === file.id ? updated : f)),
-          );
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to fetch remote raw file sample:", err);
-    } finally {
-      setIsRawPreviewLoading(false);
-    }
-  };
-
-  const openCleanPreview = async (file: IngestedFile) => {
-    setCleanPreviewFile(file);
-    setIsCleanDataLoading(true);
-    setCleanSearchFilter("");
-    try {
-      const res = await apiFetch(
-        `/api/v1/connections/${file.id}/clean-preview`,
-      );
-      if (res.ok) {
-        const data = (await res.json()) as CleanDataResponse;
-        if (data.rows && data.rows.length > 0) {
-          setCleanData(data);
-          setIsCleanDataLoading(false);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn(
-        "Could not load backend clean preview, checking local sample cache",
-        e,
-      );
-    }
-
-    // If backend returns empty golden records, check if raw sample rows exist to display
-    const raw = getPreviewData(file);
-    if (raw.rows && raw.rows.length > 0) {
-      const cols =
-        raw.columns && raw.columns.length > 0
-          ? raw.columns
-          : Object.keys(raw.rows[0]);
-      setCleanData({
-        connectionId: file.id,
-        totalRawRecords: raw.rows.length,
-        totalCleanRecords: raw.rows.length,
-        duplicatesMerged: 0,
-        compressionRatio: "0.0%",
-        dataQualityScore: 100,
-        status: "RAW_PREVIEW_RECORDS",
-        columns: cols,
-        rows: raw.rows,
-      });
-    } else {
-      setCleanData({
-        connectionId: file.id,
-        totalRawRecords: file.recordsCount || 0,
-        totalCleanRecords: 0,
-        duplicatesMerged: 0,
-        compressionRatio: "0.0%",
-        dataQualityScore: 100,
-        status: "AWAITING_INGESTION_CLEAN",
-        columns:
-          file.columns && file.columns.length > 0
-            ? file.columns
-            : ["canonicalName", "entityType", "confidenceScore"],
-        rows: [],
-      });
-    }
-    setIsCleanDataLoading(false);
-  };
-
-  const downloadCleanCsv = async (connectionId: string, fileName: string) => {
-    // 1. Export directly from already-loaded cleanData rows if available
-    if (cleanData && cleanData.rows && cleanData.rows.length > 0) {
-      exportLocalCsv(fileName);
-      return;
-    }
-
-    try {
-      const res = await apiFetch(
-        `/api/v1/connections/${connectionId}/export/clean-csv`,
-      );
-      const contentType = res.headers.get("content-type") || "";
-      const text = await res.text();
-
-      // Guard against HTML error pages
-      const isHtmlResponse =
-        contentType.includes("text/html") ||
-        text.trim().startsWith("<!doctype") ||
-        text.trim().startsWith("<html") ||
-        text.includes("<script");
-
-      if (!res.ok || isHtmlResponse) {
-        if (cleanData && cleanData.rows && cleanData.rows.length > 0) {
-          exportLocalCsv(fileName);
-          return;
-        }
-        throw new Error("Invalid CSV response from server");
-      }
-
-      // If backend returned empty CSV template with only headers and we have local clean records:
-      const lines = text.trim().split("\n");
-      if (
-        lines.length <= 1 &&
-        cleanData &&
-        cleanData.rows &&
-        cleanData.rows.length > 0
-      ) {
-        exportLocalCsv(fileName);
-        return;
-      }
-
-      const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `clean-${fileName.replace(/\.[^/.]+$/, "")}.csv`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error("Failed to export clean CSV", err);
-      if (cleanData && cleanData.rows && cleanData.rows.length > 0) {
-        exportLocalCsv(fileName);
-      }
-    }
-  };
-
-  // Setup the callback inside the wizard to save file info
-  const handleOpenWizard = () => {
-    // Clear any previous state
-    localStorage.removeItem("most_recent_ingested_file");
-    setIsWizardOpen(true);
-  };
-
-  const deleteFile = async (id: string) => {
-    try {
-      if (
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          id,
-        )
-      ) {
-        await apiFetch(`/api/v1/connections/${id}`, {
-          method: "DELETE",
-        });
-      }
-    } catch (err: unknown) {
-      console.error("Failed to delete file connection on backend", err);
-    }
-    const updated = ingestedFiles.filter((f) => f.id !== id);
-    localStorage.setItem("local_ingested_files", JSON.stringify(updated));
-    setIngestedFiles(updated);
-  };
+    setIsDbModalOpen,
+    previewingFile,
+    setPreviewingFile,
+    isRawPreviewLoading,
+    cleanPreviewFile,
+    setCleanPreviewFile,
+    cleanData,
+    isCleanDataLoading,
+    cleanSearchFilter,
+    setCleanSearchFilter,
+    ingestedFiles,
+    customConnectors,
+    deleteTarget,
+    setDeleteTarget,
+    isDeleting,
+    isRefreshing,
+    lastRefreshedAt,
+    error,
+    activeTab,
+    setActiveTab,
+    loadConnectors,
+    handleOpenRawPreview,
+    handleInspectCleanData,
+    executeDelete,
+  } = useConnectionsData();
 
   return (
-    <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-6">
+    <div className="flex flex-col gap-6 h-full overflow-y-auto pr-1 pb-8">
       {/* Page Header */}
       <PageHeader
         breadcrumbs={[
-          { label: "Data Integration", to: "/connections" },
+          { label: "Data Pipelines", to: "/connections" },
           { label: "Data Connections" },
         ]}
         title="Data Connections & Ingestion"
-        description="Manage database connectors, file ingestions (CSV/JSON), and live data pipelines."
-        icon={<Database className="w-5 h-5 text-blue-400" />}
-        badge={{
-          label: `Connected · ${formatRelativeTime(lastRefreshedAt)}`,
-          variant: "emerald",
-          pulse: true,
-        }}
+        description="Unified management for flat files, transactional databases, and object storage sync pipelines."
+        icon={<Network className="w-5 h-5 text-zinc-300" />}
         actions={
-          <>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => loadConnectors(false)}
-              disabled={isRefreshing || isLoading}
-              className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 px-3 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              title="Manual refresh connections list"
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors cursor-pointer disabled:opacity-50"
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 ${
-                  isRefreshing || isLoading ? "animate-spin text-blue-400" : ""
-                }`}
+                className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`}
               />
-              <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+              <span>Refresh</span>
             </button>
-
             <button
-              onClick={handleOpenWizard}
-              className="bg-blue-600 hover:bg-blue-500 text-white border border-blue-500/35 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-md shadow-blue-500/10 transition-all flex items-center gap-1.5 cursor-pointer"
+              id="btn-upload-file"
+              onClick={() => setIsWizardOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-semibold text-zinc-100 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Ingest File</span>
+              Upload File
             </button>
-
             <button
+              id="btn-add-connection"
               onClick={() => setIsDbModalOpen(true)}
-              className="bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 px-3.5 py-2 rounded-lg text-xs font-semibold hover:text-zinc-100 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white shadow-sm transition-colors cursor-pointer"
             >
-              <Radio className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Connect DB</span>
+              <Plus className="w-3.5 h-3.5" />
+              Connect Database
             </button>
-          </>
+          </div>
         }
       />
 
-      {/* Tabs Menu */}
-      <div className="flex border-b border-zinc-800/80 select-none">
-        <button
-          onClick={() => setActiveTab("connectors")}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-            activeTab === "connectors"
-              ? "border-blue-500 text-zinc-100"
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Data Connectors
-        </button>
-        <button
-          onClick={() => setActiveTab("files")}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-            activeTab === "files"
-              ? "border-blue-500 text-zinc-100"
-              : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Uploaded Files
-        </button>
+      {/* Auto-refresh Telemetry Bar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400 select-none">
+        <div className="flex items-center gap-2">
+          <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+          <span>Real-time polling active (15s interval)</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
+          <Clock className="w-3 h-3" />
+          <span>Updated {formatRelativeTime(lastRefreshedAt)}</span>
+        </div>
       </div>
 
-      {/* Main Tab Content */}
-      <div className="flex-1 min-h-0">
-        {/* Tab 1: Connectors */}
-        {activeTab === "connectors" && (
-          <div className="flex flex-col gap-4">
-            {isLoading && (
-              <div className="flex items-center justify-center p-12 text-zinc-400 text-xs gap-2 select-none">
-                <svg
-                  className="animate-spin"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    className="opacity-25"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4"
-                    className="opacity-75"
-                  />
-                </svg>
-                <span>Loading registered connections...</span>
-              </div>
-            )}
+      {error && (
+        <div className="p-3 bg-red-950/30 border border-red-500/30 rounded-lg text-xs text-red-300">
+          {error}
+        </div>
+      )}
 
-            {error && (
-              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-between font-medium">
-                <span>{error}</span>
-                <button
-                  onClick={() => loadConnectors(true)}
-                  className="underline hover:text-red-300 cursor-pointer"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {!isLoading && customConnectors.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center select-none border border-zinc-800/80 rounded-lg bg-zinc-950/60">
-                <svg
-                  width="36"
-                  height="36"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-zinc-600 mb-3"
-                >
-                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
-                  <line x1="6" y1="6" x2="6.01" y2="6" />
-                  <line x1="6" y1="18" x2="6.01" y2="18" />
-                </svg>
-                <span className="text-sm font-semibold text-zinc-400">
-                  No data connectors registered yet
-                </span>
-                <span className="text-xs text-zinc-500 mt-1">
-                  Click Connect Database to register a new connector
-                </span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {customConnectors.map((conn) => {
-                  const isCustom = "id" in conn && !!conn.id;
-                  const badge = getHealthStatusBadge(conn.status);
-                  return (
-                    <div
-                      key={conn.id || conn.name}
-                      className="p-5 bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col justify-between gap-4 transition-all hover:border-zinc-700 relative group"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="pr-8">
-                          <span className="font-semibold text-zinc-100 text-[15px] block">
-                            {conn.name}
-                          </span>
-                          <span className="text-[11px] text-zinc-500 mt-1 block leading-normal">
-                            {conn.desc}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* MVP-16 Health Indicator Dot + Badge */}
-                          <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded border flex items-center gap-1.5 ${badge.badgeStyle}`}
-                          >
-                            <span className="relative flex h-2 w-2">
-                              {badge.isSyncing && (
-                                <span
-                                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${badge.pingColor}`}
-                                />
-                              )}
-                              <span
-                                className={`relative inline-flex rounded-full h-2 w-2 ${badge.dotColor}`}
-                              />
-                            </span>
-                            {conn.status}
-                          </span>
-
-                          {isCustom && conn.id && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteTarget({
-                                  id: conn.id!,
-                                  name: conn.name,
-                                  type: "connection",
-                                });
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-850 rounded transition-all cursor-pointer absolute top-4 right-4"
-                              title="Delete Custom Connection"
-                              aria-label={`Delete custom connection ${conn.name}`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* MVP-16: Connection footer with relative timestamp */}
-                      <div className="flex justify-between items-center text-xs text-zinc-500 border-t border-zinc-850 pt-3 select-none">
-                        <div className="flex items-center gap-3">
-                          <span>
-                            Type:{" "}
-                            <strong className="text-zinc-400 font-normal">
-                              {conn.type}
-                            </strong>
-                          </span>
-                          <span className="text-zinc-700">·</span>
-                          <span className="flex items-center gap-1 text-[11px] text-zinc-400">
-                            <Clock className="w-3 h-3 text-zinc-500" />
-                            Last synced{" "}
-                            {formatRelativeTime(
-                              conn.lastSyncedAt || lastRefreshedAt,
-                            )}
-                          </span>
-                        </div>
-                        <span className="font-semibold text-blue-500">
-                          {conn.pipelines} Pipelines
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Tab 2: Uploaded Files */}
-        {activeTab === "files" && (
-          <div className="flex flex-col gap-4">
-            {error && (
-              <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-between font-medium">
-                <span>{error}</span>
-                <button
-                  onClick={() => loadConnectors(true)}
-                  className="underline hover:text-red-300 cursor-pointer"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-            <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/60 shadow-lg">
-              <div className="overflow-x-auto min-w-0">
-                <div className="min-w-[860px]">
-                  <div className="grid grid-cols-12 bg-zinc-900/50 p-4 font-semibold border-b border-zinc-800/80 text-xs text-zinc-400 select-none">
-                    <div className="col-span-3">File Name</div>
-                    <div className="col-span-1">Size</div>
-                    <div className="col-span-2">Records Count</div>
-                    <div className="col-span-2">Date Ingested</div>
-                    <div className="col-span-1 text-center">Status</div>
-                    <div className="col-span-3 text-right pr-2">Actions</div>
-                  </div>
-
-                  {ingestedFiles.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-12 text-center select-none">
-                      <svg
-                        width="36"
-                        height="36"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-zinc-600 mb-3"
-                      >
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
-                      <span className="text-sm font-semibold text-zinc-400">
-                        No flat files uploaded yet
-                      </span>
-                      <span className="text-xs text-zinc-500 mt-1">
-                        Click Ingest File to upload CSV/JSON datasets
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-zinc-900">
-                      {ingestedFiles.map((file) => (
-                        <div
-                          key={file.id}
-                          className="grid grid-cols-12 p-4 text-xs items-center hover:bg-zinc-900/10"
-                        >
-                          <button
-                            onClick={() => handleOpenFilePreview(file)}
-                            className="col-span-3 font-semibold text-zinc-200 flex items-center gap-2 hover:text-emerald-400 text-left transition-colors cursor-pointer group truncate pr-2"
-                            title="Click to preview raw file sample"
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="text-zinc-400 group-hover:text-emerald-400 transition-colors shrink-0"
-                            >
-                              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                              <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                            </svg>
-                            <span className="underline decoration-zinc-700 underline-offset-2 group-hover:decoration-emerald-400 truncate">
-                              {file.name}
-                            </span>
-                          </button>
-                          <div className="col-span-1 text-zinc-400">
-                            {file.size}
-                          </div>
-                          <div className="col-span-2 text-zinc-400">
-                            {file.recordsCount.toLocaleString()} rows
-                          </div>
-                          <div className="col-span-2 text-zinc-500">
-                            {formatRelativeTime(file.createdAt)}
-                          </div>
-                          <div className="col-span-1 flex justify-center select-none">
-                            {(() => {
-                              const fileBadge = getHealthStatusBadge(
-                                file.status,
-                              );
-                              return (
-                                <span
-                                  className={`border px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1.5 ${fileBadge.badgeStyle}`}
-                                >
-                                  <span
-                                    className={`w-1.5 h-1.5 rounded-full ${fileBadge.dotColor}`}
-                                  />
-                                  {file.status}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          <div className="col-span-3 flex items-center justify-end gap-1.5 select-none pr-1">
-                            <button
-                              onClick={() => handleOpenFilePreview(file)}
-                              className="p-1 hover:bg-zinc-800 hover:text-zinc-200 text-zinc-400 rounded transition-colors cursor-pointer"
-                              title="Preview Raw File Sample"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => openCleanPreview(file)}
-                              className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer"
-                              title="View Cleaned & Reconciled Golden Records"
-                            >
-                              <span>Clean Data</span>
-                            </button>
-                            <button
-                              onClick={() =>
-                                downloadCleanCsv(file.id, file.name)
-                              }
-                              className="p-1 hover:bg-zinc-800 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
-                              title="Download Clean CSV"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </button>
-                            <Link
-                              to="/connections/schema-map"
-                              onClick={() =>
-                                localStorage.setItem(
-                                  "lumin_selected_connection_id",
-                                  file.id,
-                                )
-                              }
-                              className="p-1.5 hover:bg-zinc-900 hover:text-emerald-400 text-zinc-400 rounded transition-colors cursor-pointer"
-                              title="Map File Schema to Ontology"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                                <polyline points="2 17 12 22 22 17" />
-                                <polyline points="2 12 12 17 22 12" />
-                              </svg>
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteTarget({
-                                  id: file.id,
-                                  name: file.name,
-                                  type: "file",
-                                });
-                              }}
-                              className="p-1.5 hover:bg-zinc-900 hover:text-red-400 text-zinc-500 rounded transition-colors cursor-pointer"
-                              title="Delete record"
-                              aria-label={`Delete record ${file.name}`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Tabs */}
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setActiveTab("connectors")}
+            className={`text-xs font-semibold pb-1 border-b-2 transition-colors cursor-pointer ${
+              activeTab === "connectors"
+                ? "border-blue-500 text-zinc-100"
+                : "border-transparent text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Database Connectors ({customConnectors.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("files")}
+            className={`text-xs font-semibold pb-1 border-b-2 transition-colors cursor-pointer ${
+              activeTab === "files"
+                ? "border-blue-500 text-zinc-100"
+                : "border-transparent text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Flat Files & Datasets ({ingestedFiles.length})
+          </button>
+        </div>
+        <Link
+          to="/connections/schema-map"
+          className="text-xs text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-1 cursor-pointer"
+        >
+          <Layers className="w-3.5 h-3.5" /> Schema Studio & Graph Mapper
+        </Link>
       </div>
 
-      {/* Sync pipeline monitoring panels */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {activeTab === "connectors" ? (
+        <ConnectorsTable
+          customConnectors={customConnectors}
+          onAddConnector={() => setIsDbModalOpen(true)}
+          onDeleteConnector={(c: DatabaseConnector) =>
+            setDeleteTarget({ id: c.id!, name: c.name, type: "connection" })
+          }
+        />
+      ) : (
+        <FilesTable
+          ingestedFiles={ingestedFiles}
+          onUploadFile={() => setIsWizardOpen(true)}
+          onOpenRawPreview={handleOpenRawPreview}
+          onInspectCleanData={handleInspectCleanData}
+          onDeleteFile={(f: IngestedFile) =>
+            setDeleteTarget({ id: f.id, name: f.name, type: "file" })
+          }
+        />
+      )}
+
+      {/* Observability Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-2">
         <SyncJobDetails />
-        <ExecutionLogs title="Pipeline Execution Logs" />
+        <ExecutionLogs />
       </div>
 
-      {/* File Ingestion Modal */}
-      {isWizardOpen &&
-        createPortal(
-          <FileUploadWizard
-            onClose={() => setIsWizardOpen(false)}
-            onSuccess={handleWizardSuccess}
-          />,
-          document.body,
-        )}
+      {isWizardOpen && (
+        <FileUploadWizard
+          onClose={() => setIsWizardOpen(false)}
+          onSuccess={() => {
+            setIsWizardOpen(false);
+            loadConnectors(false);
+          }}
+        />
+      )}
 
-      {/* Database Connection Modal */}
-      {isDbModalOpen &&
-        createPortal(
-          <DatabaseConnectorForm
-            onClose={() => setIsDbModalOpen(false)}
-            onSuccess={() => {
-              setIsDbModalOpen(false);
-              loadConnectors();
-            }}
-          />,
-          document.body,
-        )}
+      {isDbModalOpen && (
+        <DatabaseConnectorForm
+          onClose={() => setIsDbModalOpen(false)}
+          onSuccess={() => {
+            setIsDbModalOpen(false);
+            loadConnectors(false);
+          }}
+        />
+      )}
 
-      {/* File Data Preview Modal */}
-      {previewingFile &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4 md:p-6 lg:p-8 animate-in fade-in duration-150"
-            onClick={() => setPreviewingFile(null)}
-          >
-            <div
-              className="bg-zinc-950 border border-zinc-800 rounded-lg w-full max-w-7xl h-[90vh] max-h-[900px] flex flex-col shadow-2xl shadow-black/90 overflow-hidden animate-in zoom-in-95 duration-200 relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3.5">
-                  <div className="p-2 bg-zinc-800 border border-zinc-700/60 text-zinc-300 rounded-lg shadow-inner">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
-                      {previewingFile.name}
-                      <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
-                        {previewingFile.size} ·{" "}
-                        {previewingFile.recordsCount.toLocaleString()} records
-                      </span>
-                    </h3>
-                    <p className="text-xs text-zinc-400 mt-1">
-                      Uploaded on {previewingFile.createdAt} · Status:{" "}
-                      <span className="text-zinc-300 font-medium">
-                        {previewingFile.status}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setPreviewingFile(null)}
-                  className="text-zinc-400 hover:text-zinc-100 p-2 hover:bg-zinc-850 rounded-lg transition-colors cursor-pointer"
-                  title="Close (Esc)"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+      {cleanPreviewFile && (
+        <CleanDataModal
+          cleanPreviewFile={cleanPreviewFile}
+          cleanData={cleanData}
+          isCleanDataLoading={isCleanDataLoading}
+          cleanSearchFilter={cleanSearchFilter}
+          setCleanSearchFilter={setCleanSearchFilter}
+          onClose={() => setCleanPreviewFile(null)}
+        />
+      )}
 
-              {/* Modal Content / Data Table */}
-              <div className="p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
-                {isRawPreviewLoading ? (
-                  <div className="py-20 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-lg border border-zinc-800 my-auto">
-                    <Loader2 className="w-8 h-8 text-zinc-400 animate-spin mb-3" />
-                    <h4 className="text-sm font-semibold text-zinc-200">
-                      Streaming Raw File Sample
-                    </h4>
-                    <p className="text-xs text-zinc-500 mt-1">
-                      Reading first 100 records from MinIO raw object store...
-                    </p>
-                  </div>
-                ) : (
-                  (() => {
-                    const { columns, rows } = getPreviewData(previewingFile);
-                    if (rows.length === 0) {
-                      return (
-                        <div className="py-16 flex flex-col items-center justify-center text-center p-6 bg-zinc-900/30 rounded-lg border border-zinc-800 my-auto">
-                          <div className="p-3.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 mb-3 shadow-inner">
-                            <Layers className="w-6 h-6 text-zinc-400" />
-                          </div>
-                          <h4 className="text-sm font-semibold text-zinc-200">
-                            No Raw Sample Rows Cached
-                          </h4>
-                          <p className="text-xs text-zinc-500 max-w-md mt-1 mb-4 leading-relaxed">
-                            This dataset connection was registered with schema
-                            metadata. You can inspect its schema structure or
-                            view reconciled golden records processed by the Data
-                            Engine.
-                          </p>
-                          {columns.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 justify-center max-w-lg mb-5">
-                              {columns.map((col) => (
-                                <span
-                                  key={col}
-                                  className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 font-mono text-[11px]"
-                                >
-                                  {col}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <button
-                            onClick={() => {
-                              const file = previewingFile;
-                              setPreviewingFile(null);
-                              openCleanPreview(file);
-                            }}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
-                          >
-                            <span>Inspect Clean Golden Records</span>
-                          </button>
-                        </div>
-                      );
-                    }
+      {previewingFile && (
+        <RawPreviewModal
+          previewingFile={previewingFile}
+          isRawPreviewLoading={isRawPreviewLoading}
+          onClose={() => setPreviewingFile(null)}
+        />
+      )}
 
-                    return (
-                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-lg overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
-                        <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
-                          <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
-                            <tr className="text-zinc-300">
-                              <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
-                                #
-                              </th>
-                              {columns.map((col) => (
-                                <th
-                                  key={col}
-                                  className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
-                                >
-                                  {formatColumnHeader(col)}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-900">
-                            {rows.map((row, idx) => (
-                              <tr
-                                key={idx}
-                                className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
-                              >
-                                <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 text-[11px] shadow-sm">
-                                  {idx + 1}
-                                </td>
-                                {columns.map((col) => {
-                                  const val = (row as Record<string, unknown>)[
-                                    col
-                                  ];
-                                  return (
-                                    <td
-                                      key={col}
-                                      className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
-                                      title={
-                                        val !== undefined && val !== null
-                                          ? String(val)
-                                          : ""
-                                      }
-                                    >
-                                      {renderRawCellValue(col, val)}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="px-6 py-3.5 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-between shrink-0">
-                <div className="text-xs text-zinc-500">
-                  Previewing sample records parsed from dataset.
-                </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    to="/connections/schema-map"
-                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-medium rounded-lg transition-colors flex items-center gap-2 cursor-pointer border border-zinc-700/50"
-                    onClick={() => {
-                      if (previewingFile) {
-                        localStorage.setItem(
-                          "lumin_selected_connection_id",
-                          previewingFile.id,
-                        );
-                      }
-                      setPreviewingFile(null);
-                    }}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                      <polyline points="2 17 12 22 22 17" />
-                      <polyline points="2 12 12 17 22 12" />
-                    </svg>
-                    Map Schema to Ontology
-                  </Link>
-                  <Link
-                    to="/explorer"
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-                    onClick={() => setPreviewingFile(null)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                    Search in Entity Explorer
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Clean Dataset Preview & Quality Scorecard Modal */}
-      {cleanPreviewFile &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4 md:p-6 lg:p-8 animate-in fade-in duration-200"
-            onClick={() => setCleanPreviewFile(null)}
-          >
-            <div
-              className="bg-zinc-950 border border-zinc-800 rounded-lg w-full max-w-[1580px] h-[92vh] max-h-[920px] flex flex-col shadow-2xl shadow-black/90 overflow-hidden animate-in zoom-in-95 duration-200 relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-zinc-800 border border-zinc-700/60 text-zinc-300 rounded-lg shadow-inner shrink-0">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h3 className="text-base font-semibold text-zinc-100">
-                        {cleanPreviewFile.name}
-                      </h3>
-                      <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold">
-                        <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
-                        Cleaned Golden Records
-                      </span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-400">
-                        {cleanPreviewFile.size}
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
-                      <span>
-                        Target Engine:{" "}
-                        <strong className="text-zinc-200">
-                          DuckDB OLAP + Neo4j Graph
-                        </strong>
-                      </span>
-                      <span className="text-zinc-600">•</span>
-                      <span>
-                        Status:{" "}
-                        <strong className="text-zinc-200">
-                          Canonical Records Resolved
-                        </strong>
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <button
-                    onClick={() =>
-                      downloadCleanCsv(
-                        cleanPreviewFile.id,
-                        cleanPreviewFile.name,
-                      )
-                    }
-                    className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
-                    title="Download RFC-4180 Clean CSV"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download Clean CSV</span>
-                  </button>
-                  <button
-                    onClick={() => setCleanPreviewFile(null)}
-                    className="text-zinc-400 hover:text-zinc-100 p-2 hover:bg-zinc-850 rounded-lg transition-colors cursor-pointer"
-                    title="Close (Esc)"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Metric KPI Cards Bar - Sleek & Compact */}
-              <div className="px-6 py-3 bg-zinc-900/40 border-b border-zinc-800 grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
-                      Raw Ingested Records
-                    </div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5">
-                      Original messy rows
-                    </div>
-                  </div>
-                  <div className="text-base font-bold text-zinc-100">
-                    {cleanData?.totalRawRecords?.toLocaleString() ??
-                      cleanPreviewFile.recordsCount.toLocaleString()}
-                  </div>
-                </div>
-
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
-                      Canonical Entities
-                    </div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5">
-                      Active Golden Records
-                    </div>
-                  </div>
-                  <div className="text-base font-bold text-zinc-100">
-                    {cleanData?.totalCleanRecords !== undefined
-                      ? cleanData.totalCleanRecords.toLocaleString()
-                      : "—"}
-                  </div>
-                </div>
-
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
-                      Deduplicated / Merged
-                    </div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5">
-                      Ratio {cleanData?.compressionRatio ?? "0.0%"}
-                    </div>
-                  </div>
-                  <div className="text-base font-bold text-zinc-100">
-                    {cleanData?.duplicatesMerged !== undefined
-                      ? cleanData.duplicatesMerged.toLocaleString()
-                      : "0"}
-                  </div>
-                </div>
-
-                <div className="px-3.5 py-2.5 bg-zinc-900/70 border border-zinc-800 rounded-lg flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
-                      Quality Pass Score
-                    </div>
-                    <div className="text-[10px] text-zinc-500 mt-0.5">
-                      Field completeness & validation
-                    </div>
-                  </div>
-                  <div className="text-base font-bold text-zinc-100 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-zinc-400" />
-                    {cleanData?.dataQualityScore !== undefined
-                      ? `${cleanData.dataQualityScore}%`
-                      : "—"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Filter Search Bar & Info */}
-              <div className="px-6 py-2.5 border-b border-zinc-800/80 bg-zinc-950/80 flex items-center justify-between gap-4 shrink-0">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Filter clean records by name, ID, or property..."
-                    value={cleanSearchFilter}
-                    onChange={(e) => setCleanSearchFilter(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
-                  />
-                </div>
-                <div className="text-xs text-zinc-400 hidden sm:block">
-                  Displaying canonical records reconciled for knowledge graph &
-                  analytics
-                </div>
-              </div>
-
-              {/* Modal Body / Clean Data Table */}
-              <div className="p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
-                {isCleanDataLoading ? (
-                  <div className="py-20 flex flex-col items-center justify-center gap-3 my-auto">
-                    <RefreshCw className="w-6 h-6 text-emerald-400 animate-spin" />
-                    <p className="text-xs text-zinc-400">
-                      Reconciling clean golden dataset...
-                    </p>
-                  </div>
-                ) : cleanData && cleanData.rows.length > 0 ? (
-                  (() => {
-                    const filteredRows = cleanData.rows.filter((row) => {
-                      if (!cleanSearchFilter.trim()) return true;
-                      const f = cleanSearchFilter.toLowerCase();
-                      return Object.values(row).some((val) =>
-                        String(val ?? "")
-                          .toLowerCase()
-                          .includes(f),
-                      );
-                    });
-
-                    const columns =
-                      cleanData.columns && cleanData.columns.length > 0
-                        ? cleanData.columns
-                        : Object.keys(cleanData.rows[0]);
-
-                    return (
-                      <div className="flex-1 min-h-0 border border-zinc-800 rounded-lg overflow-x-auto overflow-y-auto bg-zinc-950 shadow-inner scrollbar-thin">
-                        <table className="w-full min-w-[700px] text-left text-xs border-collapse font-sans">
-                          <thead className="sticky top-0 z-20 bg-zinc-900 border-b border-zinc-800 shadow-sm">
-                            <tr className="text-zinc-300">
-                              <th className="px-4 py-3 sticky left-0 z-30 bg-zinc-900 border-r border-zinc-800 w-12 text-center text-zinc-400 font-semibold text-[11px] uppercase tracking-wider shadow-sm">
-                                #
-                              </th>
-                              {columns.map((col) => (
-                                <th
-                                  key={col}
-                                  className="px-4 py-3 border-r border-zinc-800 font-semibold whitespace-nowrap min-w-[130px] uppercase text-[11px] tracking-wider text-zinc-200 bg-zinc-900 select-none"
-                                >
-                                  {formatColumnHeader(col)}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-900">
-                            {filteredRows.length === 0 ? (
-                              <tr>
-                                <td
-                                  colSpan={columns.length + 1}
-                                  className="p-8 text-center text-zinc-500"
-                                >
-                                  No records match filter "{cleanSearchFilter}".
-                                </td>
-                              </tr>
-                            ) : (
-                              filteredRows.map((row, idx) => (
-                                <tr
-                                  key={idx}
-                                  className="even:bg-zinc-900/30 hover:bg-zinc-850/50 transition-colors group"
-                                >
-                                  <td className="px-4 py-3 sticky left-0 z-10 bg-zinc-950 group-hover:bg-zinc-900 border-r border-zinc-800 text-center text-zinc-500 text-[11px] shadow-sm">
-                                    {idx + 1}
-                                  </td>
-                                  {columns.map((col) => {
-                                    const val = (
-                                      row as Record<string, unknown>
-                                    )[col];
-                                    return (
-                                      <td
-                                        key={col}
-                                        className="px-4 py-3 border-r border-zinc-900/80 whitespace-nowrap max-w-[340px] truncate"
-                                        title={
-                                          val !== undefined && val !== null
-                                            ? String(val)
-                                            : ""
-                                        }
-                                      >
-                                        {renderCleanCellValue(col, val)}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <div className="py-16 text-center text-zinc-500 my-auto">
-                    No clean records found for this dataset.
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer with Actions */}
-              <div className="px-6 py-3.5 border-t border-zinc-800 bg-zinc-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-                <div className="flex items-center gap-2 text-xs text-zinc-400">
-                  <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>
-                    Clean golden records are actively indexed in OpenSearch and
-                    Neo4j.
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    to="/graph"
-                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-750 text-zinc-200 text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer border border-zinc-700/50"
-                    onClick={() => setCleanPreviewFile(null)}
-                  >
-                    <Network className="w-3.5 h-3.5 text-blue-400" />
-                    <span>View in Graph</span>
-                  </Link>
-                  <Link
-                    to="/explorer"
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-                    onClick={() => setCleanPreviewFile(null)}
-                  >
-                    <span>Search in Explorer</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* Delete Confirmation Modal */}
       <ConfirmDialog
-        open={Boolean(deleteTarget)}
+        open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open && !isDeleting) setDeleteTarget(null);
+          if (!open) setDeleteTarget(null);
         }}
         title={
-          deleteTarget?.type === "file"
-            ? "Delete Ingested File"
-            : "Delete Connection"
+          deleteTarget?.type === "connection"
+            ? "Delete Database Connector"
+            : "Delete File Dataset"
         }
-        description={
-          deleteTarget
-            ? `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone and will permanently remove all associated staged data and pipeline mappings.`
-            : ""
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
+        description={`Are you sure you want to permanently delete "${deleteTarget?.name}"? Associated sync pipelines will be terminated.`}
+        confirmText={isDeleting ? "Deleting..." : "Delete"}
         isDestructive={true}
         isLoading={isDeleting}
-        onConfirm={confirmDelete}
+        onConfirm={executeDelete}
       />
     </div>
   );

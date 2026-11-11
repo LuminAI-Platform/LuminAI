@@ -1,4 +1,8 @@
 import React, { useState, useMemo } from "react";
+import {
+  getTypeBadgeStyles,
+  exportToCsv,
+} from "./data-preview/dataPreviewHelpers";
 
 export interface ColumnConfig {
   name: string;
@@ -21,7 +25,6 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Filter rows by search term
   const filteredRows = useMemo(() => {
     if (!searchTerm.trim()) return rows;
     const lowerSearch = searchTerm.toLowerCase();
@@ -34,70 +37,15 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
     );
   }, [rows, columns, searchTerm]);
 
-  // Paginated rows
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / itemsPerPage));
   const paginatedRows = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRows.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredRows, currentPage]);
 
-  // Adjust page number if out of range after filter
   React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
+    if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [totalPages, currentPage]);
-
-  const handleExportCsv = () => {
-    if (filteredRows.length === 0) return;
-    const activeCols = columns.filter((col) => col.active);
-    const headers = activeCols.map((col) => col.name);
-    const escapeCsv = (val: unknown): string => {
-      if (val == null) return "";
-      const str = typeof val === "object" ? JSON.stringify(val) : String(val);
-      if (
-        str.includes(",") ||
-        str.includes('"') ||
-        str.includes("\n") ||
-        str.includes("\r")
-      ) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-    const lines = [
-      headers.map(escapeCsv).join(","),
-      ...filteredRows.map((row) =>
-        headers.map((col) => escapeCsv(row[col])).join(","),
-      ),
-    ];
-    const blob = new Blob([lines.join("\r\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `preview_dataset_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const getTypeBadgeStyles = (type: ColumnConfig["type"]) => {
-    switch (type) {
-      case "Integer":
-        return "bg-amber-500/10 text-amber-400 border border-amber-500/20";
-      case "Double":
-        return "bg-rose-500/10 text-rose-400 border border-rose-500/20";
-      case "Boolean":
-        return "bg-purple-500/10 text-purple-400 border border-purple-500/20";
-      case "Timestamp":
-        return "bg-teal-500/10 text-teal-400 border border-teal-500/20";
-      default:
-        return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
-    }
-  };
 
   return (
     <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden shadow-xl shadow-black/30">
@@ -111,8 +59,6 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
             ({filteredRows.length} of {rows.length} rows)
           </span>
         </div>
-
-        {/* Actions: Search & Export CSV */}
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-72">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500 pointer-events-none">
@@ -138,11 +84,10 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
               className="w-full pl-9 pr-4 py-1.5 bg-zinc-900 border border-zinc-800/85 rounded-lg text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500/80 transition-colors"
             />
           </div>
-
           <button
             id="export-preview-csv-btn"
             type="button"
-            onClick={handleExportCsv}
+            onClick={() => exportToCsv(filteredRows, columns)}
             disabled={filteredRows.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs font-medium transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
             title="Export filtered preview to CSV"
@@ -156,7 +101,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-zinc-400 group-hover:text-zinc-200"
+              className="text-zinc-400"
             >
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
@@ -167,7 +112,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
         </div>
       </div>
 
-      {/* Main Table viewport */}
+      {/* Table viewport */}
       <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
         {filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center select-none">
@@ -203,11 +148,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
                 {columns.map((col) => (
                   <th
                     key={col.name}
-                    className={`py-2.5 px-4 font-semibold whitespace-nowrap min-w-[130px] border-r border-zinc-800/60 transition-all ${
-                      col.active
-                        ? "text-zinc-200"
-                        : "text-zinc-600 bg-zinc-950/40 opacity-50"
-                    }`}
+                    className={`py-2.5 px-4 font-semibold whitespace-nowrap min-w-[130px] border-r border-zinc-800/60 transition-all ${col.active ? "text-zinc-200" : "text-zinc-600 bg-zinc-950/40 opacity-50"}`}
                   >
                     <div className="flex items-center gap-2">
                       <span className={!col.active ? "line-through" : ""}>
@@ -281,15 +222,10 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
                             : typeof value === "object"
                               ? JSON.stringify(value)
                               : String(value);
-
                       return (
                         <td
                           key={col.name}
-                          className={`py-2 px-4 font-mono text-zinc-300 whitespace-nowrap max-w-[280px] truncate border-r border-zinc-900/60 ${
-                            col.active
-                              ? ""
-                              : "text-zinc-600 bg-zinc-950/20 opacity-40 line-through"
-                          }`}
+                          className={`py-2 px-4 font-mono text-zinc-300 whitespace-nowrap max-w-[280px] truncate border-r border-zinc-900/60 ${col.active ? "" : "text-zinc-600 bg-zinc-950/20 opacity-40 line-through"}`}
                           title={value !== null ? formattedValue : "null"}
                         >
                           {value === null ? (
@@ -310,7 +246,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
         )}
       </div>
 
-      {/* Pagination Footer */}
+      {/* Pagination footer */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800/80 bg-zinc-900/40 select-none">
         <div className="text-zinc-500 text-xs">
           Showing{" "}
@@ -330,7 +266,6 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
           </span>{" "}
           entries
         </div>
-
         <div className="flex items-center gap-1">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
