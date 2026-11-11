@@ -12,6 +12,8 @@ export interface AuthState {
   clearAuthSession: () => void;
   handleCallback: () => Promise<User | null>;
   checkUser: () => Promise<User | null>;
+  refreshToken: () => Promise<string | null>;
+  ensureFreshToken: () => Promise<string | null>;
   clearError: () => void;
 }
 

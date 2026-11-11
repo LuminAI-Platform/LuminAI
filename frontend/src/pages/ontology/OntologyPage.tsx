@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Boxes } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { EntityTypeEditor } from "../../features/ontology/components/EntityTypeEditor";
@@ -68,22 +68,15 @@ export const OntologyPage: React.FC = () => {
             variant: "purple",
           }}
           actions={
-            <div className="flex items-center gap-2">
-              <button
-                id="auto-generate-ontology-btn"
-                type="button"
-                onClick={() => setAutoGenModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-indigo-300 bg-indigo-950/60 hover:bg-indigo-900/60 border border-indigo-700/50 rounded-lg shadow-sm transition-all cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                Auto-Generate
-              </button>
-              <button
-                id="publish-ontology-btn"
-                type="button"
-                onClick={() => setPublishModalOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/30 rounded-lg shadow-sm shadow-emerald-950 transition-all cursor-pointer"
-              >
+            <button
+              id="publish-ontology-btn"
+              onClick={publishVersion}
+              disabled={publishing}
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/30 rounded-lg shadow-sm shadow-emerald-950 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {publishing ? (
+                <Spinner />
+              ) : (
                 <svg
                   width="12"
                   height="12"
@@ -95,9 +88,9 @@ export const OntologyPage: React.FC = () => {
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                 </svg>
-                Publish Version
-              </button>
-            </div>
+              )}
+              {publishing ? "Publishing…" : "Publish Version"}
+            </button>
           }
         />
       </div>
@@ -192,10 +185,11 @@ export const OntologyPage: React.FC = () => {
             id={`ontology-tab-${t}`}
             type="button"
             onClick={() => handleTabChange(t)}
-            className={`py-2.5 px-5 text-xs font-semibold border-b-2 transition-all cursor-pointer capitalize ${tab === t
+            className={`py-2.5 px-5 text-xs font-semibold border-b-2 transition-all cursor-pointer capitalize ${
+              tab === t
                 ? "border-blue-500 text-zinc-100"
                 : "border-transparent text-zinc-500 hover:text-zinc-300"
-              }`}
+            }`}
           >
             {t === "entities"
               ? "Entity Types"
@@ -258,38 +252,6 @@ export const OntologyPage: React.FC = () => {
       </div>
 
       {/* Modals */}
-      {autoGenModalOpen && (
-        <AutoGenerateModal
-          open={autoGenModalOpen}
-          onClose={() => setAutoGenModalOpen(false)}
-          onGenerated={() => {
-            loadEntities();
-            loadRelationships();
-          }}
-        />
-      )}
-
-      {publishModalOpen && (
-        <PublishVersionModal
-          open={publishModalOpen}
-          defaultVersion={suggestNextVersion()}
-          onClose={() => setPublishModalOpen(false)}
-          onPublished={(v) => {
-            setVersions((prev) => [v, ...prev]);
-            setTab("versions");
-          }}
-        />
-      )}
-
-      {diffModalOpen && diffVersionId && (
-        <VersionDiffModal
-          open={diffModalOpen}
-          versionId={diffVersionId}
-          versionTag={diffVersionTag}
-          onClose={() => setDiffModalOpen(false)}
-        />
-      )}
-
       {entityEditorOpen && (
         <EntityTypeEditor
           initial={editingEntity}
