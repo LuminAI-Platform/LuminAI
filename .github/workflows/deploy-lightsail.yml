@@ -17,6 +17,8 @@ jobs:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USER || 'ubuntu' }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          command_timeout: 30m
+          timeout: 60s
           script: |
             set -e
             echo "🚀 Starting automated deployment on Lightsail..."
