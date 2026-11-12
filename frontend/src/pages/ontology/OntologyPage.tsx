@@ -1,28 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Boxes, Sparkles } from "lucide-react";
-import { apiFetch } from "../../lib/api";
+﻿import React from "react";
+import { Boxes } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
-import {
-  EntityTypeEditor,
-  EntityIcon,
-} from "../../features/ontology/components/EntityTypeEditor";
-import type { EntityType } from "../../features/ontology/components/EntityTypeEditor";
-import type { PropertySchema } from "../../features/ontology/components/PropertySchemaForm";
+import { EntityTypeEditor } from "../../features/ontology/components/EntityTypeEditor";
 import { RelationshipTypeForm } from "../../features/ontology/components/RelationshipTypeForm";
-import type { RelationshipType } from "../../features/ontology/components/RelationshipTypeForm";
-import { AutoGenerateModal } from "../../features/ontology/components/AutoGenerateModal";
-import { PublishVersionModal } from "../../features/ontology/components/PublishVersionModal";
-import { VersionDiffModal } from "../../features/ontology/components/VersionDiffModal";
-
-type Tab = "entities" | "relationships" | "versions";
-
-interface OntologyVersion {
-  id: string;
-  version: string;
-  publishedAt: string;
-  publishedBy: string;
-  status: "DRAFT" | "PUBLISHED" | "DEPRECATED";
-}
+import { useOntologyData, type Tab } from "./useOntologyData";
+import { EntityTypesTab } from "./EntityTypesTab";
+import { RelationshipsTab } from "./RelationshipsTab";
+import { VersionsTab } from "./VersionsTab";
 
 const Spinner = () => (
   <svg
@@ -38,203 +22,31 @@ const Spinner = () => (
   </svg>
 );
 
-const EmptyState: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  sub: string;
-  action?: React.ReactNode;
-}> = ({ icon, title, sub, action }) => (
-  <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-zinc-800 rounded-lg bg-zinc-950/40">
-    <div className="text-zinc-600 mb-3">{icon}</div>
-    <span className="text-sm font-semibold text-zinc-400">{title}</span>
-    <span className="text-xs text-zinc-600 mt-1 mb-4">{sub}</span>
-    {action}
-  </div>
-);
-
-/**
- * Hydrates an EntityType so properties are always a populated array,
- * deriving from propertiesSchema JSON Schema when properties array is not provided.
- */
-function hydrateEntity(entity: EntityType): EntityType {
-  let props = entity.properties ?? [];
-  const rawSchema = (
-    entity as unknown as { propertiesSchema?: string | Record<string, unknown> }
-  ).propertiesSchema;
-  if ((!props || props.length === 0) && rawSchema) {
-    try {
-      const parsed =
-        typeof rawSchema === "string" ? JSON.parse(rawSchema) : rawSchema;
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        (parsed as Record<string, unknown>).properties
-      ) {
-        const schemaProps = (
-          parsed as {
-            properties: Record<
-              string,
-              { type?: string; default?: unknown; description?: string }
-            >;
-          }
-        ).properties;
-        const reqList = Array.isArray(
-          (parsed as { required?: string[] }).required,
-        )
-          ? (parsed as { required: string[] }).required
-          : [];
-        props = Object.entries(schemaProps).map(([name, def]) => ({
-          id: name,
-          name,
-          type: (def?.type
-            ? def.type.toUpperCase()
-            : "STRING") as PropertySchema["type"],
-          required: reqList.includes(name),
-          defaultValue: def?.default !== undefined ? String(def.default) : "",
-          description: def?.description || "",
-        }));
-      }
-    } catch {
-      // fallback
-    }
-  }
-  return { ...entity, properties: props };
-}
-
 export const OntologyPage: React.FC = () => {
-  const [tab, setTab] = useState<Tab>("entities");
-  const [entities, setEntities] = useState<EntityType[]>([]);
-  const [relationships, setRelationships] = useState<RelationshipType[]>([]);
-  const [versions, setVersions] = useState<OntologyVersion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [entityEditorOpen, setEntityEditorOpen] = useState(false);
-  const [editingEntity, setEditingEntity] = useState<EntityType | undefined>();
-  const [relFormOpen, setRelFormOpen] = useState(false);
-  const [editingRel, setEditingRel] = useState<RelationshipType | undefined>();
-
-  // Modals
-  const [autoGenModalOpen, setAutoGenModalOpen] = useState(false);
-  const [publishModalOpen, setPublishModalOpen] = useState(false);
-  const [diffModalOpen, setDiffModalOpen] = useState(false);
-  const [diffVersionId, setDiffVersionId] = useState("");
-  const [diffVersionTag, setDiffVersionTag] = useState("");
-
-  const loadEntities = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/v1/ontology/entity-types");
-      const data = (await res.json()) as unknown;
-      const rawList = Array.isArray(data) ? (data as EntityType[]) : [];
-      setEntities(rawList.map(hydrateEntity));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load entity types.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadRelationships = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/v1/ontology/relationship-types");
-      const data = (await res.json()) as unknown;
-      setRelationships(Array.isArray(data) ? (data as RelationshipType[]) : []);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load relationship types.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadVersions = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/v1/ontology/versions");
-      const data = (await res.json()) as unknown;
-      const rawList = Array.isArray(data)
-        ? (data as Array<Record<string, unknown>>)
-        : [];
-      const formatted: OntologyVersion[] = rawList.map((v) => ({
-        id: String(v.id || ""),
-        version: String(v.version || ""),
-        publishedAt: v.publishedAt
-          ? new Date(String(v.publishedAt)).toLocaleString()
-          : "—",
-        publishedBy: String(v.createdBy || "System Admin"),
-        status: (v.status as OntologyVersion["status"]) || "PUBLISHED",
-      }));
-      setVersions(formatted);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load ontology versions.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const handleTabChange = (newTab: Tab) => {
-    if (newTab === tab) return;
-    setTab(newTab);
-    setLoading(true);
-    setError(null);
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      if (tab === "entities") await loadEntities();
-      else if (tab === "relationships") await loadRelationships();
-      else if (tab === "versions") await loadVersions();
-    };
-    init();
-  }, [tab, loadEntities, loadRelationships, loadVersions]);
-
-  const deleteEntity = async (id: string) => {
-    if (!confirm("Delete this entity type? This cannot be undone.")) return;
-    try {
-      await apiFetch(`/api/v1/ontology/entity-types/${id}`, {
-        method: "DELETE",
-      });
-      setEntities((prev) => prev.filter((e) => e.id !== id));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to delete entity type.",
-      );
-    }
-  };
-
-  const deleteRelationship = async (id: string) => {
-    if (!confirm("Delete this relationship type?")) return;
-    try {
-      await apiFetch(`/api/v1/ontology/relationship-types/${id}`, {
-        method: "DELETE",
-      });
-      setRelationships((prev) => prev.filter((r) => r.id !== id));
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to delete relationship type.",
-      );
-    }
-  };
-
-  const suggestNextVersion = (): string => {
-    if (versions.length === 0) return "v1.0.0";
-    const latest = versions[0].version.replace(/^v/, "");
-    const parts = latest.split(".").map((p) => parseInt(p, 10));
-    if (parts.length === 3 && !parts.some(isNaN)) {
-      return `v${parts[0]}.${parts[1] + 1}.0`;
-    }
-    return `v${versions.length + 1}.0.0`;
-  };
+  const {
+    tab,
+    handleTabChange,
+    entities,
+    setEntities,
+    relationships,
+    setRelationships,
+    versions,
+    loading,
+    error,
+    setError,
+    entityEditorOpen,
+    setEntityEditorOpen,
+    editingEntity,
+    setEditingEntity,
+    relFormOpen,
+    setRelFormOpen,
+    editingRel,
+    setEditingRel,
+    publishing,
+    deleteEntity,
+    deleteRelationship,
+    publishVersion,
+  } = useOntologyData();
 
   const entityName = (id: string) =>
     entities.find((e) => e.id === id)?.name ?? id;
@@ -256,22 +68,15 @@ export const OntologyPage: React.FC = () => {
             variant: "purple",
           }}
           actions={
-            <div className="flex items-center gap-2">
-              <button
-                id="auto-generate-ontology-btn"
-                type="button"
-                onClick={() => setAutoGenModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-indigo-300 bg-indigo-950/60 hover:bg-indigo-900/60 border border-indigo-700/50 rounded-lg shadow-sm transition-all cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                Auto-Generate
-              </button>
-              <button
-                id="publish-ontology-btn"
-                type="button"
-                onClick={() => setPublishModalOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/30 rounded-lg shadow-sm shadow-emerald-950 transition-all cursor-pointer"
-              >
+            <button
+              id="publish-ontology-btn"
+              onClick={publishVersion}
+              disabled={publishing}
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/30 rounded-lg shadow-sm shadow-emerald-950 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {publishing ? (
+                <Spinner />
+              ) : (
                 <svg
                   width="12"
                   height="12"
@@ -283,9 +88,9 @@ export const OntologyPage: React.FC = () => {
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                 </svg>
-                Publish Version
-              </button>
-            </div>
+              )}
+              {publishing ? "Publishing…" : "Publish Version"}
+            </button>
           }
         />
       </div>
@@ -387,7 +192,7 @@ export const OntologyPage: React.FC = () => {
             }`}
           >
             {t === "entities"
-              ? `Entity Types`
+              ? "Entity Types"
               : t === "relationships"
                 ? "Relationship Types"
                 : "Published Versions"}
@@ -410,530 +215,43 @@ export const OntologyPage: React.FC = () => {
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto pr-1 pb-6">
-        {/* ── ENTITY TYPES ── */}
         {tab === "entities" && (
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-end items-center gap-2">
-              <button
-                id="auto-generate-entities-btn"
-                type="button"
-                onClick={() => setAutoGenModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-300 bg-indigo-950/60 hover:bg-indigo-900/60 border border-indigo-700/50 rounded-lg shadow-lg shadow-indigo-950/20 transition-all cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                Auto-Generate
-              </button>
-              <button
-                id="new-entity-btn"
-                type="button"
-                onClick={() => {
-                  setEditingEntity(undefined);
-                  setEntityEditorOpen(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/40 rounded-lg transition-all cursor-pointer"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                New Entity Type
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center gap-2 py-12 text-zinc-500 text-xs">
-                <Spinner />
-                <span>Loading entity types…</span>
-              </div>
-            ) : entities.length === 0 ? (
-              <EmptyState
-                icon={
-                  <svg
-                    width="36"
-                    height="36"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
-                  </svg>
-                }
-                title="No entity types defined yet"
-                sub="Create your first entity type manually or auto-generate from an ingested dataset"
-                action={
-                  <div className="flex items-center gap-3">
-                    <button
-                      id="empty-auto-generate-btn"
-                      onClick={() => setAutoGenModalOpen(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-indigo-300 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 rounded-lg transition-all cursor-pointer shadow-md shadow-indigo-950"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                      Auto-Generate Model
-                    </button>
-                    <button
-                      id="empty-create-entity-btn"
-                      onClick={() => {
-                        setEditingEntity(undefined);
-                        setEntityEditorOpen(true);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/40 rounded-lg transition-all cursor-pointer"
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                      Create Entity Type
-                    </button>
-                  </div>
-                }
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {entities.map((entity) => (
-                  <div
-                    key={entity.id ?? entity.name}
-                    className="group relative bg-zinc-900 border border-zinc-800 rounded-lg p-5 flex flex-col gap-3 hover:border-zinc-700 transition-all"
-                  >
-                    {/* Card header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center border-2 shrink-0"
-                          style={{
-                            backgroundColor: `${entity.color ?? "#3b82f6"}18`,
-                            borderColor: `${entity.color ?? "#3b82f6"}35`,
-                            color: entity.color ?? "#3b82f6",
-                          }}
-                        >
-                          <EntityIcon
-                            iconKey={entity.icon ?? "package"}
-                            size={18}
-                          />
-                        </div>
-                        <div>
-                          <span className="text-sm font-bold text-zinc-100 block leading-tight">
-                            {entity.label || entity.name}
-                          </span>
-                          <span className="text-[10px] font-mono text-zinc-500 block mt-0.5">
-                            {entity.name}
-                          </span>
-                        </div>
-                      </div>
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          id={`edit-entity-${entity.id}`}
-                          type="button"
-                          onClick={() => {
-                            setEditingEntity(entity);
-                            setEntityEditorOpen(true);
-                          }}
-                          className="p-1.5 text-zinc-500 hover:text-blue-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-                          title="Edit"
-                        >
-                          <svg
-                            width="13"
-                            height="13"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        {entity.id && (
-                          <button
-                            id={`delete-entity-${entity.id}`}
-                            type="button"
-                            onClick={() => deleteEntity(entity.id!)}
-                            className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-                            title="Delete"
-                          >
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <path d="M3 6h18" />
-                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    {entity.description && (
-                      <p className="text-[11px] text-zinc-500 leading-normal line-clamp-2">
-                        {entity.description}
-                      </p>
-                    )}
-
-                    {/* Properties chips */}
-                    {entity.properties && entity.properties.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {entity.properties.slice(0, 5).map((p) => (
-                          <span
-                            key={p.id}
-                            className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 border border-zinc-700/50"
-                          >
-                            {p.name}:{p.type.slice(0, 3)}
-                          </span>
-                        ))}
-                        {entity.properties.length > 5 && (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-500">
-                            +{entity.properties.length - 5} more
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 mt-auto">
-                      <span className="text-[10px] text-zinc-600">
-                        {entity.properties?.length ?? 0} propert
-                        {(entity.properties?.length ?? 0) === 1 ? "y" : "ies"}
-                      </span>
-                      {entity.version && (
-                        <span className="text-[9px] font-medium text-zinc-600 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
-                          v{entity.version}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <EntityTypesTab
+            entities={entities}
+            loading={loading}
+            onNewEntity={() => {
+              setEditingEntity(undefined);
+              setEntityEditorOpen(true);
+            }}
+            onEditEntity={(entity) => {
+              setEditingEntity(entity);
+              setEntityEditorOpen(true);
+            }}
+            onDeleteEntity={deleteEntity}
+          />
         )}
 
-        {/* ── RELATIONSHIP TYPES ── */}
         {tab === "relationships" && (
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-end">
-              <button
-                id="new-relationship-btn"
-                type="button"
-                onClick={() => {
-                  setEditingRel(undefined);
-                  setRelFormOpen(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 border border-purple-500/40 rounded-lg shadow-lg shadow-purple-500/10 transition-all cursor-pointer"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                New Relationship Type
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center gap-2 py-12 text-zinc-500 text-xs">
-                <Spinner />
-                <span>Loading…</span>
-              </div>
-            ) : relationships.length === 0 ? (
-              <EmptyState
-                icon={
-                  <svg
-                    width="36"
-                    height="36"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="13 6 19 12 13 18" />
-                  </svg>
-                }
-                title="No relationship types defined"
-                sub="Define how entity types connect in the knowledge graph"
-                action={
-                  <button
-                    onClick={() => {
-                      setEditingRel(undefined);
-                      setRelFormOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 border border-purple-500/40 rounded-lg transition-all cursor-pointer"
-                  >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    Create Relationship Type
-                  </button>
-                }
-              />
-            ) : (
-              <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/40">
-                <div className="overflow-x-auto min-w-0">
-                  <div className="min-w-[680px]">
-                    <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                      <div className="col-span-3">Name</div>
-                      <div className="col-span-4">Endpoints</div>
-                      <div className="col-span-2">Cardinality</div>
-                      <div className="col-span-2">Direction</div>
-                      <div className="col-span-1 text-right">Actions</div>
-                    </div>
-                    <div className="divide-y divide-zinc-900">
-                      {relationships.map((rel) => (
-                        <div
-                          key={rel.id ?? rel.name}
-                          className="group grid grid-cols-12 px-5 py-3.5 items-center hover:bg-zinc-900/30 transition-all text-xs"
-                        >
-                          <div className="col-span-3">
-                            <span className="font-bold font-mono text-purple-400">
-                              {rel.name}
-                            </span>
-                            <span className="block text-[10px] text-zinc-500 mt-0.5">
-                              {rel.label || rel.name.replace(/_/g, " ")}
-                            </span>
-                          </div>
-                          <div className="col-span-4 flex items-center gap-2">
-                            <span className="font-semibold text-zinc-300 text-[11px]">
-                              {entityName(rel.sourceEntityTypeId)}
-                            </span>
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              className="text-zinc-500 shrink-0"
-                            >
-                              <line x1="5" y1="12" x2="19" y2="12" />
-                              <polyline points="13 6 19 12 13 18" />
-                            </svg>
-                            <span className="font-semibold text-zinc-300 text-[11px]">
-                              {entityName(rel.targetEntityTypeId)}
-                            </span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="font-bold text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                              {rel.cardinality.replace(/_/g, ":")}
-                            </span>
-                          </div>
-                          <div className="col-span-2">
-                            <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${rel.directed !== false ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-zinc-800 text-zinc-500 border-zinc-700"}`}
-                            >
-                              {rel.directed !== false
-                                ? "Directed"
-                                : "Undirected"}
-                            </span>
-                          </div>
-                          <div className="col-span-1 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              id={`edit-rel-${rel.id}`}
-                              type="button"
-                              onClick={() => {
-                                setEditingRel(rel);
-                                setRelFormOpen(true);
-                              }}
-                              className="p-1.5 text-zinc-500 hover:text-purple-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-                            >
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                            </button>
-                            {rel.id && (
-                              <button
-                                id={`delete-rel-${rel.id}`}
-                                type="button"
-                                onClick={() => deleteRelationship(rel.id!)}
-                                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-                              >
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                >
-                                  <path d="M3 6h18" />
-                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <RelationshipsTab
+            relationships={relationships}
+            loading={loading}
+            entityName={entityName}
+            onNewRelationship={() => {
+              setEditingRel(undefined);
+              setRelFormOpen(true);
+            }}
+            onEditRelationship={(rel) => {
+              setEditingRel(rel);
+              setRelFormOpen(true);
+            }}
+            onDeleteRelationship={deleteRelationship}
+          />
         )}
 
-        {/* ── PUBLISHED VERSIONS ── */}
-        {tab === "versions" && (
-          <div className="flex flex-col gap-4">
-            {versions.length === 0 ? (
-              <EmptyState
-                icon={
-                  <svg
-                    width="36"
-                    height="36"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                }
-                title="No versions published yet"
-                sub='Click "Publish Version" to snapshot the current ontology schema'
-              />
-            ) : (
-              <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/40">
-                <div className="overflow-x-auto min-w-0">
-                  <div className="min-w-[680px]">
-                    <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                      <div className="col-span-3">Version</div>
-                      <div className="col-span-3">Published At</div>
-                      <div className="col-span-3">Published By</div>
-                      <div className="col-span-2">Status</div>
-                      <div className="col-span-1 text-right">Diff</div>
-                    </div>
-                    <div className="divide-y divide-zinc-900">
-                      {versions.map((v) => (
-                        <div
-                          key={v.id}
-                          className="grid grid-cols-12 px-5 py-3.5 items-center text-xs hover:bg-zinc-900/30 transition-all"
-                        >
-                          <div className="col-span-3 font-bold font-mono text-zinc-200">
-                            {v.version}
-                          </div>
-                          <div className="col-span-3 text-zinc-500">
-                            {v.publishedAt}
-                          </div>
-                          <div className="col-span-3 text-zinc-400">
-                            {v.publishedBy}
-                          </div>
-                          <div className="col-span-2">
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                                v.status === "PUBLISHED"
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                  : v.status === "DEPRECATED"
-                                    ? "bg-red-500/10 text-red-400 border-red-500/20"
-                                    : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                              }`}
-                            >
-                              {v.status}
-                            </span>
-                          </div>
-                          <div className="col-span-1 text-right">
-                            <button
-                              id={`view-diff-${v.id}`}
-                              type="button"
-                              onClick={() => {
-                                setDiffVersionId(v.id);
-                                setDiffVersionTag(v.version);
-                                setDiffModalOpen(true);
-                              }}
-                              className="px-2 py-1 text-[11px] font-semibold text-purple-400 hover:text-purple-300 hover:bg-purple-950/40 border border-purple-500/30 rounded-md transition-all cursor-pointer"
-                              title="Compare against previous release"
-                            >
-                              Diff
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {tab === "versions" && <VersionsTab versions={versions} />}
       </div>
 
       {/* Modals */}
-      {autoGenModalOpen && (
-        <AutoGenerateModal
-          open={autoGenModalOpen}
-          onClose={() => setAutoGenModalOpen(false)}
-          onGenerated={() => {
-            loadEntities();
-            loadRelationships();
-          }}
-        />
-      )}
-
-      {publishModalOpen && (
-        <PublishVersionModal
-          open={publishModalOpen}
-          defaultVersion={suggestNextVersion()}
-          onClose={() => setPublishModalOpen(false)}
-          onPublished={(v) => {
-            setVersions((prev) => [v, ...prev]);
-            setTab("versions");
-          }}
-        />
-      )}
-
-      {diffModalOpen && diffVersionId && (
-        <VersionDiffModal
-          open={diffModalOpen}
-          versionId={diffVersionId}
-          versionTag={diffVersionTag}
-          onClose={() => setDiffModalOpen(false)}
-        />
-      )}
-
       {entityEditorOpen && (
         <EntityTypeEditor
           initial={editingEntity}

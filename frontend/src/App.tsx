@@ -1,4 +1,3 @@
-import { lazy, Suspense } from "react";
 import {
   Outlet,
   RouterProvider,
@@ -12,115 +11,28 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
-
-const lazyComponent = <T extends Record<string, unknown>>(
-  importer: () => Promise<T>,
-  exportName: keyof T,
-) => {
-  const LazyComp = lazy(() =>
-    importer().then((module) => ({
-      default: module[exportName] as React.ComponentType<
-        Record<string, unknown>
-      >,
-    })),
-  );
-  return function LazyWrapper(props: Record<string, unknown>) {
-    return (
-      <Suspense fallback={null}>
-        <LazyComp {...props} />
-      </Suspense>
-    );
-  };
-};
-
-const DashboardPage = lazyComponent(
-  () => import("./pages/dashboard/DashboardPage"),
-  "DashboardPage",
-);
-const ExplorerPage = lazyComponent(
-  () => import("./pages/explorer/ExplorerPage"),
-  "ExplorerPage",
-);
-const EntityDetailPage = lazyComponent(
-  () => import("./pages/explorer/EntityDetailPage"),
-  "EntityDetailPage",
-);
-const ConnectionsPage = lazyComponent(
-  () => import("./pages/connections/ConnectionsPage"),
-  "ConnectionsPage",
-);
-const SchemaMapPage = lazyComponent(
-  () => import("./pages/connections/SchemaMapPage"),
-  "SchemaMapPage",
-);
-const PipelinePage = lazyComponent(
-  () => import("./pages/connections/PipelinePage"),
-  "PipelinePage",
-);
-const MergeReviewPage = lazyComponent(
-  () => import("./pages/connections/MergeReviewPage"),
-  "MergeReviewPage",
-);
-const OntologyPage = lazyComponent(
-  () => import("./pages/ontology/OntologyPage"),
-  "OntologyPage",
-);
-const GraphPage = lazyComponent(
-  () => import("./pages/graph/GraphPage"),
-  "GraphPage",
-);
-const SettingsPage = lazyComponent(
-  () => import("./pages/settings/SettingsPage"),
-  "SettingsPage",
-);
-const UserRegistrationPage = lazyComponent(
-  () => import("./features/admin/UserRegistrationPage"),
-  "UserRegistrationPage",
-);
-const TenantRegistrationPage = lazyComponent(
-  () => import("./features/admin/TenantRegistrationPage"),
-  "TenantRegistrationPage",
-);
+import {
+  DashboardPage,
+  ExplorerPage,
+  EntityDetailPage,
+  ConnectionsPage,
+  SchemaMapPage,
+  PipelinePage,
+  MergeReviewPage,
+  OntologyPage,
+  GraphPage,
+  SettingsPage,
+  UserRegistrationPage,
+  TenantRegistrationPage,
+} from "./lazyRoutes";
 
 // 1. Root Route
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
-  notFoundComponent: NotFoundPage,
+  notFoundComponent: () => <NotFoundPage />,
 });
 
-const shellRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  id: "_shell",
-  component: () => (
-    <ProtectedRoute>
-      <AppShell>
-        <Outlet />
-      </AppShell>
-    </ProtectedRoute>
-  ),
-});
-
-// 2. Route View Components
-
-// DashboardPage is imported from src/pages/dashboard/DashboardPage
-
-// ExplorerPage is now imported from src/pages/explorer/ExplorerPage
-
-// Connections Page is now imported from src/pages/connections/ConnectionsPage
-
-// Ontology page is imported from src/pages/ontology/OntologyPage
-
-// GraphPage is imported from src/pages/graph/GraphPage
-
-// SettingsPage is imported from src/pages/settings/SettingsPage
-
-// 3. Create Routes Tree
-const indexRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: "/",
-  component: DashboardPage,
-});
-
+// 2. Auth Routes
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
@@ -141,8 +53,25 @@ const authCallbackRoute = createRoute({
 
 const sandboxRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/sandbox",
+  path: "/sandbox-login",
   component: SandboxLoginPage,
+});
+
+// 3. Protected Shell Route
+const shellRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "shell",
+  component: () => (
+    <ProtectedRoute>
+      <AppShell />
+    </ProtectedRoute>
+  ),
+});
+
+const indexRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/",
+  component: DashboardPage,
 });
 
 const explorerRoute = createRoute({
@@ -153,7 +82,7 @@ const explorerRoute = createRoute({
 
 const entityDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: "/explorer/entity/$entityId",
+  path: "/explorer/$entityId",
   component: EntityDetailPage,
 });
 
@@ -171,7 +100,7 @@ const schemaMapRoute = createRoute({
 
 const pipelineRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: "/connections/pipelines",
+  path: "/connections/pipeline",
   component: PipelinePage,
 });
 
@@ -240,7 +169,6 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-// 4. Create Router
 const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
@@ -249,7 +177,6 @@ declare module "@tanstack/react-router" {
   }
 }
 
-// 5. App Component wrapper
 function App() {
   return <RouterProvider router={router} />;
 }

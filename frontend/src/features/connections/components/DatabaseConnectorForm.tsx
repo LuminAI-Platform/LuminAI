@@ -2,26 +2,24 @@ import React, { useState, useEffect } from "react";
 import { TableSelector } from "./TableSelector";
 import type { SchemaDiscovery } from "./TableSelector";
 import { apiFetch } from "../../../lib/api";
+import type {
+  DBType,
+  ConnectionCheckStep,
+} from "./db-connector/dbConnectorTypes";
+import { INITIAL_CHECK_STEPS } from "./db-connector/dbConnectorTypes";
+import { VerificationChecklist } from "./db-connector/VerificationChecklist";
+import { ConnectorCredentials } from "./db-connector/ConnectorCredentials";
+import { ConnectedSummary } from "./db-connector/ConnectedSummary";
 
 interface DatabaseConnectorFormProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-type DBType = "postgresql" | "mysql" | "snowflake" | "sqlserver";
-
-interface ConnectionCheckStep {
-  id: number;
-  label: string;
-  status: "idle" | "loading" | "success" | "error";
-  errorMsg?: string;
-}
-
 export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   onClose,
   onSuccess,
 }) => {
-  // Form fields state
   const [name, setName] = useState("");
   const [dbType, setDbType] = useState<DBType>("postgresql");
   const [host, setHost] = useState("");
@@ -30,7 +28,6 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // UI Flow State
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -38,28 +35,17 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Connection Checklist State
-  const [checkSteps, setCheckSteps] = useState<ConnectionCheckStep[]>([
-    { id: 1, label: "Resolving host domain...", status: "idle" },
-    { id: 2, label: "Establishing port TCP handshake...", status: "idle" },
-    { id: 3, label: "Authenticating credentials...", status: "idle" },
-    { id: 4, label: "Discovering database schemas...", status: "idle" },
-  ]);
+  const [checkSteps, setCheckSteps] =
+    useState<ConnectionCheckStep[]>(INITIAL_CHECK_STEPS);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
-
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  // Update default port based on database type selection
   const handleDbTypeChange = (type: DBType) => {
     setDbType(type);
     switch (type) {
@@ -78,190 +64,147 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
     }
   };
 
-  // Run the connection check checklist
-  const handleConnect = async (e: React.FormEvent) => {
+  const updateStep = (
+    id: number,
+    status: ConnectionCheckStep["status"],
+    errorMsg?: string,
+  ) => {
+    setCheckSteps((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status, errorMsg } : s)),
+    );
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
-
-    // Initial Validation
-    if (!name.trim()) return setValidationError("Connection Name is required.");
-    if (!host.trim())
-      return setValidationError("Database Host address is required.");
-    if (!databaseName.trim())
-      return setValidationError("Database Name is required.");
-    if (!username.trim()) return setValidationError("Username is required.");
-    if (!password.trim()) return setValidationError("Password is required.");
-
     setIsVerifying(true);
-    setValidationError(null);
-
-    // 1. Client-side input validation
-    if (!host.trim() || host.trim().length < 3) {
-      setValidationError("Please specify a valid database host domain or IP.");
-      setIsVerifying(false);
-      return;
-    }
-    if (port <= 0 || port > 65535) {
-      setValidationError("Please specify a valid TCP port number (1-65535).");
-      setIsVerifying(false);
-      return;
-    }
-    if (!databaseName.trim()) {
-      setValidationError("Please specify a target database name.");
-      setIsVerifying(false);
-      return;
-    }
-    if (!username.trim()) {
-      setValidationError("Please specify a database authentication username.");
-      setIsVerifying(false);
-      return;
-    }
-
-    // Reset Checklist
-    setCheckSteps([
-      { id: 1, label: "Resolving host domain...", status: "loading" },
-      { id: 2, label: "Establishing port TCP handshake...", status: "loading" },
-      { id: 3, label: "Authenticating credentials...", status: "loading" },
-      { id: 4, label: "Discovering database schemas...", status: "loading" },
-    ]);
+    setCheckSteps(INITIAL_CHECK_STEPS);
 
     try {
-      // Step: Attempt connection discover API payload against backend
-      const response = await apiFetch("/api/v1/connections/discover", {
+      updateStep(1, "loading");
+      const res = await apiFetch("/api/v1/connectors/test", {
         method: "POST",
         body: JSON.stringify({
           name,
-          type: dbType,
+          dbType,
           host,
           port,
-          database: databaseName,
+          databaseName,
           username,
           password,
         }),
       });
 
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
         throw new Error(
-          errJson.message ||
-            `Database connection rejected (HTTP ${response.status}). Check host, port, and credentials.`,
+          err.message || "Failed to establish database connection.",
         );
       }
 
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setDiscoveredData(data as SchemaDiscovery[]);
-      } else {
-        setDiscoveredData([]);
+      const testResult = await res.json();
+      updateStep(1, "success");
+      updateStep(2, "success");
+      updateStep(3, "success");
+      updateStep(4, "loading");
+
+      const discRes = await apiFetch("/api/v1/connectors/discover", {
+        method: "POST",
+        body: JSON.stringify({
+          dbType,
+          host,
+          port,
+          databaseName,
+          username,
+          password,
+        }),
+      });
+
+      if (!discRes.ok) {
+        throw new Error("Connected, but failed to discover database schemas.");
       }
 
-      setCheckSteps([
-        { id: 1, label: "Host domain resolved", status: "success" },
-        { id: 2, label: "Port TCP handshake established", status: "success" },
-        { id: 3, label: "Credentials verified", status: "success" },
-        { id: 4, label: "Database schemas discovered", status: "success" },
-      ]);
-      setIsVerifying(false);
-      setIsConnected(true);
-    } catch (err) {
-      const errorMsg =
-        err instanceof Error
-          ? err.message
-          : "Database connection failed or rejected credentials.";
-      setCheckSteps([
-        { id: 1, label: "Host domain resolved", status: "success" },
-        { id: 2, label: "Port TCP handshake established", status: "success" },
-        { id: 3, label: "Authentication check", status: "error", errorMsg },
-        { id: 4, label: "Discovering database schemas...", status: "idle" },
-      ]);
-      setValidationError(errorMsg);
-      setIsConnected(false);
+      const discData: SchemaDiscovery[] = await discRes.json();
+      updateStep(4, "success");
+
+      setTimeout(() => {
+        setIsVerifying(false);
+        setIsConnected(true);
+        setDiscoveredData(
+          discData.length > 0 ? discData : testResult.discoveredSchemas || [],
+        );
+      }, 500);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Unexpected connection failure";
+      setValidationError(msg);
+      updateStep(1, "error", msg);
       setIsVerifying(false);
     }
   };
 
-  // Save the connection metadata
   const handleRegister = async () => {
-    if (selectedTables.length === 0) {
-      setValidationError(
-        "Please select at least one database table to synchronize.",
-      );
-      return;
-    }
-
+    if (selectedTables.length === 0) return;
     setIsSaving(true);
-    setValidationError(null);
-
-    const payload = {
-      name,
-      type: dbType === "sqlserver" ? "MSSQL" : dbType.toUpperCase(),
-      config: JSON.stringify({
-        host,
-        port,
-        database: databaseName,
-        username,
-        selectedTables,
-      }),
-      credentialsRef: `vault-secret-${Date.now()}`,
-    };
-
     try {
-      const res = await apiFetch("/api/v1/connections", {
+      const res = await apiFetch("/api/v1/connectors", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          name,
+          type: dbType,
+          config: {
+            host,
+            port,
+            database: databaseName,
+            username,
+            tables: selectedTables,
+          },
+        }),
       });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(
-          errJson.message || `Connector creation rejected (HTTP ${res.status})`,
-        );
-      }
-
-      setIsSaving(false);
+      if (!res.ok) throw new Error("Failed to register database connector.");
       onSuccess();
-    } catch (err) {
+    } catch (err: unknown) {
+      setValidationError(
+        err instanceof Error ? err.message : "Registration failed",
+      );
+    } finally {
       setIsSaving(false);
-      const msg =
-        err instanceof Error ? err.message : "Failed to register connection";
-      setValidationError(msg);
     }
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-xs z-[99999] p-4">
-      <div
-        className="w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-lg flex flex-col max-h-[85vh] overflow-hidden shadow-2xl relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/50 select-none">
-          <div>
-            <h2 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs select-none">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-950/60">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300">
               <svg
-                width="16"
-                height="16"
+                width="15"
+                height="15"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2.5"
-                className="text-blue-500"
+                strokeWidth="2"
               >
-                <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-                <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
-                <line x1="6" y1="6" x2="6.01" y2="6" />
-                <line x1="6" y1="18" x2="6.01" y2="18" />
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M3 5v14c0 1.657 4.03 3 9 3s9-1.343 9-3V5" />
+                <path d="M3 12c0 1.657 4.03 3 9 3s9-1.343 9-3" />
               </svg>
-              Database Connection Registry
-            </h2>
-            <p className="text-[11px] text-zinc-500 mt-0.5">
-              Register database configurations & discover schema assets
-            </p>
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Configure Database Source
+              </h2>
+              <p className="text-[10px] text-zinc-500 mt-0.5">
+                Stream enterprise database tables directly into LuminAI Graph
+                Engine
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 rounded-lg transition-colors cursor-pointer"
-            title="Close"
+            className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
           >
             <svg
               width="14"
@@ -277,428 +220,80 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-6 min-h-0">
-          {/* Left Panel: Credentials Form OR Progress Status */}
-          <div className="md:col-span-6 flex flex-col gap-4">
+        {/* Content body */}
+        <div className="grid grid-cols-1 md:grid-cols-12 flex-1 min-h-0 overflow-y-auto p-6 gap-6">
+          <div className="md:col-span-6 flex flex-col justify-between">
             {!isConnected ? (
-              <form onSubmit={handleConnect} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                    Connection Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={isVerifying}
-                    placeholder="e.g. Sales Production Replica"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      Database Type
-                    </label>
-                    <select
-                      value={dbType}
-                      disabled={isVerifying}
-                      onChange={(e) =>
-                        handleDbTypeChange(e.target.value as DBType)
-                      }
-                      className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 disabled:opacity-50 cursor-pointer"
-                    >
-                      <option value="postgresql">PostgreSQL</option>
-                      <option value="mysql">MySQL</option>
-                      <option value="snowflake">Snowflake</option>
-                      <option value="sqlserver">SQL Server</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      Port
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      disabled={isVerifying}
-                      value={port}
-                      onChange={(e) => setPort(Number(e.target.value))}
-                      className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 disabled:opacity-50 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      Database Host
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      disabled={isVerifying}
-                      placeholder="db.replica.internal"
-                      value={host}
-                      onChange={(e) => setHost(e.target.value)}
-                      className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      Database Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      disabled={isVerifying}
-                      placeholder="sales_db"
-                      value={databaseName}
-                      onChange={(e) => setDatabaseName(e.target.value)}
-                      className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      Username
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      disabled={isVerifying}
-                      placeholder="lumin_sync"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      disabled={isVerifying}
-                      placeholder="••••••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-650 disabled:opacity-50"
-                    />
-                  </div>
-                </div>
-
-                {validationError && (
-                  <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex gap-2 font-medium">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      className="shrink-0 mt-0.5"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <span>{validationError}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isVerifying}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none mt-2"
-                >
-                  {isVerifying ? (
-                    <>
-                      <svg
-                        className="animate-spin"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          className="opacity-25"
-                        />
-                        <path
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4"
-                          className="opacity-75"
-                        />
-                      </svg>
-                      Establishing Pipeline Connection...
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                        <polyline points="10 17 15 12 10 7" />
-                        <line x1="15" y1="12" x2="3" y2="12" />
-                      </svg>
-                      Connect & Discover Schemas
-                    </>
-                  )}
-                </button>
-              </form>
+              <ConnectorCredentials
+                name={name}
+                setName={setName}
+                dbType={dbType}
+                setDbType={setDbType}
+                host={host}
+                setHost={setHost}
+                port={port}
+                setPort={setPort}
+                databaseName={databaseName}
+                setDatabaseName={setDatabaseName}
+                username={username}
+                setUsername={setUsername}
+                password={password}
+                setPassword={setPassword}
+                isVerifying={isVerifying}
+                validationError={validationError}
+                onVerify={handleVerify}
+                handleDbTypeChange={handleDbTypeChange}
+              />
             ) : (
-              // Connected / Success Credentials View
-              <div className="flex flex-col h-full bg-zinc-950/40 border border-zinc-850/60 p-5 rounded-lg justify-between gap-6 select-none">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-emerald-400 block">
-                        Database Connected
-                      </span>
-                      <span className="text-[10px] text-zinc-500 mt-0.5 block">
-                        Catalog tables retrieved successfully
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-zinc-900 pt-4 flex flex-col gap-2">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Connection Summary
-                    </span>
-                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 font-mono text-[10px] text-zinc-400 bg-black/20 p-3 rounded-lg border border-zinc-900">
-                      <div>
-                        Name: <span className="text-zinc-200">{name}</span>
-                      </div>
-                      <div>
-                        Type:{" "}
-                        <span className="text-zinc-200 uppercase">
-                          {dbType}
-                        </span>
-                      </div>
-                      <div>
-                        Host: <span className="text-zinc-200">{host}</span>
-                      </div>
-                      <div>
-                        Database:{" "}
-                        <span className="text-zinc-200">{databaseName}</span>
-                      </div>
-                      <div>
-                        Selected:{" "}
-                        <span className="text-blue-500 font-semibold">
-                          {selectedTables.length} tables
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setIsConnected(false);
-                      setSelectedTables([]);
-                    }}
-                    className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                  >
-                    Edit Credentials
-                  </button>
-
-                  <button
-                    onClick={handleRegister}
-                    disabled={isSaving || selectedTables.length === 0}
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    {isSaving ? (
-                      <>
-                        <svg
-                          className="animate-spin"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <circle
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            className="opacity-25"
-                          />
-                          <path
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4"
-                            className="opacity-75"
-                          />
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                          <polyline points="17 21 17 13 7 13 7 21" />
-                          <polyline points="7 3 7 8 15 8" />
-                        </svg>
-                        Register Connector
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+              <ConnectedSummary
+                name={name}
+                dbType={dbType}
+                host={host}
+                databaseName={databaseName}
+                selectedTables={selectedTables}
+                isSaving={isSaving}
+                onEdit={() => {
+                  setIsConnected(false);
+                  setSelectedTables([]);
+                }}
+                onRegister={handleRegister}
+              />
             )}
           </div>
 
-          {/* Right Panel: Live Checklist OR Table Checklist */}
           <div className="md:col-span-6 flex flex-col min-h-0">
             {isVerifying ? (
-              // Verification Checklist Dashboard
-              <div className="flex flex-col h-full bg-zinc-950/60 border border-zinc-850/60 p-6 rounded-lg justify-center gap-6 select-none">
-                <div className="flex flex-col gap-2 mb-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                    Connection Handshake Checklist
-                  </h3>
-                  <p className="text-[10px] text-zinc-500">
-                    Checking networking pipelines, authentication grants, and
-                    database catalogue tables
-                  </p>
-                </div>
-                <div className="flex flex-col gap-4">
-                  {checkSteps.map((step) => (
-                    <div
-                      key={step.id}
-                      className="flex items-center justify-between text-xs py-1"
-                    >
-                      <div className="flex items-center gap-3">
-                        {step.status === "idle" && (
-                          <div className="w-5 h-5 rounded-full border border-zinc-800 flex items-center justify-center text-zinc-600">
-                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
-                          </div>
-                        )}
-                        {step.status === "loading" && (
-                          <svg
-                            className="animate-spin text-blue-500"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="3"
-                          >
-                            <circle
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              className="opacity-20"
-                            />
-                            <path
-                              d="M4 12a8 8 0 018-8"
-                              className="opacity-80"
-                            />
-                          </svg>
-                        )}
-                        {step.status === "success" && (
-                          <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
-                            ✓
-                          </div>
-                        )}
-                        {step.status === "error" && (
-                          <div className="w-5 h-5 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 font-bold">
-                            ✕
-                          </div>
-                        )}
-                        <span
-                          className={`text-xs ${step.status === "loading" ? "text-zinc-200 font-semibold" : step.status === "success" ? "text-zinc-300" : "text-zinc-500"}`}
-                        >
-                          {step.label}
-                        </span>
-                      </div>
-
-                      {step.status === "error" && step.errorMsg && (
-                        <span className="text-[10px] bg-red-950/40 text-red-400 border border-red-500/25 px-2 py-0.5 rounded font-medium">
-                          {step.errorMsg}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <VerificationChecklist checkSteps={checkSteps} />
             ) : isConnected ? (
-              // Discovered schemas & tables selection checklist
-              <div className="flex-1 flex flex-col min-h-0 gap-3">
+              <div className="flex flex-col h-full bg-zinc-950/60 border border-zinc-850/60 rounded-lg p-4 min-h-[350px]">
                 <TableSelector
                   discovered={discoveredData}
                   selectedTables={selectedTables}
                   onChange={setSelectedTables}
                 />
-                {validationError && (
-                  <div className="p-2.5 bg-red-950/20 border border-red-500/20 text-red-400 rounded-lg text-[10px] flex gap-2 font-medium">
-                    <span>{validationError}</span>
-                  </div>
-                )}
               </div>
             ) : (
-              // Default Welcome Panel before validation
-              <div className="flex flex-col h-full bg-zinc-950/20 border border-zinc-850/60 p-6 rounded-lg items-center justify-center text-center select-none">
-                <svg
-                  width="40"
-                  height="40"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.25"
-                  className="text-zinc-700 mb-4"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <polyline points="9 11 12 14 22 4" className="opacity-30" />
-                </svg>
-                <span className="text-xs font-semibold text-zinc-400">
-                  Connection Handshake Pending
-                </span>
-                <p className="text-[10px] text-zinc-500 mt-1 max-w-[280px] leading-relaxed">
-                  Provide connection endpoints and database username grants on
-                  the left, then click Connect & Discover to run database
-                  checklists
+              <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-zinc-950/20 border border-dashed border-zinc-850 rounded-lg">
+                <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 mb-3">
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="9" y1="21" x2="9" y2="9" />
+                  </svg>
+                </div>
+                <h4 className="text-xs font-semibold text-zinc-300">
+                  Catalog Preview Pending
+                </h4>
+                <p className="text-[11px] text-zinc-500 mt-1 max-w-xs">
+                  Fill in your target database credentials and click connect to
+                  initiate live schema introspection.
                 </p>
               </div>
             )}

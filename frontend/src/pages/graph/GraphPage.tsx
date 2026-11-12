@@ -1,178 +1,47 @@
-import React, { useState, useCallback, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useCallback } from "react";
 import { AlertCircle, RefreshCw, Network } from "lucide-react";
-import type { Core } from "cytoscape";
-import { apiFetch } from "../../lib/api";
 import { Button } from "../../components/ui/Button";
 import { PageHeader } from "../../components/layout/PageHeader";
-import {
-  GraphCanvas,
-  type GraphElements,
-  type GraphNodeData,
-  type GraphLayoutType,
-} from "./components/GraphCanvas";
+import { GraphCanvas } from "./components/GraphCanvas";
 import { GraphControls } from "./components/GraphControls";
 import { NodeDetailPanel } from "./components/NodeDetailPanel";
 import { GraphSearchBar } from "./components/GraphSearchBar";
+import { useGraphData } from "./useGraphData";
 
-interface GraphResponse {
-  nodes: Array<{
-    data: {
-      id: string;
-      label: string;
-      entityType?: string;
-      properties?: Record<string, unknown>;
-      color?: string;
-    };
-  }>;
-  edges: Array<{
-    data: {
-      id: string;
-      source: string;
-      target: string;
-      label?: string;
-      relationshipType?: string;
-      weight?: number;
-    };
-  }>;
-  totalNodes?: number;
-  totalEdges?: number;
-}
-
-/**
- * Interactive Knowledge Graph Explorer Page powered by Cytoscape.js
- */
 export const GraphPage: React.FC = () => {
-  const getSearchParamEntityId = () => {
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search);
-      return sp.get("entityId");
-    }
-    return null;
-  };
-
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
-    getSearchParamEntityId,
-  );
-  const [depth, setDepth] = useState<number>(2);
-  const [layoutType, setLayoutType] = useState<GraphLayoutType>("cose");
-  const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
-  const [selectedRelFilter, setSelectedRelFilter] = useState<string | null>(
-    null,
-  );
-  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string | null>(
-    null,
-  );
-
-  const cyRef = useRef<Core | null>(null);
-
-  // Discover initial entity from tenant catalog if none selected yet
-  const { data: initialEntityId } = useQuery<string | null>({
-    queryKey: ["graph", "initialEntity"],
-    queryFn: async () => {
-      try {
-        const res = await apiFetch("/api/v1/explorer/search?size=1", {
-          headers: { "X-Suppress-Toast": "true" },
-        });
-        const data = await res.json();
-        const items = data?.items ?? data?.content ?? [];
-        if (items.length > 0 && items[0]?.id) {
-          return items[0].id as string;
-        }
-      } catch {
-        // Could not fetch initial entity
-      }
-      return null;
-    },
-    staleTime: 60000,
-  });
-
-  const activeEntityId = selectedEntityId || initialEntityId || null;
-
-  // 1. Fetch neighbourhood from real REST API
   const {
-    data: apiGraph,
+    setSelectedEntityId,
+    depth,
+    setDepth,
+    layoutType,
+    setLayoutType,
+    selectedNode,
+    setSelectedNode,
+    selectedRelFilter,
+    setSelectedRelFilter,
+    selectedTypeFilter,
+    setSelectedTypeFilter,
+    cyRef,
+    activeEntityId,
     isLoading,
     error,
     refetch,
-  } = useQuery<GraphResponse>({
-    queryKey: [
-      "graph",
-      "neighbourhood",
-      activeEntityId,
-      depth,
-      selectedRelFilter,
-    ],
-    queryFn: async () => {
-      if (!activeEntityId) return { nodes: [], edges: [] };
-      let url = `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(activeEntityId)}&depth=${depth}`;
-      if (selectedRelFilter) {
-        url += `&relationshipType=${encodeURIComponent(selectedRelFilter)}`;
-      }
-      const res = await apiFetch(url, {
-        headers: { "X-Suppress-Toast": "true" },
-      });
-      return res.json();
+    filteredElements,
+    availableEntityTypes,
+    availableRelTypes,
+    handleZoomIn,
+    handleZoomOut,
+    handleFit,
+    handleReset,
+  } = useGraphData();
+
+  const handleExpandNode = useCallback(
+    (nodeId: string) => {
+      setSelectedEntityId(nodeId);
+      setDepth((prev) => Math.min(4, prev + 1));
     },
-    enabled: !!activeEntityId,
-    retry: false,
-  });
-
-  // Use real API response or empty graph
-  const graphData: GraphElements =
-    apiGraph && apiGraph.nodes ? apiGraph : { nodes: [], edges: [] };
-
-  // Filter elements according to user selection
-  const filteredElements: GraphElements = {
-    nodes: selectedTypeFilter
-      ? graphData.nodes.filter((n) => n.data.entityType === selectedTypeFilter)
-      : graphData.nodes,
-    edges: selectedRelFilter
-      ? graphData.edges.filter(
-          (e) => e.data.relationshipType === selectedRelFilter,
-        )
-      : graphData.edges,
-  };
-
-  // Derive unique entity and relationship types for filters
-  const availableEntityTypes = Array.from(
-    new Set(
-      graphData.nodes
-        .map((n) => n.data.entityType)
-        .filter((t): t is string => Boolean(t)),
-    ),
+    [setSelectedEntityId, setDepth],
   );
-
-  const availableRelTypes = Array.from(
-    new Set(
-      graphData.edges
-        .map((e) => e.data.relationshipType)
-        .filter((r): r is string => Boolean(r)),
-    ),
-  );
-
-  // Cytoscape Viewport Helpers
-  const handleZoomIn = useCallback(() => {
-    cyRef.current?.zoom(cyRef.current.zoom() * 1.25);
-  }, []);
-
-  const handleZoomOut = useCallback(() => {
-    cyRef.current?.zoom(cyRef.current.zoom() * 0.8);
-  }, []);
-
-  const handleFit = useCallback(() => {
-    cyRef.current?.fit(undefined, 50);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    cyRef.current?.reset();
-    cyRef.current?.fit(undefined, 50);
-  }, []);
-
-  const handleExpandNode = useCallback((nodeId: string) => {
-    setSelectedEntityId(nodeId);
-    setDepth((prev) => Math.min(4, prev + 1));
-  }, []);
 
   return (
     <div className="flex flex-col h-full gap-4 pb-4">
@@ -236,8 +105,8 @@ export const GraphPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
             <span>
-              Failed to load graph neighbourhood for entity "{activeEntityId}".
-              Please verify backend graph services.
+              Failed to load graph neighbourhood for entity &quot;
+              {activeEntityId}&quot;. Please verify backend graph services.
             </span>
           </div>
           <Button size="xs" variant="ghost" onClick={() => refetch()}>

@@ -2,115 +2,34 @@ import { create } from "zustand";
 import type { User } from "oidc-client-ts";
 import { userManager } from "../lib/auth";
 import { queryClient } from "../lib/queryClient";
+import {
+  type AuthState,
+  OIDC_SESSION_KEY,
+  persistTokens,
+  clearPersistedTokens,
+} from "./authTypes";
 
-interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-  login: () => Promise<void>;
-  loginMock: (email: string, name: string, roles?: string[]) => Promise<void>;
-  logout: () => Promise<void>;
-  clearAuthSession: () => void;
-  handleCallback: () => Promise<User | null>;
-  checkUser: () => Promise<User | null>;
-  refreshToken: () => Promise<string | null>;
-  ensureFreshToken: () => Promise<string | null>;
-  clearError: () => void;
-}
+export {
+  persistTokens,
+  clearPersistedTokens,
+  hasRealmRole,
+  isPlatformAdmin,
+} from "./authTypes";
 
-const AUTH_URL =
-  (import.meta.env.VITE_AUTH_URL as string | undefined) ??
-  "http://localhost:8180/realms/luminai";
-const CLIENT_ID =
-  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ?? "luminai-spa";
-
-const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
-
-export function persistTokens(user: User | null): void {
-  if (typeof localStorage === "undefined" || !user) {
-    return;
-  }
-  if (user.access_token) {
-    localStorage.setItem("lumin_access_token", user.access_token);
-    localStorage.setItem("token", user.access_token);
-  }
-  if (user.profile) {
-    localStorage.setItem("lumin_user", JSON.stringify(user.profile));
-  }
-}
-
-export function clearPersistedTokens(): void {
-  if (typeof localStorage === "undefined") {
-    return;
-  }
-  localStorage.removeItem("lumin_access_token");
-  localStorage.removeItem("lumin_user");
-  localStorage.removeItem("token");
-  localStorage.removeItem("local_ingested_files");
-  localStorage.removeItem("most_recent_ingested_file");
-  localStorage.removeItem("lumin_schema_mapping");
-}
-
-export function hasRealmRole(user: User | null, role: string): boolean {
-  if (!user) {
-    return false;
-  }
-
-  let realmAccess = user.profile?.realm_access;
-
-  // Keycloak by default places realm_access in the access_token, not id_token.
-  // oidc-client-ts user.profile represents the id_token.
-  // If realm_access is missing from profile, decode the access_token.
-  if (!realmAccess && user.access_token) {
-    try {
-      const payloadBase64Url = user.access_token.split(".")[1];
-      if (payloadBase64Url) {
-        const payloadBase64 = payloadBase64Url
-          .replace(/-/g, "+")
-          .replace(/_/g, "/");
-        const jsonPayload = decodeURIComponent(
-          window
-            .atob(payloadBase64)
-            .split("")
-            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-            .join(""),
-        );
-        const decoded = JSON.parse(jsonPayload);
-        realmAccess = decoded.realm_access;
-      }
-    } catch (e) {
-      console.error("Failed to decode access token", e);
-    }
-  }
-
-  if (!realmAccess || typeof realmAccess !== "object") {
-    return false;
-  }
-
-  const roles = (realmAccess as { roles?: unknown }).roles;
-  return Array.isArray(roles) && roles.includes(role);
-}
-
-export function isPlatformAdmin(user: User | null): boolean {
-  return hasRealmRole(user, "PLATFORM_ADMIN");
-}
-
-// Module-level flag: prevents concurrent checkUser() calls (e.g. React StrictMode
+// Module-level flag: prevents concurrent checkUser() calls (React StrictMode
 // double-invokes effects, which would otherwise race two getUser() promises).
 let checkUserInFlight = false;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: false, // false on init; set to true only when checkUser() actually runs
+  isLoading: false,
   error: null,
 
   login: async () => {
     try {
       set({ isLoading: true, error: null });
       await userManager.signinRedirect();
-      // Note: execution stops here — browser navigates away to Keycloak
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : "Failed to initiate login flow";
@@ -130,9 +49,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           aud: "luminai-spa",
           exp: expiresAt,
           iat: Math.floor(Date.now() / 1000),
-          name: name,
+          name,
           preferred_username: name.toLowerCase().replace(" ", "."),
-          email: email,
+          email,
           email_verified: true,
           realm_access: { roles: roles ?? ["admin", "user", "PLATFORM_ADMIN"] },
         },
@@ -160,11 +79,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     try {
       set({ isLoading: true, error: null });
-
       const sessionData = sessionStorage.getItem(OIDC_SESSION_KEY);
       const isMock = sessionData?.includes("mock-access-token-123") ?? false;
-
-      // Clear store state, caches, and unpartitioned storage
       set({ user: null, isAuthenticated: false });
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem(OIDC_SESSION_KEY);
@@ -172,11 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       clearPersistedTokens();
       queryClient.clear();
-
-      if (!isMock) {
-        await userManager.signoutRedirect();
-      }
-
+      if (!isMock) await userManager.signoutRedirect();
       set({ isLoading: false });
     } catch (err) {
       const errorMsg =
@@ -199,13 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const user = await userManager.signinRedirectCallback();
-      if (user) {
-        if (typeof localStorage !== "undefined") {
-          localStorage.removeItem("local_ingested_files");
-          localStorage.removeItem("most_recent_ingested_file");
-        }
-        persistTokens(user);
-      }
+      if (user) persistTokens(user);
       set({ user, isAuthenticated: !!user, isLoading: false });
       return user;
     } catch (err) {
@@ -219,16 +125,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   /**
    * Checks sessionStorage for an existing valid OIDC session.
    * Called by ProtectedRoute on every mount.
-   *
-   * FIX: previous version had an early-return bug — when the user was already
-   * authenticated in memory, it returned immediately without calling
-   * `set({ isLoading: false })`, leaving the loading spinner visible forever
-   * after hot-reloads or component re-mounts.
    */
   checkUser: async (): Promise<User | null> => {
     const currentState = get();
-
-    // Fast path: already authenticated with a live token — nothing to do.
     if (
       currentState.isAuthenticated &&
       currentState.user &&
@@ -237,10 +136,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return currentState.user;
     }
 
-    // Guard against concurrent calls (StrictMode double-invoke, multiple ProtectedRoute mounts).
-    // The second caller waits until the first resolves, then re-reads from state.
     if (checkUserInFlight) {
-      // Poll until the in-flight call finishes (isLoading flips back to false)
       await new Promise<void>((resolve) => {
         const unsub = useAuthStore.subscribe((s: AuthState) => {
           if (!s.isLoading) {
@@ -258,9 +154,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: true, error: null });
       const user = await userManager.getUser();
       const isValid = user ? !user.expired : false;
-      if (isValid && user) {
-        persistTokens(user);
-      }
+      if (isValid && user) persistTokens(user);
       set({
         user: isValid ? user : null,
         isAuthenticated: isValid,
