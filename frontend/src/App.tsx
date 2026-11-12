@@ -63,7 +63,9 @@ const shellRoute = createRoute({
   id: "shell",
   component: () => (
     <ProtectedRoute>
-      <AppShell />
+      <AppShell>
+        <Outlet />
+      </AppShell>
     </ProtectedRoute>
   ),
 });
