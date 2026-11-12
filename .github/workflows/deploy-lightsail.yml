@@ -1,0 +1,40 @@
+name: Deploy to AWS Lightsail
+
+on:
+  push:
+    branches:
+      - main
+      - deb
+
+jobs:
+  deploy:
+    name: Deploy to Lightsail
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into Lightsail & Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER || 'ubuntu' }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script: |
+            set -e
+            echo "🚀 Starting automated deployment on Lightsail..."
+            cd /home/ubuntu/LuminAI
+            
+            echo "📥 Pulling latest changes from GitHub..."
+            git checkout -- docker-compose.yml docker-compose.prod.yml
+            git pull
+            
+            echo "🔨 Building updated application containers..."
+            docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
+            
+            echo "🔄 Bringing up updated services..."
+            docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+            
+            echo "🧹 Cleaning up unused build cache & dangling images..."
+            docker image prune -f
+            
+            echo "✅ Deployment successful! Active containers:"
+            docker-compose ps
+
