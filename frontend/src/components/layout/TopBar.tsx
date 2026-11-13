@@ -1,6 +1,9 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
+import { Sun, Moon, Plus, Bell, Clock, Search, LogOut } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
+import { useThemeStore } from "../../stores/themeStore";
+import { Tooltip } from "../ui/Tooltip";
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -8,6 +11,7 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   // Derive display values from the OIDC id_token profile claims
   const displayName =
@@ -27,11 +31,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
     .slice(0, 2);
 
   return (
-    <header className="h-16 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between px-8 z-30">
+    <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 md:px-8 z-30 transition-colors">
       {/* Mobile Menu Toggle Button */}
       <button
         type="button"
-        className="p-2 text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100 rounded-full flex items-center justify-center transition-all md:hidden cursor-pointer"
+        className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors md:hidden cursor-pointer"
         onClick={onMenuClick}
         aria-label="Open menu"
       >
@@ -52,147 +56,115 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
       </button>
 
       {/* Search Bar Container */}
-      <div className="flex items-center bg-zinc-850/60 border border-zinc-800/80 rounded-lg px-3 py-1.5 w-48 sm:w-64 md:w-96 gap-2 transition-all focus-within:border-blue-500/80 focus-within:bg-zinc-850">
-        <svg
-          className="text-zinc-500 shrink-0"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
+      <div className="flex items-center bg-surface-subtle border border-border rounded-lg px-3 py-1.5 w-48 sm:w-64 md:w-96 gap-2 transition-colors focus-within:border-border-focus">
+        <Search className="w-4 h-4 text-text-secondary shrink-0" />
         <input
           type="text"
-          className="bg-transparent border-none outline-none text-zinc-100 placeholder-zinc-500 text-xs w-full"
+          className="bg-transparent border-none outline-none text-text placeholder:text-text-secondary text-xs w-full"
           placeholder="Search entities, connections, or pipelines..."
         />
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-3">
-        {/* Notification Icon */}
-        <button
-          type="button"
-          className="p-2 text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100 rounded-full flex items-center justify-center transition-all relative cursor-pointer"
-          aria-label="Notifications"
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Theme Switcher Toggle (Light theme default / Dark theme user option) */}
+        <Tooltip
+          label={
+            theme === "light" ? "Switch to dark theme" : "Switch to light theme"
+          }
+          side="bottom"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-border"
+            aria-label={
+              theme === "light"
+                ? "Switch to dark theme"
+                : "Switch to light theme"
+            }
           >
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-zinc-400 rounded-full" />
-        </button>
+            {theme === "light" ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4 text-warning" />
+            )}
+          </button>
+        </Tooltip>
+
+        {/* Notification Icon (No neon glows) */}
+        <Tooltip label="Notifications" side="bottom">
+          <button
+            type="button"
+            className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors relative cursor-pointer"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-text-secondary rounded-full" />
+          </button>
+        </Tooltip>
 
         {/* History/Clock Icon */}
-        <button
-          type="button"
-          className="p-2 text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100 rounded-full flex items-center justify-center transition-all cursor-pointer"
-          aria-label="History"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <Tooltip label="History" side="bottom">
+          <button
+            type="button"
+            className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="History"
           >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </button>
+            <Clock className="w-4 h-4" />
+          </button>
+        </Tooltip>
 
         {/* Divider */}
-        <div className="w-px h-5 bg-zinc-800 mx-1 hidden sm:block" />
+        <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
 
-        {/* New Connection Action */}
+        {/* New Connection Action - Navy is the only filled button color */}
         <Link
           to="/connections"
-          className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+          className="bg-primary hover:bg-primary-hover text-primary-text font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer border border-primary shadow-xs"
         >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          New Connection
+          <Plus className="w-3.5 h-3.5" />
+          <span>New Connection</span>
         </Link>
 
         {/* Divider */}
-        <div className="w-px h-5 bg-zinc-800 mx-1 hidden sm:block" />
+        <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
 
-        {/* User Identity Context — populated from JWT claims after authentication */}
+        {/* User Identity Context */}
         {user && (
           <div className="flex items-center gap-2.5 group relative">
             {/* Avatar with initials */}
             <div
-              className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 text-[11px] font-bold shrink-0 select-none"
+              className="w-8 h-8 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-text text-[11px] font-bold shrink-0 select-none"
               aria-label={`Logged in as ${displayName}`}
             >
               {initials}
             </div>
 
-            {/* Name + email — hidden on small screens */}
+            {/* Name + email */}
             <div className="hidden lg:flex flex-col leading-tight">
-              <span className="text-xs font-semibold text-zinc-200 truncate max-w-[120px]">
+              <span className="text-xs font-semibold text-text truncate max-w-[120px]">
                 {displayName}
               </span>
               {displayEmail && (
-                <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">
+                <span className="text-[10px] text-text-secondary truncate max-w-[120px]">
                   {displayEmail}
                 </span>
               )}
             </div>
 
             {/* Logout button */}
-            <button
-              id="topbar-logout-btn"
-              type="button"
-              onClick={logout}
-              className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all cursor-pointer"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            <Tooltip label="Sign out" side="bottom">
+              <button
+                id="topbar-logout-btn"
+                type="button"
+                onClick={logout}
+                className="p-1.5 text-text-secondary hover:text-error hover:bg-error-bg rounded-md transition-colors cursor-pointer"
+                aria-label="Sign out"
               >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
+                <LogOut className="w-4 h-4" />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import type { FileUploadWizardProps } from "./file-upload/fileUploadTypes";
 import { useFileUpload } from "./file-upload/useFileUpload";
 import { StepDropzone } from "./file-upload/StepDropzone";
@@ -210,7 +210,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             <button
               disabled={ingesting}
               onClick={handleClose}
-              className="px-4 py-2 border border-zinc-850 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              className="px-4 py-2 border border-border hover:border-text-secondary/50 text-text-secondary hover:text-text hover:bg-surface-subtle rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -218,7 +218,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             {step < 4 && step > 1 && (
               <button
                 onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/10 transition-colors cursor-pointer"
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 Next Step
               </button>
@@ -227,7 +227,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             {step === 4 && ingestionFailed && (
               <button
                 onClick={startIngestion}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-rose-500/10 transition-colors cursor-pointer"
+                className="px-5 py-2 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 Retry Ingestion
               </button>
@@ -236,7 +236,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             {step === 4 && ingestionFinished && (
               <button
                 onClick={handleClose}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-500/10 transition-colors cursor-pointer"
+                className="px-5 py-2 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 Finish Wizard
               </button>

@@ -39,12 +39,12 @@ export interface SchemaMappingPayload {
 }
 
 export const DATA_TYPE_COLORS: Record<string, string> = {
-  string: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  integer: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  float: "text-violet-400 bg-violet-500/10 border-violet-500/20",
-  boolean: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  timestamp: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-  json: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+  string: "text-success bg-success-bg border-success-border",
+  integer: "text-primary bg-primary-tint border-primary-border",
+  float: "text-primary bg-primary-tint border-primary-border",
+  boolean: "text-warning bg-warning-bg border-warning-border",
+  timestamp: "text-text-secondary bg-surface-subtle border-border",
+  json: "text-warning bg-warning-bg border-warning-border",
 };
 
 export const DEFAULT_TARGET_ENTITIES = [

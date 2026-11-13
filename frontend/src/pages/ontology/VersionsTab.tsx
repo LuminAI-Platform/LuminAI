@@ -59,10 +59,10 @@ export const VersionsTab: React.FC<VersionsTabProps> = ({ versions }) => {
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                           v.status === "PUBLISHED"
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            ? "bg-success-bg text-success border-success-border"
                             : v.status === "DEPRECATED"
-                              ? "bg-red-500/10 text-red-400 border-red-500/20"
-                              : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                              ? "bg-error-bg text-error border-error-border"
+                              : "bg-surface-subtle text-text-secondary border-border"
                         }`}
                       >
                         {v.status}

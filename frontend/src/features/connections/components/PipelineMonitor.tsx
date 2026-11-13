@@ -158,8 +158,8 @@ export const PipelineMonitor: React.FC = () => {
               key={`${err.runId}-${idx}`}
               className={`p-3 rounded-lg border text-xs flex items-center justify-between font-medium ${
                 err.severity === "error"
-                  ? "bg-red-950/40 border-red-500/30 text-red-300"
-                  : "bg-amber-950/40 border-amber-500/30 text-amber-300"
+                  ? "bg-error-bg border-error-border text-error"
+                  : "bg-warning-bg border-warning-border text-warning"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -242,11 +242,11 @@ export const PipelineMonitor: React.FC = () => {
           </span>
         </div>
       ) : fetchError ? (
-        <div className="bg-red-950/20 border border-red-500/20 rounded-lg p-4 text-xs text-red-400">
+        <div className="bg-error-bg border border-error-border rounded-lg p-4 text-xs text-error">
           {fetchError}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center text-xs text-zinc-500">
+        <div className="bg-surface border border-border rounded-lg p-12 text-center text-xs text-text-secondary">
           No pipeline runs matching filter &quot;{filter}&quot;
         </div>
       ) : (

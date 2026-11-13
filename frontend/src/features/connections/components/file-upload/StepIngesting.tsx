@@ -60,9 +60,9 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
               <span className="text-zinc-500">Records Count:</span>
               <span className="text-zinc-300">{parsedRowsCount} rows</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-zinc-900">
-              <span className="text-zinc-500">Active Mappings:</span>
-              <span className="font-semibold text-blue-500">
+            <div className="flex justify-between py-1 border-b border-border">
+              <span className="text-text-secondary">Active Mappings:</span>
+              <span className="font-semibold text-primary">
                 {columnsConfig.filter((c) => c.active).length} fields
               </span>
             </div>
@@ -71,7 +71,7 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
           {!ingesting && !ingestionFinished && !ingestionFailed && (
             <button
               onClick={startIngestion}
-              className="w-full mt-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full mt-4 py-2.5 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <svg
                 width="14"
@@ -89,17 +89,17 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
           )}
 
           {ingestionFailed && (
-            <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-center select-none">
-              <span className="text-xs font-semibold text-rose-400 block mb-1">
+            <div className="mt-4 p-3 bg-error-bg border border-error-border rounded-lg text-center select-none">
+              <span className="text-xs font-semibold text-error block mb-1">
                 Ingestion Failed
               </span>
-              <span className="text-[10px] text-zinc-400 block mb-2">
+              <span className="text-[10px] text-text-secondary block mb-2">
                 {errorMessage ||
                   "An unexpected error occurred during ingestion."}
               </span>
               <button
                 onClick={startIngestion}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded text-xs font-bold transition-colors cursor-pointer"
+                className="px-3 py-1.5 bg-transparent border border-error-border text-error hover:bg-error-bg rounded text-xs font-semibold transition-colors cursor-pointer"
               >
                 Retry Ingestion
               </button>
@@ -107,11 +107,11 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
           )}
 
           {ingestionFinished && (
-            <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center select-none">
-              <span className="text-xs font-semibold text-emerald-400 block mb-1">
+            <div className="mt-4 p-3 bg-success-bg border border-success-border rounded-lg text-center select-none">
+              <span className="text-xs font-semibold text-success block mb-1">
                 Ingestion Complete
               </span>
-              <span className="text-[10px] text-zinc-400">
+              <span className="text-[10px] text-text-secondary">
                 {ingestedCount} records successfully loaded into staging and
                 semantic graph ontology!
               </span>
@@ -174,40 +174,40 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
 
         {/* Progress bar */}
         {ingesting && (
-          <div className="w-full h-1.5 bg-zinc-900 relative">
+          <div className="w-full h-1.5 bg-surface-muted relative">
             <div
-              className="absolute top-0 left-0 bottom-0 bg-blue-500 transition-all duration-300"
+              className="absolute top-0 left-0 bottom-0 bg-primary transition-all duration-300"
               style={{ width: `${ingestionProgress}%` }}
             />
           </div>
         )}
 
         {/* Ingestion Console Screen */}
-        <div className="flex-1 bg-black p-4 font-mono text-[10px] overflow-y-auto flex flex-col gap-2 min-h-[220px]">
+        <div className="flex-1 bg-surface-subtle p-4 font-mono text-[10px] overflow-y-auto flex flex-col gap-2 min-h-[220px]">
           {ingestionLogs.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-zinc-600 italic select-none">
+            <div className="h-full flex items-center justify-center text-text-secondary italic select-none">
               Console waiting to initialize... click "Initialize Ingestion Sync"
             </div>
           ) : (
             ingestionLogs.map((log, i) => (
               <div key={i} className="flex gap-2">
-                <span className="text-zinc-600 select-none">
+                <span className="text-text-secondary select-none">
                   [{log.timestamp}]
                 </span>
                 <span
                   className={`font-bold select-none ${
                     log.level === "SUCCESS"
-                      ? "text-emerald-500"
+                      ? "text-success"
                       : log.level === "WARN"
-                        ? "text-amber-500"
+                        ? "text-warning"
                         : log.level === "ERROR"
-                          ? "text-rose-500"
-                          : "text-blue-500"
+                          ? "text-error"
+                          : "text-primary"
                   }`}
                 >
                   {log.level}
                 </span>
-                <span className="text-zinc-300 whitespace-pre-wrap">
+                <span className="text-text whitespace-pre-wrap">
                   {log.message}
                 </span>
               </div>

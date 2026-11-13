@@ -40,17 +40,11 @@ export const CallbackPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
-      {/* Grid background */}
-      <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
-
-      {/* Orbs */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-
+    <div className="flex h-screen w-screen items-center justify-center bg-page text-text font-sans relative overflow-hidden">
       <div className="flex flex-col items-center gap-6 relative z-10 max-w-md text-center px-6">
         {error ? (
           <div className="space-y-6">
-            <div className="w-16 h-16 bg-red-950/40 border border-red-500/30 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-red-500/10">
+            <div className="w-16 h-16 bg-error-bg border border-error-border text-error rounded-full flex items-center justify-center mx-auto">
               <svg
                 width="24"
                 height="24"
@@ -65,10 +59,10 @@ export const CallbackPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-lg font-bold tracking-tight text-zinc-100">
+              <h3 className="text-lg font-bold tracking-tight text-text">
                 Authentication Failed
               </h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-text-secondary leading-relaxed">
                 {error ||
                   "An error occurred while validating the security token. Please try again."}
               </p>
@@ -76,7 +70,7 @@ export const CallbackPage: React.FC = () => {
 
             <button
               onClick={handleRetry}
-              className="px-6 py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+              className="px-6 py-2.5 bg-surface hover:bg-surface-hover border border-border text-text text-xs font-semibold rounded-lg transition-all cursor-pointer"
             >
               Return to Login
             </button>
@@ -84,18 +78,18 @@ export const CallbackPage: React.FC = () => {
         ) : (
           <>
             <div className="relative w-16 h-16">
-              <div className="absolute inset-0 rounded-full border-2 border-zinc-800/80" />
-              <div className="absolute inset-0 rounded-full border-2 border-t-zinc-400 border-r-zinc-600 animate-spin" />
-              <div className="absolute inset-2 rounded-full border border-zinc-900 bg-zinc-950/80 flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-zinc-400" />
+              <div className="absolute inset-0 rounded-full border-2 border-border" />
+              <div className="absolute inset-0 rounded-full border-2 border-t-text-secondary border-r-border animate-spin" />
+              <div className="absolute inset-2 rounded-full border border-border bg-page flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-text-secondary" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400">
+              <h3 className="text-sm font-semibold tracking-wider uppercase text-text-secondary">
                 Finalizing Session
               </h3>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-text-secondary">
                 Exchanging authorization codes for cryptographic tokens...
               </p>
             </div>

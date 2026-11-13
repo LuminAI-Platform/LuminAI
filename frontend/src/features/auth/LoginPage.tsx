@@ -33,7 +33,7 @@ export const LoginPage: React.FC = () => {
   const busy = isConnecting || isLoading;
 
   return (
-    <div className="min-h-screen w-screen flex items-stretch bg-white text-zinc-900 dark:bg-[#0d0e12] dark:text-zinc-100 font-sans select-none">
+    <div className="min-h-screen w-screen flex items-stretch bg-page font-sans select-none">
       {/* ── Left panel — sign-in hero ────────────────────────────────────── */}
       <div className="w-full lg:w-[42%] flex flex-col min-h-screen">
         {/* Top spacer — pushes content to true vertical center */}
@@ -53,21 +53,21 @@ export const LoginPage: React.FC = () => {
 
           {/* Heading */}
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <h1 className="text-2xl font-semibold tracking-tight text-text">
               Sign in to your workspace
             </h1>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            <p className="mt-2 text-sm text-text-secondary leading-relaxed">
               Use your company account to continue.
             </p>
           </div>
 
           {/* Divider */}
-          <div className="border-t border-zinc-200 dark:border-zinc-800 mb-8" />
+          <div className="border-t border-border mb-8" />
 
           {/* Error banner */}
           {error && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 px-3.5 py-3 text-sm text-red-700 dark:text-red-300">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+            <div className="mb-5 flex items-start gap-2.5 rounded-lg border border-error-border bg-error-bg px-3.5 py-3 text-sm text-error">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
               <span>{error}</span>
             </div>
           )}
@@ -76,7 +76,7 @@ export const LoginPage: React.FC = () => {
           <button
             onClick={handleLogin}
             disabled={busy}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-text transition-colors hover:bg-primary-hover disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {busy ? (
               <>
@@ -93,11 +93,11 @@ export const LoginPage: React.FC = () => {
           </button>
 
           {/* Support link — useful for the user, replaces the developer OIDC note */}
-          <p className="mt-5 text-xs text-zinc-400 dark:text-zinc-500 text-center">
+          <p className="mt-5 text-xs text-text-secondary text-center">
             Trouble signing in?{" "}
             <a
               href="mailto:it-support@luminai.dev"
-              className="text-zinc-600 dark:text-zinc-400 underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+              className="text-text-secondary underline underline-offset-2 hover:text-text transition-colors"
             >
               Contact your administrator
             </a>
@@ -108,15 +108,15 @@ export const LoginPage: React.FC = () => {
         <div className="flex-1" />
 
         {/* Footer — LuminAI only, no version, meets contrast on both themes */}
-        <div className="px-8 sm:px-12 lg:px-16 py-6 border-t border-zinc-100 dark:border-zinc-800/60">
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+        <div className="px-8 sm:px-12 lg:px-16 py-6 border-t border-border">
+          <span className="text-xs text-text-secondary">
             © {new Date().getFullYear()} LuminAI Enterprise
           </span>
         </div>
       </div>
 
       {/* ── Right panel — static product image, no overlay ───────────────── */}
-      <div className="hidden lg:block flex-1 relative overflow-hidden border-l border-zinc-200 dark:border-zinc-800/60">
+      <div className="hidden lg:block flex-1 relative overflow-hidden border-l border-border">
         <img
           src={dashboardImg}
           alt=""

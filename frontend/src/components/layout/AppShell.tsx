@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { CheckCircle2, AlertCircle } from "lucide-react";
+import { TooltipProvider } from "../ui/Tooltip";
 
 interface AppShellProps {
   children?: React.ReactNode;
@@ -35,62 +37,62 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans">
-      {/* Collapsible Sidebar Drawer */}
-      <Sidebar
-        collapsed={collapsed}
-        setCollapsed={setCollapsed}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-      />
+    <TooltipProvider>
+      <div className="flex h-screen w-screen overflow-hidden bg-page text-text font-sans">
+        {/* Collapsible Sidebar Drawer */}
+        <Sidebar
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          mobileOpen={mobileOpen}
+          setMobileOpen={setMobileOpen}
+        />
 
-      {/* Main Content Pane */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Top Navigation */}
-        <TopBar onMenuClick={() => setMobileOpen(true)} />
+        {/* Main Content Pane */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          {/* Top Navigation */}
+          <TopBar onMenuClick={() => setMobileOpen(true)} />
 
-        {/* Scrollable View Container */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7 relative min-w-0">
-          {/* Subtle dotted background grid */}
-          <div className="absolute inset-0 bg-grid-dots pointer-events-none z-0" />
+          {/* Scrollable View Container */}
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7 relative min-w-0 bg-page">
+            {/* Subtle calm background pattern */}
+            <div className="absolute inset-0 bg-grid-dots pointer-events-none z-0" />
 
-          {/* Children views container */}
-          <div className="relative z-10 max-w-[1720px] mx-auto w-full">
-            {children}
-          </div>
-        </main>
+            {/* Children views container */}
+            <div className="relative z-10 max-w-[1720px] mx-auto w-full">
+              {children}
+            </div>
+          </main>
 
-        {/* Status Bar */}
-        <footer className="h-9 bg-zinc-900 border-t border-zinc-800/80 px-6 flex items-center justify-between text-xs text-zinc-500 z-10 shrink-0 select-none">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center">
-              <span
-                className={`w-1.5 h-1.5 rounded-full mr-2 ${
-                  isOnline ? "bg-emerald-500" : "bg-red-500"
-                }`}
-              />
-              Network:{" "}
-              <span className="text-zinc-300 ml-1">
-                {isOnline ? "Connected" : "Offline"}
+          {/* Status Bar */}
+          <footer className="h-9 bg-surface border-t border-border px-6 flex items-center justify-between text-xs text-text-secondary z-10 shrink-0 select-none">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5">
+                {isOnline ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-text-secondary" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 text-error" />
+                )}
+                <span>Network:</span>
+                <span
+                  className={`font-medium ${isOnline ? "text-text" : "text-error"}`}
+                >
+                  {isOnline ? "Connected" : "Offline"}
+                </span>
               </span>
-            </span>
-            <span>|</span>
-            <span>
-              SYSTEM: <span className="text-zinc-300">ONLINE</span>
-            </span>
-            <span>|</span>
-            <span>
-              ENV:{" "}
-              <span className="text-zinc-300">
-                {import.meta.env.MODE.toUpperCase()}
+              <span>
+                Environment:{" "}
+                <span className="text-text font-medium">
+                  {import.meta.env.MODE.charAt(0).toUpperCase() +
+                    import.meta.env.MODE.slice(1)}
+                </span>
               </span>
-            </span>
-          </div>
-          <div className="hidden sm:block text-zinc-600">
-            LuminAI Data Platform
-          </div>
-        </footer>
+            </div>
+            <div className="hidden sm:block text-text-secondary">
+              LuminAI Data Platform
+            </div>
+          </footer>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };

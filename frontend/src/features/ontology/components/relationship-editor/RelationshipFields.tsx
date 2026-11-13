@@ -188,12 +188,12 @@ export const RelationshipFields: React.FC<RelationshipFieldsProps> = ({
           onChange={(e) => set("description", e.target.value)}
           rows={2}
           placeholder="Describe what this relationship represents..."
-          className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 placeholder:text-zinc-600 transition-colors resize-none"
+          className="px-3 py-2.5 bg-surface border border-border rounded-lg text-xs text-text outline-none focus:border-border-focus placeholder:text-text-secondary transition-colors resize-none"
         />
       </div>
 
       {error && (
-        <div className="px-3 py-2.5 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs font-medium">
+        <div className="px-3 py-2.5 bg-error-bg border border-error-border text-error rounded-lg text-xs font-medium">
           {error}
         </div>
       )}

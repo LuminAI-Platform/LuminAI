@@ -108,42 +108,42 @@ export const SchemaMapPage: React.FC = () => {
             <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
               <Database className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-semibold text-zinc-300">
+            <h3 className="text-sm font-semibold text-text">
               No Data Sources Connected
             </h3>
-            <p className="text-xs text-zinc-500 max-w-sm mt-1 mb-4">
+            <p className="text-xs text-text-secondary max-w-sm mt-1 mb-4">
               Connect external databases or upload flat files (CSV, JSON) to
               start mapping schemas.
             </p>
             <Link
               to="/connections"
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-primary-text border border-primary text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               Add Connection
             </Link>
           </div>
         ) : Object.keys(dynamicOntologyMap).length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
+            <div className="w-12 h-12 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary mb-3">
               <AlertCircle className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-semibold text-zinc-300">
+            <h3 className="text-sm font-semibold text-text">
               No Ontology Entities Available
             </h3>
-            <p className="text-xs text-zinc-500 max-w-sm mt-1 mb-4">
+            <p className="text-xs text-text-secondary max-w-sm mt-1 mb-4">
               Create an entity type or install industry starter templates to map
               source columns.
             </p>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsSeedModalOpen(true)}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-primary-text border border-primary text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 Use Industry Templates
               </button>
               <button
                 onClick={handleAutoGenerateFromDataset}
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-transparent hover:bg-surface-subtle text-text border border-border text-xs font-semibold transition-colors cursor-pointer"
               >
                 Auto-create from Dataset
               </button>

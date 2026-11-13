@@ -26,7 +26,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "Healthcare",
     name: "Hospital & Clinics",
     badge: "Healthcare",
-    badgeColor: "text-cyan-400 bg-cyan-950/60 border-cyan-800/60",
+    badgeColor: "text-primary bg-primary-tint border-primary-border",
     description: "Standard tables for patients, doctors, and hospital visits.",
     entityTypes: [
       {
@@ -190,7 +190,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "Banking & Fintech",
     name: "Core Banking & Transactions",
     badge: "Finance",
-    badgeColor: "text-emerald-400 bg-emerald-950/60 border-emerald-800/60",
+    badgeColor: "text-success bg-success-bg border-success-border",
     description: "Accounts, transactions, customers, and wire transfers.",
     entityTypes: [
       {
@@ -335,7 +335,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "E-Commerce",
     name: "Store, Catalog & Fulfillment",
     badge: "Commerce",
-    badgeColor: "text-purple-400 bg-purple-950/60 border-purple-800/60",
+    badgeColor: "text-primary bg-primary-tint border-primary-border",
     description:
       "Orders, order line items, product catalogs, and shipping logistics.",
     entityTypes: [
@@ -430,7 +430,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "SaaS & CRM",
     name: "Customer Accounts & Subscriptions",
     badge: "SaaS",
-    badgeColor: "text-blue-400 bg-blue-950/60 border-blue-800/60",
+    badgeColor: "text-primary bg-primary-tint border-primary-border",
     description:
       "Companies, contacts, deals, and recurring subscription licenses.",
     entityTypes: [
@@ -519,7 +519,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "IoT & Manufacturing",
     name: "Devices, Sensors & Telemetry",
     badge: "Hardware",
-    badgeColor: "text-amber-400 bg-amber-950/60 border-amber-800/60",
+    badgeColor: "text-warning bg-warning-bg border-warning-border",
     description:
       "Fleet devices, equipment serial numbers, and machine telemetry metrics.",
     entityTypes: [

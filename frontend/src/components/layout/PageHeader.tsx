@@ -1,6 +1,4 @@
 import React from "react";
-import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
 
 export interface BreadcrumbItem {
   label: string;
@@ -21,23 +19,22 @@ export interface PageHeaderProps {
 }
 
 const BADGE_STYLES = {
-  emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
-  blue: "bg-blue-500/10 text-blue-400 border-blue-500/25",
-  purple: "bg-purple-500/10 text-purple-400 border-purple-500/25",
-  amber: "bg-amber-500/10 text-amber-400 border-amber-500/25",
-  zinc: "bg-zinc-850 text-zinc-400 border-zinc-700/60",
+  emerald: "bg-success-bg text-success border-success-border",
+  blue: "bg-primary-tint text-primary border-primary-border",
+  purple: "bg-primary-tint text-primary border-primary-border",
+  amber: "bg-warning-bg text-warning border-warning-border",
+  zinc: "bg-surface-subtle text-text-secondary border-border",
 };
 
 const DOT_COLORS = {
-  emerald: "bg-emerald-400",
-  blue: "bg-blue-400",
-  purple: "bg-purple-400",
-  amber: "bg-amber-400",
-  zinc: "bg-zinc-400",
+  emerald: "bg-success",
+  blue: "bg-primary",
+  purple: "bg-primary",
+  amber: "bg-warning",
+  zinc: "bg-text-secondary",
 };
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
-  breadcrumbs,
   title,
   description,
   icon,
@@ -47,46 +44,18 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   const variant = badge?.variant || "emerald";
 
   return (
-    <div className="flex flex-col gap-2 pb-2 select-none border-b border-zinc-800/80">
-      {/* Navigation Breadcrumbs */}
-      <nav
-        aria-label="Breadcrumb"
-        className="flex items-center gap-1.5 text-xs text-zinc-500"
-      >
-        <span className="text-zinc-600 font-semibold uppercase tracking-wider">
-          LuminAI
-        </span>
-        <ChevronRight className="w-3 h-3 text-zinc-700" />
-        {breadcrumbs.map((item, idx) => (
-          <React.Fragment key={idx}>
-            {item.to ? (
-              <Link
-                to={item.to}
-                className="hover:text-zinc-300 transition-colors cursor-pointer"
-              >
-                {item.label}
-              </Link>
-            ) : (
-              <span className="text-zinc-400 font-medium">{item.label}</span>
-            )}
-            {idx < breadcrumbs.length - 1 && (
-              <ChevronRight className="w-3 h-3 text-zinc-700" />
-            )}
-          </React.Fragment>
-        ))}
-      </nav>
-
+    <div className="pb-2 select-none border-b border-border">
       {/* Main Title Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {icon && (
-            <div className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 shadow-sm shrink-0">
+            <div className="p-2 rounded-lg bg-surface-subtle border border-border text-text-secondary shadow-sm shrink-0">
               {icon}
             </div>
           )}
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-lg font-bold text-zinc-100 font-sans tracking-tight">
+              <h1 className="text-lg font-bold text-text font-sans tracking-tight">
                 {title}
               </h1>
               {badge && (
@@ -100,7 +69,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-xs text-zinc-400 mt-0.5 max-w-2xl leading-relaxed">
+            <p className="text-xs text-text-secondary mt-0.5 max-w-2xl leading-relaxed">
               {description}
             </p>
           </div>

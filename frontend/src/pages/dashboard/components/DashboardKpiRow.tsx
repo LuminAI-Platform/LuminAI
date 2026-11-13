@@ -6,30 +6,43 @@ import type { DashboardSummary } from "../useDashboardData";
 interface DashboardKpiRowProps {
   summary: DashboardSummary | undefined;
   isLoading: boolean;
+  isCached?: boolean;
 }
 
+/**
+ * Dashboard KPI Metric Cards Row
+ *
+ * Design Rule 3: Use one color per meaning. "Active", "Online", and "Healthy"
+ * all represent healthy operational states and therefore all use the same "success" token.
+ * Design Rule 2: Never use color alone for status; always pair with a word or icon.
+ */
 export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
   summary,
   isLoading,
+  isCached = false,
 }) => {
+  const hasPipelineIssues = (summary?.pipelineHealth?.failed ?? 0) > 0;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <KpiCard
         title="Resolved Entities"
         value={summary?.totalEntities ?? 0}
-        subtitle="Golden semantic records"
+        subtitle="Matched records"
         icon={<Network className="w-4 h-4" />}
         badge={{ text: "Active", variant: "success" }}
         isLoading={isLoading}
+        isCached={isCached}
       />
 
       <KpiCard
         title="Active Connectors"
         value={summary?.totalConnections ?? 0}
-        subtitle="Data sources integrated"
+        subtitle="Connected sources"
         icon={<Database className="w-4 h-4" />}
-        badge={{ text: "Online", variant: "info" }}
+        badge={{ text: "Online", variant: "success" }}
         isLoading={isLoading}
+        isCached={isCached}
       />
 
       <KpiCard
@@ -42,12 +55,11 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         }
         icon={<Play className="w-4 h-4" />}
         badge={{
-          text:
-            (summary?.pipelineHealth?.failed ?? 0) > 0 ? "Issues" : "Healthy",
-          variant:
-            (summary?.pipelineHealth?.failed ?? 0) > 0 ? "warning" : "success",
+          text: hasPipelineIssues ? "Issues" : "Healthy",
+          variant: hasPipelineIssues ? "warning" : "success",
         }}
         isLoading={isLoading}
+        isCached={isCached}
       />
 
       <KpiCard
@@ -56,6 +68,7 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         subtitle="Completeness & accuracy"
         icon={<ShieldCheck className="w-4 h-4" />}
         isLoading={isLoading}
+        isCached={isCached}
       />
     </div>
   );

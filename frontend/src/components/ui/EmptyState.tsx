@@ -23,12 +23,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   actionProps,
 }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-zinc-800 rounded-lg bg-zinc-950/40">
-      <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-4">
+    <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-border rounded-lg bg-surface-subtle">
+      <div className="w-12 h-12 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary mb-4">
         {icon ?? <FolderOpen className="w-6 h-6" />}
       </div>
-      <h4 className="text-sm font-semibold text-zinc-200">{title}</h4>
-      <p className="text-xs text-zinc-400 max-w-sm mt-1 mb-5 leading-relaxed">
+      <h4 className="text-sm font-semibold text-text">{title}</h4>
+      <p className="text-xs text-text-secondary max-w-sm mt-1 mb-5 leading-relaxed">
         {description}
       </p>
       {actionText && onAction && (

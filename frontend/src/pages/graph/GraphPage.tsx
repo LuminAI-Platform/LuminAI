@@ -78,8 +78,8 @@ export const GraphPage: React.FC = () => {
                   onClick={() => setDepth(d)}
                   className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
                     depth === d
-                      ? "bg-blue-600 text-white"
-                      : "text-zinc-400 hover:text-zinc-200"
+                      ? "bg-primary text-primary-text"
+                      : "text-text-secondary hover:text-text"
                   }`}
                 >
                   {d}
@@ -101,9 +101,9 @@ export const GraphPage: React.FC = () => {
 
       {/* Backend connection error banner */}
       {error && (
-        <div className="bg-red-950/20 border border-red-500/30 rounded-lg px-3 py-2 flex items-center justify-between text-xs text-red-300">
+        <div className="bg-error-bg border border-error-border rounded-lg px-3 py-2 flex items-center justify-between text-xs text-error">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-error shrink-0" />
             <span>
               Failed to load graph neighbourhood for entity &quot;
               {activeEntityId}&quot;. Please verify backend graph services.
@@ -177,25 +177,26 @@ export const GraphPage: React.FC = () => {
         />
 
         {/* Graph Bottom Legend Bar */}
-        <div className="absolute bottom-4 left-4 z-10 bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-lg px-3 py-1.5 shadow-xl flex items-center gap-4 text-[11px] text-zinc-400">
-          <span className="font-semibold text-zinc-300">
+        <div className="absolute bottom-4 left-4 z-10 bg-surface border border-border rounded-lg px-3 py-1.5 shadow-xs flex items-center gap-4 text-[11px] text-text-secondary">
+          <span className="font-semibold text-text">
             {filteredElements.nodes.length} Nodes ·{" "}
             {filteredElements.edges.length} Edges
           </span>
-          <div className="h-3 w-px bg-zinc-800" />
+          <div className="h-3 w-px bg-border" />
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500" /> Person
+              <span className="w-2 h-2 rounded-full bg-[#12297A] dark:bg-[#6B97FF]" />{" "}
+              Person
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
+              <span className="w-2 h-2 rounded-full bg-[#009E73]" />{" "}
               Organization
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-500" /> Dataset
+              <span className="w-2 h-2 rounded-full bg-[#E69F00]" /> Dataset
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-pink-500" /> Transaction
+              <span className="w-2 h-2 rounded-full bg-[#56B4E9]" /> Transaction
             </span>
           </div>
         </div>
