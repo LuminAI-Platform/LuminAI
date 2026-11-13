@@ -7,7 +7,6 @@ interface DashboardKpiRowProps {
   summary: DashboardSummary | undefined;
   isLoading: boolean;
   isCached?: boolean;
-  cachedAt?: string;
 }
 
 /**
@@ -21,7 +20,6 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
   summary,
   isLoading,
   isCached = false,
-  cachedAt,
 }) => {
   const hasPipelineIssues = (summary?.pipelineHealth?.failed ?? 0) > 0;
 
@@ -35,7 +33,6 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         badge={{ text: "Active", variant: "success" }}
         isLoading={isLoading}
         isCached={isCached}
-        cachedAt={cachedAt}
       />
 
       <KpiCard
@@ -46,7 +43,6 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         badge={{ text: "Online", variant: "success" }}
         isLoading={isLoading}
         isCached={isCached}
-        cachedAt={cachedAt}
       />
 
       <KpiCard
@@ -64,7 +60,6 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         }}
         isLoading={isLoading}
         isCached={isCached}
-        cachedAt={cachedAt}
       />
 
       <KpiCard
@@ -74,7 +69,6 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         icon={<ShieldCheck className="w-4 h-4" />}
         isLoading={isLoading}
         isCached={isCached}
-        cachedAt={cachedAt}
       />
     </div>
   );

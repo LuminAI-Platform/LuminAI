@@ -81,7 +81,7 @@ export const DashboardPage: React.FC = () => {
           <div className="flex items-center gap-2.5 shrink-0">
             {/* Rule 8: Navy is the only filled button color; one primary per view */}
             <Button
-              variant="primary"
+              variant="outline"
               size="sm"
               onClick={() => refetchSummary()}
               disabled={isRefetching}
@@ -104,7 +104,6 @@ export const DashboardPage: React.FC = () => {
         summary={summary}
         isLoading={isSummaryLoading}
         isCached={!!summaryError}
-        cachedAt={cachedAtTime}
       />
 
       {/* Python Data Engine Telemetry & Polars Compute */}

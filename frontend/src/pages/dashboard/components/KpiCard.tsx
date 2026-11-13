@@ -13,7 +13,6 @@ export interface KpiCardProps {
   };
   isLoading?: boolean;
   isCached?: boolean;
-  cachedAt?: string;
 }
 
 /**
@@ -28,16 +27,9 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   badge,
   isLoading = false,
   isCached = false,
-  cachedAt,
 }) => {
   return (
-    <div
-      className={`bg-surface border rounded-lg p-5 transition-colors flex flex-col justify-between shadow-xs ${
-        isCached
-          ? "border-warning-border bg-surface-subtle"
-          : "border-border hover:border-text-secondary/40"
-      }`}
-    >
+    <div className="bg-surface border border-border rounded-lg p-5 transition-colors flex flex-col justify-between shadow-xs hover:border-text-secondary/40">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-text-secondary select-none">
           {title}
@@ -54,16 +46,11 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           <>
             <span
               className={`text-3xl font-semibold tabular-nums tracking-tight text-text ${
-                isCached ? "opacity-90" : ""
+                isCached ? "opacity-70" : ""
               }`}
             >
               {typeof value === "number" ? value.toLocaleString() : value}
             </span>
-            {isCached && (
-              <span className="text-[10px] font-medium text-warning bg-warning-bg border border-warning-border px-1.5 py-0.5 rounded">
-                {cachedAt ? `As of ${cachedAt}` : "Cached"}
-              </span>
-            )}
           </>
         )}
       </div>
@@ -74,10 +61,12 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         ) : (
           <>
             <span className="truncate">{subtitle}</span>
-            {badge && (
+            {(badge || isCached) && (
               <div className="shrink-0">
-                <Badge variant={badge.variant ?? "default"} withDot>
-                  {badge.text}
+                <Badge
+                  variant={isCached ? "nodata" : (badge?.variant ?? "default")}
+                >
+                  {isCached ? "Cached" : badge?.text}
                 </Badge>
               </div>
             )}
