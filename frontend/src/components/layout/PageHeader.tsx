@@ -1,6 +1,4 @@
 import React from "react";
-import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
 
 export interface BreadcrumbItem {
   label: string;
@@ -37,7 +35,6 @@ const DOT_COLORS = {
 };
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
-  breadcrumbs,
   title,
   description,
   icon,
@@ -47,35 +44,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   const variant = badge?.variant || "emerald";
 
   return (
-    <div className="flex flex-col gap-2 pb-2 select-none border-b border-border">
-      {/* Navigation Breadcrumbs */}
-      <nav
-        aria-label="Breadcrumb"
-        className="flex items-center gap-1.5 text-xs text-text-secondary"
-      >
-        <span className="text-text-secondary font-medium">LuminAI</span>
-        <ChevronRight className="w-3 h-3 text-border" />
-        {breadcrumbs.map((item, idx) => (
-          <React.Fragment key={idx}>
-            {item.to ? (
-              <Link
-                to={item.to}
-                className="hover:text-text transition-colors cursor-pointer"
-              >
-                {item.label}
-              </Link>
-            ) : (
-              <span className="text-text-secondary font-medium">
-                {item.label}
-              </span>
-            )}
-            {idx < breadcrumbs.length - 1 && (
-              <ChevronRight className="w-3 h-3 text-border" />
-            )}
-          </React.Fragment>
-        ))}
-      </nav>
-
+    <div className="pb-2 select-none border-b border-border">
       {/* Main Title Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">

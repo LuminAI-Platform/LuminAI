@@ -68,20 +68,16 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
                 {isOnline ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-text-secondary" />
                 ) : (
                   <AlertCircle className="w-3.5 h-3.5 text-error" />
                 )}
                 <span>Network:</span>
                 <span
-                  className={`font-medium ${isOnline ? "text-success" : "text-error"}`}
+                  className={`font-medium ${isOnline ? "text-text" : "text-error"}`}
                 >
                   {isOnline ? "Connected" : "Offline"}
                 </span>
-              </span>
-              <span className="flex items-center gap-1">
-                <span>System:</span>
-                <span className="text-success font-medium">Online</span>
               </span>
               <span>
                 Environment:{" "}

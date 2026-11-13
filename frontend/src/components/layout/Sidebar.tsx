@@ -4,7 +4,6 @@ import { isPlatformAdmin, useAuthStore } from "../../stores/authStore";
 import { SidebarTooltip, Tooltip, TooltipProvider } from "../ui/Tooltip";
 import luminaiMark from "../../assets/luminai-mark.svg";
 import { NAV_ITEMS } from "./sidebar/sidebarConfig";
-import { SidebarUserProfile } from "./sidebar/SidebarUserProfile";
 import { SidebarNavList } from "./sidebar/SidebarNavList";
 
 interface SidebarProps {
@@ -20,7 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const showAdminNavigation = isPlatformAdmin(user);
 
   return (
@@ -149,13 +148,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             </Link>
           </SidebarTooltip>
-
-          {/* User Profile */}
-          <SidebarUserProfile
-            user={user}
-            collapsed={collapsed}
-            logout={logout}
-          />
         </div>
       </aside>
     </TooltipProvider>
