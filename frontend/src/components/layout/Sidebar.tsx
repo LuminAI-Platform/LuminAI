@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
 import { isPlatformAdmin, useAuthStore } from "../../stores/authStore";
-import { SidebarTooltip, TooltipProvider } from "../ui/Tooltip";
+import { SidebarTooltip, Tooltip, TooltipProvider } from "../ui/Tooltip";
 import luminaiMark from "../../assets/luminai-mark.svg";
 import { NAV_ITEMS } from "./sidebar/sidebarConfig";
 import { SidebarUserProfile } from "./sidebar/SidebarUserProfile";
@@ -48,22 +48,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <button
-              onClick={() => {
-                const next = !collapsed;
-                setCollapsed(next);
-                localStorage.setItem("luminai_sidebar_collapsed", String(next));
-              }}
-              title="Toggle Sidebar Navigation"
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 cursor-pointer transition-transform hover:scale-105"
-            >
-              <img
-                src={luminaiMark}
-                alt="LuminAI"
-                className="w-7 h-7 object-contain select-none"
-                draggable={false}
-              />
-            </button>
+            <Tooltip label="Toggle sidebar navigation" side="right">
+              <button
+                onClick={() => {
+                  const next = !collapsed;
+                  setCollapsed(next);
+                  localStorage.setItem(
+                    "luminai_sidebar_collapsed",
+                    String(next),
+                  );
+                }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 cursor-pointer transition-transform hover:scale-105"
+              >
+                <img
+                  src={luminaiMark}
+                  alt="LuminAI"
+                  className="w-7 h-7 object-contain select-none"
+                  draggable={false}
+                />
+              </button>
+            </Tooltip>
             {!collapsed && (
               <div className="flex flex-col overflow-hidden">
                 <span className="text-sm font-bold text-text tracking-tight leading-none">
@@ -76,25 +80,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
           {!collapsed && (
-            <button
-              onClick={() => {
-                setCollapsed(true);
-                localStorage.setItem("luminai_sidebar_collapsed", "true");
-              }}
-              className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-subtle rounded-md transition-colors cursor-pointer"
-              title="Collapse Sidebar"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+            <Tooltip label="Collapse sidebar" side="right">
+              <button
+                onClick={() => {
+                  setCollapsed(true);
+                  localStorage.setItem("luminai_sidebar_collapsed", "true");
+                }}
+                className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-subtle rounded-md transition-colors cursor-pointer"
               >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+            </Tooltip>
           )}
         </div>
 

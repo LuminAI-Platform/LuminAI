@@ -8,6 +8,7 @@ import {
   Eye,
 } from "lucide-react";
 import type { GraphLayoutType } from "./GraphCanvas";
+import { Tooltip } from "../../../components/ui/Tooltip";
 
 interface GraphControlsProps {
   layoutType: GraphLayoutType;
@@ -45,34 +46,38 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
     <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
       {/* Zoom / Navigation Controls */}
       <div className="flex items-center bg-surface/90 backdrop-blur-md border border-border rounded-lg p-1 shadow-xs">
-        <button
-          onClick={onZoomIn}
-          title="Zoom In"
-          className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onZoomOut}
-          title="Zoom Out"
-          className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onFit}
-          title="Fit to Screen"
-          className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onReset}
-          title="Reset Viewport"
-          className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-        </button>
+        <Tooltip label="Zoom in">
+          <button
+            onClick={onZoomIn}
+            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+        </Tooltip>
+        <Tooltip label="Zoom out">
+          <button
+            onClick={onZoomOut}
+            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+        </Tooltip>
+        <Tooltip label="Fit to screen">
+          <button
+            onClick={onFit}
+            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+        </Tooltip>
+        <Tooltip label="Reset viewport">
+          <button
+            onClick={onReset}
+            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
       </div>
 
       {/* Layout Selection */}

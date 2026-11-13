@@ -15,7 +15,7 @@ interface TooltipProps {
 }
 
 /**
- * SidebarTooltip
+ * Tooltip
  *
  * A Radix UI Tooltip styled to match the LuminAI dark design system:
  * - Dark zinc surface, light text, rounded corners, soft shadow
@@ -23,10 +23,10 @@ interface TooltipProps {
  * - 200 ms hover delay; disappears instantly on mouse-leave
  * - Fully accessible (aria-describedby, keyboard support) via Radix primitives
  */
-export const SidebarTooltip: React.FC<TooltipProps> = ({
+export const Tooltip: React.FC<TooltipProps> = ({
   label,
   children,
-  side = "right",
+  side = "top",
   delayDuration = 200,
   enabled = true,
 }) => {
@@ -70,8 +70,13 @@ export const SidebarTooltip: React.FC<TooltipProps> = ({
   );
 };
 
+/** Sidebar navigation keeps its labels on the outward-facing edge. */
+export const SidebarTooltip: React.FC<Omit<TooltipProps, "side">> = (props) => (
+  <Tooltip {...props} side="right" />
+);
+
 /**
- * Wrap your app (or just the sidebar) with this provider once.
+ * Wrap the app once so every tooltip shares the same timing and behavior.
  * skipDelayDuration=0 keeps tooltips snappy when moving between items.
  */
 // eslint-disable-next-line react-refresh/only-export-components

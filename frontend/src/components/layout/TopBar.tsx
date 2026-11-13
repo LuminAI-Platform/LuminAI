@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Sun, Moon, Plus, Bell, Clock, Search, LogOut } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import { useThemeStore } from "../../stores/themeStore";
+import { Tooltip } from "../ui/Tooltip";
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -67,42 +68,52 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
       {/* Action Buttons */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Theme Switcher Toggle (Light theme default / Dark theme user option) */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-border"
-          aria-label={
-            theme === "light" ? "Switch to Dark theme" : "Switch to Light theme"
+        <Tooltip
+          label={
+            theme === "light" ? "Switch to dark theme" : "Switch to light theme"
           }
-          title={
-            theme === "light" ? "Switch to Dark theme" : "Switch to Light theme"
-          }
+          side="bottom"
         >
-          {theme === "light" ? (
-            <Moon className="w-4 h-4" />
-          ) : (
-            <Sun className="w-4 h-4 text-warning" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-border"
+            aria-label={
+              theme === "light"
+                ? "Switch to dark theme"
+                : "Switch to light theme"
+            }
+          >
+            {theme === "light" ? (
+              <Moon className="w-4 h-4" />
+            ) : (
+              <Sun className="w-4 h-4 text-warning" />
+            )}
+          </button>
+        </Tooltip>
 
         {/* Notification Icon (No neon glows) */}
-        <button
-          type="button"
-          className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors relative cursor-pointer"
-          aria-label="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-text-secondary rounded-full" />
-        </button>
+        <Tooltip label="Notifications" side="bottom">
+          <button
+            type="button"
+            className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors relative cursor-pointer"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-text-secondary rounded-full" />
+          </button>
+        </Tooltip>
 
         {/* History/Clock Icon */}
-        <button
-          type="button"
-          className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer"
-          aria-label="History"
-        >
-          <Clock className="w-4 h-4" />
-        </button>
+        <Tooltip label="History" side="bottom">
+          <button
+            type="button"
+            className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="History"
+          >
+            <Clock className="w-4 h-4" />
+          </button>
+        </Tooltip>
 
         {/* Divider */}
         <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
@@ -143,16 +154,17 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             </div>
 
             {/* Logout button */}
-            <button
-              id="topbar-logout-btn"
-              type="button"
-              onClick={logout}
-              className="p-1.5 text-text-secondary hover:text-error hover:bg-error-bg rounded-md transition-colors cursor-pointer"
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <Tooltip label="Sign out" side="bottom">
+              <button
+                id="topbar-logout-btn"
+                type="button"
+                onClick={logout}
+                className="p-1.5 text-text-secondary hover:text-error hover:bg-error-bg rounded-md transition-colors cursor-pointer"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>
