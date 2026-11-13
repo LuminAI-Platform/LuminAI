@@ -6,11 +6,15 @@ import type { DashboardSummary } from "../useDashboardData";
 interface DashboardKpiRowProps {
   summary: DashboardSummary | undefined;
   isLoading: boolean;
+  isCached?: boolean;
+  cachedAt?: string;
 }
 
 export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
   summary,
   isLoading,
+  isCached = false,
+  cachedAt,
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -21,6 +25,8 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         icon={<Network className="w-4 h-4" />}
         badge={{ text: "Active", variant: "success" }}
         isLoading={isLoading}
+        isCached={isCached}
+        cachedAt={cachedAt}
       />
 
       <KpiCard
@@ -30,6 +36,8 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         icon={<Database className="w-4 h-4" />}
         badge={{ text: "Online", variant: "info" }}
         isLoading={isLoading}
+        isCached={isCached}
+        cachedAt={cachedAt}
       />
 
       <KpiCard
@@ -48,6 +56,8 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
             (summary?.pipelineHealth?.failed ?? 0) > 0 ? "warning" : "success",
         }}
         isLoading={isLoading}
+        isCached={isCached}
+        cachedAt={cachedAt}
       />
 
       <KpiCard
@@ -56,6 +66,8 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         subtitle="Completeness & accuracy"
         icon={<ShieldCheck className="w-4 h-4" />}
         isLoading={isLoading}
+        isCached={isCached}
+        cachedAt={cachedAt}
       />
     </div>
   );

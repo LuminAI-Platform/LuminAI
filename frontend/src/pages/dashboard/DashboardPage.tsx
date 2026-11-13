@@ -18,6 +18,7 @@ export const DashboardPage: React.FC = () => {
     summary,
     isSummaryLoading,
     summaryError,
+    cachedAtTime,
     timeSeries,
     isTimeSeriesLoading,
     activity,
@@ -53,26 +54,58 @@ export const DashboardPage: React.FC = () => {
       />
 
       {summaryError && (
-        <div className="bg-red-950/30 border border-red-500/40 rounded-lg p-4 flex items-center justify-between text-xs text-red-200">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <span>
-              Failed to connect to Dashboard telemetry services. Showing cached
-              metrics.
-            </span>
+        <div
+          role="alert"
+          className="bg-amber-950/20 border border-amber-500/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-zinc-200 shadow-sm"
+        >
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400 mt-0.5 sm:mt-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-zinc-100">
+                  Can’t load live numbers. Showing data from {cachedAtTime}.
+                </span>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  Cached
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Retry now, or check status if it keeps failing.
+              </p>
+            </div>
           </div>
-          <Button
-            size="xs"
-            variant="secondary"
-            onClick={() => refetchSummary()}
-          >
-            Retry
-          </Button>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => refetchSummary()}
+              disabled={isRefetching}
+              className="h-11 min-h-[44px] px-5 bg-white hover:bg-zinc-100 active:bg-zinc-200 text-zinc-950 font-semibold text-sm rounded-lg shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isRefetching ? "animate-spin" : ""}`}
+              />
+              Retry
+            </button>
+            <Link
+              to="/connections/pipeline"
+              className="h-11 min-h-[44px] px-4 bg-zinc-800/90 hover:bg-zinc-800 hover:text-white text-zinc-200 border border-zinc-700/80 font-medium text-sm rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+            >
+              Check status
+            </Link>
+          </div>
         </div>
       )}
 
       {/* 1. KPI Cards Row */}
-      <DashboardKpiRow summary={summary} isLoading={isSummaryLoading} />
+      <DashboardKpiRow
+        summary={summary}
+        isLoading={isSummaryLoading}
+        isCached={!!summaryError}
+        cachedAt={cachedAtTime}
+      />
 
       {/* Python Data Engine Telemetry & Polars Compute */}
       <DataEngineTelemetryCard />

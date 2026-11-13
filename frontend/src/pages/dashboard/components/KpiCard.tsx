@@ -12,6 +12,8 @@ export interface KpiCardProps {
     variant?: BadgeVariant;
   };
   isLoading?: boolean;
+  isCached?: boolean;
+  cachedAt?: string;
 }
 
 /**
@@ -24,9 +26,17 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   icon,
   badge,
   isLoading = false,
+  isCached = false,
+  cachedAt,
 }) => {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg p-5 transition-colors flex flex-col justify-between">
+    <div
+      className={`bg-zinc-900 border rounded-lg p-5 transition-colors flex flex-col justify-between ${
+        isCached
+          ? "border-amber-500/25 bg-zinc-900/90 shadow-sm"
+          : "border-zinc-800 hover:border-zinc-700"
+      }`}
+    >
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-zinc-400 select-none">
           {title}
@@ -36,13 +46,24 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         </div>
       </div>
 
-      <div className="flex items-baseline gap-2 mb-1.5">
+      <div className="flex items-baseline gap-2 mb-1.5 flex-wrap">
         {isLoading ? (
           <Skeleton className="w-24 h-7" />
         ) : (
-          <span className="text-2xl font-bold tracking-tight text-zinc-100">
-            {typeof value === "number" ? value.toLocaleString() : value}
-          </span>
+          <>
+            <span
+              className={`text-2xl font-bold tracking-tight ${
+                isCached ? "text-zinc-300 opacity-90" : "text-zinc-100"
+              }`}
+            >
+              {typeof value === "number" ? value.toLocaleString() : value}
+            </span>
+            {isCached && (
+              <span className="text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                {cachedAt ? `As of ${cachedAt}` : "Cached"}
+              </span>
+            )}
+          </>
         )}
       </div>
 
