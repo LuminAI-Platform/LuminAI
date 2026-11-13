@@ -1,12 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Database,
-  RefreshCw,
-  ArrowRight,
-  Layers,
-  AlertCircle,
-} from "lucide-react";
+import { RefreshCw, ArrowRight, Layers, AlertCircle } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { EntityBreakdownChart } from "./components/EntityBreakdownChart";
 import { PipelineTimelineChart } from "./components/PipelineTimelineChart";
@@ -42,30 +36,19 @@ export const DashboardPage: React.FC = () => {
         description="System status, connected data sources, pipeline executions, and resolved records."
         icon={<Layers className="w-5 h-5 text-zinc-300" />}
         actions={
-          <>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleManualRefresh}
-              isLoading={isRefetching}
-              leftIcon={
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
-                />
-              }
-            >
-              Refresh
-            </Button>
-            <Link to="/connections">
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Database className="w-3.5 h-3.5" />}
-              >
-                Add Connection
-              </Button>
-            </Link>
-          </>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleManualRefresh}
+            isLoading={isRefetching}
+            leftIcon={
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
+              />
+            }
+          >
+            Refresh
+          </Button>
         }
       />
 
