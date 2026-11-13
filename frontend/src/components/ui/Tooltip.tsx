@@ -49,7 +49,7 @@ export const SidebarTooltip: React.FC<TooltipProps> = ({
             "z-[200] max-w-[220px] px-3 py-1.5",
             // Visual — dark surface matching the app shell
             "bg-surface-muted text-text",
-            "rounded-lg shadow-xl shadow-black/40",
+            "rounded-lg shadow-sm",
             "border border-border",
             // Typography
             "text-[12px] font-medium leading-snug",

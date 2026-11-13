@@ -15,34 +15,34 @@ export const RawPreviewModal: React.FC<RawPreviewModalProps> = ({
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-4xl h-[70vh] flex flex-col overflow-hidden shadow-2xl">
-        <div className="px-5 py-3.5 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between shrink-0">
+      <div className="bg-surface border border-border rounded-lg w-full max-w-4xl h-[70vh] flex flex-col overflow-hidden shadow-sm">
+        <div className="px-5 py-3.5 border-b border-border bg-surface-subtle flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <FileText className="w-4 h-4 text-zinc-400" />
-            <h3 className="text-xs font-semibold text-zinc-100">
+            <FileText className="w-4 h-4 text-text-secondary" />
+            <h3 className="text-xs font-semibold text-text">
               Raw File Inspection: {previewingFile.name}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 cursor-pointer"
+            className="p-1 rounded text-text-secondary hover:text-text cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="flex-1 overflow-auto p-4 min-h-0 bg-zinc-950">
+        <div className="flex-1 overflow-auto p-4 min-h-0 bg-surface">
           {isRawPreviewLoading ? (
-            <div className="h-full flex items-center justify-center text-zinc-500 text-xs">
+            <div className="h-full flex items-center justify-center text-text-secondary text-xs">
               Loading raw rows...
             </div>
           ) : !previewingFile.sampleRows ||
             previewingFile.sampleRows.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-zinc-500 text-xs">
+            <div className="h-full flex items-center justify-center text-text-secondary text-xs">
               No preview rows stored for this flat file.
             </div>
           ) : (
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-800">
+              <thead className="sticky top-0 bg-surface-subtle border-b border-border">
                 <tr>
                   {(
                     previewingFile.columns ||
@@ -50,23 +50,23 @@ export const RawPreviewModal: React.FC<RawPreviewModalProps> = ({
                   ).map((col) => (
                     <th
                       key={col}
-                      className="py-2 px-3 font-semibold text-zinc-300 font-mono text-[11px]"
+                      className="py-2 px-3 font-semibold text-text-secondary font-mono text-[11px]"
                     >
                       {col}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800">
+              <tbody className="divide-y divide-border">
                 {previewingFile.sampleRows.slice(0, 100).map((row, i) => (
-                  <tr key={i} className="hover:bg-zinc-900/50">
+                  <tr key={i} className="hover:bg-surface-hover">
                     {(
                       previewingFile.columns ||
                       Object.keys(previewingFile.sampleRows![0])
                     ).map((col) => (
                       <td
                         key={col}
-                        className="py-1.5 px-3 font-mono text-[11px] text-zinc-300 whitespace-nowrap"
+                        className="py-1.5 px-3 font-mono text-[11px] text-text whitespace-nowrap"
                       >
                         {String(row[col] ?? "—")}
                       </td>

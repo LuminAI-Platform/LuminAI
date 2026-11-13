@@ -33,7 +33,7 @@ export const LoginPage: React.FC = () => {
   const busy = isConnecting || isLoading;
 
   return (
-    <div className="min-h-screen w-screen flex items-stretch bg-white dark:bg-[#0d0e12] font-sans select-none">
+    <div className="min-h-screen w-screen flex items-stretch bg-page font-sans select-none">
       {/* ── Left panel — sign-in hero ────────────────────────────────────── */}
       <div className="w-full lg:w-[42%] flex flex-col min-h-screen">
         {/* Top spacer — pushes content to true vertical center */}
@@ -66,8 +66,8 @@ export const LoginPage: React.FC = () => {
 
           {/* Error banner */}
           {error && (
-            <div className="mb-5 flex items-start gap-2.5 rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 px-3.5 py-3 text-sm text-red-700 dark:text-red-300">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+            <div className="mb-5 flex items-start gap-2.5 rounded-lg border border-error-border bg-error-bg px-3.5 py-3 text-sm text-error">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
               <span>{error}</span>
             </div>
           )}

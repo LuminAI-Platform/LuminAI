@@ -67,6 +67,39 @@
   --color-blue-500: var(--color-primary-hover);
   --color-blue-700: var(--color-primary-hover);
 
+  /* Compatibility aliases keep older utilities within the semantic palette. */
+  --color-cyan-400: var(--color-primary);
+  --color-cyan-500: var(--color-primary);
+  --color-cyan-600: var(--color-primary-hover);
+  --color-teal-400: var(--color-success);
+  --color-teal-500: var(--color-success);
+  --color-teal-600: var(--color-success);
+  --color-green-400: var(--color-success);
+  --color-green-500: var(--color-success);
+  --color-green-600: var(--color-success);
+  --color-emerald-400: var(--color-success);
+  --color-emerald-500: var(--color-success);
+  --color-emerald-600: var(--color-success);
+  --color-amber-400: var(--color-warning);
+  --color-amber-500: var(--color-warning);
+  --color-amber-600: var(--color-warning);
+  --color-yellow-400: var(--color-warning);
+  --color-yellow-500: var(--color-warning);
+  --color-yellow-600: var(--color-warning);
+  --color-red-300: var(--color-error);
+  --color-red-400: var(--color-error);
+  --color-red-500: var(--color-error);
+  --color-red-600: var(--color-error);
+  --color-rose-400: var(--color-error);
+  --color-rose-500: var(--color-error);
+  --color-rose-600: var(--color-error);
+  --color-purple-400: var(--color-primary);
+  --color-purple-500: var(--color-primary);
+  --color-purple-600: var(--color-primary);
+  --color-violet-400: var(--color-primary);
+  --color-violet-500: var(--color-primary);
+  --color-violet-600: var(--color-primary);
+
   /* Spacing */
   --spacing-gutter: var(--spacing-gutter);
 

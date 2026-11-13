@@ -15,7 +15,7 @@
 
   --color-text: #1a2230;
   --color-text-secondary: #566176;
-  --color-text-muted: #7e8b9e;
+  --color-text-muted: #68758a;
   --color-text-contrast: #ffffff;
 
   /* Primary Navy from Luminex Logo */
@@ -104,7 +104,8 @@
 
   --color-text: #e9edf4;
   --color-text-secondary: #a3adbf;
-  --color-text-muted: #7a8598;
+  /* Kept comfortably above 4.5:1 against the dark surface. */
+  --color-text-muted: #929db0;
   --color-text-contrast: #12161d;
 
   /* Navy tint for dark mode (navy fails on dark) */
