@@ -53,7 +53,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         ) : (
           <>
             <span
-              className={`text-2xl font-bold tracking-tight text-text ${
+              className={`text-3xl font-semibold tabular-nums tracking-tight text-text ${
                 isCached ? "opacity-90" : ""
               }`}
             >

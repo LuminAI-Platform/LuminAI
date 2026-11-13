@@ -47,8 +47,8 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
   return (
     <nav className="flex-1 py-4 px-3.5 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
       {!collapsed && (
-        <div className="px-2 pt-1 pb-1 text-[9px] font-bold text-text-secondary uppercase tracking-widest">
-          Explore & Overview
+        <div className="px-2 pt-1 pb-1 text-[11px] font-medium text-text-secondary">
+          Explore and overview
         </div>
       )}
       {navItems
@@ -56,8 +56,8 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
         .map((i) => renderNavLink(i, collapsed, setMobileOpen))}
 
       {!collapsed && (
-        <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-text-secondary uppercase tracking-widest">
-          Data Integration
+        <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary">
+          Data integration
         </div>
       )}
       {navItems
@@ -65,7 +65,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
         .map((i) => renderNavLink(i, collapsed, setMobileOpen))}
 
       {!collapsed && (
-        <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-text-secondary uppercase tracking-widest">
+        <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary">
           Configuration
         </div>
       )}

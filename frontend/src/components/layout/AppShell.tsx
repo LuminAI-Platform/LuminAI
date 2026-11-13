@@ -77,16 +77,15 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                 {isOnline ? "Connected" : "Offline"}
               </span>
             </span>
-            <span className="text-border">|</span>
             <span className="flex items-center gap-1">
-              <span>SYSTEM:</span>
-              <span className="text-success font-medium">ONLINE</span>
+              <span>System:</span>
+              <span className="text-success font-medium">Online</span>
             </span>
-            <span className="text-border">|</span>
             <span>
-              ENV:{" "}
+              Environment:{" "}
               <span className="text-text font-medium">
-                {import.meta.env.MODE.toUpperCase()}
+                {import.meta.env.MODE.charAt(0).toUpperCase() +
+                  import.meta.env.MODE.slice(1)}
               </span>
             </span>
           </div>

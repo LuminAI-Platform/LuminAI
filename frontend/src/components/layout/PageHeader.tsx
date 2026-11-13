@@ -53,9 +53,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         aria-label="Breadcrumb"
         className="flex items-center gap-1.5 text-xs text-text-secondary"
       >
-        <span className="text-text-secondary font-semibold uppercase tracking-wider">
-          LuminAI
-        </span>
+        <span className="text-text-secondary font-medium">LuminAI</span>
         <ChevronRight className="w-3 h-3 text-border" />
         {breadcrumbs.map((item, idx) => (
           <React.Fragment key={idx}>

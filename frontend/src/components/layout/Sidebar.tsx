@@ -69,8 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-sm font-bold text-text tracking-tight leading-none">
                   LuminAI
                 </span>
-                <span className="text-[9px] font-semibold text-text-secondary tracking-widest uppercase mt-0.5">
-                  Data Platform
+                <span className="text-[11px] font-medium text-text-secondary mt-0.5">
+                  Data platform
                 </span>
               </div>
             )}

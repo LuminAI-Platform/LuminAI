@@ -30,7 +30,7 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
       <KpiCard
         title="Resolved Entities"
         value={summary?.totalEntities ?? 0}
-        subtitle="Golden semantic records"
+        subtitle="Matched records"
         icon={<Network className="w-4 h-4" />}
         badge={{ text: "Active", variant: "success" }}
         isLoading={isLoading}
@@ -41,7 +41,7 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
       <KpiCard
         title="Active Connectors"
         value={summary?.totalConnections ?? 0}
-        subtitle="Data sources integrated"
+        subtitle="Connected sources"
         icon={<Database className="w-4 h-4" />}
         badge={{ text: "Online", variant: "success" }}
         isLoading={isLoading}
