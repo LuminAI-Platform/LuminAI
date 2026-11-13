@@ -7,8 +7,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
+import { SuggestedTag } from "../../../components/ui/Badge";
 import type { CandidateResponse } from "./mergeTypes";
-import { getScoreColor } from "./mergeTypes";
 
 interface CandidateInspectorProps {
   activeCandidate: CandidateResponse | null;
@@ -45,10 +45,8 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
             <span className="text-xs font-mono text-zinc-400">
               ID: {activeCandidate.candidateId}
             </span>
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded border font-medium ${getScoreColor(activeCandidate.similarityScore)}`}
-            >
-              Suggested match ·{" "}
+            <SuggestedTag label="Suggested" />
+            <span className="text-[11px] text-text-secondary font-medium">
               {Math.round(activeCandidate.similarityScore * 100)}% confidence
             </span>
           </div>
@@ -74,7 +72,7 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
               onClick={() => onAccept(activeCandidate.candidateId)}
               disabled={isAcceptPending || isRejectPending}
               leftIcon={
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <CheckCircle className="w-3.5 h-3.5 text-primary-text" />
               }
             >
               Accept & Merge
@@ -85,20 +83,20 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
 
       {/* Side-by-Side Comparison Table */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col">
-        <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/60 shadow-inner flex-1 min-h-0 flex flex-col">
+        <div className="border border-border rounded-lg overflow-hidden bg-surface shadow-xs flex-1 min-h-0 flex flex-col">
           <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 scrollbar-thin">
             <table className="w-full min-w-[650px] text-left text-xs border-collapse">
-              <thead className="sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 shadow-xs">
-                <tr className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">
+              <thead className="sticky top-0 z-10 bg-surface-subtle border-b border-border shadow-xs">
+                <tr className="text-[11px] text-text-secondary uppercase tracking-wider font-semibold">
                   <th className="py-2.5 px-3 min-w-[140px] w-1/4">Property</th>
-                  <th className="py-2.5 px-3 min-w-[200px] w-3/8 text-blue-400 border-l border-zinc-800">
+                  <th className="py-2.5 px-3 min-w-[200px] w-3/8 text-primary border-l border-border">
                     Source Record A (
                     {String(
                       activeCandidate.recordA.properties?.sourceSystem || "CRM",
                     )}
                     )
                   </th>
-                  <th className="py-2.5 px-3 min-w-[200px] w-3/8 text-purple-400 border-l border-zinc-800">
+                  <th className="py-2.5 px-3 min-w-[200px] w-3/8 text-text border-l border-border">
                     Source Record B (
                     {String(
                       activeCandidate.recordB.properties?.sourceSystem || "ERP",
@@ -107,7 +105,7 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/50 font-mono text-[11px]">
+              <tbody className="divide-y divide-border font-mono text-[11px]">
                 {allPropertyKeys.map((key) => {
                   const valA = activeCandidate.recordA.properties?.[key];
                   const valB = activeCandidate.recordB.properties?.[key];
@@ -122,32 +120,32 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
                       key={key}
                       className={`transition-colors ${
                         isConflict
-                          ? "bg-amber-500/5"
+                          ? "bg-warning-bg/50"
                           : isMatch
-                            ? "bg-emerald-500/5"
-                            : "hover:bg-zinc-800/20"
+                            ? "bg-success-bg/50"
+                            : "hover:bg-surface-hover"
                       }`}
                     >
-                      <td className="py-2 px-3 text-zinc-400 font-sans font-medium flex items-center justify-between whitespace-nowrap">
+                      <td className="py-2 px-3 text-text-secondary font-sans font-medium flex items-center justify-between whitespace-nowrap">
                         <span>{key}</span>
                         {isConflict && (
-                          <span className="text-[10px] text-amber-400 flex items-center gap-0.5 ml-2">
+                          <span className="text-[10px] text-warning flex items-center gap-0.5 ml-2">
                             <AlertTriangle className="w-3 h-3" />
                           </span>
                         )}
                         {isMatch && (
-                          <span className="text-[10px] text-emerald-400 ml-2">
+                          <span className="text-[10px] text-success ml-2">
                             ✓
                           </span>
                         )}
                       </td>
                       <td
-                        className={`py-2 px-3 border-l border-zinc-800 break-words max-w-sm ${isConflict ? "text-amber-200" : isMatch ? "text-emerald-200" : "text-zinc-300"}`}
+                        className={`py-2 px-3 border-l border-border break-words max-w-sm ${isConflict ? "text-warning" : isMatch ? "text-success" : "text-text"}`}
                       >
                         {strA}
                       </td>
                       <td
-                        className={`py-2 px-3 border-l border-zinc-800 break-words max-w-sm ${isConflict ? "text-amber-200" : isMatch ? "text-emerald-200" : "text-zinc-300"}`}
+                        className={`py-2 px-3 border-l border-border break-words max-w-sm ${isConflict ? "text-warning" : isMatch ? "text-success" : "text-text"}`}
                       >
                         {strB}
                       </td>
@@ -160,15 +158,15 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
         </div>
 
         {/* Golden Record Lineage Summary */}
-        <div className="mt-4 p-3.5 bg-zinc-950/50 border border-zinc-800 rounded-lg flex items-center justify-between text-xs">
+        <div className="mt-4 p-3.5 bg-surface-subtle border border-border rounded-lg flex items-center justify-between text-xs">
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span className="text-zinc-400">Target Golden Record:</span>
-            <span className="font-mono text-zinc-200 font-semibold">
+            <ShieldCheck className="w-4 h-4 text-success" />
+            <span className="text-text-secondary">Target Golden Record:</span>
+            <span className="font-mono text-text font-semibold">
               {activeCandidate.goldenRecordId}
             </span>
           </div>
-          <span className="text-[11px] text-zinc-500">
+          <span className="text-[11px] text-text-secondary">
             Deterministic merge rules resolve conflicting attributes via
             priority matrix
           </span>

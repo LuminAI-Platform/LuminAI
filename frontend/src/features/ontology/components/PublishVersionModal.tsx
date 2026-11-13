@@ -145,14 +145,14 @@ export const PublishVersionModal: React.FC<PublishVersionModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text border border-border hover:bg-surface-subtle rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={publishing}
-              className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-lg shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               {publishing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Publish Snapshot

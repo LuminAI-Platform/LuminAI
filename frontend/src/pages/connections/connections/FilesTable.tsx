@@ -4,7 +4,7 @@ import {
   formatRelativeTime,
   getHealthStatusBadge,
 } from "./connectionsTypes";
-import { FileText, Search, Sparkles, Trash2 } from "lucide-react";
+import { FileText, Search, ShieldCheck, Trash2 } from "lucide-react";
 
 interface FilesTableProps {
   ingestedFiles: IngestedFile[];
@@ -107,7 +107,8 @@ export const FilesTable: React.FC<FilesTableProps> = ({
                         className="px-2 py-1 rounded bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 text-blue-400 hover:text-blue-300 text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
                         title="View Clean & Golden semantic records"
                       >
-                        <Sparkles className="w-3 h-3" /> Clean Data
+                        <ShieldCheck className="w-3 h-3 text-success" /> Clean
+                        Data
                       </button>
                       <button
                         onClick={() => onDeleteFile(f)}

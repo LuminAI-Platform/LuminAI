@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-  Sparkles,
+  Wand2,
   Database,
   Layers,
   Check,
@@ -352,8 +352,8 @@ export const AutoGenerateModal: React.FC<AutoGenerateModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/60">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-primary">
+              <Wand2 className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-zinc-100">

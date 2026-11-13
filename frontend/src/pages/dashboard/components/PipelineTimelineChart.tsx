@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { useThemeStore } from "../../../stores/themeStore";
 
 export interface TimeSeriesPoint {
   date: string;
@@ -15,6 +16,10 @@ interface PipelineTimelineChartProps {
 
 /**
  * Dual-axis time-series chart showing pipeline run frequency and entity volumes
+ *
+ * Rules:
+ * - Color-blind-safe palette (Navy + Amber/Orange), avoiding red vs green.
+ * - No gradient washes or neon glows: clean solid lines and bars.
  */
 export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
   data = [],
@@ -22,6 +27,8 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === "dark";
 
   useEffect(() => {
     if (!chartRef.current || isLoading) return;
@@ -38,21 +45,31 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
     const entities = data.map((d) => d.entityCount);
     const runs = data.map((d) => d.pipelineRuns);
 
+    const textColor = isDark ? "#E9EDF4" : "#1A2230";
+    const secondaryColor = isDark ? "#A3ADBF" : "#566176";
+    const surfaceColor = isDark ? "#1A202A" : "#FFFFFF";
+    const borderColor = isDark ? "#2C3441" : "#DFE3EA";
+    const gridLineColor = isDark ? "#222A37" : "#F0F2F5";
+
+    // Color-blind safe: Navy + Amber
+    const entityLineColor = isDark ? "#6B97FF" : "#12297A";
+    const pipelineBarColor = isDark ? "#F2C466" : "#E69F00";
+
     const option: echarts.EChartsOption = {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#18181b",
-        borderColor: "#27272a",
-        textStyle: { color: "#f4f4f5", fontSize: 12 },
+        backgroundColor: surfaceColor,
+        borderColor: borderColor,
+        textStyle: { color: textColor, fontSize: 12 },
         axisPointer: {
           type: "cross",
-          label: { backgroundColor: "#27272a" },
+          label: { backgroundColor: surfaceColor, color: textColor },
         },
       },
       legend: {
         data: ["Resolved Entities", "Pipeline Executions"],
-        textStyle: { color: "#a1a1aa", fontSize: 11 },
+        textStyle: { color: secondaryColor, fontSize: 11 },
         top: 0,
         right: 10,
         itemWidth: 12,
@@ -67,22 +84,22 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
       xAxis: {
         type: "category",
         data: dates,
-        axisLine: { lineStyle: { color: "#27272a" } },
-        axisLabel: { color: "#71717a", fontSize: 11 },
+        axisLine: { lineStyle: { color: borderColor } },
+        axisLabel: { color: secondaryColor, fontSize: 11 },
       },
       yAxis: [
         {
           type: "value",
           name: "Entities",
-          nameTextStyle: { color: "#71717a", fontSize: 10 },
-          axisLabel: { color: "#71717a", fontSize: 10 },
-          splitLine: { lineStyle: { color: "#1f1f23", type: "dashed" } },
+          nameTextStyle: { color: secondaryColor, fontSize: 10 },
+          axisLabel: { color: secondaryColor, fontSize: 10 },
+          splitLine: { lineStyle: { color: gridLineColor, type: "dashed" } },
         },
         {
           type: "value",
           name: "Runs",
-          nameTextStyle: { color: "#71717a", fontSize: 10 },
-          axisLabel: { color: "#71717a", fontSize: 10 },
+          nameTextStyle: { color: secondaryColor, fontSize: 10 },
+          axisLabel: { color: secondaryColor, fontSize: 10 },
           splitLine: { show: false },
           minInterval: 1,
         },
@@ -94,13 +111,9 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
           smooth: true,
           showSymbol: false,
           data: entities,
-          itemStyle: { color: "#3b82f6" },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(59, 130, 246, 0.3)" },
-              { offset: 1, color: "rgba(59, 130, 246, 0.0)" },
-            ]),
-          },
+          lineStyle: { width: 2, color: entityLineColor },
+          itemStyle: { color: entityLineColor },
+          // Removed gradient wash per Rule 4
         },
         {
           name: "Pipeline Executions",
@@ -108,7 +121,7 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
           yAxisIndex: 1,
           data: runs,
           itemStyle: {
-            color: "#10b981",
+            color: pipelineBarColor,
             borderRadius: [4, 4, 0, 0],
           },
           barMaxWidth: 18,
@@ -116,7 +129,7 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
       ],
     };
 
-    chart.setOption(option);
+    chart.setOption(option, true);
 
     const handleResize = () => chart.resize();
     window.addEventListener("resize", handleResize);
@@ -124,7 +137,7 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [data, isLoading]);
+  }, [data, isLoading, isDark]);
 
   useEffect(() => {
     return () => {
@@ -137,14 +150,5 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
     return <Skeleton className="w-full h-64 rounded-lg" />;
   }
 
-  return (
-    <div className="relative w-full h-64">
-      {data.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500 pointer-events-none">
-          No pipeline telemetry recorded
-        </div>
-      )}
-      <div ref={chartRef} className="w-full h-full" />
-    </div>
-  );
+  return <div ref={chartRef} className="w-full h-64" />;
 };

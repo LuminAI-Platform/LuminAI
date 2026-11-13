@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 
 interface AppShellProps {
   children?: React.ReactNode;
@@ -35,7 +36,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-page text-text font-sans">
       {/* Collapsible Sidebar Drawer */}
       <Sidebar
         collapsed={collapsed}
@@ -50,8 +51,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         <TopBar onMenuClick={() => setMobileOpen(true)} />
 
         {/* Scrollable View Container */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7 relative min-w-0">
-          {/* Subtle dotted background grid */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7 relative min-w-0 bg-page">
+          {/* Subtle calm background pattern */}
           <div className="absolute inset-0 bg-grid-dots pointer-events-none z-0" />
 
           {/* Children views container */}
@@ -61,32 +62,35 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         </main>
 
         {/* Status Bar */}
-        <footer className="h-9 bg-zinc-900 border-t border-zinc-800/80 px-6 flex items-center justify-between text-xs text-zinc-500 z-10 shrink-0 select-none">
+        <footer className="h-9 bg-surface border-t border-border px-6 flex items-center justify-between text-xs text-text-secondary z-10 shrink-0 select-none">
           <div className="flex items-center gap-4">
-            <span className="flex items-center">
+            <span className="flex items-center gap-1.5">
+              {isOnline ? (
+                <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+              ) : (
+                <AlertCircle className="w-3.5 h-3.5 text-error" />
+              )}
+              <span>Network:</span>
               <span
-                className={`w-1.5 h-1.5 rounded-full mr-2 ${
-                  isOnline ? "bg-emerald-500" : "bg-red-500"
-                }`}
-              />
-              Network:{" "}
-              <span className="text-zinc-300 ml-1">
+                className={`font-medium ${isOnline ? "text-success" : "text-error"}`}
+              >
                 {isOnline ? "Connected" : "Offline"}
               </span>
             </span>
-            <span>|</span>
-            <span>
-              SYSTEM: <span className="text-zinc-300">ONLINE</span>
+            <span className="text-border">|</span>
+            <span className="flex items-center gap-1">
+              <span>SYSTEM:</span>
+              <span className="text-success font-medium">ONLINE</span>
             </span>
-            <span>|</span>
+            <span className="text-border">|</span>
             <span>
               ENV:{" "}
-              <span className="text-zinc-300">
+              <span className="text-text font-medium">
                 {import.meta.env.MODE.toUpperCase()}
               </span>
             </span>
           </div>
-          <div className="hidden sm:block text-zinc-600">
+          <div className="hidden sm:block text-text-secondary">
             LuminAI Data Platform
           </div>
         </footer>

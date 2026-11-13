@@ -18,6 +18,7 @@ export interface KpiCardProps {
 
 /**
  * KPI Metric Card for Dashboard Overview Row
+ * Uses design system standard: 8px radius, 1px border, very light shadow.
  */
 export const KpiCard: React.FC<KpiCardProps> = ({
   title,
@@ -31,17 +32,17 @@ export const KpiCard: React.FC<KpiCardProps> = ({
 }) => {
   return (
     <div
-      className={`bg-zinc-900 border rounded-lg p-5 transition-colors flex flex-col justify-between ${
+      className={`bg-surface border rounded-lg p-5 transition-colors flex flex-col justify-between shadow-xs ${
         isCached
-          ? "border-amber-500/25 bg-zinc-900/90 shadow-sm"
-          : "border-zinc-800 hover:border-zinc-700"
+          ? "border-warning-border bg-surface-subtle"
+          : "border-border hover:border-text-secondary/40"
       }`}
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-zinc-400 select-none">
+        <span className="text-xs font-medium text-text-secondary select-none">
           {title}
         </span>
-        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400">
+        <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary">
           {icon}
         </div>
       </div>
@@ -52,14 +53,14 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         ) : (
           <>
             <span
-              className={`text-2xl font-bold tracking-tight ${
-                isCached ? "text-zinc-300 opacity-90" : "text-zinc-100"
+              className={`text-2xl font-bold tracking-tight text-text ${
+                isCached ? "opacity-90" : ""
               }`}
             >
               {typeof value === "number" ? value.toLocaleString() : value}
             </span>
             {isCached && (
-              <span className="text-[10px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-medium text-warning bg-warning-bg border border-warning-border px-1.5 py-0.5 rounded">
                 {cachedAt ? `As of ${cachedAt}` : "Cached"}
               </span>
             )}
@@ -67,7 +68,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         )}
       </div>
 
-      <div className="flex items-center justify-between text-[11px] text-zinc-500 min-h-5">
+      <div className="flex items-center justify-between text-[11px] text-text-secondary min-h-5">
         {isLoading ? (
           <Skeleton className="w-36 h-3" />
         ) : (

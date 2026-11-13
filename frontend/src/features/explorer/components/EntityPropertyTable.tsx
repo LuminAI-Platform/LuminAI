@@ -28,15 +28,15 @@ const CONFIDENCE_STYLES: Record<
 > = {
   high: {
     label: "High",
-    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    cls: "bg-success-bg text-success border-success-border font-medium",
   },
   medium: {
     label: "Med",
-    cls: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    cls: "bg-warning-bg text-warning border-warning-border font-medium",
   },
   low: {
     label: "Low",
-    cls: "bg-red-500/10 text-red-400 border-red-500/20",
+    cls: "bg-error-bg text-error border-error-border font-medium",
   },
 };
 

@@ -171,27 +171,27 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
   return (
     <div
-      className="flex flex-col bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden shadow-2xl shadow-black/40"
+      className="flex flex-col bg-surface border border-border rounded-lg overflow-hidden shadow-sm"
       data-testid="execution-logs"
     >
       {/* Panel header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-zinc-900/50 border-b border-zinc-800/80 select-none">
+      <div className="flex items-center justify-between px-4 py-3 bg-surface-subtle border-b border-border select-none">
         <div className="flex items-center gap-2.5">
           <span
-            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${paused ? "bg-zinc-600" : "bg-emerald-500"}`}
+            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${paused ? "bg-text-secondary" : "bg-success"}`}
           />
-          <span className="text-xs font-semibold text-zinc-100">{title}</span>
-          <span className="text-[10px] text-zinc-600">
+          <span className="text-xs font-semibold text-text">{title}</span>
+          <span className="text-[10px] text-text-secondary">
             {logs.length} entries
           </span>
 
           {warnCount > 0 && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-warning-bg border border-warning-border text-warning">
               {warnCount}W
             </span>
           )}
           {errLogCount > 0 && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-error-bg border border-error-border text-error">
               {errLogCount}E
             </span>
           )}
@@ -199,14 +199,14 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
         <div className="flex items-center gap-2">
           {isFollowing && !paused && (
-            <span className="text-[9px] text-emerald-500 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded font-medium">
+            <span className="text-[9px] text-success px-1.5 py-0.5 bg-success-bg border border-success-border rounded font-medium">
               LIVE
             </span>
           )}
           <button
             onClick={() => setPaused((v) => !v)}
             title={paused ? "Resume stream" : "Pause stream"}
-            className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg bg-surface border border-border text-text-secondary hover:text-text transition-all cursor-pointer"
           >
             {paused ? (
               <svg
@@ -232,7 +232,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
           <button
             onClick={() => setLogs([])}
             title="Clear buffer"
-            className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg bg-surface border border-border text-text-secondary hover:text-text transition-all cursor-pointer"
           >
             <svg
               width="11"
@@ -259,9 +259,9 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
 
       {/* Error callouts section */}
       {errorCount > 0 && (
-        <div className="flex flex-col gap-2 p-3 bg-red-950/20 border-b border-red-500/20">
-          <div className="text-[10px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+        <div className="flex flex-col gap-2 p-3 bg-error-bg border-b border-error-border">
+          <div className="text-[10px] font-bold text-error uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-error" />
             Active Failures ({errorCount})
           </div>
           <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">

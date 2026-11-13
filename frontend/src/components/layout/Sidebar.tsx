@@ -37,13 +37,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar container */}
       <aside
-        className={`fixed md:relative top-0 bottom-0 z-50 flex flex-col h-full bg-zinc-900 border-r border-zinc-800/80 transition-all duration-200 ease-in-out select-none ${
+        className={`fixed md:relative top-0 bottom-0 z-50 flex flex-col h-full bg-surface border-r border-border transition-all duration-200 ease-in-out select-none ${
           collapsed ? "w-16" : "w-64"
         } ${mobileOpen ? "left-0" : "-left-full md:left-0"}`}
       >
         {/* Header Section with Manual Toggle */}
         <div
-          className={`h-16 flex items-center border-b border-zinc-800/80 gap-3 overflow-hidden shrink-0 ${
+          className={`h-16 flex items-center border-b border-border gap-3 overflow-hidden shrink-0 ${
             collapsed ? "justify-center px-0" : "justify-between px-4"
           }`}
         >
@@ -66,10 +66,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
             {!collapsed && (
               <div className="flex flex-col overflow-hidden">
-                <span className="text-sm font-bold text-zinc-100 tracking-tight leading-none">
+                <span className="text-sm font-bold text-text tracking-tight leading-none">
                   LuminAI
                 </span>
-                <span className="text-[9px] font-semibold text-zinc-500 tracking-widest uppercase mt-0.5">
+                <span className="text-[9px] font-semibold text-text-secondary tracking-widest uppercase mt-0.5">
                   Data Platform
                 </span>
               </div>
@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 setCollapsed(true);
                 localStorage.setItem("luminai_sidebar_collapsed", "true");
               }}
-              className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-md transition-colors cursor-pointer"
+              className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-subtle rounded-md transition-colors cursor-pointer"
               title="Collapse Sidebar"
             >
               <svg
@@ -107,15 +107,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
 
         {/* Footer section */}
-        <div className="p-3 border-t border-zinc-800/80 flex flex-col gap-1 shrink-0">
+        <div className="p-3 border-t border-border flex flex-col gap-1 shrink-0">
           {/* Settings */}
           <SidebarTooltip label="Settings" enabled={collapsed}>
             <Link
               to="/settings"
-              className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+              className="flex items-center p-2.5 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
               activeProps={{
                 className:
-                  "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+                  "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
               }}
               onClick={() => setMobileOpen(false)}
             >
@@ -145,45 +145,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </Link>
           </SidebarTooltip>
 
-          {/* Support */}
-          <SidebarTooltip label="Support" enabled={collapsed}>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center p-2.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
-            >
-              <svg
-                className="shrink-0"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <span
-                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                  collapsed
-                    ? "opacity-0 w-0 pointer-events-none"
-                    : "opacity-100"
-                }`}
-              >
-                Support
-              </span>
-            </a>
-          </SidebarTooltip>
-
-          {/* User profile card */}
+          {/* User Profile */}
           <SidebarUserProfile
-            collapsed={collapsed}
             user={user}
+            collapsed={collapsed}
             logout={logout}
           />
         </div>

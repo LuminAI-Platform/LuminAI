@@ -48,9 +48,9 @@ export const SidebarTooltip: React.FC<TooltipProps> = ({
             // Layout
             "z-[200] max-w-[220px] px-3 py-1.5",
             // Visual — dark surface matching the app shell
-            "bg-zinc-800 text-zinc-100",
+            "bg-surface-muted text-text",
             "rounded-lg shadow-xl shadow-black/40",
-            "border border-zinc-700/60",
+            "border border-border",
             // Typography
             "text-[12px] font-medium leading-snug",
             // Animation
@@ -59,7 +59,11 @@ export const SidebarTooltip: React.FC<TooltipProps> = ({
           ].join(" ")}
         >
           {label}
-          <RadixTooltip.Arrow className="fill-zinc-800" width={8} height={5} />
+          <RadixTooltip.Arrow
+            className="fill-surface-muted"
+            width={8}
+            height={5}
+          />
         </RadixTooltip.Content>
       </RadixTooltip.Portal>
     </RadixTooltip.Root>

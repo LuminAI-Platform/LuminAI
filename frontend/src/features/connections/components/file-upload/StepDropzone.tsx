@@ -24,8 +24,8 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
         onDrop={onDrop}
         className={`w-full max-w-2xl border-2 border-dashed rounded-lg p-12 text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
           dragActive
-            ? "border-blue-500 bg-blue-500/5"
-            : "border-zinc-800 hover:border-zinc-700 bg-zinc-950/45 hover:bg-zinc-950/60"
+            ? "border-primary bg-primary-tint"
+            : "border-border hover:border-border-focus bg-surface-subtle hover:bg-surface-hover"
         }`}
         onClick={() => fileInputRef.current?.click()}
       >
@@ -36,7 +36,7 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
           className="hidden"
           onChange={onChange}
         />
-        <div className="w-16 h-16 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-zinc-200 transition-colors mb-6 shadow-inner">
+        <div className="w-16 h-16 rounded-lg bg-surface border border-border flex items-center justify-center text-text-secondary group-hover:text-text transition-colors mb-6 shadow-xs">
           <svg
             width="28"
             height="28"
@@ -50,17 +50,17 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
             <path d="m9 15 3-3 3 3" />
           </svg>
         </div>
-        <h3 className="text-lg font-bold text-zinc-100 tracking-tight">
+        <h3 className="text-lg font-bold text-text tracking-tight">
           Drag and drop file
         </h3>
-        <p className="text-sm text-zinc-400 mt-2 max-w-md">
+        <p className="text-sm text-text-secondary mt-2 max-w-md">
           Ingest structured records instantly. Supported formats are{" "}
-          <strong className="text-zinc-300">CSV</strong> or{" "}
-          <strong className="text-zinc-300">JSON</strong> (up to 500 MB).
+          <strong className="text-text">CSV</strong> or{" "}
+          <strong className="text-text">JSON</strong> (up to 500 MB).
         </p>
         <button
           type="button"
-          className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/10 transition-colors cursor-pointer"
+          className="mt-6 px-4 py-2 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           Select File
         </button>

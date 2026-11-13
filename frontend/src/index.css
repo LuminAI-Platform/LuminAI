@@ -6,38 +6,66 @@
   --font-sans: var(--font-family-sans);
   --font-mono: var(--font-family-mono);
 
-  /* Add brand colors, dark-theme backgrounds, text, and borders */
-  --color-brand-primary: var(--color-brand-primary);
-  --color-brand-primary-hover: var(--color-brand-primary-hover);
-  --color-brand-primary-glow: var(--color-brand-primary-glow);
+  /* Semantic Theme Tokens */
+  --color-page: var(--color-page);
+  --color-surface: var(--color-surface);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-subtle: var(--color-surface-subtle);
+  --color-surface-muted: var(--color-surface-muted);
 
-  --color-brand-accent: var(--color-brand-accent);
-  --color-brand-accent-hover: var(--color-brand-accent-hover);
-  --color-brand-accent-glow: var(--color-brand-accent-glow);
+  --color-border: var(--color-border);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-focus: var(--color-border-focus);
 
-  --color-brand-danger: var(--color-brand-danger);
-  --color-brand-danger-hover: var(--color-brand-danger-hover);
-  --color-brand-danger-glow: var(--color-brand-danger-glow);
-
-  --color-brand-warning: var(--color-brand-warning);
-  --color-brand-warning-hover: var(--color-brand-warning-hover);
-
-  --color-brand-success: var(--color-brand-success);
-  --color-brand-info: var(--color-brand-info);
-
-  --color-bg-app: var(--color-bg-app);
-  --color-bg-panel: var(--color-bg-panel);
-  --color-bg-surface: var(--color-bg-surface);
-  --color-bg-surface-hover: var(--color-bg-surface-hover);
-
-  --color-text-primary: var(--color-text-primary);
+  --color-text: var(--color-text);
   --color-text-secondary: var(--color-text-secondary);
   --color-text-muted: var(--color-text-muted);
   --color-text-contrast: var(--color-text-contrast);
 
-  --color-border-primary: var(--color-border-primary);
-  --color-border-secondary: var(--color-border-secondary);
-  --color-border-focus: var(--color-border-focus);
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-text: var(--color-primary-text);
+  --color-primary-tint: var(--color-primary-tint);
+  --color-primary-border: var(--color-primary-border);
+
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+  --color-success-border: var(--color-success-border);
+
+  --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
+  --color-warning-border: var(--color-warning-border);
+
+  --color-error: var(--color-error);
+  --color-error-bg: var(--color-error-bg);
+  --color-error-border: var(--color-error-border);
+
+  --color-nodata: var(--color-nodata);
+  --color-nodata-bg: var(--color-nodata-bg);
+  --color-nodata-border: var(--color-nodata-border);
+
+  --color-suggested: var(--color-suggested);
+  --color-suggested-bg: var(--color-suggested-bg);
+  --color-suggested-border: var(--color-suggested-border);
+
+  /* Dynamic mapping of neutral zinc palette to Light/Dark design tokens */
+  --color-zinc-950: var(--color-page);
+  --color-zinc-900: var(--color-surface);
+  --color-zinc-850: var(--color-surface-subtle);
+  --color-zinc-800: var(--color-surface-muted);
+  --color-zinc-700: var(--color-border);
+  --color-zinc-600: var(--color-text-muted);
+  --color-zinc-500: var(--color-text-secondary);
+  --color-zinc-400: var(--color-text-secondary);
+  --color-zinc-300: var(--color-text);
+  --color-zinc-200: var(--color-text);
+  --color-zinc-100: var(--color-text);
+  --color-zinc-50: var(--color-text);
+
+  /* Primary Blue/Navy mappings */
+  --color-blue-600: var(--color-primary);
+  --color-blue-500: var(--color-primary-hover);
+  --color-blue-700: var(--color-primary-hover);
 
   /* Spacing */
   --spacing-gutter: var(--spacing-gutter);
@@ -54,13 +82,12 @@
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
-  --shadow-glow: var(--shadow-glow);
 
-  /* Radii */
+  /* Radii - Rule: One card style with ~8px radius */
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
+  --radius-lg: 8px;
   --radius-xl: var(--radius-xl);
 }
 
@@ -93,40 +120,34 @@
   animation: tooltip-out 100ms ease-in;
 }
 
-/* Custom Scrollbars */
+/* Accessible, clean custom scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(24, 24, 27, 0.6);
-  border-radius: 4px;
+  background: var(--color-page);
 }
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46; /* zinc-700 - high contrast and visible */
+  background: var(--color-border);
   border-radius: 4px;
-  border: 1px solid rgba(24, 24, 27, 0.4);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #71717a; /* zinc-500 */
+  background: var(--color-text-secondary);
 }
 
-/* Firefox standard scrollbar support */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #3f3f46 rgba(24, 24, 27, 0.6);
+  scrollbar-color: var(--color-border) var(--color-page);
 }
 
-/* Custom background pattern overlay for premium dark grids */
+/* Clean, calm background grid — no neon, no high contrast */
 .bg-grid-dots {
-  background-image: radial-gradient(
-    rgba(255, 255, 255, 0.035) 1px,
-    transparent 1px
-  );
+  background-image: radial-gradient(currentColor 0.75px, transparent 0.75px);
   background-size: 24px 24px;
+  opacity: 0.03;
 }
 
-/* Reset original Vite template #root constraints to ensure 100vw/100vh app shell */
 #root {
   width: 100vw;
   height: 100vh;
@@ -142,7 +163,8 @@
 
 body {
   margin: 0;
-  background-color: #09090b; /* zinc-950 */
-  color: #f4f4f5; /* zinc-100 */
+  background-color: var(--color-page);
+  color: var(--color-text);
   overflow: hidden;
+  font-family: var(--font-family-sans);
 }

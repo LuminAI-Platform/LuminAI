@@ -23,7 +23,7 @@ export const ConnectedSummary: React.FC<ConnectedSummaryProps> = ({
   onRegister,
 }) => {
   return (
-    <div className="flex flex-col h-full bg-zinc-950/40 border border-zinc-850/60 p-5 rounded-lg justify-between gap-6 select-none">
+    <div className="flex flex-col h-full bg-surface border border-border p-5 rounded-lg justify-between gap-6 select-none">
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
@@ -78,14 +78,14 @@ export const ConnectedSummary: React.FC<ConnectedSummaryProps> = ({
       <div className="flex gap-3">
         <button
           onClick={onEdit}
-          className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 py-2.5 px-4 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+          className="flex-1 bg-transparent hover:bg-surface-subtle text-text border border-border py-2.5 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
         >
           Edit Credentials
         </button>
         <button
           onClick={onRegister}
           disabled={isSaving || selectedTables.length === 0}
-          className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+          className="flex-1 bg-primary hover:bg-primary-hover text-primary-text border border-primary font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none shadow-xs"
         >
           {isSaving ? "Saving..." : "Register Connector"}
         </button>

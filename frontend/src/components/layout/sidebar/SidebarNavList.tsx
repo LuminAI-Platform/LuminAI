@@ -19,10 +19,10 @@ const renderNavLink = (
     <Link
       to={item.to}
       activeOptions={{ exact: item.to === "/connections" }}
-      className="flex items-center p-2! text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100 rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-zinc-850 cursor-pointer"
+      className="flex items-center p-2! text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-border cursor-pointer"
       activeProps={{
         className:
-          "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+          "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
       }}
       onClick={() => setMobileOpen(false)}
     >
@@ -47,7 +47,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
   return (
     <nav className="flex-1 py-4 px-3.5 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
       {!collapsed && (
-        <div className="px-2 pt-1 pb-1 text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+        <div className="px-2 pt-1 pb-1 text-[9px] font-bold text-text-secondary uppercase tracking-widest">
           Explore & Overview
         </div>
       )}
@@ -56,7 +56,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
         .map((i) => renderNavLink(i, collapsed, setMobileOpen))}
 
       {!collapsed && (
-        <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+        <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-text-secondary uppercase tracking-widest">
           Data Integration
         </div>
       )}
@@ -65,7 +65,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
         .map((i) => renderNavLink(i, collapsed, setMobileOpen))}
 
       {!collapsed && (
-        <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+        <div className="px-2 pt-4 pb-1 text-[9px] font-bold text-text-secondary uppercase tracking-widest">
           Configuration
         </div>
       )}
@@ -78,10 +78,10 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
           <SidebarTooltip label="User registration" enabled={collapsed}>
             <Link
               to="/admin/users"
-              className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-zinc-400 transition-all duration-150 hover:border-zinc-850 hover:bg-zinc-800/50 hover:text-zinc-100"
+              className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-text-secondary transition-all duration-150 hover:border-border hover:bg-surface-subtle hover:text-text"
               activeProps={{
                 className:
-                  "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+                  "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
               }}
               onClick={() => setMobileOpen(false)}
             >
@@ -99,17 +99,17 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
               >
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
-                <line x1="19" y1="8" x2="19" y2="14" />
-                <line x1="22" y1="11" x2="16" y2="11" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
               <span
                 className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
                   collapsed
-                    ? "opacity-0 w-0 pointer-events-none"
+                    ? "pointer-events-none w-0 opacity-0"
                     : "opacity-100"
                 }`}
               >
-                User registration
+                Users & Roles
               </span>
             </Link>
           </SidebarTooltip>
@@ -117,10 +117,10 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
           <SidebarTooltip label="Tenant registration" enabled={collapsed}>
             <Link
               to="/admin/tenants"
-              className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-zinc-400 transition-all duration-150 hover:border-zinc-850 hover:bg-zinc-800/50 hover:text-zinc-100"
+              className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-text-secondary transition-all duration-150 hover:border-border hover:bg-surface-subtle hover:text-text"
               activeProps={{
                 className:
-                  "bg-blue-600/10! text-blue-500! font-semibold! border-blue-500/20! border!",
+                  "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
               }}
               onClick={() => setMobileOpen(false)}
             >
@@ -136,25 +136,23 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
                 strokeLinejoin="round"
                 aria-hidden="true"
               >
-                <rect x="4" y="4" width="16" height="16" rx="2" ry="2" />
-                <rect x="9" y="9" width="6" height="6" />
-                <line x1="9" y1="1" x2="9" y2="4" />
-                <line x1="15" y1="1" x2="15" y2="4" />
-                <line x1="9" y1="20" x2="9" y2="23" />
-                <line x1="15" y1="20" x2="15" y2="23" />
-                <line x1="20" y1="9" x2="23" y2="9" />
-                <line x1="20" y1="14" x2="23" y2="14" />
-                <line x1="1" y1="9" x2="4" y2="9" />
-                <line x1="1" y1="14" x2="4" y2="14" />
+                <path d="M3 21h18" />
+                <path d="M9 8h1" />
+                <path d="M9 12h1" />
+                <path d="M9 16h1" />
+                <path d="M14 8h1" />
+                <path d="M14 12h1" />
+                <path d="M14 16h1" />
+                <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
               </svg>
               <span
                 className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
                   collapsed
-                    ? "opacity-0 w-0 pointer-events-none"
+                    ? "pointer-events-none w-0 opacity-0"
                     : "opacity-100"
                 }`}
               >
-                Tenant registration
+                Tenants
               </span>
             </Link>
           </SidebarTooltip>

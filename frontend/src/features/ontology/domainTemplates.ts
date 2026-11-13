@@ -34,7 +34,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "Financial Services",
     name: "Core Banking & Transactions",
     badge: "Fintech",
-    badgeColor: "text-emerald-400 bg-emerald-950/60 border-emerald-800/60",
+    badgeColor: "text-success bg-success-bg border-success-border",
     description:
       "Enterprise model for customers, bank accounts, transactions, and merchants.",
     entityTypes: [
@@ -192,7 +192,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "Healthcare",
     name: "Clinical & Hospital Care",
     badge: "Healthcare",
-    badgeColor: "text-cyan-400 bg-cyan-950/60 border-cyan-800/60",
+    badgeColor: "text-primary bg-primary-tint border-primary-border",
     description:
       "Standard clinical schema for patients, medical doctors, and patient encounters.",
     entityTypes: [
@@ -332,7 +332,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "E-Commerce",
     name: "Retail & Order Management",
     badge: "Retail",
-    badgeColor: "text-amber-400 bg-amber-950/60 border-amber-800/60",
+    badgeColor: "text-warning bg-warning-bg border-warning-border",
     description:
       "Standard retail models for customers, items, orders, and payments.",
     entityTypes: [
@@ -458,7 +458,7 @@ export const DOMAIN_STARTER_PACKS: DomainTemplate[] = [
     domain: "Supply Chain",
     name: "Fleet & Freight Operations",
     badge: "Logistics",
-    badgeColor: "text-blue-400 bg-blue-950/60 border-blue-800/60",
+    badgeColor: "text-primary bg-primary-tint border-primary-border",
     description:
       "Global logistics tracking for warehouses, cargo shipments, and transport carriers.",
     entityTypes: [

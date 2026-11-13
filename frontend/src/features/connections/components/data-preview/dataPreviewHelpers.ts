@@ -4,15 +4,15 @@ import type { ColumnConfig } from "../DataPreviewTable";
 export function getTypeBadgeStyles(type: ColumnConfig["type"]): string {
   switch (type) {
     case "Integer":
-      return "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+      return "bg-warning-bg text-warning border border-warning-border";
     case "Double":
-      return "bg-rose-500/10 text-rose-400 border border-rose-500/20";
+      return "bg-primary-tint text-primary border border-primary-border";
     case "Boolean":
-      return "bg-purple-500/10 text-purple-400 border border-purple-500/20";
+      return "bg-warning-bg text-warning border border-warning-border";
     case "Timestamp":
-      return "bg-teal-500/10 text-teal-400 border border-teal-500/20";
+      return "bg-surface-subtle text-text-secondary border border-border";
     default:
-      return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+      return "bg-surface-subtle text-text-secondary border border-border";
   }
 }
 
