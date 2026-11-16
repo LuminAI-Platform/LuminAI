@@ -25,7 +25,8 @@
   "roles": {
     "realm": [
       { "name": "admin" },
-      { "name": "user" }
+      { "name": "user" },
+      { "name": "offline_access" }
     ]
   },
   "users": [
@@ -41,7 +42,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin", "user"]
+      "realmRoles": ["admin", "user", "offline_access"]
     }
   ]
 }
