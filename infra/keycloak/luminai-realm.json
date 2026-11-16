@@ -9,8 +9,15 @@
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://luminai.luminex-logistics.com/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "https://luminai.luminex-logistics.com",
+        "+"
+      ],
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true
     }
