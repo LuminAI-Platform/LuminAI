@@ -13,13 +13,13 @@ export const ErrorBlock: React.FC<ErrorBlockProps> = ({ error, onDismiss }) => {
     <div
       className={`border rounded-lg overflow-hidden transition-all ${
         error.retryable
-          ? "border-amber-500/25 bg-amber-500/5"
-          : "border-red-500/25 bg-red-500/5"
+          ? "border-warning-border bg-warning-bg"
+          : "border-error-border bg-error-bg"
       }`}
     >
       <div className="flex items-start gap-3 p-3">
         <div
-          className={`mt-0.5 flex-shrink-0 ${error.retryable ? "text-amber-400" : "text-red-400"}`}
+          className={`mt-0.5 flex-shrink-0 ${error.retryable ? "text-warning" : "text-error"}`}
         >
           <svg
             width="15"
@@ -40,24 +40,24 @@ export const ErrorBlock: React.FC<ErrorBlockProps> = ({ error, onDismiss }) => {
             <span
               className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
                 error.retryable
-                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                  : "bg-red-500/10 text-red-400 border-red-500/30"
+                  ? "bg-warning-bg text-warning border-warning-border"
+                  : "bg-error-bg text-error border-error-border"
               }`}
             >
               {error.code}
             </span>
-            <span className="text-[10px] text-zinc-500">{error.source}</span>
+            <span className="text-[10px] text-text-secondary">
+              {error.source}
+            </span>
             {error.retryable && (
-              <span className="text-[9px] text-amber-400/80 bg-amber-400/10 px-1 rounded">
+              <span className="text-[9px] text-warning bg-warning-bg px-1 rounded">
                 RETRYABLE
               </span>
             )}
           </div>
-          <p className="text-xs text-zinc-200 mt-1 leading-snug">
-            {error.message}
-          </p>
+          <p className="text-xs text-text mt-1 leading-snug">{error.message}</p>
           {error.detail && expanded && (
-            <p className="text-[11px] text-zinc-400 leading-relaxed mt-2 border-l-2 border-zinc-700 pl-3 font-mono">
+            <p className="text-[11px] text-text-secondary leading-relaxed mt-2 border-l-2 border-border pl-3 font-mono">
               {error.detail}
             </p>
           )}

@@ -44,7 +44,7 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
   return (
     <form onSubmit={onVerify} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+        <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
           Connector Display Name
         </label>
         <input
@@ -54,20 +54,20 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
           placeholder="Production Postgres Master"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
+          className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus placeholder:text-text-secondary disabled:opacity-50"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
             Database Type
           </label>
           <select
             value={dbType}
             disabled={isVerifying}
             onChange={(e) => handleDbTypeChange(e.target.value as DBType)}
-            className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 disabled:opacity-50 cursor-pointer"
+            className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus disabled:opacity-50 cursor-pointer"
           >
             <option value="postgresql">PostgreSQL</option>
             <option value="mysql">MySQL</option>
@@ -77,7 +77,7 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
             Port
           </label>
           <input
@@ -86,14 +86,14 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
             disabled={isVerifying}
             value={port}
             onChange={(e) => setPort(Number(e.target.value))}
-            className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 disabled:opacity-50 font-mono"
+            className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus disabled:opacity-50 font-mono"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
             Database Host
           </label>
           <input
@@ -103,12 +103,12 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
             placeholder="db.replica.internal"
             value={host}
             onChange={(e) => setHost(e.target.value)}
-            className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
+            className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus placeholder:text-text-secondary disabled:opacity-50"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
             Database Name
           </label>
           <input
@@ -118,14 +118,14 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
             placeholder="sales_db"
             value={databaseName}
             onChange={(e) => setDatabaseName(e.target.value)}
-            className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
+            className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus placeholder:text-text-secondary disabled:opacity-50"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
             Username
           </label>
           <input
@@ -135,12 +135,12 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
             placeholder="lumin_sync"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-600 disabled:opacity-50"
+            className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus placeholder:text-text-secondary disabled:opacity-50"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
             Password
           </label>
           <input
@@ -150,13 +150,13 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
             placeholder="••••••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="bg-zinc-950 border border-zinc-850/80 rounded-lg py-2 px-3 text-xs text-zinc-200 focus:outline-none focus:border-blue-500/80 placeholder-zinc-650 disabled:opacity-50"
+            className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus placeholder:text-text-secondary disabled:opacity-50"
           />
         </div>
       </div>
 
       {validationError && (
-        <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex gap-2 font-medium">
+        <div className="p-3 bg-error-bg border border-error-border text-error rounded-lg text-xs flex gap-2 font-medium">
           <svg
             width="14"
             height="14"
@@ -177,7 +177,7 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
       <button
         type="submit"
         disabled={isVerifying}
-        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none mt-2"
+        className="w-full bg-primary hover:bg-primary-hover text-primary-text font-semibold text-xs py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none mt-2"
       >
         {isVerifying ? (
           <>

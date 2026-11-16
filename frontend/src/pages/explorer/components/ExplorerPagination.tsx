@@ -43,8 +43,8 @@ export const ExplorerPagination: React.FC<ExplorerPaginationProps> = ({
             onClick={() => onPageChange(idx)}
             className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               isActive
-                ? "bg-blue-600/10 border border-blue-500/30 text-blue-500 font-bold"
-                : "border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                ? "bg-primary-tint border border-primary-border text-primary font-bold"
+                : "border border-border text-text-secondary hover:text-text hover:bg-surface-hover"
             }`}
           >
             {idx + 1}
@@ -56,7 +56,7 @@ export const ExplorerPagination: React.FC<ExplorerPaginationProps> = ({
       <button
         disabled={currentPage === totalPages - 1}
         onClick={() => onPageChange(currentPage + 1)}
-        className="p-2 border border-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+        className="p-2 border border-border rounded-lg text-text-secondary hover:text-text hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-text-secondary transition-colors cursor-pointer"
         aria-label="Next page"
       >
         <svg

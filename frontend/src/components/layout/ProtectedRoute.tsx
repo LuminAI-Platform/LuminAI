@@ -55,24 +55,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
+      <div className="flex h-screen w-screen items-center justify-center bg-page text-text font-sans relative overflow-hidden">
         {/* Subtle grid background */}
         <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
 
         <div className="flex flex-col items-center gap-6 relative z-10">
           <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full border-2 border-zinc-800" />
-            <div className="absolute inset-0 rounded-full border-2 border-t-zinc-400 border-r-zinc-600 animate-spin" />
-            <div className="absolute inset-2 rounded-full border border-zinc-900 bg-zinc-950/80 flex items-center justify-center">
-              <span className="w-2 h-2 rounded-full bg-zinc-400" />
+            <div className="absolute inset-0 rounded-full border-2 border-border" />
+            <div className="absolute inset-0 rounded-full border-2 border-t-text-secondary border-r-border animate-spin" />
+            <div className="absolute inset-2 rounded-full border border-border bg-page flex items-center justify-center">
+              <span className="w-2 h-2 rounded-full bg-text-secondary" />
             </div>
           </div>
 
           <div className="flex flex-col items-center gap-1.5">
-            <h3 className="text-sm font-semibold tracking-wider uppercase text-zinc-400">
+            <h3 className="text-sm font-semibold tracking-wider uppercase text-text-secondary">
               Authenticating
             </h3>
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-text-secondary">
               Establishing secure connection to LuminAI...
             </p>
           </div>
@@ -100,8 +100,8 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return (
       <div className="flex h-full w-full items-center justify-center py-32">
         <div className="relative w-10 h-10">
-          <div className="absolute inset-0 rounded-full border-2 border-zinc-800/80" />
-          <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 border-r-blue-500/30 animate-spin" />
+          <div className="absolute inset-0 rounded-full border-2 border-border" />
+          <div className="absolute inset-0 rounded-full border-2 border-t-primary border-r-primary-tint animate-spin" />
         </div>
       </div>
     );
@@ -111,7 +111,7 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return (
       <div className="flex h-full w-full items-center justify-center py-32">
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-error-bg border border-error-border flex items-center justify-center">
             <svg
               width="22"
               height="22"
@@ -121,17 +121,15 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-red-400"
+              className="text-error"
             >
               <circle cx="12" cy="12" r="10" />
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
             </svg>
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-zinc-100">
-              Access denied
-            </h2>
-            <p className="mt-1 text-xs text-zinc-500 max-w-xs">
+            <h2 className="text-sm font-semibold text-text">Access denied</h2>
+            <p className="mt-1 text-xs text-text-secondary max-w-xs">
               This page requires platform administrator privileges. You are
               being redirected.
             </p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
 import type { TimeSeriesPoint } from "./components/PipelineTimelineChart";
@@ -21,6 +21,7 @@ export interface DashboardSummary {
 
 export function useDashboardData() {
   const [timeRange, setTimeRange] = useState<"7d" | "14d" | "30d">("7d");
+  const [fallbackTime] = useState(() => Date.now());
 
   // 1. Fetch dashboard summary with 60s auto-refresh
   const {
@@ -29,6 +30,7 @@ export function useDashboardData() {
     error: summaryError,
     refetch: refetchSummary,
     isRefetching,
+    dataUpdatedAt: summaryUpdatedAt,
   } = useQuery<DashboardSummary>({
     queryKey: ["dashboard", "summary"],
     queryFn: async () => {
@@ -41,6 +43,26 @@ export function useDashboardData() {
     refetchOnWindowFocus: false,
     retry: 1,
   });
+
+  // Log raw technical errors to console rather than exposing them in production UI
+  useEffect(() => {
+    if (summaryError) {
+      console.error("[Dashboard] Failed to fetch live metrics:", summaryError);
+    }
+  }, [summaryError]);
+
+  const timestamp =
+    summaryUpdatedAt > 0
+      ? summaryUpdatedAt
+      : summary?.lastSyncAt
+        ? new Date(summary.lastSyncAt).getTime()
+        : fallbackTime;
+
+  const cachedAtTime = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(timestamp));
 
   // 2. Fetch time-series telemetry for charts
   const {
@@ -93,6 +115,7 @@ export function useDashboardData() {
     summary,
     isSummaryLoading,
     summaryError,
+    cachedAtTime,
     isRefetching,
     timeSeries,
     isTimeSeriesLoading,

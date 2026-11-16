@@ -20,20 +20,20 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
 }) => {
   if (customConnectors.length === 0) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center flex flex-col items-center justify-center">
-        <div className="w-12 h-12 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400 mb-3">
+      <div className="bg-surface border border-border rounded-lg p-12 text-center flex flex-col items-center justify-center">
+        <div className="w-12 h-12 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary mb-3">
           <Database className="w-6 h-6" />
         </div>
-        <h4 className="text-sm font-semibold text-zinc-200">
+        <h4 className="text-sm font-semibold text-text">
           No database connections
         </h4>
-        <p className="text-xs text-zinc-400 mt-1 max-w-sm">
+        <p className="text-xs text-text-secondary mt-1 max-w-sm">
           Connect PostgreSQL, Snowflake, ClickHouse, or MySQL instances to
           schedule automated batch syncs.
         </p>
         <button
           onClick={onAddConnector}
-          className="mt-4 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+          className="mt-4 px-3.5 py-1.5 bg-primary hover:bg-primary-hover border border-primary text-primary-text rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           Add Database Connection
         </button>
@@ -42,11 +42,11 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
   }
 
   return (
-    <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-900">
+    <div className="border border-border rounded-lg overflow-hidden bg-surface">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="bg-zinc-950/60 border-b border-zinc-800 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+            <tr className="bg-surface-subtle border-b border-border text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
               <th className="py-3 px-4">Connector</th>
               <th className="py-3 px-4">Database Type</th>
               <th className="py-3 px-4">Status</th>
@@ -55,16 +55,16 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/60">
+          <tbody className="divide-y divide-border">
             {customConnectors.map((c) => {
               const statusCfg = getHealthStatusBadge(c.status);
               return (
                 <tr
                   key={c.id ?? c.name}
-                  className="hover:bg-zinc-850/50 transition-colors group"
+                  className="hover:bg-surface-hover transition-colors group"
                 >
-                  <td className="py-3 px-4 font-semibold text-zinc-100 flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300 shrink-0">
+                  <td className="py-3 px-4 font-semibold text-text flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary shrink-0">
                       <Database className="w-3.5 h-3.5" />
                     </div>
                     <div>
@@ -74,13 +74,13 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
                       >
                         {c.name}
                       </span>
-                      <span className="text-[10px] text-zinc-500 line-clamp-1">
+                      <span className="text-[10px] text-text-secondary line-clamp-1">
                         {c.desc}
                       </span>
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 border border-zinc-700/60 text-zinc-300">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-subtle border border-border text-text-secondary">
                       {c.type}
                     </span>
                   </td>
@@ -94,24 +94,24 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
                       {c.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-zinc-300 font-mono text-[11px]">
+                  <td className="py-3 px-4 text-text font-mono text-[11px]">
                     {c.pipelines} tables
                   </td>
-                  <td className="py-3 px-4 text-zinc-400 text-[11px]">
+                  <td className="py-3 px-4 text-text-secondary text-[11px]">
                     {formatRelativeTime(c.lastSyncedAt)}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="inline-flex items-center gap-1.5">
                       <Link
                         to="/connections/schema-map"
-                        className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
+                        className="px-2 py-1 rounded bg-surface-subtle hover:bg-surface-hover border border-border text-text text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
                         title="Configure schema mapping"
                       >
                         <Layers className="w-3 h-3" /> Map Schema
                       </Link>
                       <Link
                         to="/connections/pipeline"
-                        className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
+                        className="px-2 py-1 rounded bg-surface-subtle hover:bg-surface-hover border border-border text-text text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
                         title="View pipeline telemetry"
                       >
                         Pipeline <ArrowRight className="w-3 h-3" />
@@ -119,7 +119,7 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
                       {c.id && (
                         <button
                           onClick={() => onDeleteConnector(c)}
-                          className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-rose-950/30 transition-colors cursor-pointer"
+                          className="p-1 rounded text-text-secondary hover:text-error hover:bg-error-bg transition-colors cursor-pointer"
                           title="Delete connector"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import cytoscape, { type Core, type EventObject } from "cytoscape";
+import { useThemeStore } from "../../../stores/themeStore";
 
 export interface GraphNodeData {
   id: string;
@@ -34,14 +35,19 @@ interface GraphCanvasProps {
   onInitCy?: (cy: Core) => void;
 }
 
+/**
+ * Color-blind-safe palette (Okabe-Ito subset calibrated with Luminex Navy)
+ * Rule 7: For charts and graphs, use a color-blind-safe set of about five colors,
+ * and don't rely on red versus green alone.
+ */
 const TYPE_COLORS: Record<string, string> = {
-  Person: "#3b82f6", // Blue
-  Organization: "#10b981", // Emerald
-  Product: "#8b5cf6", // Purple
-  Dataset: "#f59e0b", // Amber
-  Transaction: "#ec4899", // Pink
-  Location: "#06b6d4", // Cyan
-  Default: "#6366f1", // Indigo
+  Person: "#12297A", // Luminex Navy
+  Organization: "#009E73", // Teal / Bluish Green
+  Product: "#CC79A7", // Reddish Purple
+  Dataset: "#E69F00", // Amber / Orange
+  Transaction: "#56B4E9", // Sky Blue
+  Location: "#566176", // Calm Neutral
+  Default: "#12297A", // Luminex Navy
 };
 
 /**
@@ -58,6 +64,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
 
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === "dark";
+
   const onSelectNodeRef = useRef(onSelectNode);
   const onExpandNodeRef = useRef(onExpandNode);
   const onInitCyRef = useRef(onInitCy);
@@ -70,6 +79,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const nodeLabelColor = isDark ? "#E9EDF4" : "#1A2230";
+    const nodeTextBgColor = isDark ? "#1A202A" : "#FFFFFF";
+    const nodeBorderColor = isDark ? "#2C3441" : "#DFE3EA";
+    const nodeSelectedBorder = isDark ? "#6B97FF" : "#12297A";
+    const edgeLineColor = isDark ? "#2C3441" : "#DFE3EA";
+    const edgeArrowColor = isDark ? "#A3ADBF" : "#566176";
+    const edgeLabelColor = isDark ? "#A3ADBF" : "#566176";
+    const edgeTextBgColor = isDark ? "#1A202A" : "#FFFFFF";
+    const edgeSelected = isDark ? "#6B97FF" : "#12297A";
 
     // Convert elements to Cytoscape flat elements list
     const cyElements = [
@@ -103,20 +122,20 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           style: {
             label: "data(label)",
             "background-color": "data(color)",
-            color: "#f4f4f5",
+            color: nodeLabelColor,
             "font-size": "11px",
             "font-family": "Inter, sans-serif",
             "font-weight": "bold",
             "text-valign": "bottom",
             "text-margin-y": 6,
-            "text-background-opacity": 0.8,
-            "text-background-color": "#09090b",
+            "text-background-opacity": 0.85,
+            "text-background-color": nodeTextBgColor,
             "text-background-padding": "3px",
             "text-background-shape": "roundrectangle",
             width: 42,
             height: 42,
             "border-width": 2,
-            "border-color": "#27272a",
+            "border-color": nodeBorderColor,
             "transition-property": "border-width, border-color, width, height",
             "transition-duration": 0.2,
           },
@@ -124,8 +143,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         {
           selector: "node:selected",
           style: {
-            "border-width": 4,
-            "border-color": "#ffffff",
+            "border-width": 3,
+            "border-color": nodeSelectedBorder,
             width: 48,
             height: 48,
           },
@@ -134,16 +153,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           selector: "edge",
           style: {
             width: 1.5,
-            "line-color": "#3f3f46",
-            "target-arrow-color": "#71717a",
+            "line-color": edgeLineColor,
+            "target-arrow-color": edgeArrowColor,
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
             label: "data(label)",
             "font-size": "9px",
-            color: "#a1a1aa",
+            color: edgeLabelColor,
             "font-family": "Inter, sans-serif",
-            "text-background-opacity": 0.9,
-            "text-background-color": "#09090b",
+            "text-background-opacity": 0.85,
+            "text-background-color": edgeTextBgColor,
             "text-background-padding": "2px",
             "text-rotation": "autorotate",
             "arrow-scale": 0.8,
@@ -153,9 +172,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           selector: "edge:selected",
           style: {
             width: 2.5,
-            "line-color": "#60a5fa",
-            "target-arrow-color": "#60a5fa",
-            color: "#93c5fd",
+            "line-color": edgeSelected,
+            "target-arrow-color": edgeSelected,
+            color: edgeSelected,
           },
         },
       ],
@@ -193,7 +212,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       cy.destroy();
       cyRef.current = null;
     };
-  }, [elements, layoutType]);
+  }, [elements, layoutType, isDark]);
 
   // Update selection dynamically without rebuilding the entire graph
   useEffect(() => {
@@ -210,9 +229,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   }, [selectedNodeId]);
 
   return (
-    <div className="relative w-full h-full bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800/80">
+    <div className="relative w-full h-full bg-surface rounded-lg overflow-hidden border border-border">
       {/* Background dot pattern */}
-      <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
+      <div className="absolute inset-0 bg-grid-dots opacity-30 pointer-events-none" />
       <div
         ref={containerRef}
         className="w-full h-full cursor-grab active:cursor-grabbing"

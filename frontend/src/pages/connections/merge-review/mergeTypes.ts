@@ -24,10 +24,13 @@ export interface PageData {
   number: number;
 }
 
+/**
+ * Design Rule 5: AI-suggested indicators should be calm neutral or navy-tint,
+ * with no neon glows or conflicting multi-colors.
+ */
 export function getScoreColor(score: number): string {
-  if (score >= 0.9)
-    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  if (score >= 0.75) return "bg-blue-500/10 text-blue-400 border-blue-500/20";
-  if (score >= 0.5) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-  return "bg-zinc-800 text-zinc-400 border-zinc-700";
+  if (score >= 0.75) {
+    return "bg-suggested-bg text-suggested border-suggested-border font-medium";
+  }
+  return "bg-nodata-bg text-nodata border-nodata-border";
 }

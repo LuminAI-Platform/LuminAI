@@ -93,37 +93,37 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
 
         <div className="py-5">
           {loading ? (
-            <div className="py-8 flex items-center justify-center gap-2 text-zinc-500 text-xs">
-              <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+            <div className="py-8 flex items-center justify-center gap-2 text-text-secondary text-xs">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
               <span>Calculating release diff…</span>
             </div>
           ) : error ? (
-            <div className="p-3 bg-red-950/30 border border-red-500/20 text-red-400 text-xs rounded-xl">
+            <div className="p-3 bg-error-bg border border-error-border text-error text-xs rounded-xl">
               {error}
             </div>
           ) : !hasChanges ? (
             <div className="py-8 flex flex-col items-center justify-center text-center">
-              <CheckCircle className="w-8 h-8 text-emerald-400 mb-2" />
-              <span className="text-xs font-semibold text-zinc-200">
+              <CheckCircle className="w-8 h-8 text-success mb-2" />
+              <span className="text-xs font-semibold text-text">
                 No Breaking Schema Changes
               </span>
-              <span className="text-[11px] text-zinc-500 mt-0.5">
+              <span className="text-[11px] text-text-secondary mt-0.5">
                 Baseline version matches previous release or initial release
                 definition
               </span>
             </div>
           ) : (
             <div className="flex flex-col gap-4 text-xs">
-              <div className="text-[11px] text-zinc-400 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800 flex items-center justify-between">
+              <div className="text-[11px] text-text-secondary bg-surface-subtle p-2.5 rounded-lg border border-border flex items-center justify-between">
                 <span>
                   Base:{" "}
-                  <strong className="text-zinc-200 font-mono">
+                  <strong className="text-text font-mono">
                     {diff?.previousVersion}
                   </strong>
                 </span>
                 <span>
                   Current:{" "}
-                  <strong className="text-purple-400 font-mono">
+                  <strong className="text-primary font-mono">
                     {diff?.currentVersion}
                   </strong>
                 </span>
@@ -132,14 +132,14 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
               {/* Added Entities */}
               {diff?.addedEntityTypes && diff.addedEntityTypes.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block mb-1.5">
+                  <span className="text-[10px] font-semibold text-success uppercase tracking-wider block mb-1.5">
                     + Added Entity Types ({diff.addedEntityTypes.length})
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {diff.addedEntityTypes.map((e) => (
                       <span
                         key={e}
-                        className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-success-bg text-success border border-success-border"
                       >
                         <Plus className="w-3 h-3" />
                         {e}
@@ -153,14 +153,14 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
               {diff?.removedEntityTypes &&
                 diff.removedEntityTypes.length > 0 && (
                   <div>
-                    <span className="text-[10px] font-semibold text-red-400 uppercase tracking-wider block mb-1.5">
+                    <span className="text-[10px] font-semibold text-error uppercase tracking-wider block mb-1.5">
                       - Removed Entity Types ({diff.removedEntityTypes.length})
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {diff.removedEntityTypes.map((e) => (
                         <span
                           key={e}
-                          className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20"
+                          className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-error-bg text-error border border-error-border"
                         >
                           <Minus className="w-3 h-3" />
                           {e}

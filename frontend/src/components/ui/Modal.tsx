@@ -47,18 +47,18 @@ export const Modal: React.FC<ModalProps> = ({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-md animate-in fade-in duration-150" />
         <Dialog.Content
-          className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] ${MAX_WIDTH_MAP[maxWidth]} bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl shadow-black/90 z-[99999] focus:outline-none animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh] overflow-hidden ${className}`}
+          className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] ${MAX_WIDTH_MAP[maxWidth]} bg-surface border border-border rounded-lg shadow-sm z-[99999] focus:outline-none animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh] overflow-hidden ${className}`}
         >
           {!hideHeader && (title || description) && (
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/60 shrink-0 select-none">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface shrink-0 select-none">
               <div>
                 {title && (
-                  <Dialog.Title className="text-base font-semibold text-zinc-100">
+                  <Dialog.Title className="text-base font-semibold text-text">
                     {title}
                   </Dialog.Title>
                 )}
                 {description && (
-                  <Dialog.Description className="text-xs text-zinc-400 mt-0.5">
+                  <Dialog.Description className="text-xs text-text-secondary mt-0.5">
                     {description}
                   </Dialog.Description>
                 )}
@@ -66,7 +66,7 @@ export const Modal: React.FC<ModalProps> = ({
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="text-text-secondary hover:text-text p-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer"
                   aria-label="Close modal"
                 >
                   <X className="w-4 h-4" />

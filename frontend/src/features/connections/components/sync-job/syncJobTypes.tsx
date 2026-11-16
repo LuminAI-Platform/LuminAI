@@ -98,32 +98,39 @@ export const SOURCE_ICONS: Record<SyncJob["connectionType"], React.ReactNode> =
     ),
   };
 
+/**
+ * Status colors using semantic design system tokens:
+ * - Completed / Active / Connected -> success
+ * - Running / Syncing -> warning
+ * - Paused -> nodata
+ * - Failed -> error
+ */
 export const STATUS_CONFIG: Record<
   SyncJobStatus,
   { label: string; dot: string; badge: string; text: string }
 > = {
   running: {
     label: "Syncing",
-    dot: "bg-emerald-500",
-    badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-    text: "text-emerald-400",
+    dot: "bg-warning",
+    badge: "bg-warning-bg text-warning border-warning-border font-medium",
+    text: "text-warning",
   },
   paused: {
     label: "Paused",
-    dot: "bg-amber-400",
-    badge: "bg-amber-400/10 text-amber-400 border-amber-400/30",
-    text: "text-amber-400",
+    dot: "bg-nodata",
+    badge: "bg-nodata-bg text-nodata border-nodata-border font-medium",
+    text: "text-nodata",
   },
   completed: {
     label: "Completed",
-    dot: "bg-blue-400",
-    badge: "bg-blue-400/10 text-blue-400 border-blue-400/30",
-    text: "text-blue-400",
+    dot: "bg-success",
+    badge: "bg-success-bg text-success border-success-border font-medium",
+    text: "text-success",
   },
   failed: {
     label: "Failed",
-    dot: "bg-red-400",
-    badge: "bg-red-400/10 text-red-400 border-red-400/30",
-    text: "text-red-400",
+    dot: "bg-error",
+    badge: "bg-error-bg text-error border-error-border font-medium",
+    text: "text-error",
   },
 };

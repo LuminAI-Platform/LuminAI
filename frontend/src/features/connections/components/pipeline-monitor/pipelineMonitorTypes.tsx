@@ -7,10 +7,10 @@ export const ConnectionDot: React.FC<{
   <div className="flex items-center gap-1.5">
     <span
       className={`w-1.5 h-1.5 rounded-full ${
-        connected ? "bg-emerald-500" : polling ? "bg-amber-500" : "bg-zinc-600"
+        connected ? "bg-success" : polling ? "bg-warning" : "bg-nodata"
       }`}
     />
-    <span className="text-[10px] text-zinc-500 select-none">
+    <span className="text-[10px] text-text-secondary select-none font-medium">
       {connected ? "SSE Live" : polling ? "Polling 3s" : "Disconnected"}
     </span>
   </div>
@@ -22,19 +22,21 @@ export const KpiCard: React.FC<{
   sub?: string;
   accent?: string;
   icon: React.ReactNode;
-}> = ({ label, value, sub, accent = "text-zinc-100", icon }) => (
-  <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-400">
+}> = ({ label, value, sub, accent = "text-text", icon }) => (
+  <div className="flex items-center gap-3 bg-surface border border-border rounded-lg p-4 shadow-xs transition-colors">
+    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary">
       {icon}
     </div>
     <div>
-      <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
+      <div className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">
         {label}
       </div>
       <div className={`text-sm font-bold leading-tight mt-0.5 ${accent}`}>
         {value}
       </div>
-      {sub && <div className="text-[10px] text-zinc-600 mt-0.5">{sub}</div>}
+      {sub && (
+        <div className="text-[10px] text-text-secondary mt-0.5">{sub}</div>
+      )}
     </div>
   </div>
 );
@@ -48,17 +50,20 @@ export const FilterPill: React.FC<{
 }> = ({ label, count, active, onClick, id }) => (
   <button
     id={id}
+    type="button"
     onClick={onClick}
-    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
       active
-        ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-        : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+        ? "bg-surface text-text border border-border shadow-xs"
+        : "text-text-secondary hover:text-text hover:bg-surface-subtle"
     }`}
   >
-    {label}
+    <span>{label}</span>
     <span
-      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-        active ? "bg-blue-500/30 text-blue-100" : "bg-zinc-800 text-zinc-500"
+      className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+        active
+          ? "bg-surface-subtle text-text"
+          : "bg-surface-subtle text-text-secondary"
       }`}
     >
       {count}

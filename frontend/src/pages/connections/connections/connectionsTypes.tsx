@@ -1,3 +1,5 @@
+import React from "react";
+
 export interface IngestedFile {
   id: string;
   name: string;
@@ -45,39 +47,56 @@ export function formatRelativeTime(dateInput?: string | Date | null): string {
   return `${Math.floor(diffHours / 24)}d ago`;
 }
 
+export function formatTimeAgo(dateStr: string): string {
+  return formatRelativeTime(dateStr);
+}
+
+/**
+ * Health Status Badge definition
+ *
+ * Rules:
+ * - One color per meaning (Active/Online/Connected/Healthy -> success)
+ * - Never use color alone; pair with label text
+ * - Delete neon dots, glows, and pings
+ */
 export function getHealthStatusBadge(status: string) {
   const s = status.toLowerCase();
   if (
     s.includes("connect") ||
+    s.includes("active") ||
+    s.includes("healthy") ||
+    s.includes("online") ||
     (s.includes("sync") && !s.includes("syncing") && !s.includes("fail"))
   ) {
     return {
-      dotColor: "bg-emerald-500",
-      pingColor: "bg-emerald-400",
-      badgeStyle: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+      dotColor: "bg-success",
+      pingColor: "",
+      badgeStyle:
+        "bg-success-bg border-success-border text-success font-medium",
       isSyncing: false,
     };
   }
   if (s.includes("syncing") || s.includes("pending") || s.includes("running")) {
     return {
-      dotColor: "bg-amber-400",
-      pingColor: "bg-amber-300",
-      badgeStyle: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+      dotColor: "bg-warning",
+      pingColor: "",
+      badgeStyle:
+        "bg-warning-bg border-warning-border text-warning font-medium",
       isSyncing: true,
     };
   }
-  if (s.includes("fail") || s.includes("error") || s.includes("inactive")) {
+  if (s.includes("fail") || s.includes("error")) {
     return {
-      dotColor: "bg-red-500",
-      pingColor: "bg-red-400",
-      badgeStyle: "bg-red-500/10 border-red-500/20 text-red-400",
+      dotColor: "bg-error",
+      pingColor: "",
+      badgeStyle: "bg-error-bg border-error-border text-error font-medium",
       isSyncing: false,
     };
   }
   return {
-    dotColor: "bg-zinc-500",
-    pingColor: "bg-zinc-400",
-    badgeStyle: "bg-zinc-900 border-zinc-800 text-zinc-400",
+    dotColor: "bg-nodata",
+    pingColor: "",
+    badgeStyle: "bg-nodata-bg border-nodata-border text-nodata font-medium",
     isSyncing: false,
   };
 }
@@ -95,48 +114,44 @@ export function formatColumnHeader(col: string): string {
   if (lower === "records_count" || lower === "recordscount")
     return "Records Count";
 
-  return col
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[-_]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
+  return col.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[-_]+/g, " ");
 }
 
-export function renderCleanCellValue(col: string, val: unknown) {
-  if (
-    val === undefined ||
-    val === null ||
-    String(val).trim() === "" ||
-    String(val).trim().toLowerCase() === "null" ||
-    String(val).trim().toLowerCase() === "undefined"
-  ) {
-    return <span className="text-zinc-600 select-none font-sans">—</span>;
+export function formatCellValue(
+  val: unknown,
+  colName: string,
+): React.ReactNode {
+  if (val === null || val === undefined || val === "") {
+    return (
+      <span className="text-[11px] text-nodata bg-nodata-bg border border-nodata-border px-1.5 py-0.5 rounded italic">
+        No data
+      </span>
+    );
   }
 
-  const colLower = col.toLowerCase();
+  const colLower = colName.toLowerCase();
 
-  if (colLower.includes("confidence")) {
-    let numVal: number | null = null;
-    if (typeof val === "number") {
-      numVal = val <= 1 ? Math.round(val * 100) : Math.round(val);
-    } else if (typeof val === "string") {
-      const parsed = parseFloat(val.replace("%", ""));
-      if (!isNaN(parsed)) {
-        numVal = parsed <= 1 ? Math.round(parsed * 100) : Math.round(parsed);
-      }
-    }
+  if (
+    colLower.includes("confidence") ||
+    colLower.includes("score") ||
+    colLower.includes("quality")
+  ) {
+    const numVal =
+      typeof val === "number"
+        ? Math.round(val <= 1 ? val * 100 : val)
+        : parseInt(String(val), 10);
 
-    if (numVal !== null) {
+    if (!isNaN(numVal)) {
       const isHigh = numVal >= 90;
       const isMed = numVal >= 75;
       return (
         <span
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
             isHigh
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+              ? "bg-success-bg text-success border-success-border"
               : isMed
-                ? "bg-amber-500/10 text-amber-400 border-amber-500/25"
-                : "bg-red-500/10 text-red-400 border-red-500/25"
+                ? "bg-warning-bg text-warning border-warning-border"
+                : "bg-error-bg text-error border-error-border"
           }`}
         >
           {numVal}%
@@ -151,33 +166,8 @@ export function renderCleanCellValue(col: string, val: unknown) {
     colLower === "type"
   ) {
     const typeStr = String(val);
-    const t = typeStr.toLowerCase();
-    let badgeColor = "bg-zinc-800/80 text-zinc-300 border-zinc-700/60";
-    if (t.includes("person") || t.includes("user") || t.includes("contact")) {
-      badgeColor = "bg-violet-500/15 text-violet-300 border-violet-500/30";
-    } else if (
-      t.includes("org") ||
-      t.includes("company") ||
-      t.includes("business")
-    ) {
-      badgeColor = "bg-sky-500/15 text-sky-300 border-sky-500/30";
-    } else if (
-      t.includes("dataset") ||
-      t.includes("table") ||
-      t.includes("file")
-    ) {
-      badgeColor = "bg-teal-500/15 text-teal-300 border-teal-500/30";
-    } else if (
-      t.includes("transaction") ||
-      t.includes("event") ||
-      t.includes("order")
-    ) {
-      badgeColor = "bg-amber-500/15 text-amber-300 border-amber-500/30";
-    }
     return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${badgeColor}`}
-      >
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-surface-subtle text-text border border-border">
         {typeStr}
       </span>
     );
@@ -185,40 +175,74 @@ export function renderCleanCellValue(col: string, val: unknown) {
 
   if (colLower.includes("status")) {
     const s = String(val).toLowerCase();
-    let badgeClass = "bg-blue-500/10 text-blue-400 border-blue-500/25";
+    let badgeClass =
+      "bg-nodata-bg text-nodata border-nodata-border font-medium";
     if (
       s.includes("active") ||
       s.includes("sync") ||
       s.includes("verified") ||
       s.includes("clean") ||
-      s.includes("valid")
+      s.includes("valid") ||
+      s.includes("connected")
     ) {
-      badgeClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/25";
+      badgeClass =
+        "bg-success-bg text-success border-success-border font-medium";
     } else if (
       s.includes("fail") ||
       s.includes("error") ||
       s.includes("corrupt")
     ) {
-      badgeClass = "bg-red-500/10 text-red-400 border-red-500/25";
+      badgeClass = "bg-error-bg text-error border-error-border font-medium";
     } else if (
       s.includes("pend") ||
       s.includes("queue") ||
       s.includes("wait")
     ) {
-      badgeClass = "bg-amber-500/10 text-amber-400 border-amber-500/25";
+      badgeClass =
+        "bg-warning-bg text-warning border-warning-border font-medium";
     }
     return (
       <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${badgeClass}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${badgeClass}`}
       >
+        <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
         {String(val)}
       </span>
     );
   }
 
+  if (typeof val === "boolean") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
+          val
+            ? "bg-success-bg text-success border-success-border"
+            : "bg-nodata-bg text-nodata border-nodata-border"
+        }`}
+      >
+        {val ? "True" : "False"}
+      </span>
+    );
+  }
+
+  if (typeof val === "object") {
+    return (
+      <span className="font-mono text-[11px] text-text-secondary truncate max-w-xs block">
+        {JSON.stringify(val)}
+      </span>
+    );
+  }
+
   return (
-    <span className="text-zinc-300 font-mono text-[11px] truncate">
+    <span className="text-xs text-text truncate max-w-xs block">
       {String(val)}
     </span>
   );
+}
+
+export function renderCleanCellValue(
+  col: string,
+  val: unknown,
+): React.ReactNode {
+  return formatCellValue(val, col);
 }

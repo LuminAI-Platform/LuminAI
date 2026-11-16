@@ -7,7 +7,7 @@ export const Table: React.FC<React.HTMLAttributes<HTMLTableElement>> = ({
 }) => (
   <div className="relative w-full overflow-x-auto scrollbar-thin">
     <table
-      className={`w-full caption-bottom text-xs text-left text-zinc-300 min-w-[640px] sm:min-w-full ${className}`}
+      className={`w-full caption-bottom text-xs text-left text-text min-w-[640px] sm:min-w-full ${className}`}
       {...props}
     >
       {children}
@@ -19,7 +19,7 @@ export const TableHeader: React.FC<
   React.HTMLAttributes<HTMLTableSectionElement>
 > = ({ children, className = "", ...props }) => (
   <thead
-    className={`bg-zinc-950/60 text-zinc-400 font-semibold border-b border-zinc-800 ${className}`}
+    className={`bg-surface-subtle text-text-secondary font-semibold border-b border-border ${className}`}
     {...props}
   >
     {children}
@@ -29,7 +29,7 @@ export const TableHeader: React.FC<
 export const TableBody: React.FC<
   React.HTMLAttributes<HTMLTableSectionElement>
 > = ({ children, className = "", ...props }) => (
-  <tbody className={`divide-y divide-zinc-800/60 ${className}`} {...props}>
+  <tbody className={`divide-y divide-border ${className}`} {...props}>
     {children}
   </tbody>
 );
@@ -40,7 +40,7 @@ export const TableRow: React.FC<React.HTMLAttributes<HTMLTableRowElement>> = ({
   ...props
 }) => (
   <tr
-    className={`transition-colors hover:bg-zinc-800/40 data-[state=selected]:bg-zinc-800 ${className}`}
+    className={`transition-colors hover:bg-surface-hover data-[state=selected]:bg-surface-hover ${className}`}
     {...props}
   >
     {children}
@@ -51,7 +51,7 @@ export const TableHead: React.FC<
   React.ThHTMLAttributes<HTMLTableCellElement>
 > = ({ children, className = "", ...props }) => (
   <th
-    className={`h-10 px-4 text-left align-middle text-zinc-400 font-medium select-none ${className}`}
+    className={`h-10 px-4 text-left align-middle text-text-secondary font-medium select-none ${className}`}
     {...props}
   >
     {children}
@@ -61,7 +61,7 @@ export const TableHead: React.FC<
 export const TableCell: React.FC<
   React.TdHTMLAttributes<HTMLTableCellElement>
 > = ({ children, className = "", ...props }) => (
-  <td className={`p-4 align-middle text-zinc-200 ${className}`} {...props}>
+  <td className={`p-4 align-middle text-text ${className}`} {...props}>
     {children}
   </td>
 );

@@ -1,16 +1,8 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Cpu,
-  Activity,
-  CheckCircle2,
-  Clock,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
+import { Cpu } from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 import { Badge } from "../../../components/ui/Badge";
-import { Button } from "../../../components/ui/Button";
 
 interface EngineHealth {
   status: "ONLINE" | "STANDBY" | string;
@@ -46,19 +38,18 @@ interface EngineMetricsResponse {
 }
 
 export const DataEngineTelemetryCard: React.FC = () => {
-  const { data, isLoading, refetch, isRefetching } =
-    useQuery<EngineMetricsResponse>({
-      queryKey: ["engine", "metrics"],
-      queryFn: async () => {
-        const res = await apiFetch("/api/v1/engine/metrics", {
-          headers: { "X-Suppress-Toast": "true" },
-        });
-        return res.json();
-      },
-      refetchInterval: 60000,
-      refetchOnWindowFocus: false,
-      retry: 1,
-    });
+  const { data } = useQuery<EngineMetricsResponse>({
+    queryKey: ["engine", "metrics"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/v1/engine/metrics", {
+        headers: { "X-Suppress-Toast": "true" },
+      });
+      return res.json();
+    },
+    refetchInterval: 60000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
   const health = data?.engineHealth;
   const stats = data?.pipelineStats;
@@ -90,85 +81,16 @@ export const DataEngineTelemetryCard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {stats?.avgDuration !== undefined && (
+            <span className="text-xs text-zinc-400 bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800">
+              Avg Compute: {stats.avgDuration.toFixed(2)}s
+            </span>
+          )}
           {health?.latencyMs !== undefined && (
             <span className="text-xs text-zinc-400 bg-zinc-950 px-2 py-1 rounded border border-zinc-800">
               {health.latencyMs}ms RTT
             </span>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isLoading || isRefetching}
-            leftIcon={
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
-              />
-            }
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Grid Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
-          <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <Activity className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Records Processed</span>
-          </div>
-          <div className="text-lg font-bold text-zinc-100">
-            {stats?.recordsProcessed?.toLocaleString() ?? "—"}
-          </div>
-          <div className="text-[10px] text-zinc-500 mt-0.5">
-            Streaming & batch ingest
-          </div>
-        </div>
-
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
-          <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Success Rate</span>
-          </div>
-          <div className="text-lg font-bold text-zinc-100">
-            {stats?.successRate !== undefined
-              ? `${stats.successRate.toFixed(1)}%`
-              : "—"}
-          </div>
-          <div className="text-[10px] text-zinc-500 mt-0.5">
-            {stats?.totalRuns ?? 0} total executions
-          </div>
-        </div>
-
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
-          <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <Clock className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Avg Polars Compute</span>
-          </div>
-          <div className="text-lg font-bold text-zinc-100">
-            {stats?.avgDuration !== undefined
-              ? `${stats.avgDuration.toFixed(2)}s`
-              : "—"}
-          </div>
-          <div className="text-[10px] text-zinc-500 mt-0.5">
-            Vectorized batch latency
-          </div>
-        </div>
-
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-lg">
-          <div className="flex items-center gap-1.5 text-zinc-400 text-xs mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Data Quality Index</span>
-          </div>
-          <div className="text-lg font-bold text-zinc-100">
-            {quality?.overallScore !== undefined
-              ? `${quality.overallScore.toFixed(1)}%`
-              : "—"}
-          </div>
-          <div className="text-[10px] text-zinc-500 mt-0.5">
-            Completeness & deduplication
-          </div>
         </div>
       </div>
 
@@ -179,6 +101,11 @@ export const DataEngineTelemetryCard: React.FC = () => {
             <span className="font-medium text-zinc-300">
               Engine Data Quality Dimensions
             </span>
+            {stats?.recordsProcessed !== undefined && (
+              <span className="text-[11px] text-zinc-500">
+                {stats.recordsProcessed.toLocaleString()} records evaluated
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <div className="flex flex-col">

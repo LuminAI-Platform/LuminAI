@@ -30,27 +30,31 @@ const ICONS = {
   info: Info,
 };
 
-// Color accents for dark theme
+// Styles using design system tokens
 const STYLES = {
   success: {
-    border: "border-emerald-500/30",
-    bg: "bg-emerald-950/40",
-    iconColor: "text-emerald-400",
+    border: "border-success-border",
+    bg: "bg-success-bg",
+    iconColor: "text-success",
+    titleColor: "text-text",
   },
   error: {
-    border: "border-red-500/30",
-    bg: "bg-red-950/40",
-    iconColor: "text-red-400",
+    border: "border-error-border",
+    bg: "bg-error-bg",
+    iconColor: "text-error",
+    titleColor: "text-error",
   },
   warning: {
-    border: "border-amber-500/30",
-    bg: "bg-amber-950/40",
-    iconColor: "text-amber-400",
+    border: "border-warning-border",
+    bg: "bg-warning-bg",
+    iconColor: "text-warning",
+    titleColor: "text-text",
   },
   info: {
-    border: "border-blue-500/30",
-    bg: "bg-blue-950/40",
-    iconColor: "text-blue-400",
+    border: "border-border",
+    bg: "bg-surface",
+    iconColor: "text-primary",
+    titleColor: "text-text",
   },
 };
 
@@ -64,22 +68,24 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
   return (
     <div
       role="alert"
-      className={`pointer-events-auto flex items-start gap-3 w-84 p-4 rounded-lg border ${style.border} ${style.bg} bg-zinc-900/95 backdrop-blur-md shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-top-2`}
+      className={`pointer-events-auto flex items-start gap-3 w-84 p-4 rounded-lg border ${style.border} ${style.bg} shadow-md transition-all duration-200`}
     >
       <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${style.iconColor}`} />
       <div className="flex-1 min-w-0">
-        <h4 className="text-xs font-semibold text-zinc-100 tracking-tight leading-snug">
+        <h4
+          className={`text-xs font-semibold ${style.titleColor} tracking-tight leading-snug`}
+        >
           {toast.title}
         </h4>
         {toast.description && (
-          <p className="text-[11px] text-zinc-400 mt-1 leading-normal break-words">
+          <p className="text-[11px] text-text-secondary mt-1 leading-normal break-words">
             {toast.description}
           </p>
         )}
       </div>
       <button
         onClick={() => onDismiss(toast.id)}
-        className="text-zinc-500 hover:text-zinc-300 p-0.5 rounded transition-colors shrink-0 cursor-pointer"
+        className="text-text-secondary hover:text-text p-0.5 rounded transition-colors shrink-0 cursor-pointer"
         aria-label="Dismiss notification"
       >
         <X className="w-4 h-4" />

@@ -99,7 +99,7 @@ export const SchemaMapRibbon: React.FC<SchemaMapRibbonProps> = ({
           id="btn-auto-create-entity"
           onClick={onAutoGenerate}
           disabled={generatingFromDataset || !hasSourceColumns}
-          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border border-blue-500/40 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 transition-colors cursor-pointer disabled:opacity-40"
+          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border border-primary-border bg-primary-tint hover:bg-primary-tint/80 text-primary transition-colors cursor-pointer disabled:opacity-40"
           title="Auto-detect and create entity type directly from selected dataset columns"
         >
           {generatingFromDataset ? (
@@ -112,7 +112,7 @@ export const SchemaMapRibbon: React.FC<SchemaMapRibbonProps> = ({
 
         <button
           onClick={onOpenEntityEditor}
-          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-750 text-zinc-200 transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg border border-border bg-surface-subtle hover:bg-surface-hover text-text transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Custom Entity</span>

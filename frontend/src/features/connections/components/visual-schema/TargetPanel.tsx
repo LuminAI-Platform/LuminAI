@@ -62,52 +62,52 @@ export const TargetPanel: React.FC<TargetPanelProps> = ({
               onDrop={() => onDropOnProp(prop.id)}
               className={`relative flex items-center gap-3 p-3 rounded-lg border transition-all ${
                 isHovered && isDropTarget
-                  ? "border-blue-500 bg-blue-500/15 scale-[1.01] shadow-lg shadow-blue-500/20"
+                  ? "border-primary bg-primary-tint scale-[1.01] shadow-xs"
                   : isMapped
-                    ? "border-blue-500/30 bg-blue-500/5"
+                    ? "border-primary-border bg-primary-tint/50"
                     : isDropTarget
-                      ? "border-zinc-700 bg-zinc-900/60 border-dashed"
-                      : "border-zinc-800/80 bg-zinc-900/40"
+                      ? "border-border bg-surface-subtle border-dashed"
+                      : "border-border bg-surface-subtle"
               }`}
             >
               <div
                 className={`w-2.5 h-2.5 rounded-full border-2 flex-shrink-0 transition-all ${
                   isMapped
-                    ? "bg-blue-500 border-blue-400"
+                    ? "bg-primary border-primary"
                     : isHovered
-                      ? "bg-blue-500/50 border-blue-500"
-                      : "bg-zinc-800 border-zinc-700"
+                      ? "bg-primary-tint border-primary"
+                      : "bg-surface-muted border-border"
                 }`}
               />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-semibold text-zinc-100 font-mono truncate">
+                  <span className="text-xs font-semibold text-text font-mono truncate">
                     {prop.name}
                   </span>
                   {prop.required && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded border border-red-500/30 text-red-400 bg-red-500/10 font-medium flex-shrink-0">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded border border-error-border text-error bg-error-bg font-medium flex-shrink-0">
                       required
                     </span>
                   )}
                 </div>
                 {prop.description && (
-                  <p className="text-[10px] text-zinc-500 truncate">
+                  <p className="text-[10px] text-text-secondary truncate">
                     {prop.description}
                   </p>
                 )}
               </div>
 
-              <span className="text-[9px] text-zinc-500 font-mono flex-shrink-0">
+              <span className="text-[9px] text-text-secondary font-mono flex-shrink-0">
                 {prop.expectedType}
               </span>
 
               {isMapped ? (
-                <span className="text-[9px] font-mono text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 bg-blue-500/10 flex-shrink-0 truncate max-w-[90px]">
+                <span className="text-[9px] font-mono text-primary px-2 py-0.5 rounded border border-primary-border bg-primary-tint flex-shrink-0 truncate max-w-[90px]">
                   ← {mappedCol?.name}
                 </span>
               ) : isDropTarget ? (
-                <span className="text-[9px] text-zinc-600 flex-shrink-0 animate-pulse">
+                <span className="text-[9px] text-text-secondary flex-shrink-0 animate-pulse">
                   drop here
                 </span>
               ) : null}

@@ -17,17 +17,25 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   rightIcon?: React.ReactNode;
 }
 
+/**
+ * Button Design System Rules:
+ * - Make navy the only filled button color.
+ * - Keep one primary button per screen, and style the rest as outlined.
+ */
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
+  // Navy is the ONLY filled button color
   primary:
-    "bg-blue-600 hover:bg-blue-500 text-white shadow-xs active:scale-[0.98] border border-blue-500/40",
+    "bg-primary hover:bg-primary-hover text-primary-text border border-primary shadow-xs active:scale-[0.98]",
+  // Secondary is styled as outlined
   secondary:
-    "bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 active:scale-[0.98]",
+    "bg-transparent hover:bg-surface-subtle text-text border border-border hover:border-text-secondary/50 active:scale-[0.98]",
+  // Danger is styled as outlined with red border/text
   danger:
-    "bg-red-600/90 hover:bg-red-500 text-white shadow-xs active:scale-[0.98] border border-red-500/40",
+    "bg-transparent hover:bg-error-bg text-error border border-error/40 hover:border-error active:scale-[0.98]",
   ghost:
-    "bg-transparent hover:bg-zinc-800/60 text-zinc-300 hover:text-zinc-100",
+    "bg-transparent hover:bg-surface-subtle text-text-secondary hover:text-text",
   outline:
-    "bg-transparent hover:bg-zinc-800/40 text-zinc-300 border border-zinc-700 hover:border-zinc-600",
+    "bg-transparent hover:bg-surface-subtle text-text border border-border hover:border-text-secondary/50",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
@@ -56,7 +64,7 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button
       disabled={isDisabled}
-      className={`inline-flex items-center justify-center font-medium transition-all duration-150 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex items-center justify-center font-medium transition-colors duration-150 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...props}
     >
       {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : leftIcon}

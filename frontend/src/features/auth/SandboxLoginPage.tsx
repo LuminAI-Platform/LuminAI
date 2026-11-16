@@ -54,10 +54,10 @@ export function SandboxLoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-zinc-100">
+    <main className="flex min-h-screen items-center justify-center bg-page px-6 text-text">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-lg border border-amber-500/30 bg-zinc-900 p-6 shadow-2xl shadow-black/30"
+        className="w-full max-w-md rounded-lg border border-warning-border bg-surface p-6 shadow-sm"
       >
         <div className="mb-6">
           <img
@@ -66,11 +66,11 @@ export function SandboxLoginPage() {
             className="h-7 w-auto mb-5 select-none"
             draggable={false}
           />
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-warning">
             Development only
           </p>
           <h1 className="text-2xl font-semibold">Sandbox sign in</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">
+          <p className="mt-2 text-sm leading-6 text-text-secondary">
             This route is available only in Vite development builds and does not
             contact Keycloak.
           </p>
@@ -78,19 +78,19 @@ export function SandboxLoginPage() {
 
         <div className="space-y-4">
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold text-zinc-300">
+            <span className="mb-2 block text-xs font-semibold text-text">
               Name
             </span>
             <input
               required
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-amber-400"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none focus:border-border-focus"
             />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold text-zinc-300">
+            <span className="mb-2 block text-xs font-semibold text-text">
               Email
             </span>
             <input
@@ -98,18 +98,18 @@ export function SandboxLoginPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-amber-400"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none focus:border-border-focus"
             />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold text-zinc-300">
+            <span className="mb-2 block text-xs font-semibold text-text">
               Role preset
             </span>
             <select
               value={selectedRole}
               onChange={(event) => setSelectedRole(event.target.value)}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm outline-none focus:border-amber-400"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none focus:border-border-focus"
             >
               {SANDBOX_ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -117,18 +117,18 @@ export function SandboxLoginPage() {
                 </option>
               ))}
             </select>
-            <span className="mt-1.5 block text-xs text-zinc-500">
+            <span className="mt-1.5 block text-xs text-text-secondary">
               Choose a role to test different permission levels.
             </span>
           </label>
         </div>
 
-        {error && <p className="mt-4 text-sm text-red-300">{error}</p>}
+        {error && <p className="mt-4 text-sm text-error">{error}</p>}
 
         <button
           type="submit"
           disabled={isLoading || isSubmitting}
-          className="mt-6 w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-page transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           {isSubmitting ? "Signing in..." : "Enter sandbox"}
         </button>

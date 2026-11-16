@@ -37,19 +37,19 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-zinc-950 border border-red-500/20 rounded-lg m-6">
-          <div className="w-14 h-14 rounded-lg bg-red-950/40 border border-red-500/30 flex items-center justify-center text-red-400 mb-5">
+        <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-surface border border-error-border rounded-lg m-6">
+          <div className="w-14 h-14 rounded-lg bg-error-bg border border-error-border flex items-center justify-center text-error mb-5">
             <AlertOctagon className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-bold text-zinc-100 tracking-tight mb-2">
+          <h2 className="text-xl font-bold text-text tracking-tight mb-2">
             Something went wrong
           </h2>
-          <p className="text-xs text-zinc-400 max-w-md mb-6 leading-relaxed">
+          <p className="text-xs text-text-secondary max-w-md mb-6 leading-relaxed">
             An unexpected error occurred while rendering this view. Your session
             and data are safe.
           </p>
           {this.state.error && (
-            <pre className="text-[11px] font-mono text-red-300 bg-red-950/20 border border-red-900/40 p-3 rounded-lg max-w-xl overflow-x-auto text-left mb-6">
+            <pre className="text-[11px] font-mono text-error bg-error-bg border border-error-border p-3 rounded-lg max-w-xl overflow-x-auto text-left mb-6">
               {this.state.error.message}
             </pre>
           )}

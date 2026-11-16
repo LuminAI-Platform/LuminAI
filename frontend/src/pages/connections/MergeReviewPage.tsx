@@ -2,11 +2,10 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Search } from "lucide-react";
 import { apiFetch } from "../../lib/api";
-import { Badge } from "../../components/ui/Badge";
+import { Badge, SuggestedTag } from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/ToastProvider";
 import { PageHeader } from "../../components/layout/PageHeader";
 import type { CandidateResponse, PageData } from "./merge-review/mergeTypes";
-import { getScoreColor } from "./merge-review/mergeTypes";
 import { CandidateInspector } from "./merge-review/CandidateInspector";
 
 export type {
@@ -193,11 +192,12 @@ export const MergeReviewPage: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${getScoreColor(candidate.similarityScore)}`}
-                      >
-                        {scorePercent}% Suggested Match
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <SuggestedTag label="Suggested" />
+                        <span className="text-[10px] text-text-secondary font-medium">
+                          {scorePercent}% Match
+                        </span>
+                      </div>
                       <Badge
                         variant="neutral"
                         className="text-[10px] uppercase font-bold py-0 h-4"

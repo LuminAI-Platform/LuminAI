@@ -69,10 +69,10 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
               onDragEnd={onDragEnd}
               className={`group relative flex items-center gap-3 p-3 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
                 isDragging
-                  ? "border-blue-500/60 bg-blue-500/10 scale-[0.98] opacity-70"
+                  ? "border-primary-border bg-primary-tint scale-[0.98] opacity-70"
                   : isMapped
-                    ? "border-blue-500/30 bg-blue-500/5 hover:border-blue-500/50"
-                    : "border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700/80 hover:bg-zinc-900/60"
+                    ? "border-primary-border bg-primary-tint/50 hover:border-primary"
+                    : "border-border bg-surface-subtle hover:border-border-focus hover:bg-surface-hover"
               }`}
             >
               <div className="text-zinc-700 group-hover:text-zinc-500 transition-colors flex-shrink-0">
@@ -203,8 +203,8 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
               <div
                 className={`w-2.5 h-2.5 rounded-full border-2 flex-shrink-0 transition-all ${
                   isMapped
-                    ? "bg-blue-500 border-blue-400"
-                    : "bg-zinc-800 border-zinc-700 group-hover:border-blue-500/60"
+                    ? "bg-primary border-primary"
+                    : "bg-surface-muted border-border group-hover:border-primary-border"
                 }`}
               />
             </div>

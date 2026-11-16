@@ -30,34 +30,34 @@ export const STATUS_META: Record<
 > = {
   RUNNING: {
     label: "RUNNING",
-    dotClass: "bg-blue-500",
-    badgeClass: "bg-blue-500/10 border-blue-500/30 text-blue-400",
-    barColor: "#3b82f6",
+    dotClass: "bg-warning",
+    badgeClass: "bg-warning-bg border-warning-border text-warning",
+    barColor: "var(--color-warning)",
   },
   CLEANED: {
     label: "CLEANED",
-    dotClass: "bg-violet-500",
-    badgeClass: "bg-violet-500/10 border-violet-500/30 text-violet-400",
-    barColor: "#8b5cf6",
+    dotClass: "bg-primary",
+    badgeClass: "bg-primary-tint border-primary-border text-primary",
+    barColor: "var(--color-primary)",
   },
   COMPLETED: {
     label: "COMPLETED",
-    dotClass: "bg-emerald-500",
-    badgeClass: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
-    barColor: "#10b981",
+    dotClass: "bg-success",
+    badgeClass: "bg-success-bg border-success-border text-success",
+    barColor: "var(--color-success)",
   },
   FAILED: {
     label: "FAILED",
-    dotClass: "bg-red-500",
-    badgeClass: "bg-red-500/10 border-red-500/30 text-red-400",
-    barColor: "#ef4444",
+    dotClass: "bg-error",
+    badgeClass: "bg-error-bg border-error-border text-error",
+    barColor: "var(--color-error)",
   },
 };
 
 export const LOG_LEVEL_CLASS: Record<PipelineErrorEntry["level"], string> = {
-  ERROR: "text-red-400",
-  WARN: "text-amber-400",
-  INFO: "text-zinc-400",
+  ERROR: "text-error",
+  WARN: "text-warning",
+  INFO: "text-text-secondary",
 };
 
 export function formatNumber(n: number): string {

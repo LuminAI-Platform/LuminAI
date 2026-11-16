@@ -26,18 +26,18 @@ export const VerificationChecklist: React.FC<VerificationChecklistProps> = ({
             key={step.id}
             className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
               step.status === "loading"
-                ? "bg-blue-500/5 border-blue-500/20"
+                ? "bg-primary-tint/50 border-primary-border"
                 : step.status === "success"
-                  ? "bg-emerald-500/5 border-emerald-500/20"
+                  ? "bg-success-bg border-success-border"
                   : step.status === "error"
-                    ? "bg-red-500/5 border-red-500/20"
-                    : "bg-zinc-900/40 border-zinc-850"
+                    ? "bg-error-bg border-error-border"
+                    : "bg-surface-subtle border-border"
             }`}
           >
             <div className="mt-0.5">
               {step.status === "loading" && (
                 <svg
-                  className="animate-spin text-blue-500"
+                  className="animate-spin text-primary"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
@@ -94,18 +94,18 @@ export const VerificationChecklist: React.FC<VerificationChecklistProps> = ({
               <span
                 className={`text-xs font-semibold ${
                   step.status === "loading"
-                    ? "text-blue-400"
+                    ? "text-primary"
                     : step.status === "success"
-                      ? "text-emerald-400"
+                      ? "text-success"
                       : step.status === "error"
-                        ? "text-red-400"
-                        : "text-zinc-500"
+                        ? "text-error"
+                        : "text-text-secondary"
                 }`}
               >
                 {step.label}
               </span>
               {step.errorMsg && (
-                <p className="text-[10px] text-red-400/90 mt-1 leading-relaxed">
+                <p className="text-[10px] text-error mt-1 leading-relaxed">
                   {step.errorMsg}
                 </p>
               )}

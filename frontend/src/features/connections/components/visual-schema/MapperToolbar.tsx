@@ -86,12 +86,12 @@ export const MapperToolbar: React.FC<MapperToolbarProps> = ({
           id="schema-mapper-save"
           onClick={onSave}
           disabled={mappingsCount === 0 && fkCount === 0}
-          className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+          className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-2 ${
             saveSuccess
-              ? "bg-emerald-600 border border-emerald-500/40 text-white shadow-lg shadow-emerald-500/20"
+              ? "bg-success border border-success text-white shadow-xs"
               : mappingsCount === 0 && fkCount === 0
-                ? "bg-zinc-800/50 border border-zinc-800 text-zinc-600 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-500 border border-blue-500/40 text-white shadow-lg shadow-blue-500/15 hover:shadow-blue-500/25"
+                ? "bg-surface-subtle border border-border text-text-secondary/50 cursor-not-allowed"
+                : "bg-primary hover:bg-primary-hover border border-primary text-primary-text shadow-xs"
           }`}
         >
           {saveSuccess ? (

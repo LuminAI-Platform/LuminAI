@@ -54,11 +54,11 @@ export const ExplorerPage: React.FC = () => {
           <button
             onClick={handleExportCsv}
             disabled={isExporting}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-850 hover:border-zinc-700 text-xs font-semibold text-zinc-200 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-border bg-transparent hover:bg-surface-subtle text-xs font-semibold text-text transition-all cursor-pointer shadow-xs disabled:opacity-50"
             title="Download clean canonical records matching current query as CSV"
           >
             <Download
-              className={`w-3.5 h-3.5 text-emerald-400 ${
+              className={`w-3.5 h-3.5 text-primary ${
                 isExporting ? "animate-bounce" : ""
               }`}
             />

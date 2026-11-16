@@ -142,7 +142,7 @@ export const RelationshipsTab: React.FC<RelationshipsTabProps> = ({
                       </span>
                     </div>
                     <div className="col-span-2">
-                      <span className="font-bold text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                      <span className="font-bold text-[10px] px-2 py-0.5 rounded-md bg-primary-tint text-primary border border-primary-border">
                         {rel.cardinality.replace(/_/g, ":")}
                       </span>
                     </div>
@@ -150,8 +150,8 @@ export const RelationshipsTab: React.FC<RelationshipsTabProps> = ({
                       <span
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
                           rel.directed
-                            ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                            : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                            ? "bg-primary-tint text-primary border-primary-border"
+                            : "bg-surface-subtle text-text-secondary border-border"
                         }`}
                       >
                         {rel.directed ? "Directed" : "Undirected"}
@@ -162,7 +162,7 @@ export const RelationshipsTab: React.FC<RelationshipsTabProps> = ({
                         id={`edit-rel-${rel.id}`}
                         type="button"
                         onClick={() => onEditRelationship(rel)}
-                        className="p-1.5 text-zinc-500 hover:text-purple-400 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
+                        className="p-1.5 text-text-secondary hover:text-primary hover:bg-surface-hover rounded-lg transition-all cursor-pointer"
                       >
                         <svg
                           width="12"

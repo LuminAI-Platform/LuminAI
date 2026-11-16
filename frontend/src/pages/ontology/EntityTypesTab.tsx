@@ -24,7 +24,7 @@ export const EntityTypesTab: React.FC<EntityTypesTabProps> = ({
           id="new-entity-btn"
           type="button"
           onClick={onNewEntity}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/40 rounded-lg transition-all cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-all cursor-pointer"
         >
           <svg
             width="12"
@@ -79,7 +79,7 @@ export const EntityTypesTab: React.FC<EntityTypesTabProps> = ({
           </span>
           <button
             onClick={onNewEntity}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/40 rounded-lg transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-all cursor-pointer"
           >
             <svg
               width="12"

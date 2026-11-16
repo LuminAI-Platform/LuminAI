@@ -1,19 +1,32 @@
 import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { useThemeStore } from "../../../stores/themeStore";
 
 interface EntityBreakdownChartProps {
   data?: Record<string, number>;
   isLoading?: boolean;
 }
 
-const PALETTE = [
-  "#3b82f6", // Blue
-  "#10b981", // Emerald
-  "#8b5cf6", // Purple
-  "#f59e0b", // Amber
-  "#06b6d4", // Cyan
-  "#ec4899", // Pink
+/**
+ * Color-blind-safe 5-color palettes (Okabe-Ito / accessibility calibrated)
+ * Rule 7: For charts, use a color-blind-safe set of about five colors,
+ * and don't rely on red versus green alone.
+ */
+const LIGHT_PALETTE = [
+  "#12297A", // Luminex Navy
+  "#E69F00", // Amber / Orange
+  "#56B4E9", // Sky Blue
+  "#009E73", // Bluish Green / Teal
+  "#CC79A7", // Reddish Purple
+];
+
+const DARK_PALETTE = [
+  "#6B97FF", // Navy Tint for Dark
+  "#F2C466", // Warm Yellow / Gold
+  "#56B4E9", // Sky Blue
+  "#5FD6A0", // Soft Mint / Teal
+  "#CC79A7", // Reddish Purple
 ];
 
 /**
@@ -25,6 +38,8 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === "dark";
 
   const seriesData = Object.entries(data).map(([name, value]) => ({
     name,
@@ -43,15 +58,20 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
     }
 
     const chart = chartInstance.current;
+    const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE;
+    const textColor = isDark ? "#E9EDF4" : "#1A2230";
+    const secondaryColor = isDark ? "#A3ADBF" : "#566176";
+    const surfaceColor = isDark ? "#1A202A" : "#FFFFFF";
+    const borderColor = isDark ? "#2C3441" : "#DFE3EA";
 
     const option: echarts.EChartsOption = {
       backgroundColor: "transparent",
-      color: PALETTE,
+      color: palette,
       tooltip: {
         trigger: "item",
-        backgroundColor: "#18181b",
-        borderColor: "#27272a",
-        textStyle: { color: "#f4f4f5", fontSize: 12 },
+        backgroundColor: surfaceColor,
+        borderColor: borderColor,
+        textStyle: { color: textColor, fontSize: 12 },
         formatter: (params: unknown) => {
           const p = params as {
             name: string;
@@ -60,12 +80,12 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
             color: string;
           };
           return `
-            <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <div style="font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; color: ${textColor};">
               <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${p.color};"></span>
               ${p.name}
             </div>
-            <div style="color: #a1a1aa; font-size: 11px;">
-              Count: <span style="color: #f4f4f5; font-weight: 600;">${p.value.toLocaleString()}</span> (${p.percent}%)
+            <div style="color: ${secondaryColor}; font-size: 11px;">
+              Count: <span style="color: ${textColor}; font-weight: 600;">${p.value.toLocaleString()}</span> (${p.percent}%)
             </div>
           `;
         },
@@ -73,7 +93,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
       legend: {
         orient: "horizontal",
         bottom: 0,
-        textStyle: { color: "#a1a1aa", fontSize: 11 },
+        textStyle: { color: secondaryColor, fontSize: 11 },
         itemWidth: 10,
         itemHeight: 10,
         itemGap: 16,
@@ -87,7 +107,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 6,
-            borderColor: "#18181b",
+            borderColor: surfaceColor,
             borderWidth: 2,
           },
           label: {
@@ -98,7 +118,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
               show: true,
               fontSize: 12,
               fontWeight: "bold",
-              color: "#f4f4f5",
+              color: textColor,
             },
             scale: true,
             scaleSize: 6,
@@ -111,7 +131,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
       ],
     };
 
-    chart.setOption(option);
+    chart.setOption(option, true);
 
     const handleResize = () => chart.resize();
     window.addEventListener("resize", handleResize);
@@ -119,7 +139,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [seriesData, isLoading]);
+  }, [seriesData, isLoading, isDark]);
 
   useEffect(() => {
     return () => {
@@ -135,7 +155,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
   return (
     <div className="relative w-full h-64">
       {total === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-text-secondary pointer-events-none">
           No entity records indexed yet
         </div>
       )}

@@ -47,7 +47,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
           type="button"
           id="add-property-btn"
           onClick={addProperty}
-          className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 px-2.5 py-1.5 rounded-lg hover:bg-blue-500/10 transition-all cursor-pointer border border-transparent hover:border-blue-500/20"
+          className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-hover px-2.5 py-1.5 rounded-lg hover:bg-primary-tint transition-all cursor-pointer border border-transparent hover:border-primary-border"
         >
           <svg
             width="12"
@@ -134,7 +134,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
                     )}
                   </span>
                   {prop.required && (
-                    <span className="text-[9px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded shrink-0">
+                    <span className="text-[9px] font-bold text-error bg-error-bg border border-error-border px-1.5 py-0.5 rounded shrink-0">
                       REQUIRED
                     </span>
                   )}
@@ -219,14 +219,14 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
                             onClick={() =>
                               update(prop.id, { required: !prop.required })
                             }
-                            className={`relative w-10 h-5 rounded-full transition-all duration-200 cursor-pointer border ${prop.required ? "bg-blue-600 border-blue-500" : "bg-zinc-800 border-zinc-700"}`}
+                            className={`relative w-10 h-5 rounded-full transition-all duration-200 cursor-pointer border ${prop.required ? "bg-primary border-primary" : "bg-surface-muted border-border"}`}
                           >
                             <span
                               className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${prop.required ? "left-5" : "left-0.5"}`}
                             />
                           </button>
                           <span
-                            className={`text-xs font-medium ${prop.required ? "text-blue-400" : "text-zinc-500"}`}
+                            className={`text-xs font-medium ${prop.required ? "text-primary" : "text-text-secondary"}`}
                           >
                             {prop.required ? "Required" : "Optional"}
                           </span>
@@ -234,7 +234,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                      <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
                         Description
                       </label>
                       <input
@@ -245,7 +245,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
                           update(prop.id, { description: e.target.value })
                         }
                         placeholder="Describe what this property stores..."
-                        className="px-2.5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 placeholder:text-zinc-600 transition-colors"
+                        className="px-2.5 py-2 bg-surface border border-border rounded-lg text-xs text-text outline-none focus:border-border-focus placeholder:text-text-secondary transition-colors"
                       />
                     </div>
                     <div className="flex justify-end pt-1">
@@ -253,7 +253,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
                         type="button"
                         id={`prop-delete-${prop.id}`}
                         onClick={() => remove(prop.id)}
-                        className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer"
+                        className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-error px-2.5 py-1.5 rounded-lg hover:bg-error-bg border border-transparent hover:border-error-border transition-all cursor-pointer"
                       >
                         <svg
                           width="12"

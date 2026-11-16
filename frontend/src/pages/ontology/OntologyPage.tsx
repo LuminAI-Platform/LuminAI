@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Boxes } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { EntityTypeEditor } from "../../features/ontology/components/EntityTypeEditor";
@@ -72,7 +72,7 @@ export const OntologyPage: React.FC = () => {
               id="publish-ontology-btn"
               onClick={publishVersion}
               disabled={publishing}
-              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/30 rounded-lg shadow-sm shadow-emerald-950 transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               {publishing ? (
                 <Spinner />

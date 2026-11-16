@@ -128,12 +128,12 @@ export const StepMapping: React.FC<StepMappingProps> = ({
                   if (e.key === "Enter") handleApplyCustomEntity();
                   if (e.key === "Escape") setIsCreatingCustomEntity(false);
                 }}
-                className="bg-zinc-900 border border-blue-500/60 rounded-lg px-2.5 py-1.5 text-zinc-200 text-xs outline-none focus:border-blue-400 w-56 font-mono"
+                className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-text text-xs outline-none focus:border-border-focus w-56 font-mono"
                 autoFocus
               />
               <button
                 onClick={handleApplyCustomEntity}
-                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                className="px-2.5 py-1.5 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-semibold cursor-pointer shadow-xs transition-colors"
               >
                 Apply
               </button>
@@ -142,7 +142,7 @@ export const StepMapping: React.FC<StepMappingProps> = ({
                   setIsCreatingCustomEntity(false);
                   setCustomEntityInput("");
                 }}
-                className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                className="px-2.5 py-1.5 bg-transparent hover:bg-surface-subtle text-text border border-border rounded-lg text-xs font-semibold cursor-pointer transition-colors"
               >
                 Cancel
               </button>
