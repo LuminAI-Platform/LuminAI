@@ -109,7 +109,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET_RAW:-luminai-raw}
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
-      CORS_ALLOWED_ORIGINS: https://app.${DOMAIN_NAME},http://localhost:5173
+      CORS_ALLOWED_ORIGINS: https://luminai.${DOMAIN_NAME},https://app.${DOMAIN_NAME},http://localhost:5173
     deploy:
       resources:
         limits:
@@ -133,7 +133,7 @@ services:
       MINIO_SECURE: ${MINIO_SECURE:-true}
       MINIO_BUCKET_RAW: ${MINIO_BUCKET_RAW:-luminai-raw}
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
-      APP_FRONTEND_URL: https://app.${DOMAIN_NAME}
+      APP_FRONTEND_URL: https://luminai.${DOMAIN_NAME}
       API_KEY: ${DATA_ENGINE_API_KEY:-luminai-internal-secret-key}
       KEYCLOAK_URL: http://keycloak:8180
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-luminai}
