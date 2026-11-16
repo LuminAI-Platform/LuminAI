@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - deb
 
 jobs:
   deploy:
@@ -24,9 +23,13 @@ jobs:
             echo "🚀 Starting automated deployment on Lightsail..."
             cd /home/ubuntu/LuminAI
             
-            echo "📥 Pulling latest changes from GitHub..."
+            echo "📥 Pulling latest changes from main branch..."
             git checkout -- docker-compose.yml docker-compose.prod.yml
-            git pull
+            git pull origin main
+            
+            echo "⚡ Enabling BuildKit for fast cached builds..."
+            export DOCKER_BUILDKIT=1
+            export COMPOSE_DOCKER_CLI_BUILD=1
             
             echo "🔨 Building updated application containers..."
             docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
@@ -35,9 +38,7 @@ jobs:
             docker rm -f luminai-data-engine luminai-core-backend luminai-frontend 2>/dev/null || true
             docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
             
-            echo "🧹 Cleaning up unused build cache & dangling images..."
-            docker image prune -f
-            
             echo "✅ Deployment successful! Active containers:"
             docker-compose ps
+
 
