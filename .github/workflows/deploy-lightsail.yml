@@ -32,7 +32,8 @@ jobs:
             docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
             
             echo "🔄 Bringing up updated services..."
-            docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+            docker rm -f luminai-data-engine luminai-core-backend luminai-frontend 2>/dev/null || true
+            docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
             
             echo "🧹 Cleaning up unused build cache & dangling images..."
             docker image prune -f
