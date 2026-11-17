@@ -49,6 +49,18 @@ export const ConnectionsPage: React.FC = () => {
     executeDelete,
   } = useConnectionsData();
 
+  if (isWizardOpen) {
+    return (
+      <FileUploadWizard
+        onClose={() => setIsWizardOpen(false)}
+        onSuccess={() => {
+          setIsWizardOpen(false);
+          loadConnectors(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-1 pb-8">
       {/* Page Header */}
@@ -167,16 +179,6 @@ export const ConnectionsPage: React.FC = () => {
         <SyncJobDetails />
         <ExecutionLogs />
       </div>
-
-      {isWizardOpen && (
-        <FileUploadWizard
-          onClose={() => setIsWizardOpen(false)}
-          onSuccess={() => {
-            setIsWizardOpen(false);
-            loadConnectors(false);
-          }}
-        />
-      )}
 
       {isDbModalOpen && (
         <DatabaseConnectorForm

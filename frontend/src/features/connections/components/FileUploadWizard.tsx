@@ -48,16 +48,21 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
+      role="region"
       aria-labelledby="file-wizard-title"
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md transition-opacity"
+      className="w-full max-w-[960px] mx-auto p-6 min-h-full"
+      style={{
+        width: "100%",
+        maxWidth: "960px",
+        margin: "0 auto",
+        padding: "24px",
+      }}
     >
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-[96vw] max-w-7xl h-[92vh] max-h-[920px] flex flex-col overflow-hidden shadow-2xl shadow-black/80">
+      <div className="bg-surface border border-border rounded-lg shadow-sm flex flex-col">
         {/* Top Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/40 select-none">
+        <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b border-border bg-surface select-none rounded-t-lg">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300">
+            <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary">
               <svg
                 width="18"
                 height="18"
@@ -74,18 +79,19 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             <div>
               <h2
                 id="file-wizard-title"
-                className="text-base font-bold text-zinc-100"
+                className="text-base font-bold text-text"
               >
                 File Ingestion Wizard
               </h2>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-text-secondary">
                 Ingest flat files (CSV, JSON) into semantic data graphs
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-border hover:border-border-focus text-text-secondary hover:text-text hover:bg-surface-subtle transition-colors cursor-pointer"
+            aria-label="Close wizard"
           >
             <svg
               width="16"
@@ -102,39 +108,49 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         </div>
 
         {/* Step Indicator */}
-        <div className="flex justify-between items-center px-8 py-3 border-b border-zinc-800/60 bg-zinc-950/20 select-none text-xs font-semibold">
-          {[
-            { s: 1, name: "Upload File" },
-            { s: 2, name: "Define Types & Mapping" },
-            { s: 3, name: "Preview Data" },
-            { s: 4, name: "Ingestion Summary" },
-          ].map((item) => (
-            <div key={item.s} className="flex items-center gap-2">
-              <span
-                className={`w-6 h-6 rounded-full flex items-center justify-center border text-xs font-medium transition-all ${
-                  step === item.s
-                    ? "bg-blue-600 border-blue-500 text-white"
-                    : step > item.s
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-zinc-950 border-zinc-800 text-zinc-500"
-                }`}
-              >
-                {item.s}
-              </span>
-              <span
-                className={step === item.s ? "text-zinc-100" : "text-zinc-500"}
-              >
-                {item.name}
-              </span>
-              {item.s < 4 && (
-                <span className="text-zinc-700 mx-4 font-normal">➔</span>
-              )}
-            </div>
-          ))}
+        <div className="border-b border-border bg-surface px-4 sm:px-6 py-3 select-none text-xs font-semibold">
+          <div className="w-full max-w-[800px] mx-auto flex items-center justify-between">
+            {[
+              { s: 1, name: "Upload File" },
+              { s: 2, name: "Define Types & Mapping" },
+              { s: 3, name: "Preview Data" },
+              { s: 4, name: "Ingestion Summary" },
+            ].map((item, idx) => (
+              <React.Fragment key={item.s}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center border text-xs font-medium shrink-0 transition-all ${
+                      step === item.s
+                        ? "bg-primary border-primary text-primary-text"
+                        : step > item.s
+                          ? "bg-success-bg border-success-border text-success"
+                          : "bg-surface-subtle border-border text-text-secondary"
+                    }`}
+                  >
+                    {item.s}
+                  </span>
+                  <span
+                    className={`whitespace-nowrap hidden lg:inline ${
+                      step === item.s
+                        ? "text-text font-semibold"
+                        : "text-text-secondary"
+                    }`}
+                  >
+                    {item.name}
+                  </span>
+                </div>
+                {idx < 3 && (
+                  <span className="text-text-muted/40 mx-1 sm:mx-2 font-normal select-none shrink-0">
+                    ➔
+                  </span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
         {/* Core content area */}
-        <div className="flex-1 p-6 overflow-y-auto min-h-0 bg-zinc-900/10">
+        <div className="flex-1 p-6 min-h-[360px] bg-surface">
           {step === 1 && (
             <StepDropzone
               dragActive={dragActive}
@@ -193,13 +209,13 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         </div>
 
         {/* Bottom Actions footer */}
-        <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-950/40 flex items-center justify-between select-none">
+        <div className="px-6 py-4 border-t border-border bg-surface flex items-center justify-between select-none rounded-b-lg">
           <div>
             {step > 1 && (
               <button
                 disabled={ingesting}
                 onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
-                className="px-4 py-2 border border-zinc-850 hover:border-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="px-4 py-2 border border-border hover:border-border-focus text-text hover:bg-surface-subtle rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 Previous Step
               </button>
@@ -210,7 +226,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
             <button
               disabled={ingesting}
               onClick={handleClose}
-              className="px-4 py-2 border border-border hover:border-text-secondary/50 text-text-secondary hover:text-text hover:bg-surface-subtle rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              className="px-4 py-2 border border-border hover:border-border-focus text-text-secondary hover:text-text hover:bg-surface-subtle rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               Cancel
             </button>
