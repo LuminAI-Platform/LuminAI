@@ -1,4 +1,5 @@
 import React from "react";
+import { formatNumber } from "./pipelineMonitorUtils";
 
 export const ThroughputGauge: React.FC<{ value: number; max?: number }> = ({
   value,
@@ -7,8 +8,8 @@ export const ThroughputGauge: React.FC<{ value: number; max?: number }> = ({
   const pct = Math.min(value / max, 1);
   const angle = -135 + pct * 270;
   const r = 36;
-  const cx = 48;
-  const cy = 52;
+  const cx = 56;
+  const cy = 48;
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const arcX = (deg: number) => cx + r * Math.cos(toRad(deg));
@@ -28,41 +29,60 @@ export const ThroughputGauge: React.FC<{ value: number; max?: number }> = ({
       : `M ${arcX(trackStart)} ${arcY(trackStart)} A ${r} ${r} 0 ${largeArcFill} 1 ${arcX(fillEnd)} ${arcY(fillEnd)}`;
 
   return (
-    <svg
-      width="96"
-      height="72"
-      viewBox="0 0 96 72"
-      className="overflow-visible select-none"
-    >
-      <path
-        d={trackD}
-        fill="none"
-        stroke="currentColor"
-        className="text-border"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      {fillD && (
+    <div className="flex flex-col items-center">
+      <svg
+        width="112"
+        height="76"
+        viewBox="0 0 112 76"
+        className="overflow-visible select-none"
+      >
         <path
-          d={fillD}
+          d={trackD}
           fill="none"
           stroke="currentColor"
-          className="text-primary"
+          className="text-border"
           strokeWidth="6"
           strokeLinecap="round"
         />
-      )}
-      <circle cx={cx} cy={cy} r="4" className="fill-primary" />
-      <line
-        x1={cx}
-        y1={cy}
-        x2={cx + 28 * Math.cos(toRad(angle))}
-        y2={cy + 28 * Math.sin(toRad(angle))}
-        stroke="currentColor"
-        className="text-primary"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
+        {fillD && (
+          <path
+            d={fillD}
+            fill="none"
+            stroke="currentColor"
+            className="text-primary"
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+        )}
+        <circle cx={cx} cy={cy} r="4" className="fill-primary" />
+        <line
+          x1={cx}
+          y1={cy}
+          x2={cx + 28 * Math.cos(toRad(angle))}
+          y2={cy + 28 * Math.sin(toRad(angle))}
+          stroke="currentColor"
+          className="text-primary"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        {/* Scale labels */}
+        <text
+          x={arcX(trackStart) - 2}
+          y={arcY(trackStart) + 14}
+          textAnchor="middle"
+          className="fill-text-secondary text-[9px] font-mono select-none"
+        >
+          0
+        </text>
+        <text
+          x={arcX(trackEnd) + 4}
+          y={arcY(trackEnd) + 14}
+          textAnchor="middle"
+          className="fill-text-secondary text-[9px] font-mono select-none"
+        >
+          {formatNumber(max)}/s
+        </text>
+      </svg>
+    </div>
   );
 };
