@@ -24,11 +24,17 @@ import { PipelineKpis } from "./pipeline-monitor/PipelineKpis";
 interface PipelineMonitorProps {
   initialJobs?: PipelineJob[];
   initialLoading?: boolean;
+  onStreamStatusChange?: (status: {
+    isConnected: boolean;
+    activeStreams: number;
+    isPolling: boolean;
+  }) => void;
 }
 
 export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   initialJobs,
   initialLoading,
+  onStreamStatusChange,
 }) => {
   const [jobs, setJobs] = useState<PipelineJob[]>(() => initialJobs ?? []);
   const [filter, setFilter] = useState<FilterStatus>("ALL");
@@ -131,18 +137,48 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     isPolling: polling,
     errors: sseErrors,
     clearErrors,
+    reconnect,
   } = usePipelineStream({
     onProgress: handleProgress,
     onComplete: handleComplete,
   });
 
+  // Calculate active streams / running count
+  const activeJobsCount = jobs.filter((j) => j.status === "RUNNING").length;
+
+  // Notify parent of stream connection status
+  useEffect(() => {
+    onStreamStatusChange?.({
+      isConnected: sseConnected,
+      activeStreams: activeJobsCount,
+      isPolling: polling,
+    });
+  }, [sseConnected, activeJobsCount, polling, onStreamStatusChange]);
+
+  // Initial fetch on mount
   useEffect(() => {
     fetchOnce();
-    pollRef.current = setInterval(fetchOnce, 5000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
   }, [fetchOnce]);
+
+  // Polling rule: Poll every 20 seconds ONLY while a run is active
+  useEffect(() => {
+    const hasActive = jobs.some((j) => j.status === "RUNNING");
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+
+    if (hasActive) {
+      pollRef.current = setInterval(fetchOnce, 20000);
+    }
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [jobs, fetchOnce]);
 
   if (isLoading) {
     return (
@@ -176,7 +212,7 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
         </div>
 
         <h4 className="text-base font-bold text-text mb-1">
-          Couldn't load pipelines
+          Couldn&apos;t load pipelines
         </h4>
         <p className="text-xs text-text-secondary max-w-sm mb-5 leading-relaxed">
           {is404Error
@@ -216,11 +252,11 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
         </p>
 
         <span className="text-sm font-semibold text-text mb-1.5">
-          No pipelines yet
+          No pipeline runs yet
         </span>
         <p className="text-xs text-text-secondary max-w-sm mb-6 leading-relaxed">
-          Connect a data source to begin running pipelines and observing live
-          execution telemetry.
+          No pipelines yet. Connect a data source to begin running pipelines and
+          observing live execution telemetry.
         </p>
 
         <Link
@@ -261,9 +297,14 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <ConnectionDot connected={sseConnected} polling={polling} />
+          <ConnectionDot
+            connected={sseConnected}
+            polling={polling}
+            onReconnect={reconnect}
+            fallbackNote="polling every 30s"
+          />
           {lastUpdated && (
-            <span className="text-[10px] text-text-secondary select-none">
+            <span className="text-[10px] text-text-secondary select-none font-mono">
               Updated {lastUpdated.toLocaleTimeString()}
             </span>
           )}
@@ -294,6 +335,7 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                 )}
               </div>
               <button
+                type="button"
                 onClick={clearErrors}
                 className="opacity-70 hover:opacity-100 text-[11px] underline cursor-pointer ml-3"
               >
@@ -346,7 +388,26 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       {/* Jobs list */}
       {filtered.length === 0 ? (
         <div className="bg-surface border border-border rounded-lg p-12 text-center text-xs text-text-secondary">
-          No pipeline runs matching filter &quot;{filter}&quot;
+          {filter === "ALL" ? (
+            <div className="flex flex-col items-center gap-3">
+              <span className="font-semibold text-text">
+                No pipeline runs yet
+              </span>
+              <p className="text-text-secondary">
+                Connect a data source to begin running pipelines and observing
+                live execution telemetry.
+              </p>
+              <Link
+                to="/connections"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover border border-primary text-primary-text font-semibold text-xs shadow-xs"
+              >
+                <span>Create a connection</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          ) : (
+            `No runs matching "${filter}"`
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">

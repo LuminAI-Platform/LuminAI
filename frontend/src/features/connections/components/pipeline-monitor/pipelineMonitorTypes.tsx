@@ -1,18 +1,51 @@
 import React from "react";
+import { RefreshCw } from "lucide-react";
 
 export const ConnectionDot: React.FC<{
   connected: boolean;
-  polling: boolean;
-}> = ({ connected, polling }) => (
-  <div className="flex items-center gap-1.5">
-    <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        connected ? "bg-success" : polling ? "bg-warning" : "bg-nodata"
-      }`}
-    />
-    <span className="text-[10px] text-text-secondary select-none font-medium">
-      {connected ? "SSE Live" : polling ? "Polling 3s" : "Disconnected"}
-    </span>
+  polling?: boolean;
+  onReconnect?: () => void;
+  fallbackNote?: string;
+}> = ({
+  connected,
+  polling = false,
+  onReconnect,
+  fallbackNote = "polling every 30s",
+}) => (
+  <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-1.5">
+      <span
+        className={`w-2 h-2 rounded-full ${
+          connected
+            ? "bg-success"
+            : polling
+              ? "bg-warning animate-pulse"
+              : "bg-warning"
+        }`}
+      />
+      <span className="text-[11px] text-text-secondary select-none font-medium">
+        {connected ? "SSE Live" : "Live feed disconnected"}
+      </span>
+    </div>
+
+    {!connected && (
+      <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+        <span className="opacity-80">
+          ({polling ? "fallback polling active" : fallbackNote})
+        </span>
+        {onReconnect && (
+          <button
+            type="button"
+            onClick={onReconnect}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-subtle hover:bg-surface border border-border text-text font-medium transition-colors cursor-pointer"
+            title="Reconnect live stream"
+          >
+            <RefreshCw className="w-2.5 h-2.5" />
+            <span>Reconnect</span>
+          </button>
+        )}
+      </div>
+    )}
   </div>
 );
 

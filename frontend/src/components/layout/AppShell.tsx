@@ -3,7 +3,6 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import { TooltipProvider } from "../ui/Tooltip";
-import { useEnvironmentStore } from "../../stores/environmentStore";
 
 interface AppShellProps {
   children?: React.ReactNode;
@@ -22,7 +21,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
-  const { config: envConfig } = useEnvironmentStore();
 
   useEffect(() => {
     // Track online/offline status
@@ -79,15 +77,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                   className={`font-medium ${isOnline ? "text-text" : "text-error"}`}
                 >
                   {isOnline ? "Connected" : "Offline"}
-                </span>
-              </span>
-
-              <span className="h-3 w-px bg-border hidden sm:inline-block" />
-
-              <span className="flex items-center gap-1.5">
-                <span>Environment:</span>
-                <span className={`font-semibold ${envConfig.footerTextClass}`}>
-                  {envConfig.label}
                 </span>
               </span>
             </div>
