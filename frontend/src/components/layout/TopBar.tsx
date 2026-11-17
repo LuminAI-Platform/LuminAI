@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Sun,
@@ -9,6 +9,8 @@ import {
   Clock,
   Search,
   LogOut,
+  ChevronDown,
+  Settings,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import { useThemeStore } from "../../stores/themeStore";
@@ -21,6 +23,35 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuthStore();
   const { theme, resolvedTheme, toggleTheme } = useThemeStore();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close profile dropdown on outside click or Escape
+  useEffect(() => {
+    if (!isProfileOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isProfileOpen]);
 
   // Derive display values from the OIDC id_token profile claims
   const displayName =
@@ -82,8 +113,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             theme === "system"
               ? `Theme: System (${resolvedTheme === "dark" ? "Dark" : "Light"}) — Click for Light`
               : theme === "light"
-                ? "Theme: Light — Click for Dark"
-                : "Theme: Dark — Click for System"
+              ? "Theme: Light — Click for Dark"
+              : "Theme: Dark — Click for System"
           }
           side="bottom"
         >
@@ -95,8 +126,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
               theme === "system"
                 ? `System theme (${resolvedTheme}). Switch to light theme`
                 : theme === "light"
-                  ? "Light theme. Switch to dark theme"
-                  : "Dark theme. Switch to system theme"
+                ? "Light theme. Switch to dark theme"
+                : "Dark theme. Switch to system theme"
             }
           >
             {theme === "system" ? (
@@ -147,41 +178,93 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         {/* Divider */}
         <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
 
-        {/* User Identity Context */}
+        {/* User Identity Context & Profile Menu */}
         {user && (
-          <div className="flex items-center gap-2.5 group relative">
-            {/* Avatar with initials */}
-            <div
-              className="w-8 h-8 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-text text-[11px] font-bold shrink-0 select-none"
-              aria-label={`Logged in as ${displayName}`}
+          <div ref={profileMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen((prev) => !prev)}
+              className="flex items-center gap-2 p-1 rounded-lg hover:bg-surface-subtle border border-transparent hover:border-border transition-colors cursor-pointer text-left select-none focus-visible:outline-2 focus-visible:outline-primary"
+              aria-expanded={isProfileOpen}
+              aria-haspopup="menu"
+              aria-label={`User menu for ${displayName}`}
             >
-              {initials}
-            </div>
+              {/* Avatar with initials */}
+              <div
+                className="w-8 h-8 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-text text-[11px] font-bold shrink-0"
+              >
+                {initials}
+              </div>
 
-            {/* Name + email */}
-            <div className="hidden lg:flex flex-col leading-tight">
-              <span className="text-xs font-semibold text-text truncate max-w-[120px]">
+              {/* Name only — no truncated email in the header */}
+              <span className="hidden lg:inline-block text-xs font-semibold text-text max-w-[130px] truncate">
                 {displayName}
               </span>
-              {displayEmail && (
-                <span className="text-[10px] text-text-secondary truncate max-w-[120px]">
-                  {displayEmail}
-                </span>
-              )}
-            </div>
 
-            {/* Logout button */}
-            <Tooltip label="Sign out" side="bottom">
-              <button
-                id="topbar-logout-btn"
-                type="button"
-                onClick={logout}
-                className="p-1.5 text-text-secondary hover:text-error hover:bg-error-bg rounded-md transition-colors cursor-pointer"
-                aria-label="Sign out"
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-text-secondary transition-transform duration-150 ${
+                  isProfileOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* Profile Dropdown Menu */}
+            {isProfileOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-2 w-72 bg-surface border border-border rounded-xl shadow-lg p-2 z-50 transition-colors animate-in fade-in duration-100"
               >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </Tooltip>
+                {/* User info with full email */}
+                <div className="flex items-start gap-3 p-3 bg-surface-subtle/60 rounded-lg border border-border/60 mb-1">
+                  <div className="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center text-text text-xs font-bold shrink-0 select-none">
+                    {initials}
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs font-semibold text-text truncate">
+                      {displayName}
+                    </span>
+                    {displayEmail && (
+                      <span
+                        className="text-[11px] text-text-secondary break-all select-all leading-snug mt-0.5"
+                        title={displayEmail}
+                      >
+                        {displayEmail}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-border my-1.5" />
+
+                {/* Workspace Settings Link */}
+                <Link
+                  to="/settings"
+                  onClick={() => setIsProfileOpen(false)}
+                  role="menuitem"
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-text hover:bg-surface-subtle rounded-lg transition-colors cursor-pointer"
+                >
+                  <Settings className="w-4 h-4 text-text-secondary" />
+                  <span>Workspace Settings</span>
+                </Link>
+
+                <div className="border-t border-border my-1.5" />
+
+                {/* Sign Out Button */}
+                <button
+                  id="topbar-logout-btn"
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsProfileOpen(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-error hover:bg-error-bg rounded-lg transition-colors cursor-pointer text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
