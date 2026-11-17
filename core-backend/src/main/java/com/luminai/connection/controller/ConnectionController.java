@@ -142,7 +142,7 @@ public class ConnectionController {
     return ResponseEntity.ok(connectionPreviewService.previewTable(id, table));
   }
 
-  @GetMapping("/{id}/clean-preview")
+  @GetMapping({"/{id}/clean-preview", "/{id}/clean-records"})
   @PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getCleanPreview(@PathVariable UUID id) {
