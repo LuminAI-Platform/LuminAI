@@ -78,6 +78,27 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
     if (connection.getConfig() != null && !connection.getConfig().isBlank()) {
       try {
         JsonNode root = objectMapper.readTree(connection.getConfig());
+        if (root.has("tables") && root.get("tables").isArray() && root.get("tables").size() > 0) {
+          List<Map<String, Object>> archiveRows = new ArrayList<>();
+          for (JsonNode tblNode : root.get("tables")) {
+            String tblName = tblNode.has("fileName") ? tblNode.get("fileName").asText() : "";
+            if (tblNode.has("sampleRows") && tblNode.get("sampleRows").isArray()) {
+              for (JsonNode rNode : tblNode.get("sampleRows")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> rMap = objectMapper.convertValue(rNode, Map.class);
+                Map<String, Object> enriched = new LinkedHashMap<>();
+                if (!tblName.isBlank()) {
+                  enriched.put("_table", tblName);
+                }
+                enriched.putAll(rMap);
+                archiveRows.add(enriched);
+              }
+            }
+          }
+          if (!archiveRows.isEmpty()) {
+            return archiveRows;
+          }
+        }
         if (root.has("sampleRows")
             && root.get("sampleRows").isArray()
             && root.get("sampleRows").size() > 0) {
