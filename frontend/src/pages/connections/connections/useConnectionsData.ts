@@ -185,7 +185,7 @@ export function useConnectionsData() {
 
     try {
       const res = await apiFetch(
-        `/api/v1/connections/${file.id}/clean-records`,
+        `/api/v1/connections/${file.id}/clean-preview`,
         {
           headers: { "X-Suppress-Toast": "true" },
         },
