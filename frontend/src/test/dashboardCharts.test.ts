@@ -14,10 +14,8 @@ vi.mock("@tanstack/react-router", () => ({
   }) => React.createElement("a", { href: to, className }, children),
 }));
 
-import {
-  PipelineTimelineChart,
-  formatDateLabel,
-} from "../pages/dashboard/components/PipelineTimelineChart";
+import { PipelineTimelineChart } from "../pages/dashboard/components/PipelineTimelineChart";
+import { formatDateLabel } from "../pages/dashboard/components/dashboardChartUtils";
 import { EntityBreakdownChart } from "../pages/dashboard/components/EntityBreakdownChart";
 
 describe("Dashboard Charts - formatDateLabel", () => {
