@@ -25,7 +25,7 @@ public class PipelineMonitoringController {
     this.pipelineMonitoringService = pipelineMonitoringService;
   }
 
-  @GetMapping("/runs")
+  @GetMapping({"", "/runs"})
   @Operation(
       summary = "List pipeline execution runs",
       description =
