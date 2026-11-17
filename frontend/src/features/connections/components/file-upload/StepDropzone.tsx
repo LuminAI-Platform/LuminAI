@@ -41,7 +41,7 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv,.json"
+          accept=".csv,.json,.zip,application/zip,application/x-zip-compressed"
           className="hidden"
           onChange={onChange}
         />
@@ -64,8 +64,9 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
         </h3>
         <p className="text-sm text-text-secondary mt-2 max-w-md">
           Ingest structured records instantly. Supported formats are{" "}
-          <strong className="text-text">CSV</strong> or{" "}
-          <strong className="text-text">JSON</strong> (up to 500 MB).
+          <strong className="text-text">CSV</strong>,{" "}
+          <strong className="text-text">JSON</strong>, or{" "}
+          <strong className="text-text">ZIP</strong> archives (up to 500 MB).
         </p>
         <button
           type="button"

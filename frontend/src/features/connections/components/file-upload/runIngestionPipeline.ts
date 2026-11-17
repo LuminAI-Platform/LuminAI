@@ -14,6 +14,11 @@ interface RunIngestionPipelineParams {
   setProgress: (p: number) => void;
 }
 
+export interface IngestionPipelineResult {
+  connectionId: string;
+  recordsCount?: number;
+}
+
 export async function runIngestionPipeline({
   file,
   parsedData,
@@ -23,7 +28,7 @@ export async function runIngestionPipeline({
   backendEntityTypes,
   addLog,
   setProgress,
-}: RunIngestionPipelineParams): Promise<string> {
+}: RunIngestionPipelineParams): Promise<IngestionPipelineResult> {
   const activeCols = columnsConfig.filter((c) => c.active);
 
   // 1. Ensure entity types in ontology
@@ -143,22 +148,31 @@ export async function runIngestionPipeline({
     `[MinIO] Upload complete. Key: ${uploadJson.fileKey || file.name}`,
     "SUCCESS",
   );
-  addLog(
-    `[Kafka] Published ${uploadJson.recordsCount ?? parsedData.rows.length} rows onto topic 'ingest.raw' for Data Engine processing.`,
-    "SUCCESS",
-  );
+  if (uploadJson.archive) {
+    addLog(
+      `[Archive] Extracted ${uploadJson.filesProcessed} datasets (${uploadJson.recordsCount} total records) into staging pipeline.`,
+      "SUCCESS",
+    );
+  } else {
+    addLog(
+      `[Kafka] Published ${uploadJson.recordsCount ?? parsedData.rows.length} rows onto topic 'ingest.raw' for Data Engine processing.`,
+      "SUCCESS",
+    );
+  }
 
   // 4. Save Mappings
   setProgress(85);
-  addLog(
-    `[Schema] Persisting ontology entity and property mappings...`,
-    "INFO",
-  );
+  const isZip = file.name.toLowerCase().endsWith(".zip");
   if (
+    !isZip &&
     createdConnId &&
     createdConnId !== "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" &&
     !createdConnId.startsWith("00000000-")
   ) {
+    addLog(
+      `[Schema] Persisting ontology entity and property mappings...`,
+      "INFO",
+    );
     for (const col of activeCols) {
       const mapCfg = mappings[col.name] || {
         targetEntityType: primaryTargetEntity || "Entity",
@@ -187,5 +201,8 @@ export async function runIngestionPipeline({
     }
   }
 
-  return createdConnId;
+  return {
+    connectionId: createdConnId,
+    recordsCount: uploadJson.recordsCount,
+  };
 }
