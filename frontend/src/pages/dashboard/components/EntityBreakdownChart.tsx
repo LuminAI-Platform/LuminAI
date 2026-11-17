@@ -38,8 +38,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
-  const theme = useThemeStore((s) => s.theme);
-  const isDark = theme === "dark";
+  const isDark = useThemeStore((s) => s.isDark);
 
   const seriesData = Object.entries(data).map(([name, value]) => ({
     name,

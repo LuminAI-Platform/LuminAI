@@ -1,6 +1,15 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Sun, Moon, Plus, Bell, Clock, Search, LogOut } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Monitor,
+  Plus,
+  Bell,
+  Clock,
+  Search,
+  LogOut,
+} from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import { useThemeStore } from "../../stores/themeStore";
 import { Tooltip } from "../ui/Tooltip";
@@ -11,7 +20,7 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuthStore();
-  const { theme, toggleTheme } = useThemeStore();
+  const { theme, resolvedTheme, toggleTheme } = useThemeStore();
 
   // Derive display values from the OIDC id_token profile claims
   const displayName =
@@ -67,10 +76,14 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Theme Switcher Toggle (Light theme default / Dark theme user option) */}
+        {/* Theme Switcher Toggle (System / Light / Dark) */}
         <Tooltip
           label={
-            theme === "light" ? "Switch to dark theme" : "Switch to light theme"
+            theme === "system"
+              ? `Theme: System (${resolvedTheme === "dark" ? "Dark" : "Light"}) — Click for Light`
+              : theme === "light"
+                ? "Theme: Light — Click for Dark"
+                : "Theme: Dark — Click for System"
           }
           side="bottom"
         >
@@ -79,15 +92,19 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             onClick={toggleTheme}
             className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-border"
             aria-label={
-              theme === "light"
-                ? "Switch to dark theme"
-                : "Switch to light theme"
+              theme === "system"
+                ? `System theme (${resolvedTheme}). Switch to light theme`
+                : theme === "light"
+                  ? "Light theme. Switch to dark theme"
+                  : "Dark theme. Switch to system theme"
             }
           >
-            {theme === "light" ? (
-              <Moon className="w-4 h-4" />
-            ) : (
+            {theme === "system" ? (
+              <Monitor className="w-4 h-4 text-text" />
+            ) : theme === "light" ? (
               <Sun className="w-4 h-4 text-warning" />
+            ) : (
+              <Moon className="w-4 h-4 text-primary" />
             )}
           </button>
         </Tooltip>

@@ -64,8 +64,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
 
-  const theme = useThemeStore((s) => s.theme);
-  const isDark = theme === "dark";
+  const isDark = useThemeStore((s) => s.isDark);
 
   const onSelectNodeRef = useRef(onSelectNode);
   const onExpandNodeRef = useRef(onExpandNode);

@@ -10,7 +10,7 @@ export const MASKED_KEY_PLACEHOLDER = "•••••••••••••�
 export const SYSTEM_CAPABILITIES: SystemCapability[] = [
   {
     label: "Theme Palette",
-    value: "OLED Dark (Tailwind v4)",
+    value: "Adaptive (Light / Dark / System)",
   },
   {
     label: "Cache Layer",
