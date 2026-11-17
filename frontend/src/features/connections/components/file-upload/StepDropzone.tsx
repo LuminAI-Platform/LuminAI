@@ -18,11 +18,20 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
   return (
     <div className="h-full flex flex-col items-center justify-center">
       <form
+        role="button"
+        tabIndex={0}
+        aria-label="Upload file dropzone"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDragEnter={onDrag}
         onDragOver={onDrag}
         onDragLeave={onDrag}
         onDrop={onDrop}
-        className={`w-full max-w-2xl border-2 border-dashed rounded-lg p-12 text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
+        className={`w-full max-w-2xl border-2 border-dashed rounded-lg p-12 text-center flex flex-col items-center justify-center transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
           dragActive
             ? "border-primary bg-primary-tint"
             : "border-border hover:border-border-focus bg-surface-subtle hover:bg-surface-hover"
