@@ -86,5 +86,9 @@ export function hasRealmRole(user: User | null, role: string): boolean {
 }
 
 export function isPlatformAdmin(user: User | null): boolean {
-  return hasRealmRole(user, "PLATFORM_ADMIN");
+  return (
+    hasRealmRole(user, "PLATFORM_ADMIN") ||
+    hasRealmRole(user, "admin") ||
+    hasRealmRole(user, "ADMIN")
+  );
 }
