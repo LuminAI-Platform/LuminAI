@@ -167,9 +167,8 @@ export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
           </div>
           <div className="text-[10px] text-zinc-500">
             {totalRecords > 0
-              ? ((totalErrors / totalRecords) * 100).toFixed(2)
-              : "0.00"}
-            % rate
+              ? `${((totalErrors / totalRecords) * 100).toFixed(2)}% rate`
+              : "–"}
           </div>
         </div>
       </div>
