@@ -19,7 +19,7 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
         label="Active Jobs"
         value={counts.RUNNING}
         sub={`${counts.ALL} total tracked`}
-        accent={counts.RUNNING > 0 ? "text-blue-400" : "text-zinc-100"}
+        accent={counts.RUNNING > 0 ? "text-primary" : "text-text"}
         icon={
           <svg
             width="18"
@@ -60,7 +60,7 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
             ? `${((totalProcessed / totalInput) * 100).toFixed(1)}% yield`
             : "–"
         }
-        accent={totalProcessed > 0 ? "text-success" : "text-zinc-400"}
+        accent={totalProcessed > 0 ? "text-success" : "text-text-secondary"}
         icon={
           <svg
             width="18"
@@ -78,7 +78,7 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
         label="Failed / Quarantined"
         value={formatNumber(totalFailed)}
         sub={totalFailed > 0 ? "Requires review" : "All records clean"}
-        accent={totalFailed > 0 ? "text-red-400" : "text-zinc-400"}
+        accent={totalFailed > 0 ? "text-error" : "text-text-secondary"}
         icon={
           <svg
             width="18"

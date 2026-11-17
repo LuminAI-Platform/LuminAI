@@ -13,7 +13,7 @@ export const PipelinePage: React.FC = () => {
           { label: "Data Integration", to: "/connections" },
           { label: "Pipeline Monitor" },
         ]}
-        title="Pipeline Health & Stream Monitor"
+        title="Pipeline Monitor"
         description="Monitor ingest topics, data cleaning stage throughput, and real-time execution telemetry."
         icon={<Activity className="w-5 h-5 text-primary" />}
         badge={{

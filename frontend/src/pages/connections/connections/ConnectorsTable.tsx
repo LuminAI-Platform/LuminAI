@@ -110,7 +110,7 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
                         <Layers className="w-3 h-3" /> Map Schema
                       </Link>
                       <Link
-                        to="/connections/pipeline"
+                        to="/connections/pipelines"
                         className="px-2 py-1 rounded bg-surface-subtle hover:bg-surface-hover border border-border text-text text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
                         title="View pipeline telemetry"
                       >

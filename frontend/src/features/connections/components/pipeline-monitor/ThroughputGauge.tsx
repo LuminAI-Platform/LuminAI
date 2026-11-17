@@ -37,7 +37,8 @@ export const ThroughputGauge: React.FC<{ value: number; max?: number }> = ({
       <path
         d={trackD}
         fill="none"
-        stroke="#27272a"
+        stroke="currentColor"
+        className="text-border"
         strokeWidth="6"
         strokeLinecap="round"
       />
@@ -45,18 +46,20 @@ export const ThroughputGauge: React.FC<{ value: number; max?: number }> = ({
         <path
           d={fillD}
           fill="none"
-          stroke="#3b82f6"
+          stroke="currentColor"
+          className="text-primary"
           strokeWidth="6"
           strokeLinecap="round"
         />
       )}
-      <circle cx={cx} cy={cy} r="4" fill="#3b82f6" />
+      <circle cx={cx} cy={cy} r="4" className="fill-primary" />
       <line
         x1={cx}
         y1={cy}
         x2={cx + 28 * Math.cos(toRad(angle))}
         y2={cy + 28 * Math.sin(toRad(angle))}
-        stroke="#3b82f6"
+        stroke="currentColor"
+        className="text-primary"
         strokeWidth="2"
         strokeLinecap="round"
       />
