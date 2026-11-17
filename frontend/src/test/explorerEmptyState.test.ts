@@ -3,8 +3,15 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children, className }: { to: string; children?: React.ReactNode; className?: string }) =>
-    React.createElement("a", { href: to, className }, children),
+  Link: ({
+    to,
+    children,
+    className,
+  }: {
+    to: string;
+    children?: React.ReactNode;
+    className?: string;
+  }) => React.createElement("a", { href: to, className }, children),
 }));
 
 import { ExplorerEmptyState } from "../pages/explorer/components/ExplorerEmptyState";
@@ -15,20 +22,20 @@ describe("ExplorerEmptyState Component", () => {
       React.createElement(ExplorerEmptyState, {
         query: "",
         hasFilters: false,
-      })
+      }),
     );
 
     expect(html.includes("No records yet")).toBe(true);
     expect(
-      html.includes("Connect a data source to start matching records.")
+      html.includes("Connect a data source to start matching records."),
     ).toBe(true);
     expect(html.includes("Connect a source")).toBe(true);
     expect(html.includes("/connections")).toBe(true);
     // Short note on what appears
     expect(
       html.includes(
-        "Once data is connected, this explorer displays resolved record names, entity types, and data source connections."
-      )
+        "Once data is connected, this explorer displays resolved record names, entity types, and data source connections.",
+      ),
     ).toBe(true);
     // No confusion icons or search copy
     expect(html.includes("No results for")).toBe(false);
@@ -40,7 +47,7 @@ describe("ExplorerEmptyState Component", () => {
         query: "acme corp",
         hasFilters: false,
         onClearFilters: () => {},
-      })
+      }),
     );
 
     expect(html.includes("No results for ‘acme corp’")).toBe(true);
@@ -48,8 +55,8 @@ describe("ExplorerEmptyState Component", () => {
     expect(html.includes("Clear filters")).toBe(true);
     expect(
       html.includes(
-        "Entity Explorer searches across canonical record names, entity types, unified properties, and data sources."
-      )
+        "Entity Explorer searches across canonical record names, entity types, unified properties, and data sources.",
+      ),
     ).toBe(true);
     expect(html.includes("No records yet")).toBe(false);
   });
@@ -60,7 +67,7 @@ describe("ExplorerEmptyState Component", () => {
         query: "",
         hasFilters: true,
         onClearFilters: () => {},
-      })
+      }),
     );
 
     expect(html.includes("No results for selected filters")).toBe(true);
