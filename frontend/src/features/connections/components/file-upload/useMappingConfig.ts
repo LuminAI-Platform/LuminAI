@@ -44,6 +44,38 @@ export function useMappingConfig({
       return;
     }
     setFile(selectedFile);
+
+    const isZip =
+      selectedFile.name.toLowerCase().endsWith(".zip") ||
+      selectedFile.type === "application/zip" ||
+      selectedFile.type === "application/x-zip-compressed";
+
+    if (isZip) {
+      const inferredEntity = sanitizeEntityName(selectedFile.name);
+      setInferredEntityName(inferredEntity);
+      setPrimaryTargetEntity(inferredEntity);
+      setParsedData({
+        columns: ["archive_name", "package_type", "status"],
+        rows: [
+          {
+            archive_name: selectedFile.name,
+            package_type: "Multi-Table Relational Archive",
+            status:
+              "Auto-extracted by backend storage engine into discrete entities",
+          },
+        ],
+      });
+      const archiveConfigs: ColumnConfig[] = [
+        { name: "archive_name", type: "String", active: true },
+        { name: "package_type", type: "String", active: true },
+        { name: "status", type: "String", active: true },
+      ];
+      setColumnsConfig(archiveConfigs);
+      setMappings({});
+      setStep(4);
+      return;
+    }
+
     const isLarge = selectedFile.size > 2 * 1024 * 1024;
     const isCsv = !selectedFile.name.toLowerCase().endsWith(".json");
     const previewBlob =
