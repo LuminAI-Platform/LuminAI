@@ -141,6 +141,7 @@ export const DashboardPage: React.FC = () => {
           <PipelineTimelineChart
             data={timeSeries}
             isLoading={isTimeSeriesLoading}
+            timeRange={timeRange}
           />
         </div>
 

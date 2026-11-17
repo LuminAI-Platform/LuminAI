@@ -15,9 +15,9 @@ interface EntityBreakdownChartProps {
  */
 const LIGHT_PALETTE = [
   "#12297A", // Luminex Navy
-  "#E69F00", // Amber / Orange
+  "#C26E00", // Amber / Warm Orange (high contrast)
   "#56B4E9", // Sky Blue
-  "#009E73", // Bluish Green / Teal
+  "#009E73", // Teal
   "#CC79A7", // Reddish Purple
 ];
 
@@ -40,12 +40,19 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
   const chartInstance = useRef<echarts.ECharts | null>(null);
   const isDark = useThemeStore((s) => s.isDark);
 
-  const seriesData = Object.entries(data).map(([name, value]) => ({
-    name,
-    value,
-  }));
+  const seriesData = Object.entries(data)
+    .filter(([, value]) => value > 0)
+    .map(([name, value]) => ({
+      name,
+      value,
+    }));
 
   const total = seriesData.reduce((acc, curr) => acc + curr.value, 0);
+  const isEmpty = total === 0 || seriesData.length === 0;
+
+  const ariaLabel = isEmpty
+    ? "Entity type distribution: no data."
+    : `Entity type distribution: ${total.toLocaleString()} entities indexed across ${seriesData.length} types.`;
 
   useEffect(() => {
     if (!chartRef.current || isLoading) return;
@@ -62,11 +69,13 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
     const secondaryColor = isDark ? "#A3ADBF" : "#566176";
     const surfaceColor = isDark ? "#1A202A" : "#FFFFFF";
     const borderColor = isDark ? "#2C3441" : "#DFE3EA";
+    const trackColor = isDark ? "#2C3441" : "#DFE3EA";
 
     const option: echarts.EChartsOption = {
       backgroundColor: "transparent",
       color: palette,
       tooltip: {
+        show: !isEmpty,
         trigger: "item",
         backgroundColor: surfaceColor,
         borderColor: borderColor,
@@ -90,6 +99,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
         },
       },
       legend: {
+        show: !isEmpty,
         orient: "horizontal",
         bottom: 0,
         textStyle: { color: secondaryColor, fontSize: 11 },
@@ -101,31 +111,35 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
         {
           name: "Entity Breakdown",
           type: "pie",
-          radius: ["52%", "74%"],
-          center: ["50%", "45%"],
+          radius: isEmpty ? ["68%", "72%"] : ["56%", "76%"],
+          center: ["50%", "44%"],
           avoidLabelOverlap: false,
-          itemStyle: {
-            borderRadius: 6,
-            borderColor: surfaceColor,
-            borderWidth: 2,
-          },
+          silent: isEmpty,
+          itemStyle: isEmpty
+            ? {
+                color: trackColor,
+                borderWidth: 0,
+              }
+            : {
+                borderRadius: 6,
+                borderColor: surfaceColor,
+                borderWidth: 2,
+              },
           label: {
             show: false,
           },
           emphasis: {
+            disabled: isEmpty,
             label: {
-              show: true,
+              show: !isEmpty,
               fontSize: 12,
               fontWeight: "bold",
               color: textColor,
             },
-            scale: true,
+            scale: !isEmpty,
             scaleSize: 6,
           },
-          data:
-            seriesData.length > 0
-              ? seriesData
-              : [{ name: "No Data", value: 1 }],
+          data: isEmpty ? [{ name: "", value: 1 }] : seriesData,
         },
       ],
     };
@@ -135,10 +149,18 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
     const handleResize = () => chart.resize();
     window.addEventListener("resize", handleResize);
 
+    const resizeObserver = new ResizeObserver(() => {
+      chart.resize();
+    });
+    if (chartRef.current) {
+      resizeObserver.observe(chartRef.current);
+    }
+
     return () => {
       window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
     };
-  }, [seriesData, isLoading, isDark]);
+  }, [seriesData, isEmpty, total, isLoading, isDark]);
 
   useEffect(() => {
     return () => {
@@ -153,12 +175,39 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
 
   return (
     <div className="relative w-full h-64">
-      {total === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-text-secondary pointer-events-none">
-          No entity records indexed yet
+      {/* Center text: a large number with the label "entities indexed" underneath, sized to fit inside hole */}
+      <div
+        className="absolute pointer-events-none flex flex-col items-center justify-center text-center select-none"
+        style={{
+          left: "50%",
+          top: "44%",
+          transform: "translate(-50%, -50%)",
+          maxWidth: "85px",
+        }}
+      >
+        <span className="text-2xl sm:text-3xl font-bold tracking-tight text-text leading-tight">
+          {total.toLocaleString()}
+        </span>
+        <span className="text-[10px] sm:text-xs font-medium text-text-muted mt-0.5 leading-tight text-center">
+          entities indexed
+        </span>
+      </div>
+
+      {/* Empty state: show "No data yet" in the legend area without colored markers */}
+      {isEmpty && (
+        <div className="absolute bottom-1 inset-x-0 flex justify-center items-center pointer-events-none">
+          <span className="text-xs text-text-muted select-none">
+            No data yet
+          </span>
         </div>
       )}
-      <div ref={chartRef} className="w-full h-full" />
+
+      <div
+        ref={chartRef}
+        role="img"
+        aria-label={ariaLabel}
+        className="w-full h-full"
+      />
     </div>
   );
 };
