@@ -100,16 +100,26 @@ export const ExplorerPage: React.FC = () => {
           {!loading && !error && searchData && (
             <>
               {/* Results status banner */}
-              <ExplorerResultsBanner
-                totalElements={searchData.totalElements}
-                currentPage={page}
-                pageSize={pageSize}
-                query={inputValue}
-              />
+              {searchData.totalElements > 0 && (
+                <ExplorerResultsBanner
+                  totalElements={searchData.totalElements}
+                  currentPage={page}
+                  pageSize={pageSize}
+                  query={inputValue}
+                />
+              )}
 
-              {/* Cards Grid */}
+              {/* Cards Grid or Empty State */}
               {searchData.content.length === 0 ? (
-                <ExplorerEmptyState />
+                <ExplorerEmptyState
+                  query={inputValue}
+                  hasFilters={selectedTypes.length > 0}
+                  onClearFilters={() => {
+                    setInputValue("");
+                    setSelectedTypes([]);
+                    setPage(0);
+                  }}
+                />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {searchData.content.map((entity) => (
@@ -128,11 +138,13 @@ export const ExplorerPage: React.FC = () => {
               )}
 
               {/* Pagination controls */}
-              <ExplorerPagination
-                currentPage={page}
-                totalPages={searchData.totalPages}
-                onPageChange={setPage}
-              />
+              {searchData.totalElements > 0 && (
+                <ExplorerPagination
+                  currentPage={page}
+                  totalPages={searchData.totalPages}
+                  onPageChange={setPage}
+                />
+              )}
             </>
           )}
         </div>
