@@ -14,13 +14,13 @@ describe("Environment Store & Configurations", () => {
     useEnvironmentStore.getState().setEnvironment("production");
   });
 
-  it("defaults to production with danger/colored badge styling", () => {
+  it("defaults to production with warning/amber colored badge styling", () => {
     expect(useEnvironmentStore.getState().environment).toBe("production");
     const config = useEnvironmentStore.getState().config;
     expect(config.label).toBe("Production");
     expect(config.isProduction).toBe(true);
-    expect(config.dotClass).toContain("bg-error");
-    expect(config.footerTextClass).toBe("text-error");
+    expect(config.dotClass).toContain("bg-warning");
+    expect(config.footerTextClass).toBe("text-warning");
   });
 
   it("updates environment and persists to localStorage", () => {
@@ -57,8 +57,9 @@ describe("EnvironmentSwitcher Component Render", () => {
 
     expect(html.includes("Production")).toBe(true);
     expect(html.includes("LIVE")).toBe(true);
-    expect(html.includes("text-error")).toBe(true);
-    expect(html.includes("bg-error")).toBe(true);
+    expect(html.includes("text-warning")).toBe(true);
+    expect(html.includes("bg-warning")).toBe(true);
+    expect(html.includes("text-error")).toBe(false);
     expect(html.includes('id="environment-switcher-btn"')).toBe(true);
   });
 

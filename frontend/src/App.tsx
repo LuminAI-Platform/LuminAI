@@ -4,8 +4,10 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
 } from "@tanstack/react-router";
 import { AppShell } from "./components/layout/AppShell";
+import { AppShellNotFound } from "./components/layout/AppShellNotFound";
 import { AdminRoute, ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
@@ -68,6 +70,7 @@ const shellRoute = createRoute({
       </AppShell>
     </ProtectedRoute>
   ),
+  notFoundComponent: AppShellNotFound,
 });
 
 const indexRoute = createRoute({
@@ -102,8 +105,16 @@ const schemaMapRoute = createRoute({
 
 const pipelineRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: "/connections/pipeline",
+  path: "/connections/pipelines",
   component: PipelinePage,
+});
+
+const legacyPipelineRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/connections/pipeline",
+  beforeLoad: () => {
+    throw redirect({ to: "/connections/pipelines" });
+  },
 });
 
 const mergeReviewRoute = createRoute({
@@ -162,6 +173,7 @@ const routeTree = rootRoute.addChildren([
     connectionsRoute,
     schemaMapRoute,
     pipelineRoute,
+    legacyPipelineRoute,
     mergeReviewRoute,
     ontologyRoute,
     graphRoute,
@@ -171,7 +183,10 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-const router = createRouter({ routeTree });
+const router = createRouter({
+  routeTree,
+  defaultNotFoundComponent: AppShellNotFound,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

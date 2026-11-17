@@ -90,7 +90,7 @@ export const DashboardPage: React.FC = () => {
             >
               Retry
             </Button>
-            <Link to="/connections/pipeline">
+            <Link to="/connections/pipelines">
               <Button variant="outline" size="sm">
                 Check status
               </Button>
@@ -175,7 +175,7 @@ export const DashboardPage: React.FC = () => {
               </p>
             </div>
             <Link
-              to="/connections/pipeline"
+              to="/connections/pipelines"
               className="text-xs text-text-secondary hover:text-text font-medium inline-flex items-center gap-1 cursor-pointer"
             >
               All Pipelines <ArrowRight className="w-3.5 h-3.5" />

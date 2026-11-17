@@ -68,7 +68,7 @@ export const EnvironmentSwitcher: React.FC<EnvironmentSwitcherProps> = ({
         onClick={() => setIsOpen((prev) => !prev)}
         className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-primary ${
           config.isProduction
-            ? "bg-error-bg/60 hover:bg-error-bg border-error-border text-error shadow-xs"
+            ? "bg-warning-bg/60 hover:bg-warning-bg border-warning-border text-warning shadow-xs"
             : "bg-surface-subtle hover:bg-surface-muted border-border text-text"
         }`}
         aria-haspopup="listbox"
@@ -84,7 +84,7 @@ export const EnvironmentSwitcher: React.FC<EnvironmentSwitcherProps> = ({
         </span>
 
         {config.isProduction && (
-          <span className="hidden md:inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider bg-error text-text-contrast shrink-0">
+          <span className="hidden md:inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider bg-warning text-text-contrast shrink-0">
             LIVE
           </span>
         )}
@@ -132,7 +132,7 @@ export const EnvironmentSwitcher: React.FC<EnvironmentSwitcherProps> = ({
                   className={`w-full text-left p-2.5 rounded-lg text-xs transition-colors cursor-pointer flex items-start justify-between gap-2.5 border ${
                     isSelected
                       ? optionConfig.isProduction
-                        ? "bg-error-bg/70 border-error-border text-error"
+                        ? "bg-warning-bg/70 border-warning-border text-warning"
                         : "bg-surface-subtle border-border text-text font-medium"
                       : "border-transparent hover:bg-surface-subtle text-text"
                   }`}
@@ -146,14 +146,14 @@ export const EnvironmentSwitcher: React.FC<EnvironmentSwitcherProps> = ({
                         <span
                           className={`font-semibold ${
                             optionConfig.isProduction
-                              ? "text-error"
+                              ? "text-warning"
                               : "text-text"
                           }`}
                         >
                           {optionConfig.label}
                         </span>
                         {optionConfig.isProduction && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider bg-error-bg text-error border border-error-border">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider bg-warning-bg text-warning border border-warning-border">
                             Prod
                           </span>
                         )}
@@ -168,7 +168,7 @@ export const EnvironmentSwitcher: React.FC<EnvironmentSwitcherProps> = ({
                     <Check
                       className={`w-4 h-4 shrink-0 mt-0.5 ${
                         optionConfig.isProduction
-                          ? "text-error"
+                          ? "text-warning"
                           : "text-primary"
                       }`}
                     />

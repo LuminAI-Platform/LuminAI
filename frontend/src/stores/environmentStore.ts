@@ -20,9 +20,9 @@ export const ENVIRONMENT_CONFIGS: Record<AppEnvironment, EnvironmentConfig> = {
     shortLabel: "Prod",
     description: "Live customer data & active sync pipelines",
     isProduction: true,
-    badgeClass: "bg-error-bg text-error border-error-border",
-    dotClass: "bg-error animate-pulse",
-    footerTextClass: "text-error",
+    badgeClass: "bg-warning-bg text-warning border-warning-border",
+    dotClass: "bg-warning animate-pulse",
+    footerTextClass: "text-warning",
   },
   staging: {
     id: "staging",

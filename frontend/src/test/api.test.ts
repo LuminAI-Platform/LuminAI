@@ -58,6 +58,10 @@ describe("apiFetch & Network Layer Robustness", () => {
       isAuthenticated: true,
     });
 
+    vi.spyOn(useAuthStore.getState(), "refreshToken").mockResolvedValue(null);
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
