@@ -15,7 +15,6 @@ import {
 import { useAuthStore } from "../../stores/authStore";
 import { useThemeStore } from "../../stores/themeStore";
 import { Tooltip } from "../ui/Tooltip";
-import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -108,12 +107,6 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Environment Switcher */}
-        <EnvironmentSwitcher />
-
-        {/* Divider */}
-        <div className="w-px h-5 bg-border mx-0.5 hidden sm:block" />
-
         {/* Theme Switcher Toggle (System / Light / Dark) */}
         <Tooltip
           label={
