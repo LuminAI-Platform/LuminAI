@@ -79,13 +79,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                   {isOnline ? "Connected" : "Offline"}
                 </span>
               </span>
-              <span>
-                Environment:{" "}
-                <span className="text-text font-medium">
-                  {import.meta.env.MODE.charAt(0).toUpperCase() +
-                    import.meta.env.MODE.slice(1)}
-                </span>
-              </span>
             </div>
             <div className="hidden sm:block text-text-secondary">
               LuminAI Data Platform

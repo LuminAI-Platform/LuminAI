@@ -58,9 +58,9 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
         sub={
           totalInput > 0
             ? `${((totalProcessed / totalInput) * 100).toFixed(1)}% yield`
-            : "0% yield"
+            : "–"
         }
-        accent="text-success"
+        accent={totalProcessed > 0 ? "text-success" : "text-zinc-400"}
         icon={
           <svg
             width="18"

@@ -27,8 +27,7 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
-  const theme = useThemeStore((s) => s.theme);
-  const isDark = theme === "dark";
+  const isDark = useThemeStore((s) => s.isDark);
 
   useEffect(() => {
     if (!chartRef.current || isLoading) return;

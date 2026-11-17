@@ -1,9 +1,9 @@
 import React from "react";
-import { Sliders, Sun, Moon } from "lucide-react";
+import { Sliders, Sun, Moon, Monitor } from "lucide-react";
 import { useThemeStore } from "../../../stores/themeStore";
 
 export const SystemCapabilitiesCard: React.FC = () => {
-  const { theme, setTheme } = useThemeStore();
+  const { theme, resolvedTheme, setTheme } = useThemeStore();
 
   return (
     <div className="bg-surface border border-border rounded-lg p-6 shadow-xs transition-colors">
@@ -25,26 +25,33 @@ export const SystemCapabilitiesCard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
         {/* Theme Selection Setting */}
         <div className="bg-surface-subtle p-4 rounded-lg border border-border">
-          <span className="text-text-secondary font-medium block mb-2">
-            Theme Palette
-          </span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-text-secondary font-medium block">
+              Theme Palette
+            </span>
+            {theme === "system" && (
+              <span className="text-[10px] text-text-secondary bg-surface px-1.5 py-0.5 rounded border border-border font-mono">
+                Auto: {resolvedTheme}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setTheme("light")}
-              className={`flex-1 py-1 px-2.5 rounded border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              className={`flex-1 py-1 px-2 rounded border text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer ${
                 theme === "light"
                   ? "bg-surface border-primary text-primary font-semibold shadow-xs"
                   : "bg-transparent border-transparent text-text-secondary hover:text-text hover:bg-surface/50"
               }`}
             >
               <Sun className="w-3.5 h-3.5" />
-              <span>Light (Default)</span>
+              <span>Light</span>
             </button>
             <button
               type="button"
               onClick={() => setTheme("dark")}
-              className={`flex-1 py-1 px-2.5 rounded border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              className={`flex-1 py-1 px-2 rounded border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 theme === "dark"
                   ? "bg-surface border-primary text-primary font-semibold shadow-xs"
                   : "bg-transparent border-transparent text-text-secondary hover:text-text hover:bg-surface/50"
@@ -52,6 +59,18 @@ export const SystemCapabilitiesCard: React.FC = () => {
             >
               <Moon className="w-3.5 h-3.5" />
               <span>Dark</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme("system")}
+              className={`flex-1 py-1 px-2 rounded border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                theme === "system"
+                  ? "bg-surface border-primary text-primary font-semibold shadow-xs"
+                  : "bg-transparent border-transparent text-text-secondary hover:text-text hover:bg-surface/50"
+              }`}
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              <span>System</span>
             </button>
           </div>
         </div>

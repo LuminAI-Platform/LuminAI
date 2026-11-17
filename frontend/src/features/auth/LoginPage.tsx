@@ -92,14 +92,14 @@ export const LoginPage: React.FC = () => {
             )}
           </button>
 
-          {/* Support link — useful for the user, replaces the developer OIDC note */}
+          {/* Support link — official support contact */}
           <p className="mt-5 text-xs text-text-secondary text-center">
             Trouble signing in?{" "}
             <a
-              href="mailto:it-support@luminai.dev"
+              href="mailto:support.luminai@gmail.com"
               className="text-text-secondary underline underline-offset-2 hover:text-text transition-colors"
             >
-              Contact your administrator
+              Contact support
             </a>
           </p>
         </div>
