@@ -113,8 +113,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             theme === "system"
               ? `Theme: System (${resolvedTheme === "dark" ? "Dark" : "Light"}) — Click for Light`
               : theme === "light"
-              ? "Theme: Light — Click for Dark"
-              : "Theme: Dark — Click for System"
+                ? "Theme: Light — Click for Dark"
+                : "Theme: Dark — Click for System"
           }
           side="bottom"
         >
@@ -126,8 +126,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
               theme === "system"
                 ? `System theme (${resolvedTheme}). Switch to light theme`
                 : theme === "light"
-                ? "Light theme. Switch to dark theme"
-                : "Dark theme. Switch to system theme"
+                  ? "Light theme. Switch to dark theme"
+                  : "Dark theme. Switch to system theme"
             }
           >
             {theme === "system" ? (
@@ -190,9 +190,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
               aria-label={`User menu for ${displayName}`}
             >
               {/* Avatar with initials */}
-              <div
-                className="w-8 h-8 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-text text-[11px] font-bold shrink-0"
-              >
+              <div className="w-8 h-8 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-text text-[11px] font-bold shrink-0">
                 {initials}
               </div>
 
