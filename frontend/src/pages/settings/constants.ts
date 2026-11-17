@@ -1,7 +1,7 @@
 import type { SystemCapability } from "./types";
 
 export const DEFAULT_USER_NAME = "LuminAI Operator";
-export const DEFAULT_USER_EMAIL = "admin@luminai.io";
+export const DEFAULT_USER_EMAIL = "support.luminai@gmail.com";
 export const DEFAULT_TENANT_SLUG = "lumin-global-prod";
 export const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 export const DEFAULT_ROLES = ["ADMIN", "DATA_ARCHITECT"];
