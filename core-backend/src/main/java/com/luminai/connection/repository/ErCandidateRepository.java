@@ -21,4 +21,6 @@ public interface ErCandidateRepository extends JpaRepository<ErCandidate, UUID> 
   Page<ErCandidate> findByStatus(CandidateStatus status, Pageable pageable);
 
   long countByStatus(CandidateStatus status);
+
+  boolean existsByRecordAIdAndRecordBId(UUID recordAId, UUID recordBId);
 }
