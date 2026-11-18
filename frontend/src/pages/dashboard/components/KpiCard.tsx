@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge, type BadgeVariant } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { Tooltip } from "../../../components/ui/Tooltip";
 import { ICON_SIZES } from "../../../lib/icons";
 
 export interface KpiCardProps {
@@ -11,6 +12,7 @@ export interface KpiCardProps {
   badge?: {
     text: string;
     variant?: BadgeVariant;
+    tooltip?: string;
   };
   status?: "default" | "warning" | "danger" | "success";
   isLoading?: boolean;
@@ -94,11 +96,26 @@ export const KpiCard: React.FC<KpiCardProps> = ({
             <span className="truncate">{subtitle}</span>
             {(badge || isCached) && (
               <div className="shrink-0">
-                <Badge
-                  variant={isCached ? "nodata" : (badge?.variant ?? "default")}
-                >
-                  {isCached ? "Cached" : badge?.text}
-                </Badge>
+                {badge?.tooltip && !isCached ? (
+                  <Tooltip label={badge.tooltip} side="top">
+                    <span
+                      title={badge.tooltip}
+                      className="inline-flex cursor-help"
+                    >
+                      <Badge variant={badge.variant ?? "default"}>
+                        {badge.text}
+                      </Badge>
+                    </span>
+                  </Tooltip>
+                ) : (
+                  <Badge
+                    variant={
+                      isCached ? "nodata" : (badge?.variant ?? "default")
+                    }
+                  >
+                    {isCached ? "Cached" : badge?.text}
+                  </Badge>
+                )}
               </div>
             )}
           </>

@@ -8,6 +8,8 @@ interface TooltipProps {
   children: React.ReactNode;
   /** Where the tooltip appears relative to the trigger. Defaults to "top". */
   side?: "right" | "left" | "top" | "bottom";
+  /** Offset in px from the trigger element. Defaults to 8px. */
+  sideOffset?: number;
   /** Delay in ms before the tooltip appears. Defaults to 300ms. */
   delayDuration?: number;
   /** Only render the tooltip when this is true (e.g., sidebar collapsed state) */
@@ -28,6 +30,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   label,
   children,
   side = "top",
+  sideOffset = 8,
   delayDuration = 300,
   enabled = true,
 }) => {
@@ -43,7 +46,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
         <RadixTooltip.Portal>
           <RadixTooltip.Content
             side={side}
-            sideOffset={8}
+            sideOffset={sideOffset}
             align="center"
             avoidCollisions
             className={[
@@ -73,9 +76,9 @@ export const Tooltip: React.FC<TooltipProps> = ({
   );
 };
 
-/** Sidebar navigation keeps its labels on the outward-facing right edge. */
+/** Sidebar navigation keeps its labels on the outward-facing right edge with 8px offset from rail. */
 export const SidebarTooltip: React.FC<Omit<TooltipProps, "side">> = (props) => (
-  <Tooltip {...props} side="right" />
+  <Tooltip {...props} side="right" sideOffset={props.sideOffset ?? 8} />
 );
 
 /**

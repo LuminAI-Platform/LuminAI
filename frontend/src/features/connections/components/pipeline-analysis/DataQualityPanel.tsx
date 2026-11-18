@@ -48,9 +48,7 @@ export const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-text">
-              Engine Data Quality Dimensions
-            </h3>
+            <h3 className="text-sm font-bold text-text">Data quality</h3>
             <p className="text-xs text-text-secondary mt-0.5">
               Automated quality checks evaluated by Polars & DuckDB analytics
               engine

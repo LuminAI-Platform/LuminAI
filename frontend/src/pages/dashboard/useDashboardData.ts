@@ -10,13 +10,64 @@ export interface DashboardSummary {
   totalPipelines: number;
   entityBreakdown: Record<string, number>;
   recentActivity: ActivityItem[];
-  dataQualityScore: number;
+  dataQualityScore: number | null;
   pipelineHealth: {
     running: number;
     completed: number;
     failed: number;
   };
   lastSyncAt: string | null;
+}
+
+export interface EngineHealth {
+  status: "ONLINE" | "STANDBY" | "DEGRADED" | string;
+  appName: string;
+  version: string;
+  latencyMs: number;
+  message: string;
+}
+
+export interface PipelineStats {
+  totalRuns: number;
+  successRate: number;
+  avgDuration: number;
+  p95Duration?: number;
+  recordsProcessed: number;
+  runsSinceStart?: number;
+  lastRunAt?: string;
+  quarantinedCount?: number;
+  rejectedCount?: number;
+  evaluatedCount?: number;
+}
+
+export interface DataQuality {
+  overallScore?: number | null;
+  completeness?: number | null;
+  uniqueness?: number | null;
+  consistency?: number | null;
+  timeliness?: number | null;
+  recordsEvaluated?: number;
+  recordsRejected?: number;
+  recordsQuarantined?: number;
+}
+
+export interface EntityStats {
+  totalEntities?: number;
+  totalGoldenRecords?: number;
+  totalStagingRecords?: number;
+}
+
+export interface EngineMetricsResponse {
+  engineHealth?: EngineHealth;
+  pipelineStats?: PipelineStats;
+  dataQuality?: DataQuality;
+  entityStats?: EntityStats;
+}
+
+export interface SyncDiscrepancy {
+  runsMismatch: boolean;
+  entitiesMismatch: boolean;
+  message?: string;
 }
 
 export function useDashboardData() {
@@ -129,6 +180,31 @@ export function useDashboardData() {
     retry: 1,
   });
 
+  // 4. Fetch engine telemetry metrics using the same polling cadence
+  const {
+    data: engineMetrics,
+    isLoading: isEngineMetricsLoading,
+    error: engineMetricsError,
+    refetch: refetchEngineMetrics,
+  } = useQuery<EngineMetricsResponse>({
+    queryKey: ["engine", "metrics"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/v1/engine/metrics", {
+        headers: { "X-Suppress-Toast": "true" },
+      });
+      return res.json();
+    },
+    refetchInterval: () => {
+      if (typeof document !== "undefined" && document.hidden) {
+        return false;
+      }
+      return 60000;
+    },
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
   // Determine if any run is currently executing
   const hasRunningRuns = useMemo(() => {
     const activityRunning = activity.some(
@@ -138,6 +214,47 @@ export function useDashboardData() {
     return activityRunning || summaryRunning;
   }, [activity, summary]);
 
+  // Check for cross-endpoint figure discrepancies
+  const syncDiscrepancy = useMemo<SyncDiscrepancy>(() => {
+    const summaryPipelines = summary?.totalPipelines;
+    const engineRuns = engineMetrics?.pipelineStats?.totalRuns;
+    const runsMismatch =
+      summaryPipelines !== undefined &&
+      engineRuns !== undefined &&
+      summaryPipelines !== engineRuns;
+
+    const summaryEntities = summary?.totalEntities;
+    const engineEntities =
+      engineMetrics?.entityStats?.totalEntities ??
+      engineMetrics?.entityStats?.totalGoldenRecords;
+    const entitiesMismatch =
+      summaryEntities !== undefined &&
+      engineEntities !== undefined &&
+      summaryEntities !== engineEntities;
+
+    let message: string | undefined;
+    if (runsMismatch && entitiesMismatch) {
+      message = `Runs (${summaryPipelines} platform vs ${engineRuns} engine) and entities (${summaryEntities} vs ${engineEntities}) are out of sync.`;
+    } else if (runsMismatch) {
+      message = `Platform history reports ${summaryPipelines} runs, while engine live telemetry reports ${engineRuns} runs.`;
+    } else if (entitiesMismatch) {
+      message = `Platform reports ${summaryEntities} entities, while engine reports ${engineEntities} entities.`;
+    }
+
+    if (import.meta.env.DEV && (runsMismatch || entitiesMismatch)) {
+      console.warn(
+        `[Dashboard Sync Discrepancy] Figures may be out of sync between core backend and engine:`,
+        { summaryPipelines, engineRuns, summaryEntities, engineEntities },
+      );
+    }
+
+    return {
+      runsMismatch,
+      entitiesMismatch,
+      message,
+    };
+  }, [summary, engineMetrics]);
+
   // When tab transitions back from hidden to visible, immediately refresh
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -146,6 +263,7 @@ export function useDashboardData() {
       if (!document.hidden) {
         refetchActivity();
         refetchSummary();
+        refetchEngineMetrics();
       }
     };
 
@@ -153,13 +271,19 @@ export function useDashboardData() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refetchActivity, refetchSummary]);
+  }, [refetchActivity, refetchSummary, refetchEngineMetrics]);
 
   const handleManualRefresh = useCallback(() => {
     refetchSummary();
     refetchTimeSeries();
     refetchActivity();
-  }, [refetchSummary, refetchTimeSeries, refetchActivity]);
+    refetchEngineMetrics();
+  }, [
+    refetchSummary,
+    refetchTimeSeries,
+    refetchActivity,
+    refetchEngineMetrics,
+  ]);
 
   const isRefetching = isSummaryRefetching || isActivityRefetching;
 
@@ -169,6 +293,10 @@ export function useDashboardData() {
     summary,
     isSummaryLoading,
     summaryError,
+    engineMetrics,
+    isEngineMetricsLoading,
+    engineMetricsError,
+    syncDiscrepancy,
     cachedAtTime,
     isRefetching,
     timeSeries,
@@ -179,5 +307,6 @@ export function useDashboardData() {
     handleManualRefresh,
     refetchSummary,
     refetchActivity,
+    refetchEngineMetrics,
   };
 }
