@@ -136,9 +136,9 @@ export const ExplorerPage: React.FC = () => {
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {searchData.content.filter(Boolean).map((entity) => (
+                  {searchData.content.filter(Boolean).map((entity, index) => (
                     <EntityCard
-                      key={entity.id || `entity-${Math.random()}`}
+                      key={entity.id || `entity-${index}`}
                       id={entity.id || ""}
                       canonicalName={entity.canonicalName || "Unnamed Entity"}
                       entityType={entity.entityType || "Entity"}
