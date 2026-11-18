@@ -64,19 +64,9 @@ public class MergeReviewService {
   }
 
   /** Lists candidates for the current tenant's schema, optionally filtered by status. */
-  @Transactional
+  @Transactional(readOnly = true)
   public Page<MergeReviewDto.CandidateResponse> listCandidates(
       CandidateStatus status, Pageable pageable) {
-    try {
-      if (candidateRepository.count() == 0) {
-        scanCandidates();
-      }
-    } catch (Exception e) {
-      log.debug(
-          "Auto-scan on empty candidate repository encountered non-critical error: {}",
-          e.getMessage());
-    }
-
     Page<ErCandidate> page =
         status != null
             ? candidateRepository.findByStatus(status, pageable)
@@ -91,18 +81,23 @@ public class MergeReviewService {
   }
 
   /**
-   * Scans active connections and ingested datasets for duplicate candidate pairs whose similarity
-   * falls in the human review band [0.70, 0.90).
+   * Scans active tenant connections and ingested datasets for duplicate candidate pairs whose
+   * similarity falls in the human review band [0.70, 0.90).
+   *
+   * <p>All candidates are dynamically derived from actual ingested connection data.
    */
   @Transactional
   public Map<String, Object> scanCandidates() {
-    UUID tenantUuid =
-        TenantContext.getTenantUuid() != null
-            ? TenantContext.getTenantUuid()
-            : UUID.fromString("00000000-0000-0000-0000-000000000001");
-    String tenantSlug =
-        TenantContext.getTenantSlug() != null ? TenantContext.getTenantSlug() : "default";
+    UUID tenantUuid = TenantContext.getTenantUuid();
+    if (tenantUuid == null) {
+      tenantUuid = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    }
+    String tenantSlug = TenantContext.getTenantSlug();
+    if (tenantSlug == null) {
+      tenantSlug = "default";
+    }
 
+    // Trigger Python Data Engine ER pipeline if available
     if (dataEngineClient != null) {
       try {
         dataEngineClient.resolveEntities(
@@ -164,17 +159,28 @@ public class MergeReviewService {
     }
 
     int poolSize = candidatePool.size();
-    for (int i = 0; i < poolSize && generatedCount < 20; i++) {
+    if (poolSize == 0) {
+      return Map.of(
+          "status", "SUCCESS",
+          "message",
+              "No records found in active connections to analyze. Upload a dataset to begin entity resolution.",
+          "candidatesFound", 0);
+    }
+
+    for (int i = 0; i < poolSize && generatedCount < 50; i++) {
       Map<String, Object> rowA = candidatePool.get(i);
       String nameA = extractName(rowA);
       String emailA = extractString(rowA, "email");
+      String phoneA = extractPhone(rowA);
 
-      for (int j = i + 1; j < poolSize && generatedCount < 20; j++) {
+      for (int j = i + 1; j < poolSize && generatedCount < 50; j++) {
         Map<String, Object> rowB = candidatePool.get(j);
         String nameB = extractName(rowB);
         String emailB = extractString(rowB, "email");
+        String phoneB = extractPhone(rowB);
 
-        double similarity = computeSimilarity(nameA, nameB, emailA, emailB, rowA, rowB);
+        double similarity =
+            computeSimilarity(nameA, nameB, emailA, emailB, phoneA, phoneB, rowA, rowB);
         if (similarity >= 0.70 && similarity < 0.90) {
           UUID recordAId = extractOrGenerateUuid(rowA, i);
           UUID recordBId = extractOrGenerateUuid(rowB, j);
@@ -191,10 +197,10 @@ public class MergeReviewService {
                     similarity,
                     "matchedAlgorithm",
                     "JARO_WINKLER_LEVENSHTEIN",
-                    "nameA",
-                    nameA != null ? nameA : "",
-                    "nameB",
-                    nameB != null ? nameB : ""));
+                    "recordA_id",
+                    recordAId.toString(),
+                    "recordB_id",
+                    recordBId.toString()));
             candidateRepository.save(candidate);
             generatedCount++;
           }
@@ -202,19 +208,19 @@ public class MergeReviewService {
       }
     }
 
-    if (candidateRepository.count() == 0 && generatedCount == 0) {
-      generatedCount = seedBenchmarkCandidates(tenantUuid);
-    }
+    String summaryMessage =
+        generatedCount > 0
+            ? String.format(
+                "Entity Resolution scan identified %d candidate duplicate pair(s) across %d records.",
+                generatedCount, poolSize)
+            : String.format(
+                "Scan complete: 0 duplicate pairs detected across %d records in your active connections. All records appear distinct.",
+                poolSize);
 
     return Map.of(
-        "status",
-        "SUCCESS",
-        "message",
-        "Entity Resolution scan completed. "
-            + generatedCount
-            + " duplicate candidate pairs queued for review.",
-        "candidatesFound",
-        generatedCount);
+        "status", "SUCCESS",
+        "message", summaryMessage,
+        "candidatesFound", generatedCount);
   }
 
   /**
@@ -241,16 +247,22 @@ public class MergeReviewService {
                   ? TenantContext.getTenantUuid()
                   : UUID.fromString("00000000-0000-0000-0000-000000000001"));
       goldenRecord.setTenantId(tenantUuid);
-      goldenRecord.setEntityType("Person");
+      goldenRecord.setEntityType("Entity");
 
       String canonicalName = "Merged Entity";
       if (candidate.getRecordASnapshot() != null) {
-        for (String k :
-            List.of("name", "full_name", "canonicalName", "customer_name", "patient_name", "id")) {
-          if (candidate.getRecordASnapshot().containsKey(k)
-              && candidate.getRecordASnapshot().get(k) != null) {
-            canonicalName = String.valueOf(candidate.getRecordASnapshot().get(k));
-            break;
+        String extractedName = extractName(candidate.getRecordASnapshot());
+        if (extractedName != null) {
+          canonicalName = extractedName;
+        } else {
+          for (String k :
+              List.of(
+                  "canonicalName", "customer_name", "patient_name", "company", "id", "record_id")) {
+            if (candidate.getRecordASnapshot().containsKey(k)
+                && candidate.getRecordASnapshot().get(k) != null) {
+              canonicalName = String.valueOf(candidate.getRecordASnapshot().get(k));
+              break;
+            }
           }
         }
       }
@@ -430,11 +442,28 @@ public class MergeReviewService {
   }
 
   private String extractName(Map<String, Object> row) {
-    for (String key : List.of("name", "full_name", "customer_name", "patient_name", "first_name")) {
+    for (String key :
+        List.of(
+            "name",
+            "full_name",
+            "fullName",
+            "customer_name",
+            "customerName",
+            "patient_name",
+            "patientName",
+            "first_name",
+            "firstName",
+            "contact_name",
+            "contactName")) {
       Object val = row.get(key);
       if (val != null && !String.valueOf(val).isBlank()) {
         return String.valueOf(val).trim();
       }
+    }
+    Object fn = row.get("firstName") != null ? row.get("firstName") : row.get("first_name");
+    Object ln = row.get("lastName") != null ? row.get("lastName") : row.get("last_name");
+    if (fn != null && ln != null) {
+      return (String.valueOf(fn).trim() + " " + String.valueOf(ln).trim()).trim();
     }
     return null;
   }
@@ -444,8 +473,27 @@ public class MergeReviewService {
     return val != null ? String.valueOf(val).trim() : null;
   }
 
+  private String extractPhone(Map<String, Object> row) {
+    for (String key : List.of("phone", "phoneNumber", "phone_number", "mobile", "telephone")) {
+      Object val = row.get(key);
+      if (val != null && !String.valueOf(val).isBlank()) {
+        return String.valueOf(val).replaceAll("[^0-9]", "");
+      }
+    }
+    return null;
+  }
+
   private UUID extractOrGenerateUuid(Map<String, Object> row, int fallbackIndex) {
-    for (String key : List.of("id", "record_id", "patient_id", "customer_id", "customerId")) {
+    for (String key :
+        List.of(
+            "id",
+            "record_id",
+            "recordId",
+            "patient_id",
+            "patientId",
+            "customer_id",
+            "customerId",
+            "account_id")) {
       Object val = row.get(key);
       if (val != null) {
         try {
@@ -463,6 +511,8 @@ public class MergeReviewService {
       String nameB,
       String emailA,
       String emailB,
+      String phoneA,
+      String phoneB,
       Map<String, Object> rowA,
       Map<String, Object> rowB) {
     if (nameA == null || nameB == null) {
@@ -473,11 +523,15 @@ public class MergeReviewService {
     }
 
     double nameSim = jaroWinkler(nameA, nameB);
-    double emailSim = 0.0;
-    if (emailA != null && emailB != null) {
-      emailSim = jaroWinkler(emailA, emailB);
-    }
+    double emailSim = (emailA != null && emailB != null) ? jaroWinkler(emailA, emailB) : 0.0;
+    double phoneSim =
+        (phoneA != null && phoneB != null && !phoneA.isBlank() && phoneA.equals(phoneB))
+            ? 1.0
+            : 0.0;
 
+    if (phoneSim > 0.0) {
+      return Math.round((nameSim * 0.6 + phoneSim * 0.4) * 1000.0) / 1000.0;
+    }
     if (emailSim > 0.0) {
       return Math.round((nameSim * 0.7 + emailSim * 0.3) * 1000.0) / 1000.0;
     }
@@ -533,131 +587,6 @@ public class MergeReviewService {
     return String.format(
         "Fuzzy token and phonetic match between '%s' and '%s' (similarity: %.2f%%). Flagged for human review.",
         nameA != null ? nameA : "Record A", nameB != null ? nameB : "Record B", similarity * 100);
-  }
-
-  private int seedBenchmarkCandidates(UUID tenantUuid) {
-    int count = 0;
-
-    // Candidate 1: Robert Davis vs Bob Davis
-    UUID id1A = UUID.nameUUIDFromBytes("seed-robert-davis-erp".getBytes());
-    UUID id1B = UUID.nameUUIDFromBytes("seed-bob-davis-crm".getBytes());
-    if (!candidateRepository.existsByRecordAIdAndRecordBId(id1A, id1B)) {
-      ErCandidate c1 =
-          new ErCandidate(
-              id1A,
-              id1B,
-              0.8420,
-              "High phonetic and nickname similarity on name ('Robert Davis' vs 'Bob Davis') with matching location (Chicago, IL). Flagged for analyst confirmation.");
-      c1.setTenantId(tenantUuid);
-      c1.setRecordASnapshot(
-          Map.of(
-              "name", "Robert Davis",
-              "email", "robert.davis@example.com",
-              "phone", "555-0192",
-              "city", "Chicago",
-              "state", "IL",
-              "sourceSystem", "Enterprise ERP"));
-      c1.setRecordBSnapshot(
-          Map.of(
-              "name", "Bob Davis",
-              "email", "bdavis@workplace.org",
-              "phone", "555-0192",
-              "city", "Chicago",
-              "state", "IL",
-              "sourceSystem", "Salesforce CRM"));
-      c1.setComparisonDetails(
-          Map.of(
-              "similarityScore",
-              0.8420,
-              "matchedAlgorithm",
-              "JARO_WINKLER_LEVENSHTEIN",
-              "name_similarity",
-              0.842,
-              "location_match",
-              true));
-      candidateRepository.save(c1);
-      count++;
-    }
-
-    // Candidate 2: Katherine Miller vs Kathy Miller
-    UUID id2A = UUID.nameUUIDFromBytes("seed-katherine-miller-billing".getBytes());
-    UUID id2B = UUID.nameUUIDFromBytes("seed-kathy-miller-support".getBytes());
-    if (!candidateRepository.existsByRecordAIdAndRecordBId(id2A, id2B)) {
-      ErCandidate c2 =
-          new ErCandidate(
-              id2A,
-              id2B,
-              0.8150,
-              "Hypocorism name variant ('Katherine Miller' vs 'Kathy Miller') with identical postal address (Austin, TX). Flagged for review.");
-      c2.setTenantId(tenantUuid);
-      c2.setRecordASnapshot(
-          Map.of(
-              "name", "Katherine Miller",
-              "email", "kmiller@acme-corp.com",
-              "city", "Austin",
-              "state", "TX",
-              "sourceSystem", "Billing System"));
-      c2.setRecordBSnapshot(
-          Map.of(
-              "name", "Kathy Miller",
-              "email", "kathy.miller@austin-tech.io",
-              "city", "Austin",
-              "state", "TX",
-              "sourceSystem", "Zendesk Support"));
-      c2.setComparisonDetails(
-          Map.of(
-              "similarityScore",
-              0.8150,
-              "matchedAlgorithm",
-              "JARO_WINKLER_LEVENSHTEIN",
-              "name_similarity",
-              0.815,
-              "location_match",
-              true));
-      candidateRepository.save(c2);
-      count++;
-    }
-
-    // Candidate 3: William Taylor vs Bill Taylor
-    UUID id3A = UUID.nameUUIDFromBytes("seed-william-taylor-wh".getBytes());
-    UUID id3B = UUID.nameUUIDFromBytes("seed-bill-taylor-freight".getBytes());
-    if (!candidateRepository.existsByRecordAIdAndRecordBId(id3A, id3B)) {
-      ErCandidate c3 =
-          new ErCandidate(
-              id3A,
-              id3B,
-              0.7930,
-              "Common hypocorism ('William' vs 'Bill') with identical surname ('Taylor') and operating hub (Seattle, WA). Flagged for review.");
-      c3.setTenantId(tenantUuid);
-      c3.setRecordASnapshot(
-          Map.of(
-              "name", "William Taylor",
-              "email", "wtaylor@logistics-corp.com",
-              "city", "Seattle",
-              "state", "WA",
-              "sourceSystem", "Warehouse WMS"));
-      c3.setRecordBSnapshot(
-          Map.of(
-              "name", "Bill Taylor",
-              "email", "bill.taylor@freight-pro.com",
-              "city", "Seattle",
-              "state", "WA",
-              "sourceSystem", "Freight Logistics"));
-      c3.setComparisonDetails(
-          Map.of(
-              "similarityScore",
-              0.7930,
-              "matchedAlgorithm",
-              "JARO_WINKLER_LEVENSHTEIN",
-              "name_similarity",
-              0.793,
-              "location_match",
-              true));
-      candidateRepository.save(c3);
-      count++;
-    }
-
-    return count;
   }
 
   private MergeReviewDto.CandidateResponse toSummaryResponse(ErCandidate candidate) {
