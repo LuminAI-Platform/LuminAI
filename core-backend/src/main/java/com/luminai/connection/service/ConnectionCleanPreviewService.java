@@ -127,7 +127,9 @@ public class ConnectionCleanPreviewService {
             if (!archiveRows.isEmpty()) {
               rawRows = archiveRows;
             }
-          } else if (rawRows.isEmpty() && root.has("sampleRows") && root.get("sampleRows").isArray()) {
+          } else if (rawRows.isEmpty()
+              && root.has("sampleRows")
+              && root.get("sampleRows").isArray()) {
             List<Map<String, Object>> cached = new ArrayList<>();
             for (JsonNode rowNode : root.get("sampleRows")) {
               @SuppressWarnings("unchecked")
