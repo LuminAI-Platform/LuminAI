@@ -62,6 +62,102 @@ describe("DashboardKpiRow Zero-State & Non-Zero Logic", () => {
     expect(html.includes("Online")).toBe(true);
     expect(html.includes("Healthy")).toBe(true);
     expect(html.includes("99.2%")).toBe(true);
+    expect(html.includes("Good")).toBe(true);
     expect(html.includes("text-success")).toBe(true);
+  });
+
+  it("shows 'Unverified' badge when score is 100 without evaluated-records count", () => {
+    const unverifiedSummary: DashboardSummary = {
+      totalEntities: 57,
+      totalConnections: 2,
+      totalPipelines: 15,
+      entityBreakdown: {},
+      recentActivity: [],
+      dataQualityScore: 100.0,
+      pipelineHealth: { running: 0, completed: 15, failed: 0 },
+      lastSyncAt: "2026-11-18T10:00:00Z",
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(DashboardKpiRow, {
+        summary: unverifiedSummary,
+        isLoading: false,
+      }),
+    );
+
+    expect(html.includes("Unverified")).toBe(true);
+    expect(
+      html.includes(
+        "Score has no evaluated-records count, so it cannot be verified.",
+      ),
+    ).toBe(true);
+    // Must NOT show "Good" badge for unverified 100%
+    expect(html.includes("100% Good")).toBe(false);
+  });
+
+  it("shows 'Fair' for score 70-89 and 'Poor' for score < 70", () => {
+    const fairSummary: DashboardSummary = {
+      totalEntities: 100,
+      totalConnections: 2,
+      totalPipelines: 5,
+      entityBreakdown: {},
+      recentActivity: [],
+      dataQualityScore: 78.5,
+      pipelineHealth: { running: 0, completed: 5, failed: 0 },
+      lastSyncAt: null,
+    };
+
+    const fairHtml = renderToStaticMarkup(
+      React.createElement(DashboardKpiRow, {
+        summary: fairSummary,
+        isLoading: false,
+      }),
+    );
+    expect(fairHtml.includes("Fair")).toBe(true);
+
+    const poorSummary: DashboardSummary = {
+      ...fairSummary,
+      dataQualityScore: 54.2,
+    };
+    const poorHtml = renderToStaticMarkup(
+      React.createElement(DashboardKpiRow, {
+        summary: poorSummary,
+        isLoading: false,
+      }),
+    );
+    expect(poorHtml.includes("Poor")).toBe(true);
+  });
+
+  it("shows 'Completed with issues' in amber when quarantined or rejected records > 0", () => {
+    const issuesSummary: DashboardSummary = {
+      totalEntities: 500,
+      totalConnections: 3,
+      totalPipelines: 10,
+      entityBreakdown: {},
+      recentActivity: [],
+      dataQualityScore: 95.0,
+      pipelineHealth: { running: 0, completed: 9, failed: 1 },
+      lastSyncAt: null,
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(DashboardKpiRow, {
+        summary: issuesSummary,
+        isLoading: false,
+        engineMetrics: {
+          pipelineStats: {
+            totalRuns: 10,
+            successRate: 90,
+            avgDuration: 2.5,
+            recordsProcessed: 1000,
+            rejectedCount: 15,
+            quarantinedCount: 5,
+          },
+        },
+      }),
+    );
+
+    expect(html.includes("Completed with issues")).toBe(true);
+    expect(html.includes("Good")).toBe(false);
   });
 });
