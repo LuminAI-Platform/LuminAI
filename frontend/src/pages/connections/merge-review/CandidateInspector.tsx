@@ -5,7 +5,7 @@ import {
   AlertTriangle,
   XCircle,
   CheckCircle,
-} from "lucide-react";
+} from "../../../lib/icons";
 import { Button } from "../../../components/ui/Button";
 import { SuggestedTag } from "../../../components/ui/Badge";
 import type { CandidateResponse } from "./mergeTypes";

@@ -1,7 +1,7 @@
 import React from "react";
 import { SidebarTooltip } from "../../ui/Tooltip";
 import type { User as AuthUser } from "oidc-client-ts";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut } from "../../../lib/icons";
 
 interface SidebarUserProfileProps {
   collapsed: boolean;

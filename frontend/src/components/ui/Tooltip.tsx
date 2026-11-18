@@ -6,9 +6,9 @@ interface TooltipProps {
   label: string;
   /** The element that triggers the tooltip */
   children: React.ReactNode;
-  /** Where the tooltip appears relative to the trigger. Defaults to "right". */
+  /** Where the tooltip appears relative to the trigger. Defaults to "top". */
   side?: "right" | "left" | "top" | "bottom";
-  /** Delay in ms before the tooltip appears. Defaults to 200. */
+  /** Delay in ms before the tooltip appears. Defaults to 300ms. */
   delayDuration?: number;
   /** Only render the tooltip when this is true (e.g., sidebar collapsed state) */
   enabled?: boolean;
@@ -17,17 +17,18 @@ interface TooltipProps {
 /**
  * Tooltip
  *
- * A Radix UI Tooltip styled to match the LuminAI dark design system:
- * - Dark zinc surface, light text, rounded corners, soft shadow
- * - Appears to the right of the hovered trigger
- * - 200 ms hover delay; disappears instantly on mouse-leave
+ * A Radix UI Tooltip styled to match the LuminAI design system:
+ * - Surface matching the app shell, text, rounded corners, soft shadow
+ * - Standard 300 ms hover and keyboard focus delay; disappears instantly on mouse-leave or blur
+ * - Dismissible with Escape key
+ * - Respects prefers-reduced-motion
  * - Fully accessible (aria-describedby, keyboard support) via Radix primitives
  */
 export const Tooltip: React.FC<TooltipProps> = ({
   label,
   children,
   side = "top",
-  delayDuration = 200,
+  delayDuration = 300,
   enabled = true,
 }) => {
   if (!enabled) {
@@ -35,49 +36,57 @@ export const Tooltip: React.FC<TooltipProps> = ({
   }
 
   return (
-    <RadixTooltip.Root delayDuration={delayDuration}>
-      <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
+    <RadixTooltip.Provider delayDuration={delayDuration}>
+      <RadixTooltip.Root delayDuration={delayDuration}>
+        <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
 
-      <RadixTooltip.Portal>
-        <RadixTooltip.Content
-          side={side}
-          sideOffset={10}
-          align="center"
-          avoidCollisions
-          className={[
-            // Layout
-            "z-[200] max-w-[220px] px-3 py-1.5",
-            // Visual — dark surface matching the app shell
-            "bg-surface-muted text-text",
-            "rounded-lg shadow-sm",
-            "border border-border",
-            // Typography
-            "text-[12px] font-medium leading-snug",
-            // Animation
-            "data-[state=delayed-open]:animate-tooltip-in",
-            "data-[state=closed]:animate-tooltip-out",
-          ].join(" ")}
-        >
-          {label}
-          <RadixTooltip.Arrow
-            className="fill-surface-muted"
-            width={8}
-            height={5}
-          />
-        </RadixTooltip.Content>
-      </RadixTooltip.Portal>
-    </RadixTooltip.Root>
+        <RadixTooltip.Portal>
+          <RadixTooltip.Content
+            side={side}
+            sideOffset={8}
+            align="center"
+            avoidCollisions
+            className={[
+              // Layout
+              "z-[200] max-w-[240px] px-3 py-1.5",
+              // Visual
+              "bg-surface-muted text-text",
+              "rounded-lg shadow-sm",
+              "border border-border",
+              // Typography
+              "text-[12px] font-medium leading-snug",
+              // Animation with prefers-reduced-motion support
+              "data-[state=delayed-open]:animate-tooltip-in motion-reduce:data-[state=delayed-open]:animate-none",
+              "data-[state=closed]:animate-tooltip-out motion-reduce:data-[state=closed]:animate-none",
+            ].join(" ")}
+          >
+            {label}
+            <RadixTooltip.Arrow
+              className="fill-surface-muted"
+              width={8}
+              height={5}
+            />
+          </RadixTooltip.Content>
+        </RadixTooltip.Portal>
+      </RadixTooltip.Root>
+    </RadixTooltip.Provider>
   );
 };
 
-/** Sidebar navigation keeps its labels on the outward-facing edge. */
+/** Sidebar navigation keeps its labels on the outward-facing right edge. */
 export const SidebarTooltip: React.FC<Omit<TooltipProps, "side">> = (props) => (
   <Tooltip {...props} side="right" />
 );
 
 /**
- * Wrap the app once so every tooltip shares the same timing and behavior.
- * skipDelayDuration=0 keeps tooltips snappy when moving between items.
+ * Wrap the app once so every tooltip shares the same 300ms timing and behavior.
  */
-// eslint-disable-next-line react-refresh/only-export-components
-export const TooltipProvider = RadixTooltip.Provider;
+export const TooltipProvider: React.FC<RadixTooltip.TooltipProviderProps> = ({
+  delayDuration = 300,
+  children,
+  ...props
+}) => (
+  <RadixTooltip.Provider delayDuration={delayDuration} {...props}>
+    {children}
+  </RadixTooltip.Provider>
+);

@@ -1,6 +1,7 @@
 import React from "react";
 import type { IngestedFile } from "./connectionsTypes";
-import { FileText, X } from "lucide-react";
+import { FileText, X, ICON_SIZES } from "../../../lib/icons";
+import { Tooltip } from "../../../components/ui/Tooltip";
 
 interface RawPreviewModalProps {
   previewingFile: IngestedFile;
@@ -18,17 +19,25 @@ export const RawPreviewModal: React.FC<RawPreviewModalProps> = ({
       <div className="bg-surface border border-border rounded-lg w-full max-w-4xl h-[70vh] flex flex-col overflow-hidden shadow-sm">
         <div className="px-5 py-3.5 border-b border-border bg-surface-subtle flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <FileText className="w-4 h-4 text-text-secondary" />
+            <FileText
+              size={ICON_SIZES.dropdown}
+              className="text-text-secondary"
+              aria-hidden="true"
+            />
             <h3 className="text-xs font-semibold text-text">
               Raw File Inspection: {previewingFile.name}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded text-text-secondary hover:text-text cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <Tooltip label="Close inspection" side="left">
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded text-text-secondary hover:text-text cursor-pointer"
+              aria-label="Close inspection"
+            >
+              <X size={ICON_SIZES.dropdown} aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
         <div className="flex-1 overflow-auto p-4 min-h-0 bg-surface">
           {isRawPreviewLoading ? (
@@ -44,31 +53,30 @@ export const RawPreviewModal: React.FC<RawPreviewModalProps> = ({
             <table className="w-full text-left text-xs border-collapse">
               <thead className="sticky top-0 bg-surface-subtle border-b border-border">
                 <tr>
-                  {(
-                    previewingFile.columns ||
-                    Object.keys(previewingFile.sampleRows[0])
-                  ).map((col) => (
-                    <th
-                      key={col}
-                      className="py-2 px-3 font-semibold text-text-secondary font-mono text-[11px]"
-                    >
-                      {col}
-                    </th>
-                  ))}
+                  {Object.keys(previewingFile.sampleRows[0] || {}).map(
+                    (colKey) => (
+                      <th
+                        key={colKey}
+                        className="py-2 px-3 font-semibold text-text-secondary font-mono text-[11px]"
+                      >
+                        {colKey}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {previewingFile.sampleRows.slice(0, 100).map((row, i) => (
-                  <tr key={i} className="hover:bg-surface-hover">
-                    {(
-                      previewingFile.columns ||
-                      Object.keys(previewingFile.sampleRows![0])
-                    ).map((col) => (
+                {previewingFile.sampleRows.map((row, rIdx) => (
+                  <tr
+                    key={rIdx}
+                    className="hover:bg-surface-subtle/50 transition-colors"
+                  >
+                    {Object.values(row).map((val, cIdx) => (
                       <td
-                        key={col}
+                        key={cIdx}
                         className="py-1.5 px-3 font-mono text-[11px] text-text whitespace-nowrap"
                       >
-                        {String(row[col] ?? "—")}
+                        {String(val ?? "")}
                       </td>
                     ))}
                   </tr>

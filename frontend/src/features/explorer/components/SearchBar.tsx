@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, X, CornerDownLeft } from "lucide-react";
+import { Search, X, CornerDownLeft, ICON_SIZES } from "../../../lib/icons";
+import { Tooltip } from "../../../components/ui/Tooltip";
 
 interface SearchBarProps {
   query: string;
@@ -102,17 +103,20 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         {/* Action controls */}
         <div className="flex items-center gap-2 shrink-0">
           {query && (
-            <button
-              onClick={() => {
-                onChange("");
-                setShowDropdown(false);
-                inputRef.current?.focus();
-              }}
-              className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 rounded-md transition-colors cursor-pointer"
-              title="Clear search"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <Tooltip label="Clear search" side="bottom">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange("");
+                  setShowDropdown(false);
+                  inputRef.current?.focus();
+                }}
+                className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 rounded-md transition-colors cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X size={ICON_SIZES.inline} aria-hidden="true" />
+              </button>
+            </Tooltip>
           )}
 
           <button

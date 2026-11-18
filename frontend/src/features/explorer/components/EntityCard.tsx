@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Calendar, ArrowRight } from "lucide-react";
+import { Calendar, ArrowRight } from "../../../lib/icons";
 import { sanitizeHtml } from "../../../lib/sanitize";
 import { EntityIcon } from "../../ontology/components/EntityTypeEditor";
 import type { EntityType } from "../../ontology/components/EntityTypeEditor";

@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus } from "../../../lib/icons";
 import { Select } from "../../../components/ui/dropdown";
 import type {
   SourceColumn,

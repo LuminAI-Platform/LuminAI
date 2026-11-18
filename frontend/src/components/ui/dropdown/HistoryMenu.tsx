@@ -1,5 +1,4 @@
 import React from "react";
-import { Clock, ExternalLink } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   DropdownMenuRoot,
@@ -8,17 +7,19 @@ import {
   DropdownMenuSeparator,
 } from "./DropdownMenu";
 import { Tooltip } from "../Tooltip";
+import { Icons, ExternalLink, ICON_SIZES } from "../../../lib/icons";
 
 export const HistoryMenu: React.FC = () => {
   return (
     <DropdownMenuRoot>
-      <Tooltip label="Activity History" side="bottom">
-        <DropdownMenuTrigger asChild aria-label="Activity History">
+      <Tooltip label="Recent activity" side="bottom">
+        <DropdownMenuTrigger asChild aria-label="Recent activity">
           <button
             type="button"
+            aria-label="Recent activity"
             className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer h-9 w-9 border border-transparent hover:border-border"
           >
-            <Clock className="w-4 h-4" />
+            <Icons.History size={ICON_SIZES.header} aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
       </Tooltip>
@@ -65,7 +66,7 @@ export const HistoryMenu: React.FC = () => {
             className="text-[11px] text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
           >
             <span>View execution logs</span>
-            <ExternalLink className="w-3 h-3" />
+            <ExternalLink size={ICON_SIZES.inline} aria-hidden="true" />
           </Link>
         </div>
       </DropdownMenuContent>

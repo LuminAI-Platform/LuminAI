@@ -2,7 +2,7 @@ import React from "react";
 import { SearchBar } from "../../features/explorer/components/SearchBar";
 import { EntityCard } from "../../features/explorer/components/EntityCard";
 import { FacetFilterSidebar } from "../../features/explorer/components/FacetFilterSidebar";
-import { Layers, Download } from "lucide-react";
+import { Icons, Download, ICON_SIZES } from "../../lib/icons";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { MultiSelect } from "../../components/ui/dropdown";
 import {
@@ -46,7 +46,13 @@ export const ExplorerPage: React.FC = () => {
         ]}
         title="Entity Explorer"
         description="Search, filter, and inspect canonical records, properties, and entity indexes."
-        icon={<Layers className="w-5 h-5 text-blue-400" />}
+        icon={
+          <Icons.EntityExplorer
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         badge={{
           label: "Search Active",
           variant: "emerald",

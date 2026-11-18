@@ -1,5 +1,5 @@
 import React from "react";
-import { Building } from "lucide-react";
+import { Building } from "../../../lib/icons";
 import { Badge } from "../../../components/ui/Badge";
 import type { TenantContextCardProps } from "../types";
 

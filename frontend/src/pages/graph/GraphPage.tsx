@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { AlertCircle, RefreshCw, Network } from "lucide-react";
+import { Icons, AlertCircle, RefreshCw, ICON_SIZES } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { GraphCanvas } from "./components/GraphCanvas";
@@ -53,7 +53,13 @@ export const GraphPage: React.FC = () => {
         ]}
         title="Knowledge Graph Explorer"
         description="Explore entity relationships, connected graph clusters, and relationship pathways."
-        icon={<Network className="w-5 h-5 text-purple-400" />}
+        icon={
+          <Icons.KnowledgeGraph
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         badge={{
           label: "Graph Connected",
           variant: "purple",
@@ -137,7 +143,7 @@ export const GraphPage: React.FC = () => {
         {!isLoading && filteredElements.nodes.length === 0 && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-xs text-center p-6 select-none">
             <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
-              <Network className="w-6 h-6" />
+              <Icons.KnowledgeGraph size={24} aria-hidden="true" />
             </div>
             <h3 className="text-sm font-semibold text-zinc-200">
               No Graph Relationships Found

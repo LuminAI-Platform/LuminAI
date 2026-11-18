@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  Activity,
-  BarChart3,
-  Database,
-  Layers,
-  Network,
-  Search,
-  Sliders,
-} from "lucide-react";
+import { Icons, ICON_SIZES } from "../../lib/icons";
 import { PageHeader } from "../layout/PageHeader";
 import { Skeleton } from "../ui/Skeleton";
 
@@ -21,7 +13,13 @@ export const DashboardSkeleton: React.FC = () => {
         breadcrumbs={[{ label: "Overview" }, { label: "Operations" }]}
         title="Platform Operations Dashboard"
         description="Unified telemetry across ontology entities, active connections, and execution health."
-        icon={<BarChart3 className="w-5 h-5 text-primary" />}
+        icon={
+          <Icons.Dashboard
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         badge={{
           label: "Connecting...",
           variant: "zinc",
@@ -100,7 +98,13 @@ export const PipelineMonitorSkeleton: React.FC = () => {
           ]}
           title="Pipeline Monitor"
           description="Monitor ingest topics, data cleaning stage throughput, and real-time execution telemetry."
-          icon={<Activity className="w-5 h-5 text-primary" />}
+          icon={
+            <Icons.PipelineMonitor
+              size={ICON_SIZES.header}
+              className="text-primary"
+              aria-hidden="true"
+            />
+          }
           badge={{
             label: "Connecting live stream...",
             variant: "zinc",
@@ -187,7 +191,13 @@ export const ConnectionsSkeleton: React.FC = () => {
         breadcrumbs={[{ label: "Data Integration" }, { label: "Connections" }]}
         title="Data Ingestion & Connectors"
         description="Configure structured database ingestion, local file uploads, and continuous sync pipelines."
-        icon={<Database className="w-5 h-5 text-primary" />}
+        icon={
+          <Icons.DataConnections
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-28 rounded-lg" />
@@ -238,7 +248,13 @@ export const ExplorerSkeleton: React.FC = () => {
         breadcrumbs={[{ label: "Data Mesh" }, { label: "Entity Explorer" }]}
         title="Entity Explorer"
         description="Search, filter, and inspect canonical entities and lineage records across the ontology graph."
-        icon={<Search className="w-5 h-5 text-primary" />}
+        icon={
+          <Icons.EntityExplorer
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-28 rounded-lg" />
@@ -299,7 +315,13 @@ export const GraphSkeleton: React.FC = () => {
         breadcrumbs={[{ label: "Data Mesh" }, { label: "Knowledge Graph" }]}
         title="Knowledge Graph Visualizer"
         description="Interactive graph canvas showing nodes, entity relationships, and cross-source fusion links."
-        icon={<Network className="w-5 h-5 text-primary" />}
+        icon={
+          <Icons.KnowledgeGraph
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-24 rounded-lg" />
@@ -333,7 +355,13 @@ export const SchemaMapSkeleton: React.FC = () => {
         ]}
         title="Schema Studio & Mapping Canvas"
         description="Map incoming raw columns to target ontology entity properties with visual node links."
-        icon={<Layers className="w-5 h-5 text-primary" />}
+        icon={
+          <Icons.SchemaStudio
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-24 rounded-lg" />
@@ -382,6 +410,13 @@ export const MergeReviewSkeleton: React.FC = () => {
           { label: "Merge Review" },
         ]}
         description="Inspect high-confidence record pairs flagged by Graph Linkage algorithms."
+        icon={
+          <Icons.FusionReview
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-3">
             <Skeleton className="h-8 w-28 rounded-lg" />
@@ -429,7 +464,13 @@ export const OntologySkeleton: React.FC = () => {
         ]}
         title="Ontology & Schema Manager"
         description="Manage domain entities, typed properties, directional relationships, and version release schemas."
-        icon={<Layers className="w-5 h-5 text-primary" />}
+        icon={
+          <Icons.OntologyManager
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-32 rounded-lg" />
@@ -479,7 +520,13 @@ export const SettingsSkeleton: React.FC = () => {
         ]}
         title="Workspace & Tenant Settings"
         description="Manage authenticated user identity, multi-tenant boundaries, access control roles, and API configuration."
-        icon={<Sliders className="w-5 h-5 text-zinc-400" />}
+        icon={
+          <Icons.Settings
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
+        }
         actions={<Skeleton className="h-8 w-24 rounded-lg" />}
       />
 

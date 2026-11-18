@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, GitBranch } from "lucide-react";
+import { ArrowLeft, GitBranch } from "../../lib/icons";
 import { EntityPropertyTable } from "../../features/explorer/components/EntityPropertyTable";
 import { ProvenanceInspector } from "../../features/explorer/components/ProvenanceInspector";
 import {

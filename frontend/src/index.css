@@ -184,9 +184,20 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-dropdown-in,
-  .animate-dropdown-out {
+  .animate-dropdown-out,
+  .animate-tooltip-in,
+  .animate-tooltip-out,
+  [data-state="delayed-open"],
+  [data-state="closed"] {
     animation: none !important;
+    transition: none !important;
   }
+}
+
+/* Global Icon Styling: Single stroke width globally, currentColor for theme tokens */
+svg.lucide {
+  stroke-width: 2px;
+  stroke: currentColor;
 }
 
 /* Accessible, clean custom scrollbars */

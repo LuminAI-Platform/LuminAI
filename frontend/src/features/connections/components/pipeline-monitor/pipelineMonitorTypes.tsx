@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw } from "../../../../lib/icons";
 
 export const ConnectionDot: React.FC<{
   connected: boolean;

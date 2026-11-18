@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { GitCompare, Loader2, Plus, Minus, CheckCircle } from "lucide-react";
+import {
+  GitCompare,
+  Loader2,
+  Plus,
+  Minus,
+  CheckCircle,
+} from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 

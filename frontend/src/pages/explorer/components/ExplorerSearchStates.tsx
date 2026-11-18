@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw } from "../../../lib/icons";
 
 export const ExplorerLoadingState: React.FC = () => (
   <div className="flex flex-col items-center justify-center py-20 bg-surface-subtle border border-border rounded-lg gap-3">

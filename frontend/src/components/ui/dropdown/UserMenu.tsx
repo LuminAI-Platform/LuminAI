@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Settings, LogOut } from "lucide-react";
 import { useAuthStore } from "../../../stores/authStore";
 import {
   DropdownMenuRoot,
@@ -10,6 +9,7 @@ import {
   DropdownMenuHeader,
   DropdownMenuSeparator,
 } from "./DropdownMenu";
+import { Icons, LogOut, ICON_SIZES } from "../../../lib/icons";
 
 export interface UserMenuProps {
   className?: string;
@@ -70,7 +70,13 @@ export const UserMenu: React.FC<UserMenuProps> = ({ className = "" }) => {
 
         {/* Workspace Settings */}
         <DropdownMenuItem
-          icon={<Settings className="w-4 h-4 text-text-secondary" />}
+          icon={
+            <Icons.Settings
+              size={ICON_SIZES.dropdown}
+              className="text-text-secondary"
+              aria-hidden="true"
+            />
+          }
           onClick={() => navigate({ to: "/settings" })}
         >
           Workspace Settings
@@ -81,7 +87,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ className = "" }) => {
         {/* Destructive Sign out row behind divider */}
         <DropdownMenuItem
           destructive
-          icon={<LogOut className="w-4 h-4" />}
+          icon={<LogOut size={ICON_SIZES.dropdown} aria-hidden="true" />}
           onClick={() => logout()}
         >
           Sign out

@@ -1,5 +1,5 @@
 import React from "react";
-import { Sliders, Sun, Moon, Monitor } from "lucide-react";
+import { Sliders, Sun, Moon, Monitor } from "../../../lib/icons";
 import { useThemeStore } from "../../../stores/themeStore";
 
 export const SystemCapabilitiesCard: React.FC = () => {

@@ -6,7 +6,7 @@ import {
   ChevronRight,
   CheckCircle2,
   XCircle,
-} from "lucide-react";
+} from "../../../../lib/icons";
 import type { PipelineRunItem } from "./pipelineAnalysisTypes";
 import { RunDetailDrawer } from "./RunDetailDrawer";
 import { Select } from "../../../../components/ui/dropdown";

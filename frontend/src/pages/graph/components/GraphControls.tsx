@@ -1,5 +1,5 @@
 import React from "react";
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "../../../lib/icons";
 import type { GraphLayoutType } from "./GraphCanvas";
 import { Tooltip } from "../../../components/ui/Tooltip";
 import { Select } from "../../../components/ui/dropdown";

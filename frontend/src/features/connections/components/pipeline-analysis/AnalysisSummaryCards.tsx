@@ -6,7 +6,7 @@ import {
   Clock,
   Database,
   XCircle,
-} from "lucide-react";
+} from "../../../../lib/icons";
 import type {
   EnginePipelineStatsDto,
   PipelineSummaryMetricsDto,

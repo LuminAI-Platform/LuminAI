@@ -1,5 +1,5 @@
 import React from "react";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen } from "../../lib/icons";
 import { Button, type ButtonProps } from "./Button";
 
 export interface EmptyStateProps {

@@ -1,5 +1,4 @@
 import React from "react";
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -7,6 +6,7 @@ import {
   DropdownMenuSeparator,
 } from "./DropdownMenu";
 import { Tooltip } from "../Tooltip";
+import { Bell, CheckCheck, Trash2, ICON_SIZES } from "../../../lib/icons";
 
 export const NotificationMenu: React.FC = () => {
   return (
@@ -15,9 +15,10 @@ export const NotificationMenu: React.FC = () => {
         <DropdownMenuTrigger asChild aria-label="Notifications">
           <button
             type="button"
+            aria-label="Notifications"
             className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors relative cursor-pointer h-9 w-9 border border-transparent hover:border-border"
           >
-            <Bell className="w-4 h-4" />
+            <Bell size={ICON_SIZES.header} aria-hidden="true" />
             <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full" />
           </button>
         </DropdownMenuTrigger>
@@ -68,14 +69,15 @@ export const NotificationMenu: React.FC = () => {
             onClick={() => {}}
             className="text-[11px] text-text-secondary hover:text-text font-medium flex items-center gap-1 cursor-pointer transition-colors"
           >
-            <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+            <CheckCheck size={ICON_SIZES.inline} aria-hidden="true" /> Mark all
+            read
           </button>
           <button
             type="button"
             onClick={() => {}}
             className="text-[11px] text-text-muted hover:text-error font-medium flex items-center gap-1 cursor-pointer transition-colors"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Clear
+            <Trash2 size={ICON_SIZES.inline} aria-hidden="true" /> Clear
           </button>
         </div>
       </DropdownMenuContent>

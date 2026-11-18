@@ -7,12 +7,13 @@ import { useSchemaMapState } from "./schema-map/useSchemaMapState";
 import { TemplatePicker } from "./schema-map/TemplatePicker";
 import { SchemaMapRibbon } from "./schema-map/SchemaMapRibbon";
 import {
+  Icons,
   History,
-  Layers,
   FolderDown,
   Database,
   AlertCircle,
-} from "lucide-react";
+  ICON_SIZES,
+} from "../../lib/icons";
 import { Link } from "@tanstack/react-router";
 
 export const SchemaMapPage: React.FC = () => {
@@ -55,7 +56,13 @@ export const SchemaMapPage: React.FC = () => {
           ]}
           title="Schema Studio & Graph Mapper"
           description="Map raw connector column schemas to semantic ontology entities and relationships."
-          icon={<Layers className="w-5 h-5 text-blue-400" />}
+          icon={
+            <Icons.SchemaStudio
+              size={ICON_SIZES.header}
+              className="text-primary"
+              aria-hidden="true"
+            />
+          }
           badge={{
             label: "Visual Designer",
             variant: "blue",

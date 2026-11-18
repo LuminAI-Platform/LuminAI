@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-} from "lucide-react";
+} from "../../../lib/icons";
 import { Badge, type BadgeVariant } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
 

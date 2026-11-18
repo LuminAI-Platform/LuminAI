@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "../../../../lib/icons";
 import type { EngineDataQualityDto } from "./pipelineAnalysisTypes";
 
 interface DataQualityPanelProps {

@@ -5,7 +5,9 @@ import {
   AlertTriangle,
   Info,
   X,
-} from "lucide-react";
+  ICON_SIZES,
+} from "../../lib/icons";
+import { Tooltip } from "./Tooltip";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -70,7 +72,11 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
       role="alert"
       className={`pointer-events-auto flex items-start gap-3 w-84 p-4 rounded-lg border ${style.border} ${style.bg} shadow-md transition-all duration-200`}
     >
-      <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${style.iconColor}`} />
+      <Icon
+        size={ICON_SIZES.header}
+        className={`shrink-0 mt-0.5 ${style.iconColor}`}
+        aria-hidden="true"
+      />
       <div className="flex-1 min-w-0">
         <h4
           className={`text-xs font-semibold ${style.titleColor} tracking-tight leading-snug`}
@@ -83,13 +89,16 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
           </p>
         )}
       </div>
-      <button
-        onClick={() => onDismiss(toast.id)}
-        className="text-text-secondary hover:text-text p-0.5 rounded transition-colors shrink-0 cursor-pointer"
-        aria-label="Dismiss notification"
-      >
-        <X className="w-4 h-4" />
-      </button>
+      <Tooltip label="Dismiss notification" side="top">
+        <button
+          type="button"
+          onClick={() => onDismiss(toast.id)}
+          className="text-text-secondary hover:text-text p-0.5 rounded transition-colors shrink-0 cursor-pointer"
+          aria-label="Dismiss notification"
+        >
+          <X size={ICON_SIZES.inline} aria-hidden="true" />
+        </button>
+      </Tooltip>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { AlertOctagon, RotateCcw } from "lucide-react";
+import { AlertOctagon, RotateCcw } from "../../lib/icons";
 import { Button } from "../ui";
 
 interface Props {

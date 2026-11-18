@@ -1,5 +1,5 @@
 import React from "react";
-import { Layers, Clock, AlertTriangle } from "lucide-react";
+import { Layers, Clock, AlertTriangle } from "../../../../lib/icons";
 import type { StageMetric } from "./pipelineAnalysisTypes";
 
 interface StageBreakdownPanelProps {

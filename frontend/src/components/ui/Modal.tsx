@@ -1,6 +1,7 @@
 import React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X, ICON_SIZES } from "../../lib/icons";
+import { Tooltip } from "./Tooltip";
 
 export interface ModalProps {
   open: boolean;
@@ -64,13 +65,15 @@ export const Modal: React.FC<ModalProps> = ({
                 )}
               </div>
               <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className="text-text-secondary hover:text-text p-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer"
-                  aria-label="Close modal"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <Tooltip label="Close modal" side="left">
+                  <button
+                    type="button"
+                    className="text-text-secondary hover:text-text p-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer"
+                    aria-label="Close modal"
+                  >
+                    <X size={ICON_SIZES.dropdown} aria-hidden="true" />
+                  </button>
+                </Tooltip>
               </Dialog.Close>
             </div>
           )}

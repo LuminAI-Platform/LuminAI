@@ -9,7 +9,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   PlusCircle,
-} from "lucide-react";
+} from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";

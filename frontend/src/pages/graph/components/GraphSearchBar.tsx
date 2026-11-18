@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2 } from "../../../lib/icons";
 
 interface GraphSearchBarProps {
   onSearch: (entityId: string) => void;

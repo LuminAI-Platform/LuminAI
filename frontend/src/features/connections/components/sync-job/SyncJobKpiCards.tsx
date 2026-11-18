@@ -1,6 +1,7 @@
 import React from "react";
 import type { SyncJob } from "./syncJobTypes";
 import { formatNumber, formatDuration } from "./syncJobHelpers";
+import { AlertCircle, Clock, ICON_SIZES } from "../../../../lib/icons";
 
 const ProgressRing: React.FC<{
   pct: number;
@@ -142,19 +143,11 @@ export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
       {/* Errors */}
       <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
         <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center flex-shrink-0">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+          <AlertCircle
+            size={ICON_SIZES.card}
+            aria-hidden="true"
             className={totalErrors > 0 ? "text-red-400" : "text-zinc-500"}
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+          />
         </div>
         <div>
           <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
@@ -176,18 +169,11 @@ export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
       {/* Duration */}
       <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
         <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center flex-shrink-0">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+          <Clock
+            size={ICON_SIZES.card}
+            aria-hidden="true"
             className="text-zinc-400"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+          />
         </div>
         <div>
           <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">

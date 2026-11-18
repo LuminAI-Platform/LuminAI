@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
-import { Activity, ArrowRight, Database, BarChart3 } from "lucide-react";
+import { Icons, ArrowRight, BarChart3, ICON_SIZES } from "../../lib/icons";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { PipelineMonitor } from "../../features/connections/components/PipelineMonitor";
 import { PipelineAnalysisView } from "../../features/connections/components/pipeline-analysis/PipelineAnalysisView";
@@ -89,7 +89,13 @@ export const PipelinePage: React.FC = () => {
           ]}
           title="Pipeline Monitor"
           description="Monitor ingest topics, data cleaning stage throughput, and real-time execution telemetry."
-          icon={<Activity className="w-5 h-5 text-primary" />}
+          icon={
+            <Icons.PipelineMonitor
+              size={ICON_SIZES.header}
+              className="text-primary"
+              aria-hidden="true"
+            />
+          }
           badge={headerBadge}
           actions={
             <div className="flex items-center gap-2">
@@ -97,7 +103,11 @@ export const PipelinePage: React.FC = () => {
                 to="/connections"
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-transparent border border-border text-text hover:bg-surface-subtle transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Database className="w-3.5 h-3.5 text-text-secondary" />
+                <Icons.DataConnections
+                  size={ICON_SIZES.inline}
+                  className="text-text-secondary"
+                  aria-hidden="true"
+                />
                 <span>Connections</span>
               </Link>
               <Link
@@ -105,7 +115,7 @@ export const PipelinePage: React.FC = () => {
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary hover:bg-primary-hover border border-primary text-primary-text shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Schema Studio</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight size={ICON_SIZES.inline} aria-hidden="true" />
               </Link>
             </div>
           }
@@ -127,7 +137,10 @@ export const PipelinePage: React.FC = () => {
                 : "border-transparent text-text-secondary hover:text-text hover:border-border"
             }`}
           >
-            <Activity className="w-3.5 h-3.5" />
+            <Icons.PipelineMonitor
+              size={ICON_SIZES.inline}
+              aria-hidden="true"
+            />
             <span>Live Telemetry</span>
             {streamStatus.isConnected && streamStatus.activeStreams > 0 && (
               <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />

@@ -3,7 +3,7 @@ import * as Popper from "@radix-ui/react-popper";
 import * as Portal from "@radix-ui/react-portal";
 import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
 import { FocusScope } from "@radix-ui/react-focus-scope";
-import { ChevronDown, Check, Loader2 } from "lucide-react";
+import { ChevronDown, Check, Loader2, ICON_SIZES } from "../../../lib/icons";
 import { Tooltip } from "../Tooltip";
 
 export interface SelectOption {
@@ -190,10 +190,16 @@ export const Select: React.FC<SelectProps> = ({
             </span>
 
             {isLoading ? (
-              <Loader2 className="w-3.5 h-3.5 text-text-secondary animate-spin shrink-0" />
+              <Loader2
+                size={ICON_SIZES.inline}
+                className="text-text-secondary animate-spin motion-reduce:animate-none shrink-0"
+                aria-hidden="true"
+              />
             ) : (
               <ChevronDown
-                className={`w-3.5 h-3.5 text-text-secondary shrink-0 transition-transform duration-150 ${
+                size={ICON_SIZES.inline}
+                aria-hidden="true"
+                className={`text-text-secondary shrink-0 transition-transform duration-150 ${
                   open ? "rotate-180" : ""
                 }`}
               />
@@ -307,7 +313,11 @@ export const Select: React.FC<SelectProps> = ({
                               </span>
                             )}
                             {isSelected && (
-                              <Check className="w-4 h-4 text-primary shrink-0" />
+                              <Check
+                                size={ICON_SIZES.dropdown}
+                                className="text-primary shrink-0"
+                                aria-hidden="true"
+                              />
                             )}
                           </div>
                         </div>

@@ -4,7 +4,7 @@ import {
   formatRelativeTime,
   getHealthStatusBadge,
 } from "./connectionsTypes";
-import { FileText, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { FileText, Search, ShieldCheck, Trash2 } from "../../../lib/icons";
 import { ActionMenu } from "../../../components/ui/dropdown";
 
 interface FilesTableProps {

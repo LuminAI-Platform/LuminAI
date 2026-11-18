@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Search } from "lucide-react";
+import { Icons, RefreshCw, Search, ICON_SIZES } from "../../lib/icons";
 import { apiFetch } from "../../lib/api";
 import { Badge, SuggestedTag } from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/ToastProvider";
@@ -113,6 +113,13 @@ export const MergeReviewPage: React.FC = () => {
           { label: "Merge Review" },
         ]}
         description="Inspect high-confidence record pairs flagged by Graph Linkage algorithms. Review conflicting attributes and confirm deterministic merges."
+        icon={
+          <Icons.FusionReview
+            size={ICON_SIZES.header}
+            className="text-primary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-3">
             <button
