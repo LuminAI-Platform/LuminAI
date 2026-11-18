@@ -29,6 +29,7 @@ export const DashboardPage: React.FC = () => {
     isTimeSeriesLoading,
     activity,
     isActivityLoading,
+    hasRunningRuns,
     isRefetching,
     handleManualRefresh,
     refetchSummary,
@@ -179,18 +180,28 @@ export const DashboardPage: React.FC = () => {
         <div className="lg:col-span-2 bg-surface border border-border rounded-lg p-5 shadow-xs">
           <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
             <div>
-              <h3 className="text-sm font-semibold text-text">
-                Live Audit & Activity Stream
-              </h3>
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-sm font-semibold text-text">
+                  Live Audit & Activity Stream
+                </h3>
+                {hasRunningRuns && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warning-bg border border-warning-border text-warning tracking-wide">
+                    <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
+                    Auto-updating
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-text-secondary mt-0.5">
                 Recent batch jobs, schema normalizations, and entity updates
               </p>
             </div>
             <Link
               to="/connections/pipelines"
-              className="text-xs text-text-secondary hover:text-text font-medium inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs text-text-secondary hover:text-text font-medium inline-flex items-center gap-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded px-1.5 py-0.5 transition-colors"
+              aria-label="View all runs in Pipeline Monitor"
             >
-              All Pipelines <ArrowRight className="w-3.5 h-3.5" />
+              <span>Pipeline Monitor</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
@@ -199,6 +210,8 @@ export const DashboardPage: React.FC = () => {
               activity.length > 0 ? activity : summary?.recentActivity
             }
             isLoading={isActivityLoading && isSummaryLoading}
+            limit={6}
+            showViewAll={true}
           />
         </div>
 

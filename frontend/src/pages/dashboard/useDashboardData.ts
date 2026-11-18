@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
 import type { TimeSeriesPoint } from "./components/PipelineTimelineChart";
@@ -23,13 +23,13 @@ export function useDashboardData() {
   const [timeRange, setTimeRange] = useState<"7d" | "14d" | "30d">("7d");
   const [fallbackTime] = useState(() => Date.now());
 
-  // 1. Fetch dashboard summary with 60s auto-refresh
+  // 1. Fetch dashboard summary with adaptive interval and tab-visibility pause
   const {
     data: summary,
     isLoading: isSummaryLoading,
     error: summaryError,
     refetch: refetchSummary,
-    isRefetching,
+    isRefetching: isSummaryRefetching,
     dataUpdatedAt: summaryUpdatedAt,
   } = useQuery<DashboardSummary>({
     queryKey: ["dashboard", "summary"],
@@ -39,7 +39,20 @@ export function useDashboardData() {
       });
       return res.json();
     },
-    refetchInterval: 60000,
+    refetchInterval: (query) => {
+      // Pause completely when tab is hidden
+      if (typeof document !== "undefined" && document.hidden) {
+        return false;
+      }
+      const data = query.state.data as DashboardSummary | undefined;
+      const hasRunning =
+        (data?.pipelineHealth?.running ?? 0) > 0 ||
+        data?.recentActivity?.some(
+          (item) => item.status?.toUpperCase() === "RUNNING",
+        );
+      return hasRunning ? 5000 : 60000;
+    },
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     retry: 1,
   });
@@ -81,33 +94,74 @@ export function useDashboardData() {
       return res.json();
     },
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     retry: 1,
   });
 
-  // 3. Fetch recent platform activity
+  // 3. Fetch recent platform activity with adaptive interval & background pause
   const {
     data: activity = [],
     isLoading: isActivityLoading,
     refetch: refetchActivity,
+    isRefetching: isActivityRefetching,
   } = useQuery<ActivityItem[]>({
     queryKey: ["dashboard", "activity"],
     queryFn: async () => {
-      const res = await apiFetch("/api/v1/dashboard/activity?limit=15", {
+      const res = await apiFetch("/api/v1/dashboard/activity?limit=25", {
         headers: { "X-Suppress-Toast": "true" },
       });
       return res.json();
     },
-    refetchInterval: 60000,
+    refetchInterval: (query) => {
+      // Pause completely when tab is hidden
+      if (typeof document !== "undefined" && document.hidden) {
+        return false;
+      }
+      const data = query.state.data as ActivityItem[] | undefined;
+      const hasRunning =
+        Array.isArray(data) &&
+        data.some((item) => item.status?.toUpperCase() === "RUNNING");
+      return hasRunning ? 5000 : 30000;
+    },
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     retry: 1,
   });
 
-  const handleManualRefresh = () => {
+  // Determine if any run is currently executing
+  const hasRunningRuns = useMemo(() => {
+    const activityRunning = activity.some(
+      (item) => item.status?.toUpperCase() === "RUNNING",
+    );
+    const summaryRunning = (summary?.pipelineHealth?.running ?? 0) > 0;
+    return activityRunning || summaryRunning;
+  }, [activity, summary]);
+
+  // When tab transitions back from hidden to visible, immediately refresh
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refetchActivity();
+        refetchSummary();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refetchActivity, refetchSummary]);
+
+  const handleManualRefresh = useCallback(() => {
     refetchSummary();
     refetchTimeSeries();
     refetchActivity();
-  };
+  }, [refetchSummary, refetchTimeSeries, refetchActivity]);
+
+  const isRefetching = isSummaryRefetching || isActivityRefetching;
 
   return {
     timeRange,
@@ -121,7 +175,9 @@ export function useDashboardData() {
     isTimeSeriesLoading,
     activity,
     isActivityLoading,
+    hasRunningRuns,
     handleManualRefresh,
     refetchSummary,
+    refetchActivity,
   };
 }

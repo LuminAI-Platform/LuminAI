@@ -215,6 +215,7 @@ export interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivEl
   sideOffset?: number;
   alignOffset?: number;
   matchTriggerWidth?: boolean;
+  portalled?: boolean;
 }
 
 export const DropdownMenuContent = React.forwardRef<
@@ -230,6 +231,7 @@ export const DropdownMenuContent = React.forwardRef<
       sideOffset = 6,
       alignOffset = 0,
       matchTriggerWidth = false,
+      portalled = true,
       onKeyDown,
       ...props
     },
@@ -294,59 +296,59 @@ export const DropdownMenuContent = React.forwardRef<
 
     if (!open) return null;
 
-    return (
-      <Portal.Root>
-        <DismissableLayer
-          onDismiss={handleDismiss}
-          onEscapeKeyDown={(e) => {
+    const content = (
+      <DismissableLayer
+        onDismiss={handleDismiss}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          handleDismiss();
+        }}
+        onPointerDownOutside={(e) => {
+          const target = e.detail.originalEvent.target as Node;
+          if (triggerRef.current?.contains(target)) {
             e.preventDefault();
-            handleDismiss();
-          }}
-          onPointerDownOutside={(e) => {
-            const target = e.detail.originalEvent.target as Node;
-            if (triggerRef.current?.contains(target)) {
-              e.preventDefault();
-            } else {
-              setOpen(false);
-            }
-          }}
-        >
-          <FocusScope trapped={false} loop>
-            <Popper.Content
-              ref={setRefs}
-              id={contentId}
-              role="menu"
-              aria-labelledby={triggerId}
-              side={side}
-              align={align}
-              sideOffset={sideOffset}
-              alignOffset={alignOffset}
-              avoidCollisions
-              collisionPadding={8}
-              onKeyDown={handleKeyDown}
-              style={{
-                minWidth: matchTriggerWidth
-                  ? "var(--radix-popper-anchor-width)"
-                  : undefined,
-              }}
-              className={[
-                // Visual spec: radius 12px, 1px border, layered soft shadow, 6px padding
-                "z-[9999] rounded-xl border border-border bg-surface p-1.5",
-                "shadow-lg shadow-black/10 dark:shadow-black/40",
-                // Sizing spec: max-width 320px, max-height 320px with internal scroll
-                "w-max min-w-[180px] max-w-[320px] max-h-[320px] overflow-y-auto",
-                // Animation: 120ms fade plus 4px slide
-                "animate-dropdown-in outline-none select-none",
-                className,
-              ].join(" ")}
-              {...props}
-            >
-              {children}
-            </Popper.Content>
-          </FocusScope>
-        </DismissableLayer>
-      </Portal.Root>
+          } else {
+            setOpen(false);
+          }
+        }}
+      >
+        <FocusScope trapped={false} loop>
+          <Popper.Content
+            ref={setRefs}
+            id={contentId}
+            role="menu"
+            aria-labelledby={triggerId}
+            side={side}
+            align={align}
+            sideOffset={sideOffset}
+            alignOffset={alignOffset}
+            avoidCollisions
+            collisionPadding={8}
+            onKeyDown={handleKeyDown}
+            style={{
+              minWidth: matchTriggerWidth
+                ? "var(--radix-popper-anchor-width)"
+                : undefined,
+            }}
+            className={[
+              // Visual spec: radius 12px, 1px border, layered soft shadow, 6px padding
+              "z-[9999] rounded-xl border border-border bg-surface p-1.5",
+              "shadow-lg shadow-black/10 dark:shadow-black/40",
+              // Sizing spec: max-width 320px, max-height 320px with internal scroll
+              "w-max min-w-[180px] max-w-[320px] max-h-[320px] overflow-y-auto",
+              // Animation: 120ms fade plus 4px slide
+              "animate-dropdown-in outline-none select-none",
+              className,
+            ].join(" ")}
+            {...props}
+          >
+            {children}
+          </Popper.Content>
+        </FocusScope>
+      </DismissableLayer>
     );
+
+    return portalled ? <Portal.Root>{content}</Portal.Root> : content;
   },
 );
 DropdownMenuContent.displayName = "DropdownMenuContent";
