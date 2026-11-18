@@ -2,6 +2,8 @@ import React from "react";
 import { FilterX, Check } from "../../../lib/icons";
 import { EntityIcon } from "../../ontology/components/EntityTypeEditor";
 import type { EntityType } from "../../ontology/components/EntityTypeEditor";
+import { getEntityColor } from "../../../lib/entityColors";
+import { useThemeStore } from "../../../stores/themeStore";
 
 interface FacetFilterSidebarProps {
   selectedTypes: string[];
@@ -16,6 +18,8 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
   facets,
   ontologyTypes,
 }) => {
+  const isDark = useThemeStore((s) => s.isDark);
+
   const handleToggle = (typeName: string) => {
     const isSelected = selectedTypes.includes(typeName);
     let updated: string[];
@@ -75,7 +79,7 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
           ontologyTypes.map((type) => {
             const isChecked = selectedTypes.includes(type.name);
             const count = facets[type.name] ?? 0;
-            const color = type.color || "#3b82f6";
+            const color = type.color || getEntityColor(type.name, isDark);
             const icon = type.icon || "package";
             const isDisabled = count === 0 && !isChecked;
 

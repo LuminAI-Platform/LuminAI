@@ -31,6 +31,18 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
   errorMessage,
   startIngestion,
 }) => {
+  const activeCols = columnsConfig.filter((c) => c.active);
+  const mappedTypes = Array.from(
+    new Set(
+      activeCols.map((c) => mappings[c.name]?.targetEntityType).filter(Boolean),
+    ),
+  );
+  const singleType =
+    mappedTypes.length === 1
+      ? mappedTypes[0]
+      : mappedTypes.length === 0
+        ? "Person"
+        : null;
   return (
     <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full min-h-0 overflow-y-auto">
       {/* Left pane: file summary */}
@@ -67,6 +79,28 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Warning when all active columns map to a single entity type */}
+          {singleType && (
+            <div
+              data-testid="single-type-warning"
+              className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs flex items-start gap-2.5 text-amber-200"
+            >
+              <span className="text-amber-400 font-bold text-sm shrink-0 mt-0.5">
+                ⚠️
+              </span>
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold text-amber-300">
+                  Single Entity Type Mapping Notice
+                </span>
+                <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                  All records were mapped to <strong>{singleType}</strong>.
+                  Columns such as physician, insurer and diagnosis were stored
+                  as properties, not entities.
+                </p>
+              </div>
+            </div>
+          )}
 
           {!ingesting && !ingestionFinished && !ingestionFailed && (
             <button
