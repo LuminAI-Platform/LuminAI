@@ -144,7 +144,9 @@ export const MergeReviewPage: React.FC = () => {
               <Sparkles
                 className={`w-3.5 h-3.5 text-blue-400 ${scanMutation.isPending ? "animate-spin" : ""}`}
               />
-              {scanMutation.isPending ? "Scanning Datasets..." : "Scan for Duplicates"}
+              {scanMutation.isPending
+                ? "Scanning Datasets..."
+                : "Scan for Duplicates"}
             </button>
             <button
               onClick={() => refetch()}
@@ -205,9 +207,12 @@ export const MergeReviewPage: React.FC = () => {
                   <Search className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-300 mb-1">No Merge Candidates Found</p>
+                  <p className="font-semibold text-zinc-300 mb-1">
+                    No Merge Candidates Found
+                  </p>
                   <p className="text-[11px] text-zinc-500 max-w-[200px] mx-auto leading-relaxed">
-                    No duplicate record pairs in review queue. Run a linkage scan across your active connections.
+                    No duplicate record pairs in review queue. Run a linkage
+                    scan across your active connections.
                   </p>
                 </div>
                 <button
