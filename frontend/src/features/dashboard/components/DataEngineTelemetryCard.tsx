@@ -71,7 +71,7 @@ export const DataEngineTelemetryCard: React.FC = () => {
                 Python Data Engine & Polars Telemetry
               </h3>
               <Badge variant={isOnline ? "success" : "neutral"}>
-                {isOnline ? "ONLINE · :8000" : "STANDBY"}
+                {isOnline ? "ONLINE" : "STANDBY"}
               </Badge>
             </div>
             <p className="text-xs text-text-secondary">

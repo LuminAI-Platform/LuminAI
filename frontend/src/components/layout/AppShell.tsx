@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { NavigationProgressBar } from "./NavigationProgressBar";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import { TooltipProvider } from "../ui/Tooltip";
 
@@ -38,6 +39,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   return (
     <TooltipProvider>
+      <NavigationProgressBar />
       <div className="flex h-screen w-screen overflow-hidden bg-page text-text font-sans">
         {/* Collapsible Sidebar Drawer */}
         <Sidebar

@@ -1,11 +1,12 @@
 import React from "react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   type DatabaseConnector,
   formatRelativeTime,
   getHealthStatusBadge,
 } from "./connectionsTypes";
 import { Database, Layers, ArrowRight, Trash2 } from "lucide-react";
+import { ActionMenu } from "../../../components/ui/dropdown";
 
 interface ConnectorsTableProps {
   customConnectors: DatabaseConnector[];
@@ -18,6 +19,7 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
   onAddConnector,
   onDeleteConnector,
 }) => {
+  const navigate = useNavigate();
   if (customConnectors.length === 0) {
     return (
       <div className="bg-surface border border-border rounded-lg p-12 text-center flex flex-col items-center justify-center">
@@ -101,30 +103,35 @@ export const ConnectorsTable: React.FC<ConnectorsTableProps> = ({
                     {formatRelativeTime(c.lastSyncedAt)}
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <div className="inline-flex items-center gap-1.5">
-                      <Link
-                        to="/connections/schema-map"
-                        className="px-2 py-1 rounded bg-surface-subtle hover:bg-surface-hover border border-border text-text text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
-                        title="Configure schema mapping"
-                      >
-                        <Layers className="w-3 h-3" /> Map Schema
-                      </Link>
-                      <Link
-                        to="/connections/pipelines"
-                        className="px-2 py-1 rounded bg-surface-subtle hover:bg-surface-hover border border-border text-text text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
-                        title="View pipeline telemetry"
-                      >
-                        Pipeline <ArrowRight className="w-3 h-3" />
-                      </Link>
-                      {c.id && (
-                        <button
-                          onClick={() => onDeleteConnector(c)}
-                          className="p-1 rounded text-text-secondary hover:text-error hover:bg-error-bg transition-colors cursor-pointer"
-                          title="Delete connector"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                    <div className="inline-flex items-center justify-end">
+                      <ActionMenu
+                        ariaLabel={`Actions for ${c.name}`}
+                        items={[
+                          {
+                            label: "Map Schema",
+                            icon: <Layers className="w-4 h-4" />,
+                            onClick: () =>
+                              navigate({ to: "/connections/schema-map" }),
+                          },
+                          {
+                            label: "View Pipeline",
+                            icon: <ArrowRight className="w-4 h-4" />,
+                            onClick: () =>
+                              navigate({ to: "/connections/pipelines" }),
+                          },
+                          ...(c.id
+                            ? [
+                                {
+                                  label: "Delete Connector",
+                                  icon: <Trash2 className="w-4 h-4" />,
+                                  destructive: true,
+                                  dividerBefore: true,
+                                  onClick: () => onDeleteConnector(c),
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

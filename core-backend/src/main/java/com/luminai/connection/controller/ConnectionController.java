@@ -82,6 +82,15 @@ public class ConnectionController {
   }
 
   @Autowired
+  public void configurePipelineRunRepository(
+      @Autowired(required = false)
+          com.luminai.connection.repository.PipelineRunRepository pipelineRunRepository) {
+    if (this.uploadService != null && pipelineRunRepository != null) {
+      this.uploadService.setPipelineRunRepository(pipelineRunRepository);
+    }
+  }
+
+  @Autowired
   public void configureNeo4j(
       @Autowired(required = false) Neo4jGraphRepository neo4jGraphRepository) {
     this.neo4jGraphRepository = neo4jGraphRepository;

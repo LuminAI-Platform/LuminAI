@@ -1,4 +1,4 @@
-import type { SearchResponse } from "../types";
+import type { SearchResponse, SearchResultItem } from "../types";
 
 /**
  * Flattens nested facet structures from the search API into a flat
@@ -33,10 +33,48 @@ export function normalizeSearchResponse(
   pageSize: number,
   pageNum: number,
 ): SearchResponse {
-  const rawItems = (raw.items ?? raw.content) as
-    | SearchResponse["content"]
-    | undefined;
-  const items = rawItems ?? [];
+  const rawItems = (raw.items ?? raw.content) as unknown[] | undefined;
+  const items: SearchResultItem[] = (Array.isArray(rawItems) ? rawItems : [])
+    .filter(
+      (item): item is Record<string, unknown> =>
+        item != null && typeof item === "object",
+    )
+    .map((item) => {
+      const id = String(
+        item.id || item.entityId || "00000000-0000-0000-0000-000000000000",
+      );
+      const rawProps =
+        item.properties && typeof item.properties === "object"
+          ? (item.properties as Record<string, unknown>)
+          : {};
+      const canonicalName = String(
+        item.canonicalName ||
+          item.name ||
+          rawProps.canonicalName ||
+          rawProps.name ||
+          rawProps.title ||
+          rawProps.full_name ||
+          `Entity ${id.slice(0, 8)}`,
+      );
+      const entityType = String(
+        item.entityType ||
+          item.type ||
+          rawProps.entityType ||
+          rawProps.type ||
+          "Entity",
+      );
+      return {
+        id,
+        canonicalName,
+        entityType,
+        properties: rawProps,
+        createdAt: String(item.createdAt || new Date().toISOString()),
+        highlights:
+          item.highlights && typeof item.highlights === "object"
+            ? (item.highlights as Record<string, string[]>)
+            : undefined,
+      };
+    });
 
   const rawTotal = (raw.total ?? raw.totalElements) as number | undefined;
   const totalElements = rawTotal ?? items.length;

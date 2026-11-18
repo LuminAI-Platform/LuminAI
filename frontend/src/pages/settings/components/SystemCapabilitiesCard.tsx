@@ -80,7 +80,7 @@ export const SystemCapabilitiesCard: React.FC = () => {
             Cache Layer
           </span>
           <span className="text-text font-semibold">
-            Redis (30s Dashboard / 60s Explorer)
+            Distributed In-Memory Cache
           </span>
         </div>
 
@@ -88,9 +88,7 @@ export const SystemCapabilitiesCard: React.FC = () => {
           <span className="text-text-secondary font-medium block mb-1">
             Event Bus
           </span>
-          <span className="text-text font-semibold">
-            Apache Kafka (Batch 100)
-          </span>
+          <span className="text-text font-semibold">Stream Processing Bus</span>
         </div>
       </div>
     </div>

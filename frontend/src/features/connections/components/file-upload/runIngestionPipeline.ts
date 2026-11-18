@@ -163,12 +163,7 @@ export async function runIngestionPipeline({
   // 4. Save Mappings
   setProgress(85);
   const isZip = file.name.toLowerCase().endsWith(".zip");
-  if (
-    !isZip &&
-    createdConnId &&
-    createdConnId !== "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" &&
-    !createdConnId.startsWith("00000000-")
-  ) {
+  if (!isZip && createdConnId) {
     addLog(
       `[Schema] Persisting ontology entity and property mappings...`,
       "INFO",

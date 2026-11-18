@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Service for retrieving active and historical pipeline execution runs and summary metrics. */
 @Service
-@Transactional(readOnly = true)
+@Transactional
 public class PipelineMonitoringService {
 
   private final PipelineRunRepository pipelineRunRepository;
@@ -108,6 +108,7 @@ public class PipelineMonitoringService {
     return runs.map(run -> toDto(run, connectionMap.get(run.getConnectionId())));
   }
 
+  @Transactional(readOnly = true)
   public PipelineRunDto getPipelineRunById(UUID id) {
     PipelineRun run =
         pipelineRunRepository

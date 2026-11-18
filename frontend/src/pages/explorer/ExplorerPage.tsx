@@ -4,6 +4,7 @@ import { EntityCard } from "../../features/explorer/components/EntityCard";
 import { FacetFilterSidebar } from "../../features/explorer/components/FacetFilterSidebar";
 import { Layers, Download } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { MultiSelect } from "../../components/ui/dropdown";
 import {
   ExplorerPagination,
   ExplorerEmptyState,
@@ -67,8 +68,8 @@ export const ExplorerPage: React.FC = () => {
         }
       />
 
-      {/* Search Input Bar Row */}
-      <div className="flex justify-center md:justify-start">
+      {/* Search Input Bar & Entity Types Multi-Select Row */}
+      <div className="flex flex-wrap items-center gap-3">
         <SearchBar
           query={inputValue}
           onChange={setInputValue}
@@ -76,6 +77,19 @@ export const ExplorerPage: React.FC = () => {
           suggestions={suggestions}
           onSelectSuggestion={handleSelectSuggestion}
         />
+        {ontologyTypes.length > 0 && (
+          <MultiSelect
+            label="Entity Types"
+            values={selectedTypes}
+            onChange={setSelectedTypes}
+            options={ontologyTypes.map((t) => ({
+              value: t.name,
+              label: t.label || t.name,
+              count: facets[t.name] ?? 0,
+            }))}
+            searchPlaceholder="Search entity types…"
+          />
+        )}
       </div>
 
       {/* Main Workspace Layout */}
@@ -122,13 +136,13 @@ export const ExplorerPage: React.FC = () => {
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {searchData.content.map((entity) => (
+                  {searchData.content.filter(Boolean).map((entity, index) => (
                     <EntityCard
-                      key={entity.id}
-                      id={entity.id}
-                      canonicalName={entity.canonicalName}
-                      entityType={entity.entityType}
-                      properties={entity.properties}
+                      key={entity.id || `entity-${index}`}
+                      id={entity.id || ""}
+                      canonicalName={entity.canonicalName || "Unnamed Entity"}
+                      entityType={entity.entityType || "Entity"}
+                      properties={entity.properties || {}}
                       createdAt={entity.createdAt}
                       highlights={entity.highlights}
                       ontologyTypes={ontologyTypes}

@@ -65,8 +65,8 @@ export const PipelineAnalysisView: React.FC = () => {
           Can&apos;t reach the data engine
         </h4>
         <p className="text-xs text-text-secondary max-w-sm mb-4 leading-relaxed">
-          The Python Data Engine (:8000) is currently offline or unreachable.
-          Telemetry computation and historical analysis are unavailable.
+          The Python Data Engine is currently offline or unreachable. Telemetry
+          computation and historical analysis are unavailable.
         </p>
 
         {errorCode && (
@@ -103,7 +103,7 @@ export const PipelineAnalysisView: React.FC = () => {
 
         {showErrorDetails && (
           <div className="w-full max-w-md p-3 rounded-lg bg-surface border border-border text-left font-mono text-[11px] text-text-secondary overflow-x-auto">
-            <div>Target: http://localhost:8000 (Data Engine API)</div>
+            <div>Target: Data Engine API (/api/v1/engine/metrics)</div>
             <div>Error: {errorMessage}</div>
             <div>Status: STANDBY / TIMEOUT</div>
           </div>

@@ -48,6 +48,12 @@ public class ErCandidate {
   @Column(name = "golden_record_id")
   private UUID goldenRecordId;
 
+  @Column(name = "pipeline_run_id")
+  private UUID pipelineRunId;
+
+  @Column(name = "match_method", length = 100)
+  private String matchMethod = "JARO_WINKLER_LEVENSHTEIN";
+
   @Convert(converter = JsonMapConverter.class)
   @Column(name = "record_a_snapshot", columnDefinition = "text")
   private Map<String, Object> recordASnapshot = new LinkedHashMap<>();
@@ -152,6 +158,22 @@ public class ErCandidate {
 
   public void setGoldenRecordId(UUID goldenRecordId) {
     this.goldenRecordId = goldenRecordId;
+  }
+
+  public UUID getPipelineRunId() {
+    return pipelineRunId;
+  }
+
+  public void setPipelineRunId(UUID pipelineRunId) {
+    this.pipelineRunId = pipelineRunId;
+  }
+
+  public String getMatchMethod() {
+    return matchMethod;
+  }
+
+  public void setMatchMethod(String matchMethod) {
+    this.matchMethod = matchMethod;
   }
 
   public Map<String, Object> getRecordASnapshot() {

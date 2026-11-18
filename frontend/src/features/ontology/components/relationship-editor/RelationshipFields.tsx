@@ -1,6 +1,7 @@
 import React from "react";
 import type { RelationshipType, EntityTypeOption } from "./relationshipTypes";
 import { CARDINALITY_OPTIONS } from "./relationshipTypes";
+import { Select } from "../../../../components/ui/dropdown";
 
 interface RelationshipFieldsProps {
   form: RelationshipType;
@@ -73,19 +74,18 @@ export const RelationshipFields: React.FC<RelationshipFieldsProps> = ({
             <label htmlFor="rel-source" className="text-[10px] text-zinc-600">
               Source
             </label>
-            <select
+            <Select
               id="rel-source"
               value={form.sourceEntityTypeId}
-              onChange={(e) => set("sourceEntityTypeId", e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 transition-colors cursor-pointer"
-            >
-              <option value="">Select entity…</option>
-              {entityOptions.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => set("sourceEntityTypeId", val)}
+              placeholder="Select entity…"
+              options={entityOptions.map((e) => ({
+                value: e.id,
+                label: e.name,
+              }))}
+              ariaLabel="Source Entity"
+              size="sm"
+            />
           </div>
 
           {/* Directed arrow */}
@@ -132,19 +132,18 @@ export const RelationshipFields: React.FC<RelationshipFieldsProps> = ({
             <label htmlFor="rel-target" className="text-[10px] text-zinc-600">
               Target
             </label>
-            <select
+            <Select
               id="rel-target"
               value={form.targetEntityTypeId}
-              onChange={(e) => set("targetEntityTypeId", e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 transition-colors cursor-pointer"
-            >
-              <option value="">Select entity…</option>
-              {entityOptions.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => set("targetEntityTypeId", val)}
+              placeholder="Select entity…"
+              options={entityOptions.map((e) => ({
+                value: e.id,
+                label: e.name,
+              }))}
+              ariaLabel="Target Entity"
+              size="sm"
+            />
           </div>
         </div>
       </div>

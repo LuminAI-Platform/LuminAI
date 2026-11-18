@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { apiFetch, getAccessToken, ApiError } from "../lib/api";
+import {
+  apiFetch,
+  getAccessToken,
+  ApiError,
+  ApiTimeoutError,
+} from "../lib/api";
 import { useAuthStore } from "../stores/authStore";
 import type { User } from "oidc-client-ts";
 
@@ -77,5 +82,26 @@ describe("apiFetch & Network Layer Robustness", () => {
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it("should abort and throw ApiTimeoutError when request exceeds timeout", async () => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new Error("aborted"));
+        });
+      });
+    });
+
+    const promise = apiFetch("/api/v1/slow-engine", {
+      // @ts-expect-error test timeoutMs parameter
+      timeoutMs: 100,
+      headers: { "X-Suppress-Toast": "true" },
+    });
+    vi.advanceTimersByTime(200);
+
+    await expect(promise).rejects.toThrow(ApiTimeoutError);
+    vi.useRealTimers();
   });
 });

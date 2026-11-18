@@ -54,7 +54,13 @@ public class PipelineSseController {
       @Parameter(description = "Filter by connection UUID") @RequestParam(required = false)
           UUID connectionId,
       @Parameter(description = "Filter by pipeline run ID") @RequestParam(required = false)
-          String runId) {
+          String runId,
+      jakarta.servlet.http.HttpServletResponse response) {
+
+    if (response != null) {
+      response.setHeader("Cache-Control", "no-cache, no-transform");
+      response.setHeader("X-Accel-Buffering", "no");
+    }
 
     UUID tenantId = com.luminai.common.tenant.TenantContext.getTenantUuid();
     log.info(
@@ -80,7 +86,13 @@ public class PipelineSseController {
   })
   public SseEmitter streamPipelineRunEvents(
       @Parameter(description = "Pipeline run UUID or ID", required = true) @PathVariable
-          String runId) {
+          String runId,
+      jakarta.servlet.http.HttpServletResponse response) {
+
+    if (response != null) {
+      response.setHeader("Cache-Control", "no-cache, no-transform");
+      response.setHeader("X-Accel-Buffering", "no");
+    }
 
     UUID tenantId = com.luminai.common.tenant.TenantContext.getTenantUuid();
     log.info("New SSE client connected for runId={}, tenantId={}", runId, tenantId);

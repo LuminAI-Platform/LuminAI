@@ -155,7 +155,9 @@ export const AutoGenerateModal: React.FC<AutoGenerateModalProps> = ({
     }
 
     if (cols.length === 0) {
-      cols = ["id", "name", "category", "status", "created_at"];
+      setError("No schema columns found in the connection configuration.");
+      setInferredProps([]);
+      return;
     }
 
     const props: InferredProp[] = cols.map((c) => ({

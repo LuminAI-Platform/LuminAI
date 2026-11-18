@@ -19,6 +19,7 @@ import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.engine.service.DataEngineClient;
 import java.time.Instant;
 import java.util.*;
+import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,9 @@ public class MergeReviewService {
 
   @Autowired(required = false)
   private DataEngineClient dataEngineClient;
+
+  @Autowired(required = false)
+  private DataSource dataSource;
 
   @Autowired(required = false)
   private ObjectMapper objectMapper = new ObjectMapper();
@@ -88,139 +92,206 @@ public class MergeReviewService {
    */
   @Transactional
   public Map<String, Object> scanCandidates() {
-    UUID tenantUuid = TenantContext.getTenantUuid();
-    if (tenantUuid == null) {
-      tenantUuid = UUID.fromString("00000000-0000-0000-0000-000000000001");
-    }
-    String tenantSlug = TenantContext.getTenantSlug();
-    if (tenantSlug == null) {
-      tenantSlug = "default";
-    }
-
-    // Trigger Python Data Engine ER pipeline if available
-    if (dataEngineClient != null) {
-      try {
-        dataEngineClient.resolveEntities(
-            Map.of("tenant_id", tenantSlug, "source_id", "connections"));
-      } catch (Exception e) {
-        log.debug("Remote Data Engine ER trigger skipped: {}", e.getMessage());
+    try {
+      UUID tenantUuid = TenantContext.getTenantUuid();
+      if (tenantUuid == null) {
+        tenantUuid = UUID.fromString("00000000-0000-0000-0000-000000000001");
       }
-    }
-
-    List<Connection> connections =
-        connectionRepository != null
-            ? connectionRepository.findAllByTenantId(tenantUuid)
-            : List.of();
-
-    int generatedCount = 0;
-    List<Map<String, Object>> candidatePool = new ArrayList<>();
-
-    for (Connection conn : connections) {
-      if (conn.getConfig() == null || conn.getConfig().isBlank()) {
-        continue;
+      String tenantSlug = TenantContext.getTenantSlug();
+      if (tenantSlug == null) {
+        tenantSlug = "default";
       }
-      try {
-        JsonNode root = objectMapper.readTree(conn.getConfig());
-        String connName = conn.getName() != null ? conn.getName() : "Dataset";
 
-        if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
-          for (JsonNode rowNode : root.get("sampleRows")) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> row = objectMapper.convertValue(rowNode, Map.class);
-            if (row != null && !row.isEmpty()) {
-              Map<String, Object> copy = new LinkedHashMap<>(row);
-              copy.put("sourceSystem", connName);
-              candidatePool.add(copy);
+      String schemaName = "tenant_" + tenantSlug;
+      ensureTableCompatibility(schemaName);
+
+      // Trigger Python Data Engine ER pipeline if available
+      if (dataEngineClient != null) {
+        try {
+          dataEngineClient.resolveEntities(
+              Map.of("tenant_id", tenantSlug, "source_id", "connections"));
+        } catch (Exception e) {
+          log.debug("Remote Data Engine ER trigger skipped: {}", e.getMessage());
+        }
+      }
+
+      List<Connection> connections =
+          connectionRepository != null
+              ? connectionRepository.findAllByTenantId(tenantUuid)
+              : List.of();
+
+      int generatedCount = 0;
+      List<Map<String, Object>> candidatePool = new ArrayList<>();
+
+      for (Connection conn : connections) {
+        if (conn.getConfig() == null || conn.getConfig().isBlank()) {
+          continue;
+        }
+        try {
+          JsonNode root = objectMapper.readTree(conn.getConfig());
+          String connName = conn.getName() != null ? conn.getName() : "Dataset";
+
+          if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
+            for (JsonNode rowNode : root.get("sampleRows")) {
+              @SuppressWarnings("unchecked")
+              Map<String, Object> row = objectMapper.convertValue(rowNode, Map.class);
+              if (row != null && !row.isEmpty()) {
+                Map<String, Object> copy = new LinkedHashMap<>(row);
+                copy.put("sourceSystem", connName);
+                candidatePool.add(copy);
+              }
             }
           }
-        }
 
-        if (root.has("tables") && root.get("tables").isObject()) {
-          Iterator<String> tableKeys = root.get("tables").fieldNames();
-          while (tableKeys.hasNext()) {
-            String tableName = tableKeys.next();
-            JsonNode tableNode = root.get("tables").get(tableName);
-            if (tableNode.has("sampleRows") && tableNode.get("sampleRows").isArray()) {
-              for (JsonNode rowNode : tableNode.get("sampleRows")) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> row = objectMapper.convertValue(rowNode, Map.class);
-                if (row != null && !row.isEmpty()) {
-                  Map<String, Object> copy = new LinkedHashMap<>(row);
-                  copy.put("sourceSystem", connName + " [" + tableName + "]");
-                  candidatePool.add(copy);
+          if (root.has("tables") && root.get("tables").isObject()) {
+            Iterator<String> tableKeys = root.get("tables").fieldNames();
+            while (tableKeys.hasNext()) {
+              String tableName = tableKeys.next();
+              JsonNode tableNode = root.get("tables").get(tableName);
+              if (tableNode.has("sampleRows") && tableNode.get("sampleRows").isArray()) {
+                for (JsonNode rowNode : tableNode.get("sampleRows")) {
+                  @SuppressWarnings("unchecked")
+                  Map<String, Object> row = objectMapper.convertValue(rowNode, Map.class);
+                  if (row != null && !row.isEmpty()) {
+                    Map<String, Object> copy = new LinkedHashMap<>(row);
+                    copy.put("sourceSystem", connName + " [" + tableName + "]");
+                    candidatePool.add(copy);
+                  }
                 }
               }
             }
           }
+        } catch (Exception e) {
+          log.warn("Error reading connection config during candidate scan: {}", e.getMessage());
         }
-      } catch (Exception e) {
-        log.warn("Error reading connection config during candidate scan: {}", e.getMessage());
       }
-    }
 
-    int poolSize = candidatePool.size();
-    if (poolSize == 0) {
-      return Map.of(
-          "status", "SUCCESS",
-          "message",
-              "No records found in active connections to analyze. Upload a dataset to begin entity resolution.",
-          "candidatesFound", 0);
-    }
+      int poolSize = candidatePool.size();
+      if (poolSize == 0) {
+        return Map.of(
+            "status", "SUCCESS",
+            "message",
+                "No records found in active connections to analyze. Upload a dataset to begin entity resolution.",
+            "candidatesFound", 0);
+      }
 
-    for (int i = 0; i < poolSize && generatedCount < 50; i++) {
-      Map<String, Object> rowA = candidatePool.get(i);
-      String nameA = extractName(rowA);
-      String emailA = extractString(rowA, "email");
-      String phoneA = extractPhone(rowA);
+      for (int i = 0; i < poolSize && generatedCount < 50; i++) {
+        Map<String, Object> rowA = candidatePool.get(i);
+        String nameA = extractName(rowA);
+        String emailA = extractString(rowA, "email");
+        String phoneA = extractPhone(rowA);
 
-      for (int j = i + 1; j < poolSize && generatedCount < 50; j++) {
-        Map<String, Object> rowB = candidatePool.get(j);
-        String nameB = extractName(rowB);
-        String emailB = extractString(rowB, "email");
-        String phoneB = extractPhone(rowB);
+        for (int j = i + 1; j < poolSize && generatedCount < 50; j++) {
+          Map<String, Object> rowB = candidatePool.get(j);
+          String nameB = extractName(rowB);
+          String emailB = extractString(rowB, "email");
+          String phoneB = extractPhone(rowB);
 
-        double similarity =
-            computeSimilarity(nameA, nameB, emailA, emailB, phoneA, phoneB, rowA, rowB);
-        if (similarity >= 0.70 && similarity < 0.90) {
-          UUID recordAId = extractOrGenerateUuid(rowA, i);
-          UUID recordBId = extractOrGenerateUuid(rowB, j);
+          double similarity =
+              computeSimilarity(nameA, nameB, emailA, emailB, phoneA, phoneB, rowA, rowB);
+          if (similarity >= 0.70 && similarity < 0.90) {
+            UUID recordAId = extractOrGenerateUuid(rowA, i);
+            UUID recordBId = extractOrGenerateUuid(rowB, j);
 
-          if (!candidateRepository.existsByRecordAIdAndRecordBId(recordAId, recordBId)) {
-            String rationale = buildRationale(nameA, nameB, similarity);
-            ErCandidate candidate = new ErCandidate(recordAId, recordBId, similarity, rationale);
-            candidate.setTenantId(tenantUuid);
-            candidate.setRecordASnapshot(new LinkedHashMap<>(rowA));
-            candidate.setRecordBSnapshot(new LinkedHashMap<>(rowB));
-            candidate.setComparisonDetails(
-                Map.of(
-                    "similarityScore",
-                    similarity,
-                    "matchedAlgorithm",
-                    "JARO_WINKLER_LEVENSHTEIN",
-                    "recordA_id",
-                    recordAId.toString(),
-                    "recordB_id",
-                    recordBId.toString()));
-            candidateRepository.save(candidate);
-            generatedCount++;
+            if (!candidateRepository.existsByRecordAIdAndRecordBId(recordAId, recordBId)) {
+              String rationale = buildRationale(nameA, nameB, similarity);
+              ErCandidate candidate = new ErCandidate(recordAId, recordBId, similarity, rationale);
+              candidate.setTenantId(tenantUuid);
+              candidate.setMatchMethod("JARO_WINKLER_LEVENSHTEIN");
+              candidate.setRecordASnapshot(new LinkedHashMap<>(rowA));
+              candidate.setRecordBSnapshot(new LinkedHashMap<>(rowB));
+              candidate.setComparisonDetails(
+                  Map.of(
+                      "similarityScore",
+                      similarity,
+                      "matchedAlgorithm",
+                      "JARO_WINKLER_LEVENSHTEIN",
+                      "recordA_id",
+                      recordAId.toString(),
+                      "recordB_id",
+                      recordBId.toString()));
+              candidateRepository.save(candidate);
+              generatedCount++;
+            }
           }
         }
       }
+
+      String summaryMessage =
+          generatedCount > 0
+              ? String.format(
+                  "Entity Resolution scan identified %d candidate duplicate pair(s) across %d records.",
+                  generatedCount, poolSize)
+              : String.format(
+                  "Scan complete: 0 duplicate pairs detected across %d records in your active connections. All records appear distinct.",
+                  poolSize);
+
+      return Map.of(
+          "status", "SUCCESS",
+          "message", summaryMessage,
+          "candidatesFound", generatedCount);
+    } catch (Exception e) {
+      log.error("Error during duplicate candidate scan: {}", e.getMessage(), e);
+      return Map.of(
+          "status",
+          "ERROR",
+          "message",
+          "Candidate scan encountered an issue: " + e.getMessage(),
+          "candidatesFound",
+          0);
     }
+  }
 
-    String summaryMessage =
-        generatedCount > 0
-            ? String.format(
-                "Entity Resolution scan identified %d candidate duplicate pair(s) across %d records.",
-                generatedCount, poolSize)
-            : String.format(
-                "Scan complete: 0 duplicate pairs detected across %d records in your active connections. All records appear distinct.",
-                poolSize);
-
-    return Map.of(
-        "status", "SUCCESS",
-        "message", summaryMessage,
-        "candidatesFound", generatedCount);
+  private void ensureTableCompatibility(String schemaName) {
+    if (dataSource == null || schemaName == null) {
+      return;
+    }
+    try (java.sql.Connection conn = dataSource.getConnection();
+        java.sql.Statement stmt = conn.createStatement()) {
+      stmt.execute(
+          String.format(
+              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS record_a_snapshot TEXT;",
+              schemaName));
+      stmt.execute(
+          String.format(
+              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS record_b_snapshot TEXT;",
+              schemaName));
+      stmt.execute(
+          String.format(
+              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS match_rationale VARCHAR(2000) DEFAULT '';",
+              schemaName));
+      stmt.execute(
+          String.format(
+              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS comparison_details TEXT;",
+              schemaName));
+      stmt.execute(
+          String.format(
+              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();",
+              schemaName));
+      try {
+        stmt.execute(
+            String.format(
+                "ALTER TABLE IF EXISTS %s.er_candidates ALTER COLUMN pipeline_run_id DROP NOT NULL;",
+                schemaName));
+      } catch (Exception ignored) {
+      }
+      try {
+        stmt.execute(
+            String.format(
+                "ALTER TABLE IF EXISTS %s.er_candidates ALTER COLUMN match_method DROP NOT NULL;",
+                schemaName));
+      } catch (Exception ignored) {
+      }
+      try {
+        stmt.execute(
+            String.format(
+                "ALTER TABLE IF EXISTS %s.er_candidates ALTER COLUMN golden_record_id DROP NOT NULL;",
+                schemaName));
+      } catch (Exception ignored) {
+      }
+    } catch (Exception e) {
+      log.debug("Schema compatibility check skipped or already satisfied: {}", e.getMessage());
+    }
   }
 
   /**

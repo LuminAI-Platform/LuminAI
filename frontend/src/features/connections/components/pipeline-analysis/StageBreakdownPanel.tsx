@@ -102,7 +102,7 @@ export const StageBreakdownPanel: React.FC<StageBreakdownPanelProps> = ({
                       </div>
                     </td>
                     <td className="py-3 px-3 font-mono text-text">
-                      {st.durationSeconds}s
+                      {st.durationSeconds > 0 ? `${st.durationSeconds}s` : "—"}
                     </td>
                     <td className="py-3 px-3 text-right space-x-1">
                       {st.isSlowest && (

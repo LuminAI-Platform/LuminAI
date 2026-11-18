@@ -205,7 +205,7 @@ export function usePipelineAnalysis() {
 
     if (totalIn === 0 && totalOut === 0) return [];
 
-    // Stages: Ingest -> Clean -> Dedupe -> Resolve
+    // Stages: Ingest -> Clean -> Dedupe -> Resolve based on real run telemetry
     const stages: StageMetric[] = [
       {
         stage: "ingest",
@@ -213,31 +213,31 @@ export function usePipelineAnalysis() {
         recordsIn: totalIn,
         recordsOut: totalIn,
         dropped: 0,
-        durationSeconds: Math.round(totalDuration * 0.2),
+        durationSeconds: 0,
       },
       {
         stage: "clean",
         label: "Data Cleaning",
         recordsIn: totalIn,
-        recordsOut: totalOut + Math.round(totalFailed * 0.5),
-        dropped: Math.round(totalFailed * 0.5),
-        durationSeconds: Math.round(totalDuration * 0.45),
+        recordsOut: totalOut,
+        dropped: totalFailed,
+        durationSeconds: totalDuration,
       },
       {
         stage: "dedupe",
         label: "Deduplication",
-        recordsIn: totalOut + Math.round(totalFailed * 0.5),
+        recordsIn: totalOut,
         recordsOut: totalOut,
-        dropped: Math.round(totalFailed * 0.3),
-        durationSeconds: Math.round(totalDuration * 0.2),
+        dropped: 0,
+        durationSeconds: 0,
       },
       {
         stage: "resolve",
         label: "Entity Resolution",
         recordsIn: totalOut,
         recordsOut: totalOut,
-        dropped: Math.round(totalFailed * 0.2),
-        durationSeconds: Math.round(totalDuration * 0.15),
+        dropped: 0,
+        durationSeconds: 0,
       },
     ];
 
@@ -258,7 +258,9 @@ export function usePipelineAnalysis() {
       }
     });
 
-    stages[maxDurationIdx].isSlowest = true;
+    if (maxDuration > 0) {
+      stages[maxDurationIdx].isSlowest = true;
+    }
     if (maxDropped > 0) {
       stages[maxDroppedIdx].isHighestDrop = true;
     }
