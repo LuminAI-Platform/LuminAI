@@ -72,6 +72,7 @@ export function useIngestionRunner(opts: IngestionRunnerOptions) {
         "SUCCESS",
       );
 
+      const isZip = file.name.toLowerCase().endsWith(".zip");
       const newFileItem = {
         id: result.connectionId || String(Date.now()),
         name: file.name,
@@ -82,8 +83,8 @@ export function useIngestionRunner(opts: IngestionRunnerOptions) {
         recordsCount: totalCount,
         status: "Synced",
         createdAt: new Date().toLocaleString(),
-        columns: parsedData.columns,
-        sampleRows: parsedData.rows.slice(0, 50),
+        columns: isZip ? [] : parsedData.columns,
+        sampleRows: isZip ? [] : parsedData.rows.slice(0, 50),
       };
       try {
         const existing = JSON.parse(

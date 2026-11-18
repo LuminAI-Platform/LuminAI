@@ -288,6 +288,34 @@ public class ConnectionUploadService {
           configMap.put("archive", true);
           configMap.put("recordsCount", totalExtractedRows);
           configMap.put("tables", tables);
+
+          // Populate combined sample rows and columns across all extracted tables
+          List<Map<String, Object>> combinedSampleRows = new ArrayList<>();
+          java.util.LinkedHashSet<String> combinedColumns = new java.util.LinkedHashSet<>();
+          combinedColumns.add("_table");
+
+          for (Map<String, Object> tbl : tables) {
+            String tblName = (String) tbl.get("fileName");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> tRows = (List<Map<String, Object>>) tbl.get("sampleRows");
+            if (tRows != null) {
+              for (Map<String, Object> r : tRows) {
+                Map<String, Object> rowWithTable = new LinkedHashMap<>();
+                rowWithTable.put("_table", tblName);
+                rowWithTable.putAll(r);
+                combinedSampleRows.add(rowWithTable);
+                combinedColumns.addAll(r.keySet());
+                if (combinedSampleRows.size() >= 150) break;
+              }
+            }
+            if (combinedSampleRows.size() >= 150) break;
+          }
+
+          if (!combinedSampleRows.isEmpty()) {
+            configMap.put("columns", new ArrayList<>(combinedColumns));
+            configMap.put("sampleRows", combinedSampleRows);
+          }
+
           connection.setConfig(objectMapper.writeValueAsString(configMap));
           connection.setStatus(Connection.Status.ACTIVE);
           connection.setLastSyncAt(Instant.now());
