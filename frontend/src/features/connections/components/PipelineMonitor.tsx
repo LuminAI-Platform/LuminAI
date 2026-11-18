@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Activity, AlertCircle, ArrowRight, RefreshCw } from "lucide-react";
 import { apiFetch, ApiError } from "../../../lib/api";
+import { queryClient } from "../../../lib/queryClient";
 import { Button } from "../../../components/ui/Button";
+import { Skeleton } from "../../../components/ui/Skeleton";
 import { PipelineJobCard, type PipelineJob } from "./PipelineJobCard";
 import {
   usePipelineStream,
@@ -39,17 +42,6 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   const [jobs, setJobs] = useState<PipelineJob[]>(() => initialJobs ?? []);
   const [filter, setFilter] = useState<FilterStatus>("ALL");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isLoading, setIsLoading] = useState(() => {
-    if (initialLoading !== undefined) return initialLoading;
-    if (
-      typeof import.meta !== "undefined" &&
-      import.meta.env &&
-      import.meta.env.MODE === "test"
-    ) {
-      return false;
-    }
-    return true;
-  });
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [is404Error, setIs404Error] = useState(false);
 
@@ -72,6 +64,55 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       // keep existing jobs
     }
   }, []);
+
+  // React Query with 30s cache retention (stale-while-revalidate)
+  const {
+    data: queryData,
+    isLoading: isQueryLoading,
+    error: queryError,
+    refetch,
+    dataUpdatedAt,
+  } = useQuery(
+    {
+      queryKey: ["pipeline", "runs"],
+      queryFn: async () => {
+        const res = await apiFetch("/api/v1/pipelines/runs");
+        if (!res.ok) throw new ApiError(res);
+        return res.json();
+      },
+      staleTime: 30 * 1000,
+      retry: 1,
+      enabled: initialJobs === undefined,
+    },
+    queryClient,
+  );
+
+  useEffect(() => {
+    if (queryData) {
+      ingestPayload(queryData);
+    }
+  }, [queryData, ingestPayload]);
+
+  const isTestEnv =
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.MODE === "test";
+
+  const isActuallyLoading =
+    initialLoading !== undefined
+      ? initialLoading
+      : isTestEnv
+        ? false
+        : isQueryLoading && jobs.length === 0;
+
+  const effectiveError = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Failed to load pipeline runs"
+    : fetchError;
+
+  const is404 =
+    (queryError instanceof ApiError && queryError.status === 404) || is404Error;
 
   const fetchOnce = useCallback(async () => {
     try {
@@ -97,8 +138,6 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       setFetchError(
         err instanceof Error ? err.message : "Failed to load pipeline runs",
       );
-    } finally {
-      setIsLoading(false);
     }
   }, [ingestPayload]);
 
@@ -180,28 +219,69 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     };
   }, [jobs, fetchOnce]);
 
-  if (isLoading) {
+  if (isActuallyLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3 bg-surface border border-border rounded-lg select-none">
-        <svg
-          className="animate-spin text-text-secondary"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M21 12a9 9 0 1 1-6.22-8.56" />
-        </svg>
-        <span className="text-xs text-text-secondary">
-          Connecting to telemetry stream...
-        </span>
+      <div
+        className="flex flex-col gap-5 select-none"
+        data-testid="pipeline-monitor-loading"
+      >
+        {/* KPIs Row Skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="p-4 rounded-xl bg-surface border border-border flex flex-col gap-2.5"
+            >
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-6 w-6 rounded-md" />
+              </div>
+              <Skeleton className="h-6 w-16" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          ))}
+        </div>
+
+        {/* Filter bar Skeleton */}
+        <div className="flex items-center justify-between p-3 rounded-lg bg-surface border border-border">
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-6 w-16 rounded-full" />
+            ))}
+          </div>
+          <Skeleton className="h-6 w-28 rounded-lg" />
+        </div>
+
+        {/* Job Cards Skeleton */}
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="p-4 rounded-xl bg-surface border border-border flex flex-col gap-3"
+            >
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-8 h-8 rounded-lg" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-2 w-full rounded-full" />
+              <div className="flex justify-between pt-1">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (fetchError) {
+  if (effectiveError && jobs.length === 0) {
     return (
       <div
         className="flex flex-col items-center justify-center py-14 px-6 border border-error-border/60 bg-error-bg/30 rounded-xl text-center select-none"
@@ -212,24 +292,24 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
         </div>
 
         <h4 className="text-base font-bold text-text mb-1">
-          Couldn&apos;t load pipelines
+          Can&apos;t reach the data engine
         </h4>
         <p className="text-xs text-text-secondary max-w-sm mb-5 leading-relaxed">
-          {is404Error
+          {is404
             ? "The pipeline service endpoint was not found (404)."
-            : fetchError}
+            : effectiveError}
         </p>
 
         <Button
           variant="secondary"
           size="sm"
           onClick={() => {
-            setIsLoading(true);
+            refetch();
             fetchOnce();
           }}
           leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
         >
-          Retry
+          Retry Connection
         </Button>
       </div>
     );
@@ -303,9 +383,12 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
             onReconnect={reconnect}
             fallbackNote="polling every 30s"
           />
-          {lastUpdated && (
+          {(lastUpdated || dataUpdatedAt > 0) && (
             <span className="text-[10px] text-text-secondary select-none font-mono">
-              Updated {lastUpdated.toLocaleTimeString()}
+              Updated{" "}
+              {new Date(
+                lastUpdated ? lastUpdated.getTime() : dataUpdatedAt,
+              ).toLocaleTimeString()}
             </span>
           )}
         </div>

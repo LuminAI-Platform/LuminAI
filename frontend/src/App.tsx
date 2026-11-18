@@ -14,6 +14,17 @@ import { CallbackPage } from "./features/auth/CallbackPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
 import {
+  DashboardSkeleton,
+  PipelineMonitorSkeleton,
+  ConnectionsSkeleton,
+  ExplorerSkeleton,
+  GraphSkeleton,
+  SchemaMapSkeleton,
+  MergeReviewSkeleton,
+  OntologySkeleton,
+  SettingsSkeleton,
+} from "./components/skeletons/RouteSkeletons";
+import {
   DashboardPage,
   ExplorerPage,
   EntityDetailPage,
@@ -77,36 +88,42 @@ const indexRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/",
   component: DashboardPage,
+  pendingComponent: DashboardSkeleton,
 });
 
 const explorerRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer",
   component: ExplorerPage,
+  pendingComponent: ExplorerSkeleton,
 });
 
 const entityDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer/$entityId",
   component: EntityDetailPage,
+  pendingComponent: ExplorerSkeleton,
 });
 
 const connectionsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections",
   component: ConnectionsPage,
+  pendingComponent: ConnectionsSkeleton,
 });
 
 const schemaMapRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/schema-map",
   component: SchemaMapPage,
+  pendingComponent: SchemaMapSkeleton,
 });
 
 const pipelineRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/pipelines",
   component: PipelinePage,
+  pendingComponent: PipelineMonitorSkeleton,
 });
 
 const legacyPipelineRoute = createRoute({
@@ -121,24 +138,28 @@ const mergeReviewRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/merge-review",
   component: MergeReviewPage,
+  pendingComponent: MergeReviewSkeleton,
 });
 
 const ontologyRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/ontology",
   component: OntologyPage,
+  pendingComponent: OntologySkeleton,
 });
 
 const graphRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/graph",
   component: GraphPage,
+  pendingComponent: GraphSkeleton,
 });
 
 const settingsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/settings",
   component: SettingsPage,
+  pendingComponent: SettingsSkeleton,
 });
 
 const adminUsersRoute = createRoute({
@@ -149,6 +170,7 @@ const adminUsersRoute = createRoute({
       <UserRegistrationPage />
     </AdminRoute>
   ),
+  pendingComponent: SettingsSkeleton,
 });
 
 const adminTenantsRoute = createRoute({
@@ -159,6 +181,7 @@ const adminTenantsRoute = createRoute({
       <TenantRegistrationPage />
     </AdminRoute>
   ),
+  pendingComponent: SettingsSkeleton,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -186,6 +209,10 @@ const routeTree = rootRoute.addChildren([
 const router = createRouter({
   routeTree,
   defaultNotFoundComponent: AppShellNotFound,
+  defaultPreload: "intent",
+  defaultPreloadDelay: 50,
+  defaultPendingMs: 50,
+  defaultPendingMinMs: 150,
 });
 
 declare module "@tanstack/react-router" {

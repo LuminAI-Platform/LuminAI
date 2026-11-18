@@ -21,7 +21,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
   return (
     <div
-      className={`animate-pulse bg-surface-muted ${variantClass} ${className}`}
+      className={`animate-pulse motion-reduce:animate-none bg-surface-muted ${variantClass} ${className}`}
       {...props}
     />
   );
