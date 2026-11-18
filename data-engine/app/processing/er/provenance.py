@@ -112,6 +112,12 @@ def persist_provenance_records(
 
     now_utc = datetime.now(timezone.utc)
 
+    schema_name = (
+        f"tenant_{tenant_id}"
+        if not str(tenant_id).startswith("tenant_")
+        else str(tenant_id)
+    )
+
     # Try PostgreSQL first
     try:
         pg_engine = get_engine()
@@ -121,7 +127,9 @@ def persist_provenance_records(
 
         with pg_engine.connect() as conn:
             try:
-                conn.execute(text("SET search_path TO tenant_default, public;"))
+                conn.execute(
+                    text(f"SET search_path TO {schema_name}, tenant_default, public;")
+                )
             except Exception:
                 pass
             inspector = inspect(conn)
@@ -130,11 +138,21 @@ def persist_provenance_records(
                 cols = {
                     c["name"]
                     for c in inspector.get_columns(
-                        "provenance", schema="tenant_default"
+                        "provenance", schema=schema_name
                     )
                 }
             except Exception:
                 pass
+            if not cols:
+                try:
+                    cols = {
+                        c["name"]
+                        for c in inspector.get_columns(
+                            "provenance", schema="tenant_default"
+                        )
+                    }
+                except Exception:
+                    pass
             if not cols:
                 try:
                     cols = {c["name"] for c in inspector.get_columns("provenance")}
@@ -145,7 +163,9 @@ def persist_provenance_records(
 
         with pg_engine.begin() as conn:
             try:
-                conn.execute(text("SET search_path TO tenant_default, public;"))
+                conn.execute(
+                    text(f"SET search_path TO {schema_name}, tenant_default, public;")
+                )
             except Exception:
                 pass
 

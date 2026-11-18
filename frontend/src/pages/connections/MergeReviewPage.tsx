@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, Sparkles } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import { Badge, SuggestedTag } from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/ToastProvider";
@@ -88,6 +88,27 @@ export const MergeReviewPage: React.FC = () => {
     },
   });
 
+  const scanMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch("/api/v1/er/candidates/scan", {
+        method: "POST",
+      });
+      if (!res.ok)
+        throw new Error(`Duplicate scan failed with HTTP ${res.status}`);
+      return res.json();
+    },
+    onSuccess: (data: { message?: string; candidatesFound?: number }) => {
+      toast.success(
+        "Entity Resolution Scan Complete",
+        data?.message || "Identified duplicate candidate pairs for review.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["er", "candidates"] });
+    },
+    onError: (err: Error) => {
+      toast.error("Duplicate Scan Failed", err.message);
+    },
+  });
+
   const filteredCandidates = candidatesList.filter((c) => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
@@ -115,6 +136,16 @@ export const MergeReviewPage: React.FC = () => {
         description="Inspect high-confidence record pairs flagged by Graph Linkage algorithms. Review conflicting attributes and confirm deterministic merges."
         actions={
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => scanMutation.mutate()}
+              disabled={scanMutation.isPending || isLoading}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-300 bg-blue-950/60 border border-blue-800/80 rounded-lg hover:bg-blue-900/60 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+            >
+              <Sparkles
+                className={`w-3.5 h-3.5 text-blue-400 ${scanMutation.isPending ? "animate-spin" : ""}`}
+              />
+              {scanMutation.isPending ? "Scanning Datasets..." : "Scan for Duplicates"}
+            </button>
             <button
               onClick={() => refetch()}
               disabled={isLoading || isRefetching}
@@ -169,8 +200,24 @@ export const MergeReviewPage: React.FC = () => {
                 Loading candidate pairs...
               </div>
             ) : filteredCandidates.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500 text-xs">
-                No matching merge candidates found
+              <div className="p-6 text-center flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
+                <div className="w-9 h-9 rounded-full bg-zinc-800/80 flex items-center justify-center text-zinc-400">
+                  <Search className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300 mb-1">No Merge Candidates Found</p>
+                  <p className="text-[11px] text-zinc-500 max-w-[200px] mx-auto leading-relaxed">
+                    No duplicate record pairs in review queue. Run a linkage scan across your active connections.
+                  </p>
+                </div>
+                <button
+                  onClick={() => scanMutation.mutate()}
+                  disabled={scanMutation.isPending}
+                  className="mt-1 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 bg-blue-950/40 border border-blue-800/60 rounded-md hover:bg-blue-900/50 transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3 text-blue-400" />
+                  {scanMutation.isPending ? "Scanning..." : "Run Linkage Scan"}
+                </button>
               </div>
             ) : (
               filteredCandidates.map((candidate) => {
