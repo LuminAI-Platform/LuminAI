@@ -6,6 +6,8 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Access to {@link ErCandidate}.
@@ -22,5 +24,8 @@ public interface ErCandidateRepository extends JpaRepository<ErCandidate, UUID> 
 
   long countByStatus(CandidateStatus status);
 
-  boolean existsByRecordAIdAndRecordBId(UUID recordAId, UUID recordBId);
+  @Query(
+      "SELECT COUNT(c) > 0 FROM ErCandidate c WHERE c.recordAId = :recordAId AND c.recordBId = :recordBId")
+  boolean existsByRecordAIdAndRecordBId(
+      @Param("recordAId") UUID recordAId, @Param("recordBId") UUID recordBId);
 }
