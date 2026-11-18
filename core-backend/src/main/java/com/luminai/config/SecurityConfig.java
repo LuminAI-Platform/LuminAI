@@ -83,10 +83,15 @@ public class SecurityConfig {
                     if (token != null) {
                       return token;
                     }
-                    // Support ?token= query parameter sent by browser EventSource (SSE)
+                    // Support ?token= and ?access_token= query parameters sent by browser
+                    // EventSource (SSE)
                     String queryToken = request.getParameter("token");
                     if (queryToken != null && !queryToken.isBlank()) {
                       return queryToken;
+                    }
+                    String queryAccessToken = request.getParameter("access_token");
+                    if (queryAccessToken != null && !queryAccessToken.isBlank()) {
+                      return queryAccessToken;
                     }
                     return null;
                   });

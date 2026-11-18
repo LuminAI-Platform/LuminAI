@@ -142,11 +142,16 @@ export function useExplorerSearch(
 
   // 5. Autocomplete suggestions derived from search response
   const suggestions = useMemo(() => {
-    if (!inputValue.trim() || !searchData) return [];
+    if (!inputValue.trim() || !searchData?.content) return [];
     const val = inputValue.toLowerCase().trim();
     const matches = searchData.content
+      .filter((item): item is import("../types").SearchResultItem =>
+        Boolean(item && item.canonicalName),
+      )
       .map((item) => item.canonicalName)
-      .filter((name) => name.toLowerCase().includes(val))
+      .filter(
+        (name) => typeof name === "string" && name.toLowerCase().includes(val),
+      )
       .slice(0, 5);
     return Array.from(new Set(matches));
   }, [inputValue, searchData]);

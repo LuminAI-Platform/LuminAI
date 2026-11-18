@@ -26,9 +26,10 @@ public class GraphController {
   }
 
   /** The default depth is one hop; traversal is never expanded beyond four hops. */
-  @GetMapping("/neighbourhood")
+  @GetMapping({"/neighbourhood", "/neighborhood", "/neighbors"})
   public ResponseEntity<GraphQueryResponseDto> getNeighbourhood(
-      @RequestParam @NotBlank(message = "entityId must not be blank") String entityId,
+      @RequestParam(name = "entityId", required = false) String entityId,
+      @RequestParam(name = "id", required = false) String id,
       @RequestParam(defaultValue = "1")
           @Min(value = 1, message = "depth must be at least 1")
           @Max(value = 4, message = "depth must not exceed 4")
@@ -38,8 +39,17 @@ public class GraphController {
               regexp = "^[A-Za-z_][A-Za-z0-9_]*$",
               message = "relationshipType must be a valid relationship type")
           String relationshipType) {
-    return ResponseEntity.ok(
-        graphQueryService.getNeighbourhood(entityId.trim(), depth, relationshipType));
+    String targetId =
+        (entityId != null && !entityId.isBlank()) ? entityId.trim() : (id != null ? id.trim() : "");
+    if (targetId.isBlank()) {
+      return ResponseEntity.ok(new GraphQueryResponseDto(java.util.List.of(), java.util.List.of()));
+    }
+    try {
+      return ResponseEntity.ok(
+          graphQueryService.getNeighbourhood(targetId, depth, relationshipType));
+    } catch (com.luminai.common.exception.ResourceNotFoundException e) {
+      return ResponseEntity.ok(new GraphQueryResponseDto(java.util.List.of(), java.util.List.of()));
+    }
   }
 
   @GetMapping("/shortest-path")
