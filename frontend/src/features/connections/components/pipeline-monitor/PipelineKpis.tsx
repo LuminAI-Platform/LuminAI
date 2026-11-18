@@ -12,14 +12,15 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
   const totalInput = jobs.reduce((acc, j) => acc + j.recordsInput, 0);
   const totalProcessed = jobs.reduce((acc, j) => acc + j.recordsOutput, 0);
   const totalFailed = jobs.reduce((acc, j) => acc + j.recordsFailed, 0);
+  const hasEvaluated = totalInput > 0 || totalProcessed > 0;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <KpiCard
         label="Active Jobs"
         value={counts.RUNNING}
-        sub={`${counts.ALL} total tracked`}
-        accent={counts.RUNNING > 0 ? "text-blue-400" : "text-zinc-100"}
+        sub={counts.ALL > 0 ? `${counts.ALL} total tracked` : "No jobs tracked"}
+        accent={counts.RUNNING > 0 ? "text-primary" : "text-text"}
         icon={
           <svg
             width="18"
@@ -37,7 +38,9 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
       <KpiCard
         label="Records In"
         value={formatNumber(totalInput)}
-        sub="Total queued across runs"
+        sub={
+          hasEvaluated ? "Total queued across runs" : "No records queued yet"
+        }
         icon={
           <svg
             width="18"
@@ -58,9 +61,9 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
         sub={
           totalInput > 0
             ? `${((totalProcessed / totalInput) * 100).toFixed(1)}% yield`
-            : "–"
+            : "No records processed yet"
         }
-        accent={totalProcessed > 0 ? "text-success" : "text-zinc-400"}
+        accent={totalProcessed > 0 ? "text-success" : "text-text-secondary"}
         icon={
           <svg
             width="18"
@@ -77,8 +80,14 @@ export const PipelineKpis: React.FC<PipelineKpisProps> = ({ jobs, counts }) => {
       <KpiCard
         label="Failed / Quarantined"
         value={formatNumber(totalFailed)}
-        sub={totalFailed > 0 ? "Requires review" : "All records clean"}
-        accent={totalFailed > 0 ? "text-red-400" : "text-zinc-400"}
+        sub={
+          totalFailed > 0
+            ? "Requires review"
+            : hasEvaluated
+              ? "All records clean"
+              : "No records processed yet"
+        }
+        accent={totalFailed > 0 ? "text-error" : "text-text-secondary"}
         icon={
           <svg
             width="18"

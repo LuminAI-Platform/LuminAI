@@ -5,6 +5,7 @@ import {
   getHealthStatusBadge,
 } from "./connectionsTypes";
 import { FileText, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { ActionMenu } from "../../../components/ui/dropdown";
 
 interface FilesTableProps {
   ingestedFiles: IngestedFile[];
@@ -94,29 +95,31 @@ export const FilesTable: React.FC<FilesTableProps> = ({
                     {formatRelativeTime(f.createdAt)}
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <div className="inline-flex items-center gap-1.5">
-                      <button
-                        onClick={() => onOpenRawPreview(f)}
-                        className="px-2 py-1 rounded bg-surface-subtle hover:bg-surface-muted text-text-secondary hover:text-text text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
-                        title="Inspect raw uploaded data"
-                      >
-                        <Search className="w-3 h-3" /> Raw
-                      </button>
-                      <button
-                        onClick={() => onInspectCleanData(f)}
-                        className="px-2 py-1 rounded bg-primary-tint hover:bg-surface-subtle border border-primary-border text-primary text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1"
-                        title="View Clean & Golden semantic records"
-                      >
-                        <ShieldCheck className="w-3 h-3 text-success" /> Clean
-                        Data
-                      </button>
-                      <button
-                        onClick={() => onDeleteFile(f)}
-                        className="p-1 rounded text-text-muted hover:text-error hover:bg-error-bg transition-colors cursor-pointer"
-                        title="Delete file connection"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="inline-flex items-center justify-end">
+                      <ActionMenu
+                        ariaLabel={`Actions for ${f.name}`}
+                        items={[
+                          {
+                            label: "Inspect Raw",
+                            icon: <Search className="w-4 h-4" />,
+                            onClick: () => onOpenRawPreview(f),
+                          },
+                          {
+                            label: "Clean Data",
+                            icon: (
+                              <ShieldCheck className="w-4 h-4 text-success" />
+                            ),
+                            onClick: () => onInspectCleanData(f),
+                          },
+                          {
+                            label: "Delete File",
+                            icon: <Trash2 className="w-4 h-4" />,
+                            destructive: true,
+                            dividerBefore: true,
+                            onClick: () => onDeleteFile(f),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

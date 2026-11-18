@@ -3,6 +3,7 @@ import {
   type SourceColumn,
   type ForeignKeyDefinition,
 } from "./visualSchemaTypes";
+import { Select } from "../../../../components/ui/dropdown";
 
 interface FkModalProps {
   activeCol: SourceColumn;
@@ -96,26 +97,27 @@ export const FkModal: React.FC<FkModalProps> = ({
               Target Entity Type
             </label>
             <div className="space-y-1.5">
-              <select
+              <Select
                 id="fk-target-entity-select"
                 value={isCustomEntity ? "CUSTOM" : fkTargetEntity}
-                onChange={(e) => {
-                  if (e.target.value === "CUSTOM") {
+                onChange={(val) => {
+                  if (val === "CUSTOM") {
                     setIsCustomEntity(true);
                   } else {
                     setIsCustomEntity(false);
-                    setFkTargetEntity(e.target.value);
+                    setFkTargetEntity(val);
                   }
                 }}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
-              >
-                {availableEntities.map((ent) => (
-                  <option key={ent} value={ent}>
-                    {ent}
-                  </option>
-                ))}
-                <option value="CUSTOM">+ Custom Entity Type...</option>
-              </select>
+                options={[
+                  ...availableEntities.map((ent) => ({
+                    value: ent,
+                    label: ent,
+                  })),
+                  { value: "CUSTOM", label: "+ Custom Entity Type…" },
+                ]}
+                ariaLabel="Target Entity Type"
+                size="sm"
+              />
               {isCustomEntity && (
                 <input
                   id="fk-custom-entity-input"
@@ -134,26 +136,27 @@ export const FkModal: React.FC<FkModalProps> = ({
               Relationship Edge Type (Neo4j Cypher Label)
             </label>
             <div className="space-y-1.5">
-              <select
+              <Select
                 id="fk-relation-type-select"
                 value={isCustomRel ? "CUSTOM" : fkRelType}
-                onChange={(e) => {
-                  if (e.target.value === "CUSTOM") {
+                onChange={(val) => {
+                  if (val === "CUSTOM") {
                     setIsCustomRel(true);
                   } else {
                     setIsCustomRel(false);
-                    setFkRelType(e.target.value);
+                    setFkRelType(val);
                   }
                 }}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-purple-500"
-              >
-                {availableRelationshipTypes.map((rel) => (
-                  <option key={rel} value={rel}>
-                    {rel}
-                  </option>
-                ))}
-                <option value="CUSTOM">+ Custom Relationship...</option>
-              </select>
+                options={[
+                  ...availableRelationshipTypes.map((rel) => ({
+                    value: rel,
+                    label: rel,
+                  })),
+                  { value: "CUSTOM", label: "+ Custom Relationship…" },
+                ]}
+                ariaLabel="Relationship Edge Type"
+                size="sm"
+              />
               {isCustomRel && (
                 <input
                   id="fk-custom-relation-input"

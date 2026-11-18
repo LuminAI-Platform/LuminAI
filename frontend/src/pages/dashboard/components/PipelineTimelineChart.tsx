@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
+import { Link } from "@tanstack/react-router";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { Button } from "../../../components/ui/Button";
 import { useThemeStore } from "../../../stores/themeStore";
+import { formatDateLabel } from "./dashboardChartUtils";
 
 export interface TimeSeriesPoint {
   date: string;
@@ -9,9 +12,10 @@ export interface TimeSeriesPoint {
   pipelineRuns: number;
 }
 
-interface PipelineTimelineChartProps {
+export interface PipelineTimelineChartProps {
   data?: TimeSeriesPoint[];
   isLoading?: boolean;
+  timeRange?: "7d" | "14d" | "30d";
 }
 
 /**
@@ -19,15 +23,32 @@ interface PipelineTimelineChartProps {
  *
  * Rules:
  * - Color-blind-safe palette (Navy + Amber/Orange), avoiding red vs green.
- * - No gradient washes or neon glows: clean solid lines and bars.
+ * - Integer-only ticks on both Y axes with min 0 and max 5 when all values are zero.
+ * - Legend placed above the plot area on the left in its own row above axis titles.
+ * - Empty state with working button and low-opacity gridlines when zero pipeline runs.
  */
 export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
   data = [],
   isLoading = false,
+  timeRange = "7d",
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
   const isDark = useThemeStore((s) => s.isDark);
+
+  const days = timeRange ? parseInt(timeRange, 10) : data.length || 7;
+  const isAllZero =
+    data.length === 0 ||
+    data.every(
+      (d) => (d.entityCount ?? 0) === 0 && (d.pipelineRuns ?? 0) === 0,
+    );
+
+  const totalEntities = data.reduce((acc, d) => acc + (d.entityCount ?? 0), 0);
+  const totalRuns = data.reduce((acc, d) => acc + (d.pipelineRuns ?? 0), 0);
+
+  const ariaLabel = isAllZero
+    ? `Pipeline throughput and entity growth over the last ${days} days: No pipeline runs or resolved entities.`
+    : `Pipeline throughput and entity growth over the last ${days} days: ${totalEntities.toLocaleString()} resolved entities and ${totalRuns.toLocaleString()} pipeline runs.`;
 
   useEffect(() => {
     if (!chartRef.current || isLoading) return;
@@ -40,23 +61,29 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
 
     const chart = chartInstance.current;
 
-    const dates = data.map((d) => d.date.slice(5)); // 'MM-DD'
-    const entities = data.map((d) => d.entityCount);
-    const runs = data.map((d) => d.pipelineRuns);
+    const dates = data.map((d) => formatDateLabel(d.date));
+    const entities = data.map((d) => d.entityCount ?? 0);
+    const runs = data.map((d) => d.pipelineRuns ?? 0);
+
+    const maxEntities = Math.max(0, ...entities);
+    const maxRuns = Math.max(0, ...runs);
 
     const textColor = isDark ? "#E9EDF4" : "#1A2230";
     const secondaryColor = isDark ? "#A3ADBF" : "#566176";
     const surfaceColor = isDark ? "#1A202A" : "#FFFFFF";
     const borderColor = isDark ? "#2C3441" : "#DFE3EA";
-    const gridLineColor = isDark ? "#222A37" : "#F0F2F5";
+    const gridLineColor = isDark
+      ? "rgba(255, 255, 255, 0.06)"
+      : "rgba(0, 0, 0, 0.06)";
 
-    // Color-blind safe: Navy + Amber
+    // Color-blind safe: Navy + Amber (passing WCAG contrast in both themes)
     const entityLineColor = isDark ? "#6B97FF" : "#12297A";
-    const pipelineBarColor = isDark ? "#F2C466" : "#E69F00";
+    const pipelineBarColor = isDark ? "#F2C466" : "#C26E00";
 
     const option: echarts.EChartsOption = {
       backgroundColor: "transparent",
       tooltip: {
+        show: !isAllZero,
         trigger: "axis",
         backgroundColor: surfaceColor,
         borderColor: borderColor,
@@ -67,15 +94,29 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
         },
       },
       legend: {
-        data: ["Resolved Entities", "Pipeline Executions"],
+        show: !isAllZero,
+        data: [
+          {
+            name: "Resolved Entities",
+            icon: "roundRect",
+            itemStyle: { color: entityLineColor },
+          },
+          {
+            name: "Pipeline Executions",
+            icon: "roundRect",
+            itemStyle: { color: pipelineBarColor },
+          },
+        ],
+        icon: "roundRect",
         textStyle: { color: secondaryColor, fontSize: 11 },
         top: 0,
-        right: 10,
+        left: 0,
         itemWidth: 12,
         itemHeight: 8,
+        itemGap: 16,
       },
       grid: {
-        top: 36,
+        top: 48,
         left: 45,
         right: 45,
         bottom: 25,
@@ -90,16 +131,46 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
         {
           type: "value",
           name: "Entities",
-          nameTextStyle: { color: secondaryColor, fontSize: 10 },
-          axisLabel: { color: secondaryColor, fontSize: 10 },
-          splitLine: { lineStyle: { color: gridLineColor, type: "dashed" } },
+          nameLocation: "end",
+          nameGap: 10,
+          nameTextStyle: {
+            color: secondaryColor,
+            fontSize: 10,
+            align: "left",
+          },
+          axisLabel: {
+            color: secondaryColor,
+            fontSize: 10,
+            formatter: (val: number) => Math.round(val).toString(),
+          },
+          splitLine: {
+            lineStyle: {
+              color: gridLineColor,
+              type: "dashed",
+            },
+          },
+          min: 0,
+          max: maxEntities === 0 ? 5 : undefined,
+          minInterval: 1,
         },
         {
           type: "value",
           name: "Runs",
-          nameTextStyle: { color: secondaryColor, fontSize: 10 },
-          axisLabel: { color: secondaryColor, fontSize: 10 },
+          nameLocation: "end",
+          nameGap: 10,
+          nameTextStyle: {
+            color: secondaryColor,
+            fontSize: 10,
+            align: "right",
+          },
+          axisLabel: {
+            color: secondaryColor,
+            fontSize: 10,
+            formatter: (val: number) => Math.round(val).toString(),
+          },
           splitLine: { show: false },
+          min: 0,
+          max: maxRuns === 0 ? 5 : undefined,
           minInterval: 1,
         },
       ],
@@ -109,16 +180,15 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
           type: "line",
           smooth: true,
           showSymbol: false,
-          data: entities,
+          data: isAllZero ? [] : entities,
           lineStyle: { width: 2, color: entityLineColor },
           itemStyle: { color: entityLineColor },
-          // Removed gradient wash per Rule 4
         },
         {
           name: "Pipeline Executions",
           type: "bar",
           yAxisIndex: 1,
-          data: runs,
+          data: isAllZero ? [] : runs,
           itemStyle: {
             color: pipelineBarColor,
             borderRadius: [4, 4, 0, 0],
@@ -133,10 +203,18 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
     const handleResize = () => chart.resize();
     window.addEventListener("resize", handleResize);
 
+    const resizeObserver = new ResizeObserver(() => {
+      chart.resize();
+    });
+    if (chartRef.current) {
+      resizeObserver.observe(chartRef.current);
+    }
+
     return () => {
       window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
     };
-  }, [data, isLoading, isDark]);
+  }, [data, isLoading, isDark, isAllZero]);
 
   useEffect(() => {
     return () => {
@@ -149,5 +227,26 @@ export const PipelineTimelineChart: React.FC<PipelineTimelineChartProps> = ({
     return <Skeleton className="w-full h-64 rounded-lg" />;
   }
 
-  return <div ref={chartRef} className="w-full h-64" />;
+  return (
+    <div className="relative w-full h-64">
+      {isAllZero && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-auto">
+          <p className="text-sm font-medium text-text-secondary text-center">
+            No pipeline runs in the last {days} days
+          </p>
+          <Link to="/connections">
+            <Button variant="secondary" size="sm">
+              Connect a data source
+            </Button>
+          </Link>
+        </div>
+      )}
+      <div
+        ref={chartRef}
+        role="img"
+        aria-label={ariaLabel}
+        className="w-full h-full"
+      />
+    </div>
+  );
 };

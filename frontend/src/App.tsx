@@ -4,13 +4,26 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
 } from "@tanstack/react-router";
 import { AppShell } from "./components/layout/AppShell";
+import { AppShellNotFound } from "./components/layout/AppShellNotFound";
 import { AdminRoute, ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
+import {
+  DashboardSkeleton,
+  PipelineMonitorSkeleton,
+  ConnectionsSkeleton,
+  ExplorerSkeleton,
+  GraphSkeleton,
+  SchemaMapSkeleton,
+  MergeReviewSkeleton,
+  OntologySkeleton,
+  SettingsSkeleton,
+} from "./components/skeletons/RouteSkeletons";
 import {
   DashboardPage,
   ExplorerPage,
@@ -68,66 +81,85 @@ const shellRoute = createRoute({
       </AppShell>
     </ProtectedRoute>
   ),
+  notFoundComponent: AppShellNotFound,
 });
 
 const indexRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/",
   component: DashboardPage,
+  pendingComponent: DashboardSkeleton,
 });
 
 const explorerRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer",
   component: ExplorerPage,
+  pendingComponent: ExplorerSkeleton,
 });
 
 const entityDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer/$entityId",
   component: EntityDetailPage,
+  pendingComponent: ExplorerSkeleton,
 });
 
 const connectionsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections",
   component: ConnectionsPage,
+  pendingComponent: ConnectionsSkeleton,
 });
 
 const schemaMapRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/schema-map",
   component: SchemaMapPage,
+  pendingComponent: SchemaMapSkeleton,
 });
 
 const pipelineRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: "/connections/pipeline",
+  path: "/connections/pipelines",
   component: PipelinePage,
+  pendingComponent: PipelineMonitorSkeleton,
+});
+
+const legacyPipelineRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/connections/pipeline",
+  beforeLoad: () => {
+    throw redirect({ to: "/connections/pipelines" });
+  },
 });
 
 const mergeReviewRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/merge-review",
   component: MergeReviewPage,
+  pendingComponent: MergeReviewSkeleton,
 });
 
 const ontologyRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/ontology",
   component: OntologyPage,
+  pendingComponent: OntologySkeleton,
 });
 
 const graphRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/graph",
   component: GraphPage,
+  pendingComponent: GraphSkeleton,
 });
 
 const settingsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/settings",
   component: SettingsPage,
+  pendingComponent: SettingsSkeleton,
 });
 
 const adminUsersRoute = createRoute({
@@ -138,6 +170,7 @@ const adminUsersRoute = createRoute({
       <UserRegistrationPage />
     </AdminRoute>
   ),
+  pendingComponent: SettingsSkeleton,
 });
 
 const adminTenantsRoute = createRoute({
@@ -148,6 +181,7 @@ const adminTenantsRoute = createRoute({
       <TenantRegistrationPage />
     </AdminRoute>
   ),
+  pendingComponent: SettingsSkeleton,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -162,6 +196,7 @@ const routeTree = rootRoute.addChildren([
     connectionsRoute,
     schemaMapRoute,
     pipelineRoute,
+    legacyPipelineRoute,
     mergeReviewRoute,
     ontologyRoute,
     graphRoute,
@@ -171,7 +206,14 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-const router = createRouter({ routeTree });
+const router = createRouter({
+  routeTree,
+  defaultNotFoundComponent: AppShellNotFound,
+  defaultPreload: "intent",
+  defaultPreloadDelay: 50,
+  defaultPendingMs: 50,
+  defaultPendingMinMs: 150,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../../lib/api";
+import { Select } from "../../components/ui/dropdown";
 
 interface CreateUserResponse {
   userId: string;
@@ -153,19 +154,20 @@ export function UserRegistrationPage() {
               />
             </label>
 
-            <label className="block sm:col-span-2">
+            <div className="block sm:col-span-2">
               <span className="mb-2 block text-xs font-semibold text-text">
                 Platform role
               </span>
-              <select
+              <Select
                 value={role}
-                onChange={(event) => setRole(event.target.value)}
-                className={inputClassName}
-              >
-                <option value="VIEWER">Viewer</option>
-                <option value="ADMIN">Admin</option>
-              </select>
-            </label>
+                onChange={(val) => setRole(val)}
+                options={[
+                  { value: "VIEWER", label: "Viewer" },
+                  { value: "ADMIN", label: "Admin" },
+                ]}
+                ariaLabel="Platform role"
+              />
+            </div>
           </div>
 
           {error && (

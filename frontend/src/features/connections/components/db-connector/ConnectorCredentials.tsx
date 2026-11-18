@@ -1,5 +1,13 @@
 import React from "react";
 import type { DBType } from "./dbConnectorTypes";
+import { Select } from "../../../../components/ui/dropdown";
+
+const DB_TYPE_OPTIONS = [
+  { value: "postgresql", label: "PostgreSQL" },
+  { value: "mysql", label: "MySQL" },
+  { value: "snowflake", label: "Snowflake" },
+  { value: "sqlserver", label: "SQL Server" },
+];
 
 interface ConnectorCredentialsProps {
   name: string;
@@ -63,17 +71,13 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
             Database Type
           </label>
-          <select
+          <Select
             value={dbType}
             disabled={isVerifying}
-            onChange={(e) => handleDbTypeChange(e.target.value as DBType)}
-            className="bg-surface border border-border rounded-lg py-2 px-3 text-xs text-text focus:outline-none focus:border-border-focus disabled:opacity-50 cursor-pointer"
-          >
-            <option value="postgresql">PostgreSQL</option>
-            <option value="mysql">MySQL</option>
-            <option value="snowflake">Snowflake</option>
-            <option value="sqlserver">SQL Server</option>
-          </select>
+            onChange={(val) => handleDbTypeChange(val as DBType)}
+            options={DB_TYPE_OPTIONS}
+            ariaLabel="Database Type"
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">

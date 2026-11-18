@@ -1,5 +1,5 @@
-import React from "react";
-import { Link } from "@tanstack/react-router";
+import React, { useState, useEffect } from "react";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { SidebarTooltip } from "../../ui/Tooltip";
 import type { NavItem } from "./sidebarConfig";
 
@@ -10,33 +10,92 @@ interface SidebarNavListProps {
   setMobileOpen: (open: boolean) => void;
 }
 
-const renderNavLink = (
-  item: NavItem,
-  collapsed: boolean,
-  setMobileOpen: (open: boolean) => void,
-) => (
-  <SidebarTooltip key={item.to} label={item.label} enabled={collapsed}>
-    <Link
-      to={item.to}
-      activeOptions={{ exact: item.to === "/connections" }}
-      className="flex items-center p-2! text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent hover:border-border cursor-pointer"
-      activeProps={{
-        className:
-          "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
-      }}
-      onClick={() => setMobileOpen(false)}
-    >
-      {item.icon}
-      <span
-        className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-          collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+interface SidebarNavLinkItemProps {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  collapsed: boolean;
+  exact?: boolean;
+  onNavigate: () => void;
+  pendingPath: string | null;
+  setPendingPath: (path: string | null) => void;
+}
+
+const SidebarNavLinkItem: React.FC<SidebarNavLinkItemProps> = ({
+  to,
+  label,
+  icon,
+  collapsed,
+  exact = false,
+  onNavigate,
+  pendingPath,
+  setPendingPath,
+}) => {
+  const routerState = useRouterState();
+  const isRouterBusy =
+    routerState.status === "pending" || routerState.isLoading;
+  const isItemPending = pendingPath === to && isRouterBusy;
+
+  return (
+    <SidebarTooltip label={label} enabled={collapsed}>
+      <Link
+        to={to}
+        preload="intent"
+        activeOptions={{ exact }}
+        className={`flex items-center p-2! rounded-lg gap-3 font-medium transition-all duration-150 border cursor-pointer ${
+          isItemPending
+            ? "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!"
+            : "text-text-secondary hover:bg-surface-subtle hover:text-text border-transparent hover:border-border"
         }`}
+        activeProps={{
+          className:
+            "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
+        }}
+        onClick={() => {
+          setPendingPath(to);
+          onNavigate();
+        }}
       >
-        {item.label}
-      </span>
-    </Link>
-  </SidebarTooltip>
-);
+        <span className="shrink-0">{icon}</span>
+        <span
+          className={`text-[13px] transition-opacity duration-200 whitespace-nowrap flex-1 ${
+            collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
+          }`}
+        >
+          {label}
+        </span>
+
+        {/* Instant optimistic loading indicator */}
+        {isItemPending && !collapsed && (
+          <span
+            className="ml-auto flex items-center shrink-0 text-primary"
+            aria-label="Loading..."
+          >
+            <svg
+              className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="3"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+              />
+            </svg>
+          </span>
+        )}
+      </Link>
+    </SidebarTooltip>
+  );
+};
 
 export const SidebarNavList: React.FC<SidebarNavListProps> = ({
   navItems,
@@ -44,6 +103,16 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
   showAdminNavigation,
   setMobileOpen,
 }) => {
+  const routerState = useRouterState();
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  // Clear optimistic pending state once route completes
+  useEffect(() => {
+    if (routerState.status !== "pending" && !routerState.isLoading) {
+      setPendingPath(null);
+    }
+  }, [routerState.status, routerState.isLoading]);
+
   return (
     <nav className="flex-1 py-4 px-3.5 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
       {!collapsed && (
@@ -53,7 +122,19 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
       )}
       {navItems
         .filter((i) => i.section === "mesh")
-        .map((i) => renderNavLink(i, collapsed, setMobileOpen))}
+        .map((i) => (
+          <SidebarNavLinkItem
+            key={i.to}
+            to={i.to}
+            label={i.label}
+            icon={i.icon}
+            collapsed={collapsed}
+            exact={i.to === "/"}
+            onNavigate={() => setMobileOpen(false)}
+            pendingPath={pendingPath}
+            setPendingPath={setPendingPath}
+          />
+        ))}
 
       {!collapsed && (
         <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary">
@@ -62,7 +143,19 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
       )}
       {navItems
         .filter((i) => i.section === "pipelines")
-        .map((i) => renderNavLink(i, collapsed, setMobileOpen))}
+        .map((i) => (
+          <SidebarNavLinkItem
+            key={i.to}
+            to={i.to}
+            label={i.label}
+            icon={i.icon}
+            collapsed={collapsed}
+            exact={i.to === "/connections"}
+            onNavigate={() => setMobileOpen(false)}
+            pendingPath={pendingPath}
+            setPendingPath={setPendingPath}
+          />
+        ))}
 
       {!collapsed && (
         <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary">
@@ -71,20 +164,26 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
       )}
       {navItems
         .filter((i) => i.section === "system")
-        .map((i) => renderNavLink(i, collapsed, setMobileOpen))}
+        .map((i) => (
+          <SidebarNavLinkItem
+            key={i.to}
+            to={i.to}
+            label={i.label}
+            icon={i.icon}
+            collapsed={collapsed}
+            exact={i.to === "/ontology"}
+            onNavigate={() => setMobileOpen(false)}
+            pendingPath={pendingPath}
+            setPendingPath={setPendingPath}
+          />
+        ))}
 
       {showAdminNavigation && (
         <>
-          <SidebarTooltip label="User registration" enabled={collapsed}>
-            <Link
-              to="/admin/users"
-              className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-text-secondary transition-all duration-150 hover:border-border hover:bg-surface-subtle hover:text-text"
-              activeProps={{
-                className:
-                  "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
-              }}
-              onClick={() => setMobileOpen(false)}
-            >
+          <SidebarNavLinkItem
+            to="/admin/users"
+            label="Users & Roles"
+            icon={
               <svg
                 className="shrink-0"
                 width="18"
@@ -102,28 +201,17 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
-              <span
-                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                  collapsed
-                    ? "pointer-events-none w-0 opacity-0"
-                    : "opacity-100"
-                }`}
-              >
-                Users & Roles
-              </span>
-            </Link>
-          </SidebarTooltip>
+            }
+            collapsed={collapsed}
+            onNavigate={() => setMobileOpen(false)}
+            pendingPath={pendingPath}
+            setPendingPath={setPendingPath}
+          />
 
-          <SidebarTooltip label="Tenant registration" enabled={collapsed}>
-            <Link
-              to="/admin/tenants"
-              className="flex items-center gap-3 rounded-lg border border-transparent p-2.5 font-medium text-text-secondary transition-all duration-150 hover:border-border hover:bg-surface-subtle hover:text-text"
-              activeProps={{
-                className:
-                  "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
-              }}
-              onClick={() => setMobileOpen(false)}
-            >
+          <SidebarNavLinkItem
+            to="/admin/tenants"
+            label="Tenants"
+            icon={
               <svg
                 className="shrink-0"
                 width="18"
@@ -145,17 +233,12 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
                 <path d="M14 16h1" />
                 <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
               </svg>
-              <span
-                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                  collapsed
-                    ? "pointer-events-none w-0 opacity-0"
-                    : "opacity-100"
-                }`}
-              >
-                Tenants
-              </span>
-            </Link>
-          </SidebarTooltip>
+            }
+            collapsed={collapsed}
+            onNavigate={() => setMobileOpen(false)}
+            pendingPath={pendingPath}
+            setPendingPath={setPendingPath}
+          />
         </>
       )}
     </nav>

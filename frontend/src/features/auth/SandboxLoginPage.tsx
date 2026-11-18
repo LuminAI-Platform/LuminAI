@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
+import { Select } from "../../components/ui/dropdown";
 import logoImg from "../../assets/luminai-logo.svg";
 
 const SANDBOX_ROLES = [
@@ -102,25 +103,23 @@ export function SandboxLoginPage() {
             />
           </label>
 
-          <label className="block">
+          <div className="block">
             <span className="mb-2 block text-xs font-semibold text-text">
               Role preset
             </span>
-            <select
+            <Select
               value={selectedRole}
-              onChange={(event) => setSelectedRole(event.target.value)}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text outline-none focus:border-border-focus"
-            >
-              {SANDBOX_ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedRole(val)}
+              options={SANDBOX_ROLES.map((r) => ({
+                value: r.value,
+                label: r.label,
+              }))}
+              ariaLabel="Role preset"
+            />
             <span className="mt-1.5 block text-xs text-text-secondary">
               Choose a role to test different permission levels.
             </span>
-          </label>
+          </div>
         </div>
 
         {error && <p className="mt-4 text-sm text-error">{error}</p>}

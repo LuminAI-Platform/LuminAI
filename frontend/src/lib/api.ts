@@ -30,6 +30,28 @@ export const API_BASE_URL =
       : ""
     : "http://localhost:8080");
 
+/** Default request timeout in milliseconds (9 seconds, within the 8-10s specification) */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 9000;
+
+export class ApiTimeoutError extends Error {
+  public readonly status: number = 504;
+  public readonly timeoutMs: number;
+  public readonly url: string;
+
+  constructor(timeoutMs: number, url: string) {
+    super(
+      `Request timed out after ${timeoutMs}ms: Data Engine service did not respond within ${Math.round(timeoutMs / 1000)}s`,
+    );
+    this.name = "ApiTimeoutError";
+    this.timeoutMs = timeoutMs;
+    this.url = url;
+  }
+
+  get isTimeout(): boolean {
+    return true;
+  }
+}
+
 // ─── Token resolver ───────────────────────────────────────────────────────────
 
 /**
@@ -92,7 +114,52 @@ export async function apiFetch(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(url, { ...resolvedInit, headers });
+  const timeoutMs =
+    (resolvedInit as { timeoutMs?: number }).timeoutMs ??
+    DEFAULT_REQUEST_TIMEOUT_MS;
+
+  const controller = new AbortController();
+  let isTimedOut = false;
+  const timeoutId = setTimeout(() => {
+    isTimedOut = true;
+    controller.abort(new ApiTimeoutError(timeoutMs, String(url)));
+  }, timeoutMs);
+
+  if (resolvedInit.signal) {
+    if (resolvedInit.signal.aborted) {
+      clearTimeout(timeoutId);
+      controller.abort(resolvedInit.signal.reason);
+    } else {
+      resolvedInit.signal.addEventListener("abort", () => {
+        clearTimeout(timeoutId);
+        controller.abort(resolvedInit.signal?.reason);
+      });
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...resolvedInit,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (fetchErr: unknown) {
+    if (isTimedOut) {
+      const suppressToast = headers.get("X-Suppress-Toast") === "true";
+      if (!suppressToast) {
+        showToastNotification(
+          "error",
+          "Service Timeout",
+          `Data engine request timed out (${Math.round(timeoutMs / 1000)}s).`,
+        );
+      }
+      throw new ApiTimeoutError(timeoutMs, String(url));
+    }
+    throw fetchErr;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const isRetry = Boolean((resolvedInit as { _isRetry?: boolean })._isRetry);

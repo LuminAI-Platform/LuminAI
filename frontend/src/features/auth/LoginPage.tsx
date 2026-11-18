@@ -96,7 +96,7 @@ export const LoginPage: React.FC = () => {
           <p className="mt-5 text-xs text-text-secondary text-center">
             Trouble signing in?{" "}
             <a
-              href="mailto:support.luminai@gmail.com"
+              href={`mailto:${(import.meta.env.VITE_SUPPORT_EMAIL as string | undefined) ?? "support@luminai.com"}`}
               className="text-text-secondary underline underline-offset-2 hover:text-text transition-colors"
             >
               Contact support

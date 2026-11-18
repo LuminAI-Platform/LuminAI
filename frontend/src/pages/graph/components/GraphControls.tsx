@@ -1,14 +1,8 @@
 import React from "react";
-import {
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  RotateCcw,
-  Filter,
-  Eye,
-} from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
 import type { GraphLayoutType } from "./GraphCanvas";
 import { Tooltip } from "../../../components/ui/Tooltip";
+import { Select } from "../../../components/ui/dropdown";
 
 interface GraphControlsProps {
   layoutType: GraphLayoutType;
@@ -106,43 +100,33 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
 
       {/* Entity Type Filter */}
       {entityTypes.length > 0 && onSelectEntityType && (
-        <div className="flex items-center bg-surface/90 backdrop-blur-md border border-border rounded-lg px-2.5 py-1 shadow-xs text-xs gap-1.5">
-          <Eye className="w-3.5 h-3.5 text-text-secondary" />
-          <select
+        <div className="w-44">
+          <Select
             value={selectedEntityType || ""}
-            onChange={(e) => onSelectEntityType(e.target.value || null)}
-            className="bg-transparent text-text outline-none cursor-pointer"
-          >
-            <option value="" className="bg-zinc-900">
-              All Entity Types
-            </option>
-            {entityTypes.map((t) => (
-              <option key={t} value={t} className="bg-zinc-900">
-                {t}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => onSelectEntityType(val || null)}
+            options={[
+              { value: "", label: "All Entity Types" },
+              ...entityTypes.map((t) => ({ value: t, label: t })),
+            ]}
+            ariaLabel="Entity Type Filter"
+            size="sm"
+          />
         </div>
       )}
 
       {/* Relationship Type Filter */}
       {relationshipTypes.length > 0 && onSelectRelType && (
-        <div className="flex items-center bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-lg px-2.5 py-1 shadow-xl text-xs gap-1.5">
-          <Filter className="w-3.5 h-3.5 text-zinc-400" />
-          <select
+        <div className="w-44">
+          <Select
             value={selectedRelType || ""}
-            onChange={(e) => onSelectRelType(e.target.value || null)}
-            className="bg-transparent text-zinc-200 outline-none cursor-pointer"
-          >
-            <option value="" className="bg-zinc-900">
-              All Relationships
-            </option>
-            {relationshipTypes.map((r) => (
-              <option key={r} value={r} className="bg-zinc-900">
-                {r}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => onSelectRelType(val || null)}
+            options={[
+              { value: "", label: "All Relationships" },
+              ...relationshipTypes.map((r) => ({ value: r, label: r })),
+            ]}
+            ariaLabel="Relationship Type Filter"
+            size="sm"
+          />
         </div>
       )}
     </div>
