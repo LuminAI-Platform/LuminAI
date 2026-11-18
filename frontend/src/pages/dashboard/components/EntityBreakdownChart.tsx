@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
+import { Link } from "@tanstack/react-router";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useThemeStore } from "../../../stores/themeStore";
+import { getEntityColor } from "../../../lib/entityColors";
+import { ArrowUpRight, Info } from "../../../lib/icons";
 
 interface EntityBreakdownChartProps {
   data?: Record<string, number>;
@@ -9,28 +12,14 @@ interface EntityBreakdownChartProps {
 }
 
 /**
- * Color-blind-safe 5-color palettes (Okabe-Ito / accessibility calibrated)
- * Rule 7: For charts, use a color-blind-safe set of about five colors,
- * and don't rely on red versus green alone.
- */
-const LIGHT_PALETTE = [
-  "#12297A", // Luminex Navy
-  "#C26E00", // Amber / Warm Orange (high contrast)
-  "#56B4E9", // Sky Blue
-  "#009E73", // Teal
-  "#CC79A7", // Reddish Purple
-];
-
-const DARK_PALETTE = [
-  "#6B97FF", // Navy Tint for Dark
-  "#F2C466", // Warm Yellow / Gold
-  "#56B4E9", // Sky Blue
-  "#5FD6A0", // Soft Mint / Teal
-  "#CC79A7", // Reddish Purple
-];
-
-/**
- * Donut chart rendering entity distribution across ontology classes
+ * Entity Type Distribution Card Component
+ *
+ * Rules:
+ * - Shows every type returned by the API with counts and percentages.
+ * - When multiple types exist: renders an interactive Donut chart using shared theme-calibrated colors.
+ * - When only ONE type exists: renders a clean ranked list with a progress bar and an explanatory hint
+ *   pointing users to Data Connections and Ontology Manager to map more types.
+ * - When zero types exist: renders a clear empty state.
  */
 export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
   data = {},
@@ -45,17 +34,24 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
     .map(([name, value]) => ({
       name,
       value,
+      itemStyle: {
+        color: getEntityColor(name, isDark),
+      },
     }));
 
   const total = seriesData.reduce((acc, curr) => acc + curr.value, 0);
   const isEmpty = total === 0 || seriesData.length === 0;
+  const isSingleType = seriesData.length === 1;
 
   const ariaLabel = isEmpty
     ? "Entity type distribution: no data."
-    : `Entity type distribution: ${total.toLocaleString()} entities indexed across ${seriesData.length} types.`;
+    : isSingleType
+      ? `Entity type distribution: all ${total.toLocaleString()} entities mapped to ${seriesData[0].name} (100%).`
+      : `Entity type distribution: ${total.toLocaleString()} entities indexed across ${seriesData.length} types.`;
 
   useEffect(() => {
-    if (!chartRef.current || isLoading) return;
+    // Only mount echarts when we have 2+ types (donut chart)
+    if (!chartRef.current || isLoading || isSingleType || isEmpty) return;
 
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current, undefined, {
@@ -64,18 +60,15 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
     }
 
     const chart = chartInstance.current;
-    const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE;
     const textColor = isDark ? "#E9EDF4" : "#1A2230";
     const secondaryColor = isDark ? "#A3ADBF" : "#566176";
     const surfaceColor = isDark ? "#1A202A" : "#FFFFFF";
     const borderColor = isDark ? "#2C3441" : "#DFE3EA";
-    const trackColor = isDark ? "#2C3441" : "#DFE3EA";
 
     const option: echarts.EChartsOption = {
       backgroundColor: "transparent",
-      color: palette,
       tooltip: {
-        show: !isEmpty,
+        show: true,
         trigger: "item",
         backgroundColor: surfaceColor,
         borderColor: borderColor,
@@ -99,7 +92,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
         },
       },
       legend: {
-        show: !isEmpty,
+        show: true,
         orient: "horizontal",
         bottom: 0,
         textStyle: { color: secondaryColor, fontSize: 11 },
@@ -111,35 +104,29 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
         {
           name: "Entity Breakdown",
           type: "pie",
-          radius: isEmpty ? ["68%", "72%"] : ["56%", "76%"],
+          radius: ["56%", "76%"],
           center: ["50%", "44%"],
           avoidLabelOverlap: false,
-          silent: isEmpty,
-          itemStyle: isEmpty
-            ? {
-                color: trackColor,
-                borderWidth: 0,
-              }
-            : {
-                borderRadius: 6,
-                borderColor: surfaceColor,
-                borderWidth: 2,
-              },
+          silent: false,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: surfaceColor,
+            borderWidth: 2,
+          },
           label: {
             show: false,
           },
           emphasis: {
-            disabled: isEmpty,
             label: {
-              show: !isEmpty,
+              show: true,
               fontSize: 12,
               fontWeight: "bold",
               color: textColor,
             },
-            scale: !isEmpty,
+            scale: true,
             scaleSize: 6,
           },
-          data: isEmpty ? [{ name: "", value: 1 }] : seriesData,
+          data: seriesData,
         },
       ],
     };
@@ -160,7 +147,7 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
       window.removeEventListener("resize", handleResize);
       resizeObserver.disconnect();
     };
-  }, [seriesData, isEmpty, total, isLoading, isDark]);
+  }, [seriesData, isSingleType, isEmpty, total, isLoading, isDark]);
 
   useEffect(() => {
     return () => {
@@ -173,9 +160,86 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
     return <Skeleton className="w-full h-64 rounded-lg" />;
   }
 
+  // Single-type state: show ranked list (not donut) and hint linking to connections & ontology
+  if (isSingleType) {
+    const single = seriesData[0];
+    const color = getEntityColor(single.name, isDark);
+
+    return (
+      <div
+        className="flex flex-col justify-between h-64 w-full"
+        role="region"
+        aria-label={ariaLabel}
+      >
+        {/* Ranked list row */}
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <div className="flex items-center gap-2">
+              <span
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-sm font-bold text-text">{single.name}</span>
+            </div>
+            <div className="flex items-center gap-1 text-text-secondary">
+              <span className="font-bold text-text text-sm">
+                {single.value.toLocaleString()}
+              </span>
+              <span className="text-xs text-text-tertiary">(100%)</span>
+            </div>
+          </div>
+
+          {/* Full progress ratio bar */}
+          <div className="w-full h-2.5 rounded-full bg-surface-subtle overflow-hidden border border-border">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: "100%", backgroundColor: color }}
+            />
+          </div>
+        </div>
+
+        {/* Explanatory hint banner */}
+        <div className="bg-surface-subtle border border-border rounded-lg p-3.5 flex flex-col gap-2">
+          <div className="flex items-start gap-2">
+            <Info className="w-4 h-4 text-text-secondary shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <p className="text-xs text-text leading-relaxed font-medium">
+                Only one entity type found. Map more types during ingestion.
+              </p>
+              <p className="text-[11px] text-text-secondary leading-normal">
+                Columns like physician, insurer, and diagnosis were stored as
+                attributes on {single.name}. Configure additional entity types
+                to build a rich multi-class graph.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-1 border-t border-border/60">
+            <Link
+              to="/connections"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              <span>Data Connections</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </Link>
+            <span className="text-text-tertiary text-xs">·</span>
+            <Link
+              to="/ontology"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              <span>Ontology Manager</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Multiple types or empty state: Donut chart
   return (
     <div className="relative w-full h-64">
-      {/* Center text: a large number with the label "entities indexed" underneath, sized to fit inside hole */}
+      {/* Center text: a large number with the label "entities indexed" underneath */}
       <div
         className="absolute pointer-events-none flex flex-col items-center justify-center text-center select-none"
         style={{

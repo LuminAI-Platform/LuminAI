@@ -3,6 +3,8 @@ import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "../../../lib/icons";
 import type { GraphLayoutType } from "./GraphCanvas";
 import { Tooltip } from "../../../components/ui/Tooltip";
 import { Select } from "../../../components/ui/dropdown";
+import { useThemeStore } from "../../../stores/themeStore";
+import { getEntityColor } from "../../../lib/entityColors";
 
 interface GraphControlsProps {
   layoutType: GraphLayoutType;
@@ -36,6 +38,8 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
   selectedRelType,
   onSelectRelType,
 }) => {
+  const isDark = useThemeStore((s) => s.isDark);
+
   return (
     <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
       {/* Zoom / Navigation Controls */}
@@ -127,6 +131,34 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
             ariaLabel="Relationship Type Filter"
             size="sm"
           />
+        </div>
+      )}
+
+      {/* Shared Entity Types Legend */}
+      {entityTypes.length > 0 && (
+        <div className="flex items-center gap-2 bg-surface/90 backdrop-blur-md border border-border rounded-lg px-2.5 py-1 text-xs shadow-xs">
+          <span className="text-[11px] font-semibold text-text-secondary select-none">
+            Legend:
+          </span>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {entityTypes.map((type) => {
+              const color = getEntityColor(type, isDark);
+              return (
+                <div
+                  key={type}
+                  className="flex items-center gap-1.5 select-none"
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-[11px] font-medium text-text">
+                    {type}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

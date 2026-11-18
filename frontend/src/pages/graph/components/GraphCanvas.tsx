@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import cytoscape, { type Core, type EventObject } from "cytoscape";
 import { useThemeStore } from "../../../stores/themeStore";
+import { getEntityColor } from "../../../lib/entityColors";
 
 export interface GraphNodeData {
   id: string;
@@ -34,21 +35,6 @@ interface GraphCanvasProps {
   onExpandNode: (nodeId: string) => void;
   onInitCy?: (cy: Core) => void;
 }
-
-/**
- * Color-blind-safe palette (Okabe-Ito subset calibrated with Luminex Navy)
- * Rule 7: For charts and graphs, use a color-blind-safe set of about five colors,
- * and don't rely on red versus green alone.
- */
-const TYPE_COLORS: Record<string, string> = {
-  Person: "#12297A", // Luminex Navy
-  Organization: "#009E73", // Teal / Bluish Green
-  Product: "#CC79A7", // Reddish Purple
-  Dataset: "#E69F00", // Amber / Orange
-  Transaction: "#56B4E9", // Sky Blue
-  Location: "#566176", // Calm Neutral
-  Default: "#12297A", // Luminex Navy
-};
 
 /**
  * High-performance Cytoscape.js canvas with dark-mode styling and interactive physics
@@ -95,10 +81,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         group: "nodes" as const,
         data: {
           ...n.data,
-          color:
-            n.data.color ||
-            TYPE_COLORS[n.data.entityType || ""] ||
-            TYPE_COLORS.Default,
+          color: n.data.color || getEntityColor(n.data.entityType, isDark),
         },
       })),
       ...elements.edges.map((e) => ({

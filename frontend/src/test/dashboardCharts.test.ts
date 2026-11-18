@@ -145,4 +145,37 @@ describe("EntityBreakdownChart Empty & Populated States", () => {
       'aria-label="Entity type distribution: 1,250 entities indexed across 2 types."',
     );
   });
+
+  it("renders ranked list (not donut) and mapping guidance hint with links when only ONE type exists", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(EntityBreakdownChart, {
+        data: {
+          Person: 57,
+        },
+        isLoading: false,
+      }),
+    );
+
+    // Shows type name, exact count and 100%
+    expect(html).toContain("Person");
+    expect(html).toContain("57");
+    expect(html).toContain("(100%)");
+
+    // Renders the ranked progress bar
+    expect(html).toContain('style="width:100%');
+
+    // Renders explanatory hint
+    expect(html).toContain(
+      "Only one entity type found. Map more types during ingestion.",
+    );
+
+    // Links to Data Connections and Ontology Manager
+    expect(html).toContain('href="/connections"');
+    expect(html).toContain("Data Connections");
+    expect(html).toContain('href="/ontology"');
+    expect(html).toContain("Ontology Manager");
+
+    // Does NOT render the donut center label "entities indexed"
+    expect(html).not.toContain("entities indexed");
+  });
 });

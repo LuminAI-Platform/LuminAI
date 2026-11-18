@@ -4,6 +4,8 @@ import { Calendar, ArrowRight } from "../../../lib/icons";
 import { sanitizeHtml } from "../../../lib/sanitize";
 import { EntityIcon } from "../../ontology/components/EntityTypeEditor";
 import type { EntityType } from "../../ontology/components/EntityTypeEditor";
+import { getEntityColor } from "../../../lib/entityColors";
+import { useThemeStore } from "../../../stores/themeStore";
 
 interface EntityCardProps {
   id: string;
@@ -24,13 +26,15 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   highlights = {},
   ontologyTypes = [],
 }) => {
+  const isDark = useThemeStore((s) => s.isDark);
+
   // Find ontology type mapping
   const safeType = (entityType || "Entity").toLowerCase();
   const matchedType = ontologyTypes.find(
     (t) => (t.name || "").toLowerCase() === safeType,
   );
 
-  const typeColor = matchedType?.color || "#3b82f6"; // Default blue
+  const typeColor = matchedType?.color || getEntityColor(entityType, isDark);
   const typeIcon = matchedType?.icon || "package";
 
   // Check if name is highlighted
