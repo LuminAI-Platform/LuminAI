@@ -124,6 +124,10 @@ server:
   port: ${PORT:${SERVER_PORT:8080}}
   address: 0.0.0.0
   shutdown: graceful
+  tomcat:
+    connection-timeout: 600000
+    max-http-form-post-size: 500MB
+    max-swallow-size: 500MB
 
 # ── Actuator ───────────────────────────────────────────────────────────
 management:
