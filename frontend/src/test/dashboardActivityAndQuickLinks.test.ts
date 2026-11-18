@@ -7,7 +7,6 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
     hash,
-    search,
     children,
     className,
     tabIndex,
@@ -15,7 +14,6 @@ vi.mock("@tanstack/react-router", () => ({
   }: {
     to: string;
     hash?: string;
-    search?: Record<string, unknown>;
     children?: React.ReactNode;
     className?: string;
     tabIndex?: number;
@@ -31,10 +29,12 @@ vi.mock("@tanstack/react-router", () => ({
 
 import {
   ActivityFeed,
-  getActivityTargetRoute,
-  formatRelativeTime,
   type ActivityItem,
 } from "../pages/dashboard/components/ActivityFeed";
+import {
+  getActivityTargetRoute,
+  formatRelativeTime,
+} from "../pages/dashboard/components/activityFeedUtils";
 import { DashboardQuickActions } from "../pages/dashboard/components/DashboardQuickActions";
 
 describe("Dashboard ActivityFeed Component", () => {
