@@ -6,6 +6,7 @@ import {
   emptyProperty,
   getTypeColor,
 } from "./property-schema/propertySchemaTypes";
+import { Select } from "../../../components/ui/dropdown";
 
 export type {
   PropertyType,
@@ -174,22 +175,21 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
                         <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
                           Data Type *
                         </label>
-                        <select
+                        <Select
                           id={`prop-type-${prop.id}`}
                           value={prop.type}
-                          onChange={(e) =>
+                          onChange={(val) =>
                             update(prop.id, {
-                              type: e.target.value as PropertyType,
+                              type: val as PropertyType,
                             })
                           }
-                          className="px-2.5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 transition-colors cursor-pointer"
-                        >
-                          {PROPERTY_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>
-                              {t.label}
-                            </option>
-                          ))}
-                        </select>
+                          options={PROPERTY_TYPES.map((t) => ({
+                            value: t.value,
+                            label: t.label,
+                          }))}
+                          ariaLabel="Data Type"
+                          size="sm"
+                        />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">

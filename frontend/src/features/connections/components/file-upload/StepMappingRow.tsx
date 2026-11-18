@@ -2,6 +2,23 @@ import React from "react";
 import type { ColumnConfig } from "../DataPreviewTable";
 import type { ColumnMappingConfig } from "./fileUploadTypes";
 import { sanitizePropertyName } from "./fileUploadTypes";
+import { Select } from "../../../../components/ui/dropdown";
+
+const COLUMN_TYPES: { value: string; label: string }[] = [
+  { value: "String", label: "String" },
+  { value: "Integer", label: "Integer" },
+  { value: "Double", label: "Double" },
+  { value: "Boolean", label: "Boolean" },
+  { value: "Timestamp", label: "Timestamp" },
+];
+
+const TRANSFORMATION_OPTIONS = [
+  { value: "NONE", label: "None (Pass through)" },
+  { value: "UPPERCASE", label: "UPPERCASE" },
+  { value: "LOWERCASE", label: "LOWERCASE" },
+  { value: "TRIM", label: "TRIM" },
+  { value: "DATE_PARSE", label: "DATE_PARSE" },
+];
 
 interface StepMappingRowProps {
   col: ColumnConfig;
@@ -50,53 +67,44 @@ export const StepMappingRow: React.FC<StepMappingRowProps> = ({
       </div>
 
       <div className="col-span-2 pr-4">
-        <select
+        <Select
           disabled={!col.active}
           value={col.type}
-          onChange={(e) =>
-            updateColumnType(col.name, e.target.value as ColumnConfig["type"])
+          onChange={(val) =>
+            updateColumnType(col.name, val as ColumnConfig["type"])
           }
-          className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {["String", "Integer", "Double", "Boolean", "Timestamp"].map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+          options={COLUMN_TYPES}
+          ariaLabel={`Type for ${col.name}`}
+          size="sm"
+        />
       </div>
 
       <div className="col-span-3 flex gap-2 pr-4">
-        <select
-          disabled={!col.active}
-          value={colMap.targetEntityType}
-          onChange={(e) => {
-            const newEntity = e.target.value;
-            if (newEntity === "__CREATE_NEW__") {
-              setIsCreatingCustomEntity(true);
-              return;
-            }
-            updateMapping(col.name, "targetEntityType", newEntity);
-          }}
-          className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
-        >
-          {ontologyEntityTypes
-            .filter((entity) => entity.toLowerCase() !== "csv")
-            .map((entity) => (
-              <option key={entity} value={entity}>
-                {entity === inferredEntityName ? `${entity}` : entity}
-              </option>
-            ))}
-          <option value="__CREATE_NEW__">+ New Entity...</option>
-        </select>
-        <select
-          disabled={!col.active}
-          value={colMap.targetProperty}
-          onChange={(e) =>
-            updateMapping(col.name, "targetProperty", e.target.value)
-          }
-          className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-1/2 outline-none focus:border-blue-500 disabled:opacity-50"
-        >
+        <div className="w-1/2">
+          <Select
+            disabled={!col.active}
+            value={colMap.targetEntityType}
+            onChange={(newEntity) => {
+              if (newEntity === "__CREATE_NEW__") {
+                setIsCreatingCustomEntity(true);
+                return;
+              }
+              updateMapping(col.name, "targetEntityType", newEntity);
+            }}
+            options={[
+              ...ontologyEntityTypes
+                .filter((entity) => entity.toLowerCase() !== "csv")
+                .map((entity) => ({
+                  value: entity,
+                  label: entity === inferredEntityName ? `${entity}` : entity,
+                })),
+              { value: "__CREATE_NEW__", label: "+ New Entity…" },
+            ]}
+            ariaLabel={`Target entity for ${col.name}`}
+            size="sm"
+          />
+        </div>
+        <div className="w-1/2">
           {(() => {
             const cleanProp = sanitizePropertyName(col.name);
             const available = ontologyProperties[colMap.targetEntityType] || [];
@@ -107,32 +115,31 @@ export const StepMappingRow: React.FC<StepMappingRowProps> = ({
             ) {
               opts.unshift(colMap.targetProperty);
             }
-            return opts.map((prop) => (
-              <option key={prop} value={prop}>
-                {prop}
-              </option>
-            ));
+            return (
+              <Select
+                disabled={!col.active}
+                value={colMap.targetProperty}
+                onChange={(prop) =>
+                  updateMapping(col.name, "targetProperty", prop)
+                }
+                options={opts.map((p) => ({ value: p, label: p }))}
+                ariaLabel={`Target property for ${col.name}`}
+                size="sm"
+              />
+            );
           })()}
-        </select>
+        </div>
       </div>
 
       <div className="col-span-3">
-        <select
+        <Select
           disabled={!col.active}
           value={colMap.transformation}
-          onChange={(e) =>
-            updateMapping(col.name, "transformation", e.target.value)
-          }
-          className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-300 w-full outline-none focus:border-blue-500 disabled:opacity-50"
-        >
-          {["NONE", "UPPERCASE", "LOWERCASE", "TRIM", "DATE_PARSE"].map(
-            (tx) => (
-              <option key={tx} value={tx}>
-                {tx === "NONE" ? "None (Pass through)" : tx}
-              </option>
-            ),
-          )}
-        </select>
+          onChange={(tx) => updateMapping(col.name, "transformation", tx)}
+          options={TRANSFORMATION_OPTIONS}
+          ariaLabel={`Transformation for ${col.name}`}
+          size="sm"
+        />
       </div>
     </div>
   );

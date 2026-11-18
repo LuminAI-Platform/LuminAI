@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { PipelineRunItem } from "./pipelineAnalysisTypes";
 import { RunDetailDrawer } from "./RunDetailDrawer";
+import { Select } from "../../../../components/ui/dropdown";
 
 interface RunsTableProps {
   runs: PipelineRunItem[];
@@ -123,22 +124,18 @@ export const RunsTable: React.FC<RunsTableProps> = ({
             />
           </div>
 
-          {/* Status filter pills */}
-          <div className="flex items-center gap-1 bg-surface-subtle border border-border p-1 rounded-lg">
-            {statusOptions.map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => onStatusFilterChange(st)}
-                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer ${
-                  statusFilter === st
-                    ? "bg-surface text-text border border-border shadow-2xs"
-                    : "text-text-secondary hover:text-text"
-                }`}
-              >
-                {st}
-              </button>
-            ))}
+          {/* Status filter dropdown */}
+          <div className="w-36">
+            <Select
+              value={statusFilter}
+              onChange={onStatusFilterChange}
+              options={statusOptions.map((st) => ({
+                value: st,
+                label: st === "ALL" ? "All Statuses" : st,
+              }))}
+              ariaLabel="Filter runs by status"
+              size="sm"
+            />
           </div>
         </div>
       </div>

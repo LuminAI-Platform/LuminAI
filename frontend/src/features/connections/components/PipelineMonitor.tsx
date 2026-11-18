@@ -21,6 +21,7 @@ import {
   ConnectionDot,
   FilterPill,
 } from "./pipeline-monitor/pipelineMonitorTypes";
+import { MultiSelect } from "../../../components/ui/dropdown";
 import { ThroughputGauge } from "./pipeline-monitor/ThroughputGauge";
 import { PipelineKpis } from "./pipeline-monitor/PipelineKpis";
 
@@ -41,6 +42,7 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
 }) => {
   const [jobs, setJobs] = useState<PipelineJob[]>(() => initialJobs ?? []);
   const [filter, setFilter] = useState<FilterStatus>("ALL");
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [is404Error, setIs404Error] = useState(false);
@@ -358,8 +360,15 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     FAILED: jobs.filter((j) => j.status === "FAILED").length,
   };
 
-  const filtered =
-    filter === "ALL" ? jobs : jobs.filter((j) => j.status === filter);
+  const filtered = jobs.filter((j) => {
+    if (selectedStatuses.length > 0) {
+      return selectedStatuses.includes(j.status);
+    }
+    if (filter !== "ALL") {
+      return j.status === filter;
+    }
+    return true;
+  });
   const totalThroughput = jobs
     .filter((j) => j.status === "RUNNING")
     .reduce((acc, j) => acc + j.throughput, 0);
@@ -452,20 +461,49 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
         <ThroughputGauge value={totalThroughput} max={100_000} />
       </div>
 
-      {/* Status Filter Pills */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {(
-          ["ALL", "RUNNING", "CLEANED", "COMPLETED", "FAILED"] as FilterStatus[]
-        ).map((st) => (
-          <FilterPill
-            key={st}
-            id={`filter-${st.toLowerCase()}`}
-            label={st}
-            count={counts[st]}
-            active={filter === st}
-            onClick={() => setFilter(st)}
-          />
-        ))}
+      {/* Status Filter MultiSelect & Pills */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <MultiSelect
+          label="Status"
+          values={selectedStatuses}
+          onChange={(newVals) => {
+            setSelectedStatuses(newVals);
+            if (newVals.length > 0) {
+              setFilter("ALL");
+            }
+          }}
+          options={[
+            { value: "RUNNING", label: "RUNNING", count: counts.RUNNING },
+            { value: "CLEANED", label: "CLEANED", count: counts.CLEANED },
+            { value: "COMPLETED", label: "COMPLETED", count: counts.COMPLETED },
+            { value: "FAILED", label: "FAILED", count: counts.FAILED },
+          ]}
+          searchPlaceholder="Filter status…"
+        />
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {(
+            [
+              "ALL",
+              "RUNNING",
+              "CLEANED",
+              "COMPLETED",
+              "FAILED",
+            ] as FilterStatus[]
+          ).map((st) => (
+            <FilterPill
+              key={st}
+              id={`filter-${st.toLowerCase()}`}
+              label={st}
+              count={counts[st]}
+              active={selectedStatuses.length === 0 && filter === st}
+              onClick={() => {
+                setSelectedStatuses([]);
+                setFilter(st);
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Jobs list */}

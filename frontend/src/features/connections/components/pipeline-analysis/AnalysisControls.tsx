@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { RefreshCw, Filter, Clock } from "lucide-react";
+import { RefreshCw, Clock } from "lucide-react";
 import { Button } from "../../../../components/ui/Button";
+import { Select } from "../../../../components/ui/dropdown";
 import type { TimeRangeOption } from "./pipelineAnalysisTypes";
 
 interface AnalysisControlsProps {
@@ -76,21 +77,17 @@ export const AnalysisControls: React.FC<AnalysisControlsProps> = ({
       {/* Middle & Right: Pipeline selector & Refresh button */}
       <div className="flex items-center gap-3">
         {/* Pipeline Filter dropdown */}
-        <div className="flex items-center gap-1.5 bg-surface-subtle border border-border px-2.5 py-1 rounded-lg text-xs">
-          <Filter className="w-3.5 h-3.5 text-text-secondary shrink-0" />
-          <span className="text-text-secondary font-medium">Pipeline:</span>
-          <select
+        <div className="w-48">
+          <Select
             value={pipelineFilter}
-            onChange={(e) => onPipelineFilterChange(e.target.value)}
-            className="bg-transparent border-none outline-none text-text text-xs font-semibold cursor-pointer pr-1"
-          >
-            <option value="ALL">All Pipelines</option>
-            {uniquePipelines.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => onPipelineFilterChange(val)}
+            options={[
+              { value: "ALL", label: "All Pipelines" },
+              ...uniquePipelines.map((p) => ({ value: p, label: p })),
+            ]}
+            ariaLabel="Pipeline Filter"
+            size="sm"
+          />
         </div>
 
         {/* Refresh button with Updated Xm ago label */}

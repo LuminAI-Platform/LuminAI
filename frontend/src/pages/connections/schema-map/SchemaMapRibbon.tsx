@@ -1,5 +1,6 @@
 import React from "react";
 import { Loader2, Plus } from "lucide-react";
+import { Select } from "../../../components/ui/dropdown";
 import type {
   SourceColumn,
   OntologyProperty,
@@ -40,22 +41,23 @@ export const SchemaMapRibbon: React.FC<SchemaMapRibbonProps> = ({
     <div className="px-6 py-3 border-b border-zinc-800/80 bg-zinc-950/60 flex flex-wrap items-center justify-between gap-4 shrink-0">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-400 font-medium">
+          <span className="text-xs text-zinc-400 font-medium shrink-0">
             Source Dataset:
           </span>
           {Object.keys(sources).length > 0 ? (
-            <select
-              id="source-selector"
-              value={selectedSource}
-              onChange={(e) => setSelectedSource(e.target.value)}
-              className="bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-500 font-mono"
-            >
-              {Object.keys(sources).map((k) => (
-                <option key={k} value={k}>
-                  {sourceLabels[k] || sources[k].table}
-                </option>
-              ))}
-            </select>
+            <div className="w-56 font-mono">
+              <Select
+                id="source-selector"
+                value={selectedSource}
+                onChange={(val) => setSelectedSource(val)}
+                options={Object.keys(sources).map((k) => ({
+                  value: k,
+                  label: sourceLabels[k] || sources[k].table,
+                }))}
+                ariaLabel="Source Dataset"
+                size="sm"
+              />
+            </div>
           ) : (
             <span className="text-xs text-zinc-500 italic">
               No connected data sources
@@ -66,7 +68,7 @@ export const SchemaMapRibbon: React.FC<SchemaMapRibbonProps> = ({
         <span className="text-zinc-600">➔</span>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-400 font-medium">
+          <span className="text-xs text-zinc-400 font-medium shrink-0">
             Target Entity:
           </span>
           {loadingOntology ? (
@@ -74,18 +76,19 @@ export const SchemaMapRibbon: React.FC<SchemaMapRibbonProps> = ({
               <Loader2 className="w-3 h-3 animate-spin" /> Loading entities...
             </span>
           ) : Object.keys(dynamicOntologyMap).length > 0 ? (
-            <select
-              id="target-ontology-selector"
-              value={activeOntologyKey}
-              onChange={(e) => setSelectedOntology(e.target.value)}
-              className="bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-500 font-mono"
-            >
-              {Object.keys(dynamicOntologyMap).map((k) => (
-                <option key={k} value={k}>
-                  {dynamicOntologyLabels[k] || k}
-                </option>
-              ))}
-            </select>
+            <div className="w-56 font-mono">
+              <Select
+                id="target-ontology-selector"
+                value={activeOntologyKey}
+                onChange={(val) => setSelectedOntology(val)}
+                options={Object.keys(dynamicOntologyMap).map((k) => ({
+                  value: k,
+                  label: dynamicOntologyLabels[k] || k,
+                }))}
+                ariaLabel="Target Entity"
+                size="sm"
+              />
+            </div>
           ) : (
             <span className="text-xs text-zinc-500 italic">
               No entity types found

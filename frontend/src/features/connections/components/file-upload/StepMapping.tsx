@@ -3,6 +3,7 @@ import type { ColumnConfig } from "../DataPreviewTable";
 import type { ColumnMappingConfig } from "./fileUploadTypes";
 import { sanitizePropertyName } from "./fileUploadTypes";
 import { StepMappingRow } from "./StepMappingRow";
+import { Select } from "../../../../components/ui/dropdown";
 
 interface StepMappingProps {
   file: File | null;
@@ -97,25 +98,32 @@ export const StepMapping: React.FC<StepMappingProps> = ({
         <div className="flex items-center gap-2">
           {!isCreatingCustomEntity ? (
             <>
-              <span className="text-zinc-400">Change Target:</span>
-              <select
-                value={primaryTargetEntity}
-                onChange={(e) => handlePrimaryEntityChange(e.target.value)}
-                className="bg-zinc-900 border border-zinc-700 hover:border-zinc-600 rounded-lg px-2.5 py-1.5 text-zinc-200 outline-none focus:border-blue-500 cursor-pointer font-medium"
-              >
-                {ontologyEntityTypes
-                  .filter((e) => e.toLowerCase() !== "csv")
-                  .map((entity) => (
-                    <option key={entity} value={entity}>
-                      {entity === inferredEntityName
-                        ? `${entity} (Inferred from dataset)`
-                        : entity}
-                    </option>
-                  ))}
-                <option value="__CREATE_NEW__">
-                  + Create New Entity Type...
-                </option>
-              </select>
+              <span className="text-zinc-400 text-xs font-medium">
+                Change Target:
+              </span>
+              <div className="w-56">
+                <Select
+                  value={primaryTargetEntity}
+                  onChange={(val) => handlePrimaryEntityChange(val)}
+                  options={[
+                    ...ontologyEntityTypes
+                      .filter((e) => e.toLowerCase() !== "csv")
+                      .map((entity) => ({
+                        value: entity,
+                        label:
+                          entity === inferredEntityName
+                            ? `${entity} (Inferred from dataset)`
+                            : entity,
+                      })),
+                    {
+                      value: "__CREATE_NEW__",
+                      label: "+ Create New Entity Type…",
+                    },
+                  ]}
+                  ariaLabel="Target Entity Type"
+                  size="sm"
+                />
+              </div>
             </>
           ) : (
             <div className="flex items-center gap-2">
