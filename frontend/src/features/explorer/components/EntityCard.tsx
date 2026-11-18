@@ -17,16 +17,17 @@ interface EntityCardProps {
 
 export const EntityCard: React.FC<EntityCardProps> = ({
   id,
-  canonicalName,
-  entityType,
-  properties,
+  canonicalName = "Unnamed Entity",
+  entityType = "Entity",
+  properties = {},
   createdAt,
   highlights = {},
   ontologyTypes = [],
 }) => {
   // Find ontology type mapping
+  const safeType = (entityType || "Entity").toLowerCase();
   const matchedType = ontologyTypes.find(
-    (t) => t.name.toLowerCase() === entityType.toLowerCase(),
+    (t) => (t.name || "").toLowerCase() === safeType,
   );
 
   const typeColor = matchedType?.color || "#3b82f6"; // Default blue
@@ -78,7 +79,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                   className="[&>em]:bg-blue-500/20 [&>em]:text-blue-400 [&>em]:not-italic [&>em]:font-semibold [&>em]:px-0.5 [&>em]:rounded"
                 />
               ) : (
-                canonicalName
+                canonicalName || "Unnamed Entity"
               )}
             </h3>
 

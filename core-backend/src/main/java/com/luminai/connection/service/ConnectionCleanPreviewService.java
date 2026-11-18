@@ -64,7 +64,10 @@ public class ConnectionCleanPreviewService {
   public ResponseEntity<Map<String, Object>> getCleanPreview(UUID id) {
     UUID currentTenant = TenantContext.getTenantUuid();
     if (currentTenant == null) {
-      currentTenant = UUID.fromString("00000000-0000-0000-0000-000000000001");
+      log.warn(
+          "Unauthorized clean preview request for connection '{}': missing tenant context", id);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(Map.of("error", "Unauthorized: missing tenant context"));
     }
 
     if (connectionRepository != null) {
@@ -103,7 +106,30 @@ public class ConnectionCleanPreviewService {
           long countFromRows = root.has("rowsCount") ? root.get("rowsCount").asLong() : 0;
           long countFromRecords = root.has("recordsCount") ? root.get("recordsCount").asLong() : 0;
           actualTotalRows = Math.max(countFromRows, countFromRecords);
-          if (rawRows.isEmpty() && root.has("sampleRows") && root.get("sampleRows").isArray()) {
+
+          if (root.has("tables") && root.get("tables").isArray() && root.get("tables").size() > 0) {
+            List<Map<String, Object>> archiveRows = new ArrayList<>();
+            for (JsonNode tblNode : root.get("tables")) {
+              String tblName = tblNode.has("fileName") ? tblNode.get("fileName").asText() : "";
+              if (tblNode.has("sampleRows") && tblNode.get("sampleRows").isArray()) {
+                for (JsonNode rNode : tblNode.get("sampleRows")) {
+                  @SuppressWarnings("unchecked")
+                  Map<String, Object> rMap = objectMapper.convertValue(rNode, Map.class);
+                  Map<String, Object> enriched = new LinkedHashMap<>();
+                  if (!tblName.isBlank()) {
+                    enriched.put("_table", tblName);
+                  }
+                  enriched.putAll(rMap);
+                  archiveRows.add(enriched);
+                }
+              }
+            }
+            if (!archiveRows.isEmpty()) {
+              rawRows = archiveRows;
+            }
+          } else if (rawRows.isEmpty()
+              && root.has("sampleRows")
+              && root.get("sampleRows").isArray()) {
             List<Map<String, Object>> cached = new ArrayList<>();
             for (JsonNode rowNode : root.get("sampleRows")) {
               @SuppressWarnings("unchecked")
@@ -162,8 +188,15 @@ public class ConnectionCleanPreviewService {
           }
         }
 
-        String name = ConnectionFileParser.extractRowName(cleaned, configuredEntityType);
-        String type = ConnectionFileParser.inferEntityType(cleaned, configuredEntityType);
+        String rowEntityTypeHint = configuredEntityType;
+        if (cleaned.containsKey("_table")) {
+          String tbl = String.valueOf(cleaned.get("_table")).toLowerCase();
+          if (tbl.contains("customer")) rowEntityTypeHint = "Customer";
+          else if (tbl.contains("order")) rowEntityTypeHint = "Order";
+          else if (tbl.contains("shipment")) rowEntityTypeHint = "Shipment";
+        }
+        String name = ConnectionFileParser.extractRowName(cleaned, rowEntityTypeHint);
+        String type = ConnectionFileParser.inferEntityType(cleaned, rowEntityTypeHint);
         cleaned.put("_canonicalName", name);
         cleaned.put("_entityType", type);
         cleaned.put("_rowQuality", rowFields > 0 ? (double) rowValid / (double) rowFields : 1.0);

@@ -51,7 +51,7 @@ export function useIngestionRunner(opts: IngestionRunnerOptions) {
 
     addLog(`Starting ingestion pipeline for file: ${file.name}`, "INFO");
     try {
-      const createdConnId = await runIngestionPipeline({
+      const result = await runIngestionPipeline({
         file,
         parsedData,
         columnsConfig,
@@ -62,7 +62,8 @@ export function useIngestionRunner(opts: IngestionRunnerOptions) {
         setProgress: setIngestionProgress,
       });
 
-      setIngestedCount(parsedData.rows.length);
+      const totalCount = result.recordsCount ?? parsedData.rows.length;
+      setIngestedCount(totalCount);
       setIngestionProgress(100);
       setIngestionFinished(true);
       setIngesting(false);
@@ -71,18 +72,19 @@ export function useIngestionRunner(opts: IngestionRunnerOptions) {
         "SUCCESS",
       );
 
+      const isZip = file.name.toLowerCase().endsWith(".zip");
       const newFileItem = {
-        id: createdConnId || String(Date.now()),
+        id: result.connectionId || String(Date.now()),
         name: file.name,
         size:
           file.size > 1024 * 1024
             ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
             : `${Math.round(file.size / 1024)} KB`,
-        recordsCount: parsedData.rows.length,
+        recordsCount: totalCount,
         status: "Synced",
         createdAt: new Date().toLocaleString(),
-        columns: parsedData.columns,
-        sampleRows: parsedData.rows.slice(0, 50),
+        columns: isZip ? [] : parsedData.columns,
+        sampleRows: isZip ? [] : parsedData.rows.slice(0, 50),
       };
       try {
         const existing = JSON.parse(

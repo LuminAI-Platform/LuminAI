@@ -97,10 +97,18 @@ export function useGraphData() {
       if (selectedRelFilter) {
         url += `&relationshipType=${encodeURIComponent(selectedRelFilter)}`;
       }
-      const res = await apiFetch(url, {
-        headers: { "X-Suppress-Toast": "true" },
-      });
-      return res.json();
+      try {
+        const res = await apiFetch(url, {
+          headers: { "X-Suppress-Toast": "true" },
+        });
+        if (!res.ok) {
+          return { nodes: [], edges: [], totalNodes: 0, totalEdges: 0 };
+        }
+        return await res.json();
+      } catch (err) {
+        console.warn("Could not fetch graph neighbourhood:", err);
+        return { nodes: [], edges: [], totalNodes: 0, totalEdges: 0 };
+      }
     },
     enabled: !!activeEntityId,
     retry: false,

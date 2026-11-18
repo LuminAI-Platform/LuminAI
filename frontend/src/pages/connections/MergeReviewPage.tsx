@@ -88,6 +88,27 @@ export const MergeReviewPage: React.FC = () => {
     },
   });
 
+  const scanMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch("/api/v1/er/candidates/scan", {
+        method: "POST",
+      });
+      if (!res.ok)
+        throw new Error(`Duplicate scan failed with HTTP ${res.status}`);
+      return res.json();
+    },
+    onSuccess: (data: { message?: string; candidatesFound?: number }) => {
+      toast.success(
+        "Entity Resolution Scan Complete",
+        data?.message || "Identified duplicate candidate pairs for review.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["er", "candidates"] });
+    },
+    onError: (err: Error) => {
+      toast.error("Duplicate Scan Failed", err.message);
+    },
+  });
+
   const filteredCandidates = candidatesList.filter((c) => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
@@ -123,6 +144,18 @@ export const MergeReviewPage: React.FC = () => {
         actions={
           <div className="flex items-center gap-3">
             <button
+              onClick={() => scanMutation.mutate()}
+              disabled={scanMutation.isPending || isLoading}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-300 bg-blue-950/60 border border-blue-800/80 rounded-lg hover:bg-blue-900/60 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+            >
+              <Sparkles
+                className={`w-3.5 h-3.5 text-blue-400 ${scanMutation.isPending ? "animate-spin" : ""}`}
+              />
+              {scanMutation.isPending
+                ? "Scanning Datasets..."
+                : "Scan for Duplicates"}
+            </button>
+            <button
               onClick={() => refetch()}
               disabled={isLoading || isRefetching}
               className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50 cursor-pointer"
@@ -157,11 +190,10 @@ export const MergeReviewPage: React.FC = () => {
                   <button
                     key={filter}
                     onClick={() => setStatusFilter(filter)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors shrink-0 ${
-                      statusFilter === filter
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors shrink-0 ${statusFilter === filter
                         ? "bg-zinc-800 text-zinc-200 border border-zinc-700"
                         : "text-zinc-500 hover:text-zinc-300"
-                    }`}
+                      }`}
                   >
                     {filter}
                   </button>
@@ -176,8 +208,27 @@ export const MergeReviewPage: React.FC = () => {
                 Loading candidate pairs...
               </div>
             ) : filteredCandidates.length === 0 ? (
-              <div className="p-8 text-center text-zinc-500 text-xs">
-                No matching merge candidates found
+              <div className="p-6 text-center flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
+                <div className="w-9 h-9 rounded-full bg-zinc-800/80 flex items-center justify-center text-zinc-400">
+                  <Search className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-300 mb-1">
+                    No Merge Candidates Found
+                  </p>
+                  <p className="text-[11px] text-zinc-500 max-w-[200px] mx-auto leading-relaxed">
+                    No duplicate record pairs in review queue. Run a linkage
+                    scan across your active connections.
+                  </p>
+                </div>
+                <button
+                  onClick={() => scanMutation.mutate()}
+                  disabled={scanMutation.isPending}
+                  className="mt-1 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 bg-blue-950/40 border border-blue-800/60 rounded-md hover:bg-blue-900/50 transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3 text-blue-400" />
+                  {scanMutation.isPending ? "Scanning..." : "Run Linkage Scan"}
+                </button>
               </div>
             ) : (
               filteredCandidates.map((candidate) => {
@@ -192,11 +243,10 @@ export const MergeReviewPage: React.FC = () => {
                     onClick={() =>
                       setSelectedCandidateId(candidate.candidateId)
                     }
-                    className={`p-3.5 cursor-pointer transition-all border-l-2 ${
-                      isSelected
+                    className={`p-3.5 cursor-pointer transition-all border-l-2 ${isSelected
                         ? "bg-zinc-800/40 border-l-blue-500"
                         : "border-l-transparent hover:bg-zinc-800/20"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-1.5">

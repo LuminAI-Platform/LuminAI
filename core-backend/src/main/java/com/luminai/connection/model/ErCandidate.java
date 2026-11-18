@@ -34,6 +34,9 @@ public class ErCandidate {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
+  @Column(name = "tenant_id", nullable = false)
+  private UUID tenantId;
+
   @NotNull
   @Column(name = "record_a_id", nullable = false)
   private UUID recordAId;
@@ -42,9 +45,14 @@ public class ErCandidate {
   @Column(name = "record_b_id", nullable = false)
   private UUID recordBId;
 
-  @NotNull
-  @Column(name = "golden_record_id", nullable = false)
+  @Column(name = "golden_record_id")
   private UUID goldenRecordId;
+
+  @Column(name = "pipeline_run_id")
+  private UUID pipelineRunId;
+
+  @Column(name = "match_method", length = 100)
+  private String matchMethod = "JARO_WINKLER_LEVENSHTEIN";
 
   @Convert(converter = JsonMapConverter.class)
   @Column(name = "record_a_snapshot", columnDefinition = "text")
@@ -90,6 +98,14 @@ public class ErCandidate {
   }
 
   public ErCandidate(
+      UUID recordAId, UUID recordBId, double similarityScore, String matchRationale) {
+    this.recordAId = Objects.requireNonNull(recordAId, "recordAId");
+    this.recordBId = Objects.requireNonNull(recordBId, "recordBId");
+    this.similarityScore = similarityScore;
+    this.matchRationale = matchRationale;
+  }
+
+  public ErCandidate(
       UUID recordAId,
       UUID recordBId,
       UUID goldenRecordId,
@@ -97,7 +113,7 @@ public class ErCandidate {
       String matchRationale) {
     this.recordAId = Objects.requireNonNull(recordAId, "recordAId");
     this.recordBId = Objects.requireNonNull(recordBId, "recordBId");
-    this.goldenRecordId = Objects.requireNonNull(goldenRecordId, "goldenRecordId");
+    this.goldenRecordId = goldenRecordId;
     this.similarityScore = similarityScore;
     this.matchRationale = matchRationale;
   }
@@ -112,16 +128,52 @@ public class ErCandidate {
     return id;
   }
 
+  public UUID getTenantId() {
+    return tenantId;
+  }
+
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
+
   public UUID getRecordAId() {
     return recordAId;
+  }
+
+  public void setRecordAId(UUID recordAId) {
+    this.recordAId = recordAId;
   }
 
   public UUID getRecordBId() {
     return recordBId;
   }
 
+  public void setRecordBId(UUID recordBId) {
+    this.recordBId = recordBId;
+  }
+
   public UUID getGoldenRecordId() {
     return goldenRecordId;
+  }
+
+  public void setGoldenRecordId(UUID goldenRecordId) {
+    this.goldenRecordId = goldenRecordId;
+  }
+
+  public UUID getPipelineRunId() {
+    return pipelineRunId;
+  }
+
+  public void setPipelineRunId(UUID pipelineRunId) {
+    this.pipelineRunId = pipelineRunId;
+  }
+
+  public String getMatchMethod() {
+    return matchMethod;
+  }
+
+  public void setMatchMethod(String matchMethod) {
+    this.matchMethod = matchMethod;
   }
 
   public Map<String, Object> getRecordASnapshot() {

@@ -45,7 +45,7 @@ public class ApiKeyController {
         return tenant.get().getId();
       }
     }
-    return tenantRepository.findBySlug("default").map(Tenant::getId).orElse(null);
+    return null;
   }
 
   @Operation(

@@ -31,7 +31,21 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
   setCleanSearchFilter,
   onClose,
 }) => {
+  const [selectedTableFilter, setSelectedTableFilter] =
+    React.useState<string>("ALL");
+
+  const availableTables = React.useMemo(() => {
+    const set = new Set<string>();
+    (cleanData?.rows || []).forEach((r) => {
+      if (r._table) set.add(String(r._table));
+    });
+    return Array.from(set);
+  }, [cleanData]);
+
   const filteredRows = (cleanData?.rows || []).filter((r) => {
+    if (selectedTableFilter !== "ALL" && r._table !== selectedTableFilter) {
+      return false;
+    }
     if (!cleanSearchFilter) return true;
     const q = cleanSearchFilter.toLowerCase();
     return Object.values(r).some((val) =>
@@ -152,6 +166,43 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
             />
           </div>
         </div>
+
+        {/* Multi-table tab selector for archives */}
+        {availableTables.length > 0 && (
+          <div className="px-5 py-2 bg-surface border-b border-border flex items-center gap-2 overflow-x-auto shrink-0">
+            <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider mr-1">
+              Extracted Tables:
+            </span>
+            <button
+              onClick={() => setSelectedTableFilter("ALL")}
+              className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
+                selectedTableFilter === "ALL"
+                  ? "bg-primary text-primary-text font-semibold shadow-xs"
+                  : "bg-surface-subtle border border-border text-text-secondary hover:text-text"
+              }`}
+            >
+              All Tables ({(cleanData?.rows || []).length})
+            </button>
+            {availableTables.map((tbl) => {
+              const count = (cleanData?.rows || []).filter(
+                (r) => r._table === tbl,
+              ).length;
+              return (
+                <button
+                  key={tbl}
+                  onClick={() => setSelectedTableFilter(tbl)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
+                    selectedTableFilter === tbl
+                      ? "bg-primary text-primary-text font-semibold shadow-xs"
+                      : "bg-surface-subtle border border-border text-text-secondary hover:text-text"
+                  }`}
+                >
+                  {tbl} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Content Table */}
         <div className="flex-1 overflow-auto bg-surface min-h-0">

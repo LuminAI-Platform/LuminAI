@@ -68,6 +68,13 @@ class ConnectionControllerTest {
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
     objectMapper = new ObjectMapper();
+    com.luminai.common.tenant.TenantContext.setTenant(
+        UUID.fromString("00000000-0000-0000-0000-000000000001"), "default-tenant");
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void tearDown() {
+    com.luminai.common.tenant.TenantContext.clear();
   }
 
   @Test

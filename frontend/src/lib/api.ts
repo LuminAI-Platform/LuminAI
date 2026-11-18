@@ -24,7 +24,11 @@ import { showToastNotification } from "../components/ui/ToastProvider";
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
   (import.meta.env.VITE_API_URL as string | undefined) ??
-  (import.meta.env.PROD ? "" : "http://localhost:8080");
+  (import.meta.env.PROD
+    ? typeof window !== "undefined"
+      ? window.location.origin
+      : ""
+    : "http://localhost:8080");
 
 /** Default request timeout in milliseconds (9 seconds, within the 8-10s specification) */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 9000;

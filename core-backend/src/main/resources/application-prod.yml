@@ -164,7 +164,7 @@ luminai:
     default-schema: public
     require-tenant: true
   vault:
-    encryption-key: ${VAULT_ENCRYPTION_KEY:01234567890123456789012345678901}
+    encryption-key: ${VAULT_ENCRYPTION_KEY}
   kafka:
     topic:
       partitions: 3

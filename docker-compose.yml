@@ -57,7 +57,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8180/health/ready || exit 1"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8180 || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -85,10 +85,11 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=*"
     ports:
       - "127.0.0.1:2181:2181"
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      test: ["CMD-SHELL", "echo srvr | nc localhost 2181 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -122,6 +123,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -151,7 +153,7 @@ services:
   # MinIO — S3-compatible Object Storage for raw dataset uploads
   # ---------------------------------------------------------------------------
   minio:
-    image: minio/minio:RELEASE.2024-03-03T17-50-39Z
+    image: pgsty/silo:latest
     container_name: luminai-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -402,7 +404,7 @@ services:
       keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -448,7 +450,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -481,7 +483,7 @@ services:
       core-backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3

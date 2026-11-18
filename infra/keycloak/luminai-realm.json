@@ -9,8 +9,15 @@
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://luminai.luminex-logistics.com/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "https://luminai.luminex-logistics.com",
+        "+"
+      ],
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true
     }
@@ -18,7 +25,9 @@
   "roles": {
     "realm": [
       { "name": "admin" },
-      { "name": "user" }
+      { "name": "user" },
+      { "name": "offline_access" },
+      { "name": "PLATFORM_ADMIN" }
     ]
   },
   "users": [
@@ -34,7 +43,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin", "user"]
+      "realmRoles": ["admin", "user", "offline_access", "PLATFORM_ADMIN"]
     }
   ]
 }

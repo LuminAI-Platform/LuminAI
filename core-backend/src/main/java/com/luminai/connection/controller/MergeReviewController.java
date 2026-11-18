@@ -43,6 +43,13 @@ public class MergeReviewController {
     return ResponseEntity.ok(mergeReviewService.listCandidates(status, pageable));
   }
 
+  @PostMapping("/candidates/scan")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST', 'OPERATOR', 'USER')")
+  public ResponseEntity<java.util.Map<String, Object>> scanCandidates() {
+    return ResponseEntity.ok(mergeReviewService.scanCandidates());
+  }
+
   @GetMapping("/candidates/{id}")
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST', 'OPERATOR', 'USER', 'VIEWER')")

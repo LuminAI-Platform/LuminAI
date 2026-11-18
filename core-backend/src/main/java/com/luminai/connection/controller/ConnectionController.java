@@ -82,6 +82,15 @@ public class ConnectionController {
   }
 
   @Autowired
+  public void configurePipelineRunRepository(
+      @Autowired(required = false)
+          com.luminai.connection.repository.PipelineRunRepository pipelineRunRepository) {
+    if (this.uploadService != null && pipelineRunRepository != null) {
+      this.uploadService.setPipelineRunRepository(pipelineRunRepository);
+    }
+  }
+
+  @Autowired
   public void configureNeo4j(
       @Autowired(required = false) Neo4jGraphRepository neo4jGraphRepository) {
     this.neo4jGraphRepository = neo4jGraphRepository;
@@ -142,7 +151,7 @@ public class ConnectionController {
     return ResponseEntity.ok(connectionPreviewService.previewTable(id, table));
   }
 
-  @GetMapping("/{id}/clean-preview")
+  @GetMapping({"/{id}/clean-preview", "/{id}/clean-records"})
   @PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> getCleanPreview(@PathVariable UUID id) {
@@ -164,7 +173,9 @@ public class ConnectionController {
       @PathVariable UUID id, @RequestParam("file") MultipartFile file) throws IOException {
     UUID tenantId = TenantContext.getTenantUuid();
     if (tenantId == null) {
-      tenantId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+      log.warn("Unauthorized file upload request for connection '{}': missing tenant context", id);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(Map.of("error", "Unauthorized: missing tenant context"));
     }
     return uploadService.uploadFile(tenantId, id, file);
   }
@@ -221,6 +232,7 @@ public class ConnectionController {
       }
     }
 
+    // Prototype schema discovery fallback when offline or demo config supplied
     List<Map<String, Object>> schemas =
         List.of(
             Map.of(

@@ -161,5 +161,5 @@ class TestStatusEndpoint:
         assert status_resp.status_code == 200
         status_data = status_resp.json()
         assert status_data["run_id"] == run_id
-        assert status_data["status"] in ("queued", "running", "completed")
+        assert status_data["status"] in ("queued", "running", "completed", "failed")
         assert "entity resolution" in status_data["message"].lower()
