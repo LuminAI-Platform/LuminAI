@@ -69,10 +69,11 @@ export const RawPreviewModal: React.FC<RawPreviewModalProps> = ({
             </span>
             <button
               onClick={() => setSelectedTable("ALL")}
-              className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors ${selectedTable === "ALL"
+              className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors ${
+                selectedTable === "ALL"
                   ? "bg-primary text-primary-text font-semibold shadow-xs"
                   : "bg-surface border border-border text-text-secondary hover:text-text"
-                }`}
+              }`}
             >
               All Tables ({(previewingFile.sampleRows || []).length})
             </button>
@@ -84,10 +85,11 @@ export const RawPreviewModal: React.FC<RawPreviewModalProps> = ({
                 <button
                   key={tbl}
                   onClick={() => setSelectedTable(tbl)}
-                  className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors ${selectedTable === tbl
+                  className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors ${
+                    selectedTable === tbl
                       ? "bg-primary text-primary-text font-semibold shadow-xs"
                       : "bg-surface border border-border text-text-secondary hover:text-text"
-                    }`}
+                  }`}
                 >
                   {tbl} ({count})
                 </button>
@@ -109,30 +111,28 @@ export const RawPreviewModal: React.FC<RawPreviewModalProps> = ({
             <table className="w-full text-left text-xs border-collapse">
               <thead className="sticky top-0 bg-surface-subtle border-b border-border">
                 <tr>
-                  {Object.keys(previewingFile.sampleRows[0] || {}).map(
-                    (colKey) => (
-                      <th
-                        key={colKey}
-                        className="py-2 px-3 font-semibold text-text-secondary font-mono text-[11px]"
-                      >
-                        {colKey}
-                      </th>
-                    ),
-                  )}
+                  {columns.map((colKey) => (
+                    <th
+                      key={colKey}
+                      className="py-2 px-3 font-semibold text-text-secondary font-mono text-[11px]"
+                    >
+                      {colKey}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {previewingFile.sampleRows.map((row, rIdx) => (
+                {displayedRows.map((row, rIdx) => (
                   <tr
                     key={rIdx}
                     className="hover:bg-surface-subtle/50 transition-colors"
                   >
-                    {Object.values(row).map((val, cIdx) => (
+                    {columns.map((colKey, cIdx) => (
                       <td
                         key={cIdx}
                         className="py-1.5 px-3 font-mono text-[11px] text-text whitespace-nowrap"
                       >
-                        {String(val ?? "")}
+                        {String(row[colKey] ?? "")}
                       </td>
                     ))}
                   </tr>

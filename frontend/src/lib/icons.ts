@@ -98,6 +98,7 @@ import {
   PenLine,
   Menu,
   XCircle,
+  Sparkles,
   LucideProvider,
   useLucideContext,
 } from "lucide-react";
@@ -230,6 +231,7 @@ export const Icons = {
   PenLine,
   Menu,
   XCircle,
+  Sparkles,
 } as const;
 
 export type IconKey = keyof typeof Icons;
@@ -332,6 +334,7 @@ export {
   PenLine,
   Menu,
   XCircle,
+  Sparkles,
   LucideProvider,
   useLucideContext,
 };

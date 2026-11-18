@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Icons, RefreshCw, Search, ICON_SIZES } from "../../lib/icons";
+import {
+  Icons,
+  RefreshCw,
+  Search,
+  Sparkles,
+  ICON_SIZES,
+} from "../../lib/icons";
 import { apiFetch } from "../../lib/api";
 import { Badge, SuggestedTag } from "../../components/ui/Badge";
 import { useToast } from "../../components/ui/ToastProvider";
@@ -190,10 +196,11 @@ export const MergeReviewPage: React.FC = () => {
                   <button
                     key={filter}
                     onClick={() => setStatusFilter(filter)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors shrink-0 ${statusFilter === filter
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors shrink-0 ${
+                      statusFilter === filter
                         ? "bg-zinc-800 text-zinc-200 border border-zinc-700"
                         : "text-zinc-500 hover:text-zinc-300"
-                      }`}
+                    }`}
                   >
                     {filter}
                   </button>
@@ -243,10 +250,11 @@ export const MergeReviewPage: React.FC = () => {
                     onClick={() =>
                       setSelectedCandidateId(candidate.candidateId)
                     }
-                    className={`p-3.5 cursor-pointer transition-all border-l-2 ${isSelected
+                    className={`p-3.5 cursor-pointer transition-all border-l-2 ${
+                      isSelected
                         ? "bg-zinc-800/40 border-l-blue-500"
                         : "border-l-transparent hover:bg-zinc-800/20"
-                      }`}
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-1.5">
