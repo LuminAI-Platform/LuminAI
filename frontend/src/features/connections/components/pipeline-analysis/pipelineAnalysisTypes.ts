@@ -135,4 +135,10 @@ export interface EngineJobDetail {
     retry_count?: number;
   }>;
   logs?: string[];
+  quality_scores?: {
+    completeness?: number;
+    uniqueness?: number;
+    consistency?: number;
+    timeliness?: number;
+  };
 }
