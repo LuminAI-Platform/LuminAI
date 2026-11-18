@@ -1,5 +1,5 @@
 import React from "react";
-import { GitBranch } from "lucide-react";
+import { GitBranch } from "../../../lib/icons";
 
 export interface ProvenanceLine {
   propertyKey: string;

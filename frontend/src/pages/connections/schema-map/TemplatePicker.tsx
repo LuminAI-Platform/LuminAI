@@ -1,7 +1,7 @@
 import React from "react";
 import { Modal } from "../../../components/ui/Modal";
 import { type DomainTemplate, DOMAIN_STARTER_PACKS } from "./domainTemplates";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "../../../lib/icons";
 
 interface TemplatePickerProps {
   isOpen: boolean;

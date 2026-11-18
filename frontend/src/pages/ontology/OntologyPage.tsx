@@ -1,5 +1,4 @@
 import React from "react";
-import { Boxes } from "lucide-react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { EntityTypeEditor } from "../../features/ontology/components/EntityTypeEditor";
 import { RelationshipTypeForm } from "../../features/ontology/components/RelationshipTypeForm";
@@ -7,20 +6,7 @@ import { useOntologyData, type Tab } from "./useOntologyData";
 import { EntityTypesTab } from "./EntityTypesTab";
 import { RelationshipsTab } from "./RelationshipsTab";
 import { VersionsTab } from "./VersionsTab";
-
-const Spinner = () => (
-  <svg
-    className="animate-spin"
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-  >
-    <path d="M21 12a9 9 0 1 1-6.22-8.56" />
-  </svg>
-);
+import { Icons, Loader2, PenLine, ICON_SIZES } from "../../lib/icons";
 
 export const OntologyPage: React.FC = () => {
   const {
@@ -62,7 +48,13 @@ export const OntologyPage: React.FC = () => {
           ]}
           title="Ontology Schema Manager"
           description="Define entity types, typed properties, validation constraints, and directional relationships."
-          icon={<Boxes className="w-5 h-5 text-indigo-400" />}
+          icon={
+            <Icons.OntologyManager
+              size={ICON_SIZES.header}
+              className="text-primary"
+              aria-hidden="true"
+            />
+          }
           badge={{
             label: "Active Schema",
             variant: "purple",
@@ -75,19 +67,13 @@ export const OntologyPage: React.FC = () => {
               className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               {publishing ? (
-                <Spinner />
+                <Loader2
+                  size={ICON_SIZES.inline}
+                  className="animate-spin motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
               ) : (
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
+                <PenLine size={ICON_SIZES.inline} aria-hidden="true" />
               )}
               {publishing ? "Publishing…" : "Publish Version"}
             </button>

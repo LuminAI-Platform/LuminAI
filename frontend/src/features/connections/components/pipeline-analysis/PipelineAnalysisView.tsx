@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { RefreshCw, ChevronDown, ChevronUp, Cpu, Database } from "lucide-react";
+import {
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Database,
+} from "../../../../lib/icons";
 import { Link } from "@tanstack/react-router";
 import { Button } from "../../../../components/ui/Button";
 import { Skeleton } from "../../../../components/ui/Skeleton";

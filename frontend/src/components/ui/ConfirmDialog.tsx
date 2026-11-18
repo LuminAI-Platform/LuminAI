@@ -1,7 +1,7 @@
 import React from "react";
 import { Modal } from "./Modal";
 import { Button } from "./Button";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ICON_SIZES } from "../../lib/icons";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -37,7 +37,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 : "bg-primary-tint text-primary border border-primary-border"
             }`}
           >
-            <AlertTriangle className="w-5 h-5" />
+            <AlertTriangle size={ICON_SIZES.header} aria-hidden="true" />
           </div>
           <div>
             <h4 className="text-sm font-semibold text-text">{title}</h4>

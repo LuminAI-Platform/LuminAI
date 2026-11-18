@@ -7,7 +7,9 @@ import {
   FileText,
   ShieldCheck,
   Wrench,
-} from "lucide-react";
+  ICON_SIZES,
+} from "../../../../lib/icons";
+import { Tooltip } from "../../../../components/ui/Tooltip";
 import { Button } from "../../../../components/ui/Button";
 import { apiFetch } from "../../../../lib/api";
 import type { PipelineRunItem, EngineJobDetail } from "./pipelineAnalysisTypes";
@@ -192,15 +194,17 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
             </p>
           </div>
 
-          <button
-            ref={closeBtnRef}
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-text-secondary hover:text-text hover:bg-surface-subtle border border-transparent hover:border-border transition-colors cursor-pointer"
-            aria-label="Close drawer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <Tooltip label="Close drawer" side="left">
+            <button
+              ref={closeBtnRef}
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-text-secondary hover:text-text hover:bg-surface-subtle border border-transparent hover:border-border transition-colors cursor-pointer"
+              aria-label="Close drawer"
+            >
+              <X size={ICON_SIZES.header} aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Drawer Content */}

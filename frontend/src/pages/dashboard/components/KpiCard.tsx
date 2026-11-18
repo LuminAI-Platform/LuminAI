@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge, type BadgeVariant } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { ICON_SIZES } from "../../../lib/icons";
 
 export interface KpiCardProps {
   title: string;
@@ -11,6 +12,7 @@ export interface KpiCardProps {
     text: string;
     variant?: BadgeVariant;
   };
+  status?: "default" | "warning" | "danger" | "success";
   isLoading?: boolean;
   isCached?: boolean;
 }
@@ -18,6 +20,9 @@ export interface KpiCardProps {
 /**
  * KPI Metric Card for Dashboard Overview Row
  * Uses design system standard: 8px radius, 1px border, very light shadow.
+ * - Icon scale: 18px in card tiles
+ * - Tile styling: slightly brighter than dim stroke (text-text/80), tinted with status color when attention is needed
+ * - Decorative icon has aria-hidden="true"
  */
 export const KpiCard: React.FC<KpiCardProps> = ({
   title,
@@ -25,17 +30,43 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   subtitle,
   icon,
   badge,
+  status = "default",
   isLoading = false,
   isCached = false,
 }) => {
+  const getIconContainerStyle = () => {
+    if (status === "danger" || badge?.variant === "danger") {
+      return "bg-error/10 border-error/30 text-error";
+    }
+    if (status === "warning" || badge?.variant === "warning") {
+      return "bg-warning/10 border-warning/30 text-warning";
+    }
+    // Slightly brighter than the dim stroke (text-text-secondary):
+    return "bg-surface-subtle border-border text-text/80";
+  };
+
   return (
     <div className="bg-surface border border-border rounded-lg p-5 transition-colors flex flex-col justify-between shadow-xs hover:border-text-secondary/40">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-text-secondary select-none">
           {title}
         </span>
-        <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary">
-          {icon}
+        <div
+          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${getIconContainerStyle()}`}
+        >
+          {React.isValidElement(icon)
+            ? React.cloneElement(
+                icon as React.ReactElement<{
+                  "aria-hidden"?: boolean;
+                  size?: number;
+                  className?: string;
+                }>,
+                {
+                  "aria-hidden": true,
+                  size: ICON_SIZES.card,
+                },
+              )
+            : icon}
         </div>
       </div>
 

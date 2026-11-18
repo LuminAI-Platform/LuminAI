@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { GitCommit, Loader2 } from "lucide-react";
+import { GitCommit, Loader2 } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 

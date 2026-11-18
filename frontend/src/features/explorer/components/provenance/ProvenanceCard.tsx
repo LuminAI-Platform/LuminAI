@@ -1,5 +1,5 @@
 import React from "react";
-import { Database, Clock, Tag } from "lucide-react";
+import { Database, Clock, Tag } from "../../../../lib/icons";
 import type { ProvenanceLine } from "../EntityPropertyTable";
 
 const CONFIDENCE_CONFIG = {

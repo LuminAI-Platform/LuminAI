@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Compass, Home, ArrowLeft } from "lucide-react";
+import { Compass, Home, ArrowLeft } from "../../lib/icons";
 import { Button } from "../../components/ui";
 
 export const NotFoundPage: React.FC = () => {

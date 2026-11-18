@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
-import { Shield, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { Shield, ArrowRight, Loader2, AlertCircle } from "../../lib/icons";
 import dashboardImg from "../../assets/How Data Science Connects the Dots.jpg";
 import logoImg from "../../assets/luminai-logo.svg";
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { FilterX, Check } from "lucide-react";
+import { FilterX, Check } from "../../../lib/icons";
 import { EntityIcon } from "../../ontology/components/EntityTypeEditor";
 import type { EntityType } from "../../ontology/components/EntityTypeEditor";
 

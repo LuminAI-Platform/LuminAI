@@ -1,5 +1,5 @@
 import React from "react";
-import { Share2 } from "lucide-react";
+import { Share2 } from "../../../lib/icons";
 
 interface GraphCtaBannerProps {
   onExploreGraph: () => void;

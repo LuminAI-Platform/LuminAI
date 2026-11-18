@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, AlertCircle, ArrowRight, RefreshCw } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  ArrowRight,
+  RefreshCw,
+} from "../../../lib/icons";
 import { apiFetch, ApiError } from "../../../lib/api";
 import { queryClient } from "../../../lib/queryClient";
 import { Button } from "../../../components/ui/Button";

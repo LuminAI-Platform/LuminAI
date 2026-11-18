@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Database, Table, RotateCcw, ArrowRight } from "lucide-react";
+import { Database, Table, RotateCcw, ArrowRight } from "../../../lib/icons";
 
 export interface ExplorerEmptyStateProps {
   query?: string;

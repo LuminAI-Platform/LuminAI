@@ -2,6 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { SidebarTooltip } from "../../ui/Tooltip";
 import type { NavItem } from "./sidebarConfig";
+import {
+  Icons,
+  ICON_SIZES,
+  Loader2,
+  type LucideIcon,
+} from "../../../lib/icons";
+import { usePendingReviewCount } from "../../../features/connections/usePendingReviewCount";
 
 interface SidebarNavListProps {
   navItems: NavItem[];
@@ -13,36 +20,50 @@ interface SidebarNavListProps {
 interface SidebarNavLinkItemProps {
   to: string;
   label: string;
-  icon: React.ReactNode;
+  icon: LucideIcon;
   collapsed: boolean;
   exact?: boolean;
   onNavigate: () => void;
   pendingPath: string | null;
   setPendingPath: (path: string | null) => void;
+  badgeCount?: number;
 }
 
 const SidebarNavLinkItem: React.FC<SidebarNavLinkItemProps> = ({
   to,
   label,
-  icon,
+  icon: Icon,
   collapsed,
   exact = false,
   onNavigate,
   pendingPath,
   setPendingPath,
+  badgeCount,
 }) => {
   const routerState = useRouterState();
   const isRouterBusy =
     routerState.status === "pending" || routerState.isLoading;
   const isItemPending = pendingPath === to && isRouterBusy;
 
+  const formattedBadge =
+    badgeCount !== undefined && badgeCount > 0
+      ? badgeCount > 99
+        ? "99+"
+        : String(badgeCount)
+      : null;
+
+  const tooltipLabel = formattedBadge
+    ? `${label} (${formattedBadge} pending review)`
+    : label;
+
   return (
-    <SidebarTooltip label={label} enabled={collapsed}>
+    <SidebarTooltip label={tooltipLabel} enabled={collapsed}>
       <Link
         to={to}
         preload="intent"
         activeOptions={{ exact }}
-        className={`flex items-center p-2! rounded-lg gap-3 font-medium transition-all duration-150 border cursor-pointer ${
+        aria-label={tooltipLabel}
+        className={`flex items-center p-2 rounded-lg gap-3 font-medium transition-all duration-150 border cursor-pointer relative ${
           isItemPending
             ? "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!"
             : "text-text-secondary hover:bg-surface-subtle hover:text-text border-transparent hover:border-border"
@@ -56,40 +77,46 @@ const SidebarNavLinkItem: React.FC<SidebarNavLinkItemProps> = ({
           onNavigate();
         }}
       >
-        <span className="shrink-0">{icon}</span>
+        <span className="shrink-0 relative flex items-center justify-center">
+          <Icon size={ICON_SIZES.sidebar} aria-hidden="true" />
+          {collapsed && formattedBadge && (
+            <span
+              className="absolute -top-1.5 -right-2 min-w-[15px] h-3.5 px-0.5 rounded-full bg-primary text-[8px] font-bold text-primary-text flex items-center justify-center border border-surface leading-none shadow-xs"
+              aria-hidden="true"
+            >
+              {formattedBadge}
+            </span>
+          )}
+        </span>
         <span
-          className={`text-[13px] transition-opacity duration-200 whitespace-nowrap flex-1 ${
+          className={`text-[13px] transition-opacity duration-200 whitespace-nowrap flex-1 truncate ${
             collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
           }`}
         >
           {label}
         </span>
 
-        {/* Instant optimistic loading indicator */}
+        {/* Pending Review Badge (Expanded) */}
+        {!collapsed && formattedBadge && (
+          <span
+            className="ml-auto inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-primary-tint text-primary border border-primary-border shrink-0"
+            aria-label={`${formattedBadge} records pending review`}
+          >
+            {formattedBadge}
+          </span>
+        )}
+
+        {/* Optimistic loading indicator */}
         {isItemPending && !collapsed && (
           <span
             className="ml-auto flex items-center shrink-0 text-primary"
             aria-label="Loading..."
           >
-            <svg
-              className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-              />
-            </svg>
+            <Loader2
+              size={ICON_SIZES.inline}
+              className="animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
           </span>
         )}
       </Link>
@@ -105,6 +132,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
 }) => {
   const routerState = useRouterState();
   const [pendingPath, setPendingPath] = useState<string | null>(null);
+  const { data: pendingReviewCount = 0 } = usePendingReviewCount();
 
   // Clear optimistic pending state once route completes
   useEffect(() => {
@@ -116,7 +144,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
   return (
     <nav className="flex-1 py-4 px-3.5 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
       {!collapsed && (
-        <div className="px-2 pt-1 pb-1 text-[11px] font-medium text-text-secondary">
+        <div className="px-2 pt-1 pb-1 text-[11px] font-medium text-text-secondary select-none">
           Explore and overview
         </div>
       )}
@@ -137,7 +165,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
         ))}
 
       {!collapsed && (
-        <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary">
+        <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary select-none">
           Data integration
         </div>
       )}
@@ -154,11 +182,14 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
             onNavigate={() => setMobileOpen(false)}
             pendingPath={pendingPath}
             setPendingPath={setPendingPath}
+            badgeCount={
+              i.badgeKey === "fusionReview" ? pendingReviewCount : undefined
+            }
           />
         ))}
 
       {!collapsed && (
-        <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary">
+        <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary select-none">
           Configuration
         </div>
       )}
@@ -183,25 +214,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
           <SidebarNavLinkItem
             to="/admin/users"
             label="Users & Roles"
-            icon={
-              <svg
-                className="shrink-0"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            }
+            icon={Icons.Users}
             collapsed={collapsed}
             onNavigate={() => setMobileOpen(false)}
             pendingPath={pendingPath}
@@ -211,29 +224,7 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
           <SidebarNavLinkItem
             to="/admin/tenants"
             label="Tenants"
-            icon={
-              <svg
-                className="shrink-0"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M3 21h18" />
-                <path d="M9 8h1" />
-                <path d="M9 12h1" />
-                <path d="M9 16h1" />
-                <path d="M14 8h1" />
-                <path d="M14 12h1" />
-                <path d="M14 16h1" />
-                <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
-              </svg>
-            }
+            icon={Icons.Tenants}
             collapsed={collapsed}
             onNavigate={() => setMobileOpen(false)}
             pendingPath={pendingPath}

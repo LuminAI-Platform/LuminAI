@@ -1,5 +1,5 @@
 import React from "react";
-import { LogOut, Sliders } from "lucide-react";
+import { Icons, LogOut, ICON_SIZES } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -44,7 +44,13 @@ export const SettingsPage: React.FC = () => {
         ]}
         title="Workspace & Tenant Settings"
         description="Manage authenticated user identity, multi-tenant boundaries, access control roles, and API configuration."
-        icon={<Sliders className="w-5 h-5 text-zinc-400" />}
+        icon={
+          <Icons.Settings
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
+        }
         badge={{
           label: "Tenant Settings",
           variant: "zinc",

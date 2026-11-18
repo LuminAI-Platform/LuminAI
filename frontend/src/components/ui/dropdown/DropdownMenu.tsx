@@ -12,7 +12,7 @@ import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
 import { FocusScope } from "@radix-ui/react-focus-scope";
 import { Slot } from "@radix-ui/react-slot";
 import { composeRefs } from "@radix-ui/react-compose-refs";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, ICON_SIZES } from "../../../lib/icons";
 import { Tooltip } from "../Tooltip";
 
 /* ==========================================================================
@@ -182,10 +182,16 @@ export const DropdownMenuTrigger = React.forwardRef<
             <>
               <span className="truncate">{children}</span>
               {isLoading ? (
-                <Loader2 className="w-3.5 h-3.5 text-text-secondary animate-spin shrink-0" />
+                <Loader2
+                  size={ICON_SIZES.inline}
+                  className="text-text-secondary animate-spin motion-reduce:animate-none shrink-0"
+                  aria-hidden="true"
+                />
               ) : showChevron ? (
                 <ChevronDown
-                  className={`w-3.5 h-3.5 text-text-secondary shrink-0 transition-transform duration-150 ${
+                  size={ICON_SIZES.inline}
+                  aria-hidden="true"
+                  className={`text-text-secondary shrink-0 transition-transform duration-150 ${
                     open ? "rotate-180" : ""
                   }`}
                 />

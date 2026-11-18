@@ -5,7 +5,7 @@ import {
   formatRelativeTime,
   getHealthStatusBadge,
 } from "./connectionsTypes";
-import { Database, Layers, ArrowRight, Trash2 } from "lucide-react";
+import { Database, Layers, ArrowRight, Trash2 } from "../../../lib/icons";
 import { ActionMenu } from "../../../components/ui/dropdown";
 
 interface ConnectorsTableProps {

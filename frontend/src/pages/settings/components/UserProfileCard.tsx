@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "../../../lib/icons";
 import { Badge } from "../../../components/ui/Badge";
 import type { UserProfileCardProps } from "../types";
 

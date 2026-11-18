@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Compass, Home } from "lucide-react";
+import { Compass, Home } from "../../lib/icons";
 import { Button } from "../ui/Button";
 
 export const AppShellNotFound: React.FC = () => {

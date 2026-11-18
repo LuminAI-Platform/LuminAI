@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Cpu } from "lucide-react";
+import { Cpu } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { Badge } from "../../../components/ui/Badge";
 

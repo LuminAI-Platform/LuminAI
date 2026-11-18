@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar, Share2 } from "lucide-react";
+import { Calendar, Share2 } from "../../../lib/icons";
 import { EntityIcon } from "../../../features/ontology/components/EntityTypeEditor";
 
 interface EntityHeaderCardProps {

@@ -1,7 +1,7 @@
 import React from "react";
-import { Network, Database, Play, ShieldCheck } from "lucide-react";
 import { KpiCard } from "./KpiCard";
 import type { DashboardSummary } from "../useDashboardData";
+import { Icons } from "../../../lib/icons";
 
 interface DashboardKpiRowProps {
   summary: DashboardSummary | undefined;
@@ -16,6 +16,7 @@ interface DashboardKpiRowProps {
  * - If the count/metric is 0, display "None yet" in a neutral badge.
  * - Reserve green ("success") badges strictly for non-zero, active/operational metrics.
  * - When no pipeline executions exist, show "–" or "No runs yet", never misleading zeros or dummy scores.
+ * - Card tile icons are tinted with the status color (danger for failed runs, warning for attention) only when the card needs attention.
  */
 export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
   summary,
@@ -25,7 +26,8 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
   const totalEntities = summary?.totalEntities ?? 0;
   const totalConnections = summary?.totalConnections ?? 0;
   const totalPipelines = summary?.totalPipelines ?? 0;
-  const hasPipelineIssues = (summary?.pipelineHealth?.failed ?? 0) > 0;
+  const failedRuns = summary?.pipelineHealth?.failed ?? 0;
+  const hasPipelineIssues = failedRuns > 0;
 
   const hasEntities = totalEntities > 0;
   const hasConnections = totalConnections > 0;
@@ -36,13 +38,20 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
     typeof summary?.dataQualityScore === "number" &&
     summary.dataQualityScore > 0;
 
+  const pipelineStatus =
+    hasPipelines && failedRuns > 0
+      ? "danger"
+      : hasPipelineIssues
+        ? "warning"
+        : "default";
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <KpiCard
         title="Resolved Entities"
         value={totalEntities}
         subtitle={hasEntities ? "Matched records" : "No records yet"}
-        icon={<Network className="w-4 h-4" />}
+        icon={<Icons.ResolvedEntities />}
         badge={
           hasEntities
             ? { text: "Active", variant: "success" }
@@ -56,7 +65,7 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         title="Active Connectors"
         value={totalConnections}
         subtitle={hasConnections ? "Connected sources" : "No sources connected"}
-        icon={<Database className="w-4 h-4" />}
+        icon={<Icons.DataConnections />}
         badge={
           hasConnections
             ? { text: "Online", variant: "success" }
@@ -74,7 +83,8 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
             ? `${summary.pipelineHealth.completed} completed · ${summary.pipelineHealth.running} running`
             : "No runs yet"
         }
-        icon={<Play className="w-4 h-4" />}
+        icon={<Icons.PipelineExecutions />}
+        status={pipelineStatus}
         badge={
           hasPipelines
             ? {
@@ -95,10 +105,18 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
             : "–"
         }
         subtitle={hasEvaluations ? "Completeness & accuracy" : "No runs yet"}
-        icon={<ShieldCheck className="w-4 h-4" />}
+        icon={<Icons.DataQuality />}
         badge={
           hasEvaluations
-            ? { text: "Healthy", variant: "success" }
+            ? {
+                text: `${summary.dataQualityScore.toFixed(0)}% Good`,
+                variant:
+                  summary.dataQualityScore >= 90
+                    ? "success"
+                    : summary.dataQualityScore >= 70
+                      ? "warning"
+                      : "danger",
+              }
             : { text: "None yet", variant: "neutral" }
         }
         isLoading={isLoading}

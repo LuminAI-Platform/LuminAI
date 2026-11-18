@@ -12,7 +12,7 @@ import {
   X,
   Loader2,
   CheckCircle2,
-} from "lucide-react";
+} from "../../../lib/icons";
 
 interface CleanDataModalProps {
   cleanPreviewFile: IngestedFile;

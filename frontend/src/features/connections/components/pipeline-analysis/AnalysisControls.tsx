@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RefreshCw, Clock } from "lucide-react";
+import { RefreshCw, Clock } from "../../../../lib/icons";
 import { Button } from "../../../../components/ui/Button";
 import { Select } from "../../../../components/ui/dropdown";
 import type { TimeRangeOption } from "./pipelineAnalysisTypes";

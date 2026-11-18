@@ -1,6 +1,5 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Plus, Search } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import {
   ThemeMenu,
@@ -8,6 +7,8 @@ import {
   HistoryMenu,
   UserMenu,
 } from "../ui/dropdown";
+import { Tooltip } from "../ui/Tooltip";
+import { Icons, Search, Plus, ICON_SIZES } from "../../lib/icons";
 
 interface TopBarProps {
   onMenuClick: () => void;
@@ -19,31 +20,24 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   return (
     <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 md:px-8 z-30 transition-colors">
       {/* Mobile Menu Toggle Button */}
-      <button
-        type="button"
-        className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors md:hidden cursor-pointer"
-        onClick={onMenuClick}
-        aria-label="Open menu"
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <Tooltip label="Open navigation menu" side="bottom">
+        <button
+          type="button"
+          className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors md:hidden cursor-pointer"
+          onClick={onMenuClick}
+          aria-label="Open navigation menu"
         >
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="6" x2="21" y2="6" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
+          <Icons.Menu size={ICON_SIZES.header} aria-hidden="true" />
+        </button>
+      </Tooltip>
 
       {/* Search Bar Container */}
       <div className="flex items-center bg-surface-subtle border border-border rounded-lg px-3 py-1.5 w-48 sm:w-64 md:w-96 gap-2 transition-colors focus-within:border-border-focus">
-        <Search className="w-4 h-4 text-text-secondary shrink-0" />
+        <Search
+          size={ICON_SIZES.dropdown}
+          className="text-text-secondary shrink-0"
+          aria-hidden="true"
+        />
         <input
           type="text"
           className="bg-transparent border-none outline-none text-text placeholder:text-text-secondary text-xs w-full"
@@ -70,7 +64,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
           to="/connections"
           className="bg-primary hover:bg-primary-hover text-primary-text font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer border border-primary shadow-xs"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus size={ICON_SIZES.inline} aria-hidden="true" />
           <span>New Connection</span>
         </Link>
 

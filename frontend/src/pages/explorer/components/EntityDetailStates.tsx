@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw, AlertCircle } from "../../../lib/icons";
 
 export const EntityLoadingState: React.FC = () => {
   return (

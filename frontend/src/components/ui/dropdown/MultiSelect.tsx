@@ -12,7 +12,7 @@ import {
   CheckSquare,
   Square,
   MinusSquare,
-} from "lucide-react";
+} from "../../../lib/icons";
 import { Tooltip } from "../Tooltip";
 
 export interface MultiSelectOption {

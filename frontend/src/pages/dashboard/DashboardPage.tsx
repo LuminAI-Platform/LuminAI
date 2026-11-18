@@ -1,6 +1,12 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { RefreshCw, ArrowRight, Layers, AlertCircle } from "lucide-react";
+import {
+  Icons,
+  RefreshCw,
+  ArrowRight,
+  AlertCircle,
+  ICON_SIZES,
+} from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { EntityBreakdownChart } from "./components/EntityBreakdownChart";
 import { PipelineTimelineChart } from "./components/PipelineTimelineChart";
@@ -35,7 +41,13 @@ export const DashboardPage: React.FC = () => {
         breadcrumbs={[{ label: "Dashboard" }]}
         title="Platform Overview"
         description="System status, connected data sources, pipeline executions, and resolved records."
-        icon={<Layers className="w-5 h-5 text-text-secondary" />}
+        icon={
+          <Icons.Dashboard
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <Button
             variant="secondary"

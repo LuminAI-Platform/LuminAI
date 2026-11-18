@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { X, GitBranch, Info, RefreshCw } from "lucide-react";
+import { X, GitBranch, Info, RefreshCw, ICON_SIZES } from "../../../lib/icons";
+import { Tooltip } from "../../../components/ui/Tooltip";
 import { apiFetch } from "../../../lib/api";
 import type { ProvenanceLine } from "./EntityPropertyTable";
 import { ProvenanceCard } from "./provenance/ProvenanceCard";
@@ -119,14 +120,17 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
               )}
             </div>
           </div>
-          <button
-            id="provenance-inspector-close"
-            onClick={onClose}
-            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/80 border border-transparent hover:border-zinc-700 transition-all cursor-pointer"
-            aria-label="Close provenance inspector"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <Tooltip label="Close provenance inspector" side="left">
+            <button
+              id="provenance-inspector-close"
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/80 border border-transparent hover:border-zinc-700 transition-all cursor-pointer"
+              aria-label="Close provenance inspector"
+            >
+              <X size={ICON_SIZES.dropdown} aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Body */}

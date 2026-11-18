@@ -1,5 +1,4 @@
 import React from "react";
-import { Sun, Moon, Monitor, Check } from "lucide-react";
 import { useThemeStore } from "../../../stores/themeStore";
 import {
   DropdownMenuRoot,
@@ -9,41 +8,62 @@ import {
   DropdownMenuLabel,
 } from "./DropdownMenu";
 import { Tooltip } from "../Tooltip";
+import { Sun, Moon, Monitor, Check, ICON_SIZES } from "../../../lib/icons";
 
 export interface ThemeMenuProps {
   className?: string;
 }
 
 export const ThemeMenu: React.FC<ThemeMenuProps> = ({ className = "" }) => {
-  const { theme, resolvedTheme, setTheme } = useThemeStore();
+  const { theme, setTheme } = useThemeStore();
 
   const getTriggerIcon = () => {
     if (theme === "system") {
-      return <Monitor className="w-4 h-4 text-text" />;
+      return (
+        <Monitor
+          size={ICON_SIZES.header}
+          className="text-text"
+          aria-hidden="true"
+        />
+      );
     }
     if (theme === "light") {
-      return <Sun className="w-4 h-4 text-warning" />;
+      return (
+        <Sun
+          size={ICON_SIZES.header}
+          className="text-warning"
+          aria-hidden="true"
+        />
+      );
     }
-    return <Moon className="w-4 h-4 text-primary" />;
+    return (
+      <Moon
+        size={ICON_SIZES.header}
+        className="text-primary"
+        aria-hidden="true"
+      />
+    );
   };
 
   const getTriggerTooltip = () => {
     if (theme === "system") {
-      return `Theme: System (${resolvedTheme === "dark" ? "Dark" : "Light"})`;
+      return "Theme: System";
     }
-    return `Theme: ${theme === "light" ? "Light" : "Dark"}`;
+    if (theme === "light") {
+      return "Theme: Light";
+    }
+    return "Theme: Dark";
   };
+
+  const label = getTriggerTooltip();
 
   return (
     <DropdownMenuRoot>
-      <Tooltip label={getTriggerTooltip()} side="bottom">
-        <DropdownMenuTrigger
-          asChild
-          className={className}
-          aria-label={getTriggerTooltip()}
-        >
+      <Tooltip label={label} side="bottom">
+        <DropdownMenuTrigger asChild className={className} aria-label={label}>
           <button
             type="button"
+            aria-label={label}
             className="p-2 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-border h-9 w-9"
           >
             {getTriggerIcon()}
@@ -55,11 +75,21 @@ export const ThemeMenu: React.FC<ThemeMenuProps> = ({ className = "" }) => {
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
 
         <DropdownMenuItem
-          icon={<Sun className="w-4 h-4 text-warning" />}
+          icon={
+            <Sun
+              size={ICON_SIZES.dropdown}
+              className="text-warning"
+              aria-hidden="true"
+            />
+          }
           selected={theme === "light"}
           rightSlot={
             theme === "light" ? (
-              <Check className="w-4 h-4 text-primary" />
+              <Check
+                size={ICON_SIZES.dropdown}
+                className="text-primary"
+                aria-hidden="true"
+              />
             ) : undefined
           }
           onClick={() => setTheme("light")}
@@ -68,11 +98,21 @@ export const ThemeMenu: React.FC<ThemeMenuProps> = ({ className = "" }) => {
         </DropdownMenuItem>
 
         <DropdownMenuItem
-          icon={<Moon className="w-4 h-4 text-primary" />}
+          icon={
+            <Moon
+              size={ICON_SIZES.dropdown}
+              className="text-primary"
+              aria-hidden="true"
+            />
+          }
           selected={theme === "dark"}
           rightSlot={
             theme === "dark" ? (
-              <Check className="w-4 h-4 text-primary" />
+              <Check
+                size={ICON_SIZES.dropdown}
+                className="text-primary"
+                aria-hidden="true"
+              />
             ) : undefined
           }
           onClick={() => setTheme("dark")}
@@ -81,11 +121,21 @@ export const ThemeMenu: React.FC<ThemeMenuProps> = ({ className = "" }) => {
         </DropdownMenuItem>
 
         <DropdownMenuItem
-          icon={<Monitor className="w-4 h-4 text-text-secondary" />}
+          icon={
+            <Monitor
+              size={ICON_SIZES.dropdown}
+              className="text-text-secondary"
+              aria-hidden="true"
+            />
+          }
           selected={theme === "system"}
           rightSlot={
             theme === "system" ? (
-              <Check className="w-4 h-4 text-primary" />
+              <Check
+                size={ICON_SIZES.dropdown}
+                className="text-primary"
+                aria-hidden="true"
+              />
             ) : undefined
           }
           onClick={() => setTheme("system")}

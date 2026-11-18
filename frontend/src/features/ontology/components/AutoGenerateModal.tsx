@@ -6,7 +6,7 @@ import {
   Check,
   Loader2,
   ArrowRight,
-} from "lucide-react";
+} from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 import { DOMAIN_STARTER_PACKS, type DomainTemplate } from "../domainTemplates";

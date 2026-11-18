@@ -1,5 +1,5 @@
 import React from "react";
-import { Key, Copy, Check, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Key, Copy, Check, Eye, EyeOff, RefreshCw } from "../../../lib/icons";
 import { Button } from "../../../components/ui/Button";
 import type { ApiKeyCardProps } from "../types";
 

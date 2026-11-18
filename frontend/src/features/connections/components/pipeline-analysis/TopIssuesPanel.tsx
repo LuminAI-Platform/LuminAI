@@ -4,7 +4,7 @@ import {
   AlertCircle,
   ArrowUpRight,
   CheckCircle2,
-} from "lucide-react";
+} from "../../../../lib/icons";
 import type {
   RejectionReasonItem,
   FailingPipelineItem,

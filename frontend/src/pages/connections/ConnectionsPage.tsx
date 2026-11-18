@@ -1,6 +1,13 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { RefreshCw, Clock, Layers, Network, Plus, Radio } from "lucide-react";
+import {
+  Icons,
+  RefreshCw,
+  Clock,
+  Plus,
+  Radio,
+  ICON_SIZES,
+} from "../../lib/icons";
 import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
@@ -71,7 +78,13 @@ export const ConnectionsPage: React.FC = () => {
         ]}
         title="Data Connections & Ingestion"
         description="Unified management for flat files, transactional databases, and object storage sync pipelines."
-        icon={<Network className="w-5 h-5 text-zinc-300" />}
+        icon={
+          <Icons.DataConnections
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
+        }
         actions={
           <div className="flex items-center gap-2">
             <button
@@ -150,7 +163,8 @@ export const ConnectionsPage: React.FC = () => {
           to="/connections/schema-map"
           className="text-xs text-primary hover:text-primary-hover font-medium inline-flex items-center gap-1 cursor-pointer"
         >
-          <Layers className="w-3.5 h-3.5" /> Schema Studio & Graph Mapper
+          <Icons.SchemaStudio size={ICON_SIZES.inline} aria-hidden="true" />{" "}
+          Schema Studio & Graph Mapper
         </Link>
       </div>
 

@@ -82,38 +82,20 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
 
     try {
       updateStep(1, "loading");
-      const res = await apiFetch("/api/v1/connectors/test", {
+
+      // Progress through host & handshake indicators
+      setTimeout(() => updateStep(1, "success"), 200);
+      setTimeout(() => updateStep(2, "loading"), 200);
+      setTimeout(() => updateStep(2, "success"), 400);
+      setTimeout(() => updateStep(3, "loading"), 400);
+
+      // Backend ConnectionController validates connection and discovers schemas via POST /api/v1/connections/discover
+      const discRes = await apiFetch("/api/v1/connections/discover", {
         method: "POST",
         body: JSON.stringify({
-          name,
-          dbType,
           host,
           port,
-          databaseName,
-          username,
-          password,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-          err.message || "Failed to establish database connection.",
-        );
-      }
-
-      const testResult = await res.json();
-      updateStep(1, "success");
-      updateStep(2, "success");
-      updateStep(3, "success");
-      updateStep(4, "loading");
-
-      const discRes = await apiFetch("/api/v1/connectors/discover", {
-        method: "POST",
-        body: JSON.stringify({
-          dbType,
-          host,
-          port,
+          database: databaseName,
           databaseName,
           username,
           password,
@@ -121,24 +103,32 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
       });
 
       if (!discRes.ok) {
-        throw new Error("Connected, but failed to discover database schemas.");
+        const err = await discRes.json().catch(() => ({}));
+        throw new Error(
+          err.message ||
+            "Failed to establish database connection or discover schemas.",
+        );
       }
 
       const discData: SchemaDiscovery[] = await discRes.json();
+      updateStep(1, "success");
+      updateStep(2, "success");
+      updateStep(3, "success");
       updateStep(4, "success");
 
       setTimeout(() => {
         setIsVerifying(false);
         setIsConnected(true);
-        setDiscoveredData(
-          discData.length > 0 ? discData : testResult.discoveredSchemas || [],
-        );
+        setDiscoveredData(discData);
       }, 500);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Unexpected connection failure";
       setValidationError(msg);
       updateStep(1, "error", msg);
+      updateStep(2, "error", msg);
+      updateStep(3, "error", msg);
+      updateStep(4, "error", msg);
       setIsVerifying(false);
     }
   };
@@ -147,21 +137,35 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
     if (selectedTables.length === 0) return;
     setIsSaving(true);
     try {
-      const res = await apiFetch("/api/v1/connectors", {
+      const resolvedType =
+        dbType === "sqlserver"
+          ? "MSSQL"
+          : dbType === "postgresql"
+            ? "POSTGRESQL"
+            : dbType === "mysql"
+              ? "MYSQL"
+              : "POSTGRESQL";
+
+      const res = await apiFetch("/api/v1/connections", {
         method: "POST",
         body: JSON.stringify({
           name,
-          type: dbType,
-          config: {
+          type: resolvedType,
+          config: JSON.stringify({
             host,
             port,
             database: databaseName,
             username,
             tables: selectedTables,
-          },
+          }),
         }),
       });
-      if (!res.ok) throw new Error("Failed to register database connector.");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(
+          err.message || "Failed to register database connector.",
+        );
+      }
       onSuccess();
     } catch (err: unknown) {
       setValidationError(
