@@ -1,4 +1,4 @@
-import { apiFetch } from "../../../../lib/api";
+import { apiFetch, UPLOAD_REQUEST_TIMEOUT_MS } from "../../../../lib/api";
 import type { ColumnConfig } from "../DataPreviewTable";
 import type { ColumnMappingConfig, IngestionLog } from "./fileUploadTypes";
 import { sanitizePropertyName, inferPropertyType } from "./fileUploadTypes";
@@ -123,8 +123,9 @@ export async function runIngestionPipeline({
 
   // 3. Upload File
   setProgress(50);
+  const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
   addLog(
-    `[MinIO] Uploading multipart payload to tenant-isolated raw storage...`,
+    `[MinIO] Uploading multipart payload (${sizeMb} MB) to tenant-isolated raw storage...`,
     "INFO",
   );
   const formData = new FormData();
@@ -135,7 +136,9 @@ export async function runIngestionPipeline({
     {
       method: "POST",
       body: formData,
-    },
+      // Generous timeout for 100MB+ large files (15 minutes)
+      timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS,
+    } as RequestInit,
   );
   if (!uploadRes.ok) {
     throw new Error(

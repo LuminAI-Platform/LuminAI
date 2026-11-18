@@ -76,7 +76,8 @@ class MinioRawStorageClient:
 
         try:
             headers = self._build_sigv4_headers("GET", path)
-            with httpx.Client(timeout=10.0) as client:
+            # Allow up to 300s (5 minutes) for downloading large 100MB+ datasets from S3/MinIO
+            with httpx.Client(timeout=300.0) as client:
                 resp = client.get(url, headers=headers)
                 if resp.status_code == 200:
                     logger.debug(
@@ -153,7 +154,7 @@ class MinioRawStorageClient:
         )
 
         try:
-            with httpx.Client(timeout=30.0) as client:
+            with httpx.Client(timeout=120.0) as client:
                 init_headers = self._build_sigv4_headers(
                     "POST", f"{path}?uploads", payload=b"", content_type=content_type
                 )
@@ -276,7 +277,7 @@ class MinioRawStorageClient:
             headers = self._build_sigv4_headers(
                 "PUT", path, payload=data, content_type=content_type
             )
-            with httpx.Client(timeout=5.0) as client:
+            with httpx.Client(timeout=120.0) as client:
                 resp = client.put(url, headers=headers, content=data)
                 if resp.status_code in (200, 201):
                     logger.info(

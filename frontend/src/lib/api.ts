@@ -33,6 +33,9 @@ export const API_BASE_URL =
 /** Default request timeout in milliseconds (9 seconds, within the 8-10s specification) */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 9000;
 
+/** Default timeout for multipart / large file uploads (15 minutes = 900,000 ms) */
+export const UPLOAD_REQUEST_TIMEOUT_MS = 900_000;
+
 export class ApiTimeoutError extends Error {
   public readonly status: number = 504;
   public readonly timeoutMs: number;
@@ -114,24 +117,35 @@ export async function apiFetch(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  const explicitTimeout = (resolvedInit as { timeoutMs?: number }).timeoutMs;
+  const isMultipartUpload = resolvedInit.body instanceof FormData;
+  // Multipart file uploads default to 15 minutes to comfortably accommodate 100MB+ files.
+  // Standard API requests retain the 9-second responsive SLA. Setting timeoutMs: 0 disables timeouts.
   const timeoutMs =
-    (resolvedInit as { timeoutMs?: number }).timeoutMs ??
-    DEFAULT_REQUEST_TIMEOUT_MS;
+    explicitTimeout !== undefined
+      ? explicitTimeout
+      : isMultipartUpload
+        ? UPLOAD_REQUEST_TIMEOUT_MS
+        : DEFAULT_REQUEST_TIMEOUT_MS;
 
   const controller = new AbortController();
   let isTimedOut = false;
-  const timeoutId = setTimeout(() => {
-    isTimedOut = true;
-    controller.abort(new ApiTimeoutError(timeoutMs, String(url)));
-  }, timeoutMs);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  if (timeoutMs > 0) {
+    timeoutId = setTimeout(() => {
+      isTimedOut = true;
+      controller.abort(new ApiTimeoutError(timeoutMs, String(url)));
+    }, timeoutMs);
+  }
 
   if (resolvedInit.signal) {
     if (resolvedInit.signal.aborted) {
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       controller.abort(resolvedInit.signal.reason);
     } else {
       resolvedInit.signal.addEventListener("abort", () => {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
         controller.abort(resolvedInit.signal?.reason);
       });
     }
@@ -158,7 +172,9 @@ export async function apiFetch(
     }
     throw fetchErr;
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 
   if (!response.ok) {
