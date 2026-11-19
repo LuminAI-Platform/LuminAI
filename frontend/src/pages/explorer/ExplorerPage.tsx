@@ -215,10 +215,11 @@ export const ExplorerPage: React.FC = () => {
               role="switch"
               aria-checked={maskSensitiveData}
               onClick={() => setMaskSensitiveData((prev) => !prev)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none cursor-pointer ${maskSensitiveData
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none cursor-pointer ${
+                maskSensitiveData
                   ? "bg-primary-tint border-primary-border text-primary"
                   : "bg-surface border-border text-text-secondary hover:text-text hover:bg-surface-hover"
-                }`}
+              }`}
             >
               {maskSensitiveData ? (
                 <EyeOff size={14} aria-hidden="true" />
@@ -358,8 +359,9 @@ export const ExplorerPage: React.FC = () => {
           {/* Loaded State */}
           {!error && searchData && (
             <div
-              className={`flex flex-col gap-4 transition-opacity duration-150 motion-reduce:transition-none ${loading ? "opacity-60 pointer-events-none" : "opacity-100"
-                }`}
+              className={`flex flex-col gap-4 transition-opacity duration-150 motion-reduce:transition-none ${
+                loading ? "opacity-60 pointer-events-none" : "opacity-100"
+              }`}
             >
               {searchData.content.length === 0 ? (
                 <ExplorerEmptyState

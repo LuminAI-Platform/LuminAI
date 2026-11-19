@@ -71,10 +71,10 @@ export const EntityCard: React.FC<EntityCardProps> = ({
     Number.isFinite(entity.confidenceScore);
   const confidencePct = hasConfidence
     ? Math.round(
-      entity.confidenceScore! <= 1
-        ? entity.confidenceScore! * 100
-        : entity.confidenceScore!,
-    )
+        entity.confidenceScore! <= 1
+          ? entity.confidenceScore! * 100
+          : entity.confidenceScore!,
+      )
     : null;
 
   const hasSourceCount =
@@ -197,10 +197,11 @@ export const EntityCard: React.FC<EntityCardProps> = ({
                   {field.label}
                 </dt>
                 <dd
-                  className={`text-xs text-text font-medium truncate ${sensitive && isMasked
+                  className={`text-xs text-text font-medium truncate ${
+                    sensitive && isMasked
                       ? "font-mono tracking-wider text-text-secondary"
                       : ""
-                    }`}
+                  }`}
                 >
                   {rawHighlight ? (
                     <span
