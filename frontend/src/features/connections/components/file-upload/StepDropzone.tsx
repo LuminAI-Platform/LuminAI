@@ -31,7 +31,7 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
         onDragOver={onDrag}
         onDragLeave={onDrag}
         onDrop={onDrop}
-        className={`w-full max-w-2xl border-2 border-dashed rounded-lg p-12 text-center flex flex-col items-center justify-center transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
+        className={`w-full max-w-2xl border-2 border-dashed rounded-lg px-8 py-8 text-center flex flex-col items-center justify-center transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
           dragActive
             ? "border-primary bg-primary-tint"
             : "border-border hover:border-border-focus bg-surface-subtle hover:bg-surface-hover"
@@ -45,10 +45,10 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
           className="hidden"
           onChange={onChange}
         />
-        <div className="w-16 h-16 rounded-lg bg-surface border border-border flex items-center justify-center text-text-secondary group-hover:text-text transition-colors mb-6 shadow-xs">
+        <div className="w-12 h-12 rounded-lg bg-surface border border-border flex items-center justify-center text-text-secondary group-hover:text-text transition-colors mb-4 shadow-xs">
           <svg
-            width="28"
-            height="28"
+            width="24"
+            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -59,18 +59,17 @@ export const StepDropzone: React.FC<StepDropzoneProps> = ({
             <path d="m9 15 3-3 3 3" />
           </svg>
         </div>
-        <h3 className="text-lg font-bold text-text tracking-tight">
+        <h3 className="text-base font-bold text-text tracking-tight">
           Drag and drop file
         </h3>
-        <p className="text-sm text-text-secondary mt-2 max-w-md">
-          Ingest structured records instantly. Supported formats are{" "}
-          <strong className="text-text">CSV</strong>,{" "}
+        <p className="text-sm text-text-secondary mt-1.5 max-w-md">
+          Supported formats: <strong className="text-text">CSV</strong>,{" "}
           <strong className="text-text">JSON</strong>, or{" "}
-          <strong className="text-text">ZIP</strong> archives (up to 500 MB).
+          <strong className="text-text">ZIP</strong> (up to 500 MB).
         </p>
         <button
           type="button"
-          className="mt-6 px-4 py-2 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          className="mt-5 px-4 py-2 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           Select File
         </button>
