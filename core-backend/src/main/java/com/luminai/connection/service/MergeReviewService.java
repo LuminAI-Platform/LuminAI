@@ -210,8 +210,16 @@ public class MergeReviewService {
                       recordAId.toString(),
                       "recordB_id",
                       recordBId.toString()));
-              candidateRepository.save(candidate);
-              generatedCount++;
+              try {
+                candidateRepository.saveAndFlush(candidate);
+                generatedCount++;
+              } catch (Exception se) {
+                log.warn(
+                    "Failed to persist candidate pair ({}, {}): {}",
+                    recordAId,
+                    recordBId,
+                    se.getMessage());
+              }
             }
           }
         }
@@ -243,51 +251,53 @@ public class MergeReviewService {
   }
 
   private void ensureTableCompatibility(String schemaName) {
-    if (dataSource == null || schemaName == null) {
+    if (dataSource == null) {
       return;
     }
+    List<String> targetSchemas = new ArrayList<>();
+    if (schemaName != null && !schemaName.isBlank()) {
+      targetSchemas.add(schemaName);
+    }
+    targetSchemas.add("public");
+    targetSchemas.add("tenant_template");
+    try {
+      String current = TenantContext.getCurrentSchema();
+      if (current != null && !targetSchemas.contains(current)) {
+        targetSchemas.add(current);
+      }
+    } catch (Exception ignored) {
+    }
+
     try (java.sql.Connection conn = dataSource.getConnection();
         java.sql.Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          String.format(
-              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS record_a_snapshot TEXT;",
-              schemaName));
-      stmt.execute(
-          String.format(
-              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS record_b_snapshot TEXT;",
-              schemaName));
-      stmt.execute(
-          String.format(
-              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS match_rationale VARCHAR(2000) DEFAULT '';",
-              schemaName));
-      stmt.execute(
-          String.format(
-              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS comparison_details TEXT;",
-              schemaName));
-      stmt.execute(
-          String.format(
-              "ALTER TABLE IF EXISTS %s.er_candidates ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();",
-              schemaName));
-      try {
-        stmt.execute(
-            String.format(
-                "ALTER TABLE IF EXISTS %s.er_candidates ALTER COLUMN pipeline_run_id DROP NOT NULL;",
-                schemaName));
-      } catch (Exception ignored) {
-      }
-      try {
-        stmt.execute(
-            String.format(
-                "ALTER TABLE IF EXISTS %s.er_candidates ALTER COLUMN match_method DROP NOT NULL;",
-                schemaName));
-      } catch (Exception ignored) {
-      }
-      try {
-        stmt.execute(
-            String.format(
-                "ALTER TABLE IF EXISTS %s.er_candidates ALTER COLUMN golden_record_id DROP NOT NULL;",
-                schemaName));
-      } catch (Exception ignored) {
+      for (String target : targetSchemas) {
+        String safe = target.replace("\"", "\"\"");
+        String[] cols = {
+          "record_a_snapshot TEXT",
+          "record_b_snapshot TEXT",
+          "match_rationale VARCHAR(2000) DEFAULT ''",
+          "comparison_details TEXT",
+          "updated_at TIMESTAMPTZ DEFAULT now()"
+        };
+        for (String col : cols) {
+          try {
+            stmt.execute(
+                String.format(
+                    "ALTER TABLE IF EXISTS \"%s\".er_candidates ADD COLUMN IF NOT EXISTS %s;",
+                    safe, col));
+          } catch (Exception ignored) {
+          }
+        }
+        String[] notNullCols = {"pipeline_run_id", "match_method", "golden_record_id"};
+        for (String col : notNullCols) {
+          try {
+            stmt.execute(
+                String.format(
+                    "ALTER TABLE IF EXISTS \"%s\".er_candidates ALTER COLUMN %s DROP NOT NULL;",
+                    safe, col));
+          } catch (Exception ignored) {
+          }
+        }
       }
     } catch (Exception e) {
       log.debug("Schema compatibility check skipped or already satisfied: {}", e.getMessage());

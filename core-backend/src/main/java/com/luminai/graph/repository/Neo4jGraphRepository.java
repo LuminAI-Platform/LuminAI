@@ -229,61 +229,121 @@ public class Neo4jGraphRepository {
     return relCount > 0;
   }
 
+  private String resolveAltTenantId(String tenantId) {
+    try {
+      java.util.UUID uuid = com.luminai.common.tenant.TenantContext.getTenantUuid();
+      String slug = com.luminai.common.tenant.TenantContext.getTenantSlug();
+      if (slug != null && !slug.isBlank() && !slug.equalsIgnoreCase(tenantId)) {
+        return slug;
+      }
+      if (uuid != null && !uuid.toString().equalsIgnoreCase(tenantId)) {
+        return uuid.toString();
+      }
+    } catch (Exception ignored) {
+    }
+    return tenantId != null ? tenantId : "";
+  }
+
   /**
    * Returns the tenant-scoped neighbourhood for an entity. The maximum relationship expansion is
    * fixed at four hops; the requested depth is a parameter used to further constrain paths.
    */
   public Optional<GraphQueryResponseDto> findNeighbourhood(
       String tenantId, String entityId, int depth, String relationshipType) {
+    String altTenantId = resolveAltTenantId(tenantId);
+    int safeDepth = Math.max(1, Math.min(depth, 4));
     String cypher =
         """
-              MATCH (start:Entity {id: $entityId, tenant_id: $tenantId})
-              CALL {
-                WITH start
-                OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
-                WHERE length(path) <= $depth
-                  AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
-                  AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
-                WITH start, collect(path) AS paths
-                UNWIND [start] + reduce(result = [], candidate IN paths | result + nodes(candidate)) AS node
-                RETURN collect(DISTINCT {
-                  id: node.id,
-                  label: coalesce(node.canonical_name, node.id),
-                  entityType: node.entity_type
-                }) AS nodes
-              }
-              CALL {
-                WITH start
-                OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
-                WHERE length(path) <= $depth
-                  AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
-                  AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
-                UNWIND relationships(path) AS rel
-                RETURN collect(DISTINCT {
-                  id: elementId(rel),
-                  source: startNode(rel).id,
-                  target: endNode(rel).id,
-                  relationshipType: type(rel)
-                }) AS edges
-              }
-              RETURN nodes, edges
-                """;
+              MATCH (start:Entity)
+              WHERE (start.id = $entityId OR start.canonical_name = $entityId OR toLower(coalesce(start.canonical_name, '')) = toLower($entityId))
+                AND (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId OR $tenantId = '*')
+              OPTIONAL MATCH path = (start)-[rels*1..%d]-(neighbour:Entity)
+              WHERE all(node IN nodes(path) WHERE node:Entity AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId OR $tenantId = '*'))
+                AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
+              WITH start, [p IN collect(path) WHERE p IS NOT NULL] AS validPaths
+              WITH [start] + reduce(acc = [], p IN validPaths | acc + nodes(p)) AS allNodes,
+                   reduce(acc = [], p IN validPaths | acc + relationships(p)) AS allRels
+              RETURN [n IN allNodes WHERE n IS NOT NULL | {
+                id: n.id,
+                label: coalesce(n.canonical_name, n.id),
+                entityType: n.entity_type
+              }] AS nodes,
+              [e IN allRels WHERE e IS NOT NULL | {
+                id: elementId(e),
+                source: startNode(e).id,
+                target: endNode(e).id,
+                relationshipType: type(e)
+              }] AS edges
+        """
+            .formatted(safeDepth);
 
-    return neo4jClient
-        .query(cypher)
-        .bind(entityId)
-        .to("entityId")
-        .bind(tenantId)
-        .to("tenantId")
-        .bind(depth)
-        .to("depth")
-        .bind(relationshipType == null ? "" : relationshipType)
-        .to("relationshipType")
-        .bind(relationshipType != null)
-        .to("filterRelationshipType")
-        .fetch()
-        .one()
-        .map(this::toGraphQueryResponse);
+    try {
+      return neo4jClient
+          .query(cypher)
+          .bind(entityId)
+          .to("entityId")
+          .bind(tenantId)
+          .to("tenantId")
+          .bind(altTenantId)
+          .to("altTenantId")
+          .bind(relationshipType == null ? "" : relationshipType)
+          .to("relationshipType")
+          .bind(relationshipType != null)
+          .to("filterRelationshipType")
+          .fetch()
+          .one()
+          .map(this::toGraphQueryResponse);
+    } catch (Exception e) {
+      log.warn("Neo4j neighbourhood query failed: {}", e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Returns an overview cluster of entities for the current tenant when no specific entity is
+   * selected.
+   */
+  public Optional<GraphQueryResponseDto> findOverview(String tenantId, int limit) {
+    String altTenantId = resolveAltTenantId(tenantId);
+    String cypher =
+        """
+        MATCH (start:Entity)
+        WHERE (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId OR $tenantId = '*')
+        WITH start LIMIT $limit
+        OPTIONAL MATCH (start)-[r]-(other:Entity)
+        WHERE (other.tenant_id = $tenantId OR other.tenant_id = $altTenantId OR $tenantId = '*')
+        WITH collect(DISTINCT start) AS starts,
+             [o IN collect(DISTINCT other) WHERE o IS NOT NULL] AS others,
+             [rel IN collect(DISTINCT r) WHERE rel IS NOT NULL] AS rels
+        WITH starts + others AS allNodes, rels
+        RETURN [n IN allNodes WHERE n IS NOT NULL | {
+          id: n.id,
+          label: coalesce(n.canonical_name, n.id),
+          entityType: n.entity_type
+        }] AS nodes,
+        [e IN rels WHERE e IS NOT NULL | {
+          id: elementId(e),
+          source: startNode(e).id,
+          target: endNode(e).id,
+          relationshipType: type(e)
+        }] AS edges
+        """;
+    try {
+      return neo4jClient
+          .query(cypher)
+          .bind(tenantId)
+          .to("tenantId")
+          .bind(altTenantId)
+          .to("altTenantId")
+          .bind(limit)
+          .to("limit")
+          .fetch()
+          .one()
+          .map(this::toGraphQueryResponse);
+    } catch (Exception e) {
+      log.warn("Neo4j findOverview query failed: {}", e.getMessage());
+      return Optional.empty();
+    }
   }
 
   /**
@@ -356,29 +416,48 @@ public class Neo4jGraphRepository {
 
   @SuppressWarnings("unchecked")
   private GraphQueryResponseDto toGraphQueryResponse(Map<String, Object> row) {
-    List<GraphQueryResponseDto.Node> nodes =
-        ((List<Map<String, Object>>) row.getOrDefault("nodes", List.of()))
-            .stream()
-                .map(
-                    node ->
-                        new GraphQueryResponseDto.Node(
-                            new GraphQueryResponseDto.NodeData(
-                                (String) node.get("id"),
-                                (String) node.get("label"),
-                                (String) node.get("entityType"))))
-                .toList();
-    List<GraphQueryResponseDto.Edge> edges =
-        ((List<Map<String, Object>>) row.getOrDefault("edges", List.of()))
-            .stream()
-                .map(
-                    edge ->
-                        new GraphQueryResponseDto.Edge(
-                            new GraphQueryResponseDto.EdgeData(
-                                (String) edge.get("id"),
-                                (String) edge.get("source"),
-                                (String) edge.get("target"),
-                                (String) edge.get("relationshipType"))))
-                .toList();
+    java.util.Map<String, GraphQueryResponseDto.Node> uniqueNodes = new java.util.LinkedHashMap<>();
+    List<Map<String, Object>> rawNodes =
+        (List<Map<String, Object>>) row.getOrDefault("nodes", List.of());
+    if (rawNodes != null) {
+      for (Map<String, Object> node : rawNodes) {
+        if (node != null && node.get("id") != null) {
+          String id = String.valueOf(node.get("id"));
+          String label = node.get("label") != null ? String.valueOf(node.get("label")) : id;
+          String entityType =
+              node.get("entityType") != null ? String.valueOf(node.get("entityType")) : "Entity";
+          uniqueNodes.putIfAbsent(
+              id,
+              new GraphQueryResponseDto.Node(
+                  new GraphQueryResponseDto.NodeData(id, label, entityType)));
+        }
+      }
+    }
+
+    java.util.Map<String, GraphQueryResponseDto.Edge> uniqueEdges = new java.util.LinkedHashMap<>();
+    List<Map<String, Object>> rawEdges =
+        (List<Map<String, Object>>) row.getOrDefault("edges", List.of());
+    if (rawEdges != null) {
+      for (Map<String, Object> edge : rawEdges) {
+        if (edge != null && edge.get("source") != null && edge.get("target") != null) {
+          String source = String.valueOf(edge.get("source"));
+          String target = String.valueOf(edge.get("target"));
+          String relType =
+              edge.get("relationshipType") != null
+                  ? String.valueOf(edge.get("relationshipType"))
+                  : "RELATED_TO";
+          String edgeKey = source + "->" + target + ":" + relType;
+          String id = edge.get("id") != null ? String.valueOf(edge.get("id")) : edgeKey;
+          uniqueEdges.putIfAbsent(
+              edgeKey,
+              new GraphQueryResponseDto.Edge(
+                  new GraphQueryResponseDto.EdgeData(id, source, target, relType)));
+        }
+      }
+    }
+
+    List<GraphQueryResponseDto.Node> nodes = new java.util.ArrayList<>(uniqueNodes.values());
+    List<GraphQueryResponseDto.Edge> edges = new java.util.ArrayList<>(uniqueEdges.values());
     return new GraphQueryResponseDto(nodes, edges);
   }
 }

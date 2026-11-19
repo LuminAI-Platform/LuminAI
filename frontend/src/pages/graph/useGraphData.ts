@@ -264,18 +264,15 @@ export function useGraphData() {
     error: graphError,
     refetch: refetchGraph,
   } = useQuery<GraphResponse>({
-    queryKey: [
-      "graph",
-      "neighbourhood",
-      activeEntityId,
-      depth,
-      selectedRelFilter,
-    ],
+    queryKey: ["graph", "data", activeEntityId, depth, selectedRelFilter],
     queryFn: async () => {
-      if (!activeEntityId) return { nodes: [], edges: [] };
-      let url = `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(activeEntityId)}&depth=${depth}`;
+      let url = activeEntityId
+        ? `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(activeEntityId)}&depth=${depth}`
+        : `/api/v1/graph/overview`;
       if (selectedRelFilter) {
-        url += `&relationshipType=${encodeURIComponent(selectedRelFilter)}`;
+        url +=
+          (url.includes("?") ? "&" : "?") +
+          `relationshipType=${encodeURIComponent(selectedRelFilter)}`;
       }
       const res = await apiFetch(url, {
         headers: { "X-Suppress-Toast": "true" },
