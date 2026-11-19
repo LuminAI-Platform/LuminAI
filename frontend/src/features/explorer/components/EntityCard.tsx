@@ -37,11 +37,13 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   const typeColor = matchedType?.color || getEntityColor(entityType, isDark);
   const typeIcon = matchedType?.icon || "package";
 
+  const safeHighlights = highlights || {};
+
   // Check if name is highlighted
-  const nameHighlighted = highlights["canonicalName"]?.[0];
+  const nameHighlighted = safeHighlights["canonicalName"]?.[0];
 
   // Extract property highlights
-  const propertyHighlights = Object.entries(highlights).filter(([key]) =>
+  const propertyHighlights = Object.entries(safeHighlights).filter(([key]) =>
     key.startsWith("properties."),
   );
 

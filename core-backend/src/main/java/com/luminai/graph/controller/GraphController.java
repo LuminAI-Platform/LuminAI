@@ -42,14 +42,23 @@ public class GraphController {
     String targetId =
         (entityId != null && !entityId.isBlank()) ? entityId.trim() : (id != null ? id.trim() : "");
     if (targetId.isBlank()) {
-      return ResponseEntity.ok(new GraphQueryResponseDto(java.util.List.of(), java.util.List.of()));
+      return ResponseEntity.ok(graphQueryService.getOverviewGraph());
     }
     try {
-      return ResponseEntity.ok(
-          graphQueryService.getNeighbourhood(targetId, depth, relationshipType));
-    } catch (com.luminai.common.exception.ResourceNotFoundException e) {
-      return ResponseEntity.ok(new GraphQueryResponseDto(java.util.List.of(), java.util.List.of()));
+      GraphQueryResponseDto response =
+          graphQueryService.getNeighbourhood(targetId, depth, relationshipType);
+      if (response == null || response.nodes() == null || response.nodes().isEmpty()) {
+        return ResponseEntity.ok(graphQueryService.getFallbackNeighbourhood(targetId));
+      }
+      return ResponseEntity.ok(response);
+    } catch (Exception e) {
+      return ResponseEntity.ok(graphQueryService.getFallbackNeighbourhood(targetId));
     }
+  }
+
+  @GetMapping("/overview")
+  public ResponseEntity<GraphQueryResponseDto> getOverview() {
+    return ResponseEntity.ok(graphQueryService.getOverviewGraph());
   }
 
   @GetMapping("/shortest-path")

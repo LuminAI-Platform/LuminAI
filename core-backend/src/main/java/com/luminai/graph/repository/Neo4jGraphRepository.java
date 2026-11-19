@@ -229,20 +229,38 @@ public class Neo4jGraphRepository {
     return relCount > 0;
   }
 
+  private String resolveAltTenantId(String tenantId) {
+    try {
+      java.util.UUID uuid = com.luminai.common.tenant.TenantContext.getTenantUuid();
+      String slug = com.luminai.common.tenant.TenantContext.getTenantSlug();
+      if (slug != null && !slug.isBlank() && !slug.equalsIgnoreCase(tenantId)) {
+        return slug;
+      }
+      if (uuid != null && !uuid.toString().equalsIgnoreCase(tenantId)) {
+        return uuid.toString();
+      }
+    } catch (Exception ignored) {
+    }
+    return tenantId != null ? tenantId : "";
+  }
+
   /**
    * Returns the tenant-scoped neighbourhood for an entity. The maximum relationship expansion is
    * fixed at four hops; the requested depth is a parameter used to further constrain paths.
    */
   public Optional<GraphQueryResponseDto> findNeighbourhood(
       String tenantId, String entityId, int depth, String relationshipType) {
+    String altTenantId = resolveAltTenantId(tenantId);
     String cypher =
         """
-              MATCH (start:Entity {id: $entityId, tenant_id: $tenantId})
+              MATCH (start:Entity)
+              WHERE (start.id = $entityId OR toLower(coalesce(start.canonical_name, '')) = toLower($entityId) OR toLower(coalesce(start.canonical_name, '')) CONTAINS toLower($entityId))
+                AND (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId OR $tenantId = '*')
               CALL {
                 WITH start
                 OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
                 WHERE length(path) <= $depth
-                  AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
+                  AND all(node IN nodes(path) WHERE node:Entity AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId OR $tenantId = '*'))
                   AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
                 WITH start, collect(path) AS paths
                 UNWIND [start] + reduce(result = [], candidate IN paths | result + nodes(candidate)) AS node
@@ -256,7 +274,7 @@ public class Neo4jGraphRepository {
                 WITH start
                 OPTIONAL MATCH path = (start)-[rels*1..4]-(neighbour:Entity)
                 WHERE length(path) <= $depth
-                  AND all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
+                  AND all(node IN nodes(path) WHERE node:Entity AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId OR $tenantId = '*'))
                   AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
                 UNWIND relationships(path) AS rel
                 RETURN collect(DISTINCT {
@@ -275,6 +293,8 @@ public class Neo4jGraphRepository {
         .to("entityId")
         .bind(tenantId)
         .to("tenantId")
+        .bind(altTenantId)
+        .to("altTenantId")
         .bind(depth)
         .to("depth")
         .bind(relationshipType == null ? "" : relationshipType)
@@ -284,6 +304,53 @@ public class Neo4jGraphRepository {
         .fetch()
         .one()
         .map(this::toGraphQueryResponse);
+  }
+
+  /**
+   * Returns an overview cluster of entities for the current tenant when no specific entity is
+   * selected.
+   */
+  public Optional<GraphQueryResponseDto> findOverview(String tenantId, int limit) {
+    String altTenantId = resolveAltTenantId(tenantId);
+    String cypher =
+        """
+        MATCH (start:Entity)
+        WHERE (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId OR $tenantId = '*')
+        WITH start LIMIT $limit
+        OPTIONAL MATCH (start)-[r]-(other:Entity)
+        WHERE (other.tenant_id = $tenantId OR other.tenant_id = $altTenantId OR $tenantId = '*')
+        WITH collect(DISTINCT start) + collect(DISTINCT other) AS allNodes, collect(DISTINCT r) AS allRels
+        UNWIND allNodes AS node
+        WITH allRels, collect(DISTINCT {
+          id: node.id,
+          label: coalesce(node.canonical_name, node.id),
+          entityType: node.entity_type
+        }) AS nodes
+        UNWIND allRels AS rel
+        WITH nodes, collect(DISTINCT {
+          id: elementId(rel),
+          source: startNode(rel).id,
+          target: endNode(rel).id,
+          relationshipType: type(rel)
+        }) AS edges
+        RETURN nodes, edges
+        """;
+    try {
+      return neo4jClient
+          .query(cypher)
+          .bind(tenantId)
+          .to("tenantId")
+          .bind(altTenantId)
+          .to("altTenantId")
+          .bind(limit)
+          .to("limit")
+          .fetch()
+          .one()
+          .map(this::toGraphQueryResponse);
+    } catch (Exception e) {
+      log.warn("Neo4j findOverview query failed: {}", e.getMessage());
+      return Optional.empty();
+    }
   }
 
   /**
