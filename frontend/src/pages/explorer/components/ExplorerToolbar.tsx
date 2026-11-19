@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Sliders,
   LayoutDashboard,
   Table,
   ArrowUpDown,
 } from "../../../lib/icons";
+import { Select, type SelectOption } from "../../../components/ui/dropdown";
 import type { SortOption, ViewMode } from "../types";
 import { PAGE_SIZE_OPTIONS } from "../constants";
 
@@ -37,6 +38,28 @@ export const ExplorerToolbar: React.FC<ExplorerToolbarProps> = ({
 }) => {
   const start = totalElements === 0 ? 0 : currentPage * pageSize + 1;
   const end = Math.min((currentPage + 1) * pageSize, totalElements);
+
+  const sortOptions = useMemo<SelectOption[]>(() => {
+    const icon = <ArrowUpDown size={13} aria-hidden="true" />;
+    const opts: SelectOption[] = [
+      { value: "newest", label: "Newest", icon },
+      { value: "name_asc", label: "Name (A–Z)", icon },
+      { value: "name_desc", label: "Name (Z–A)", icon },
+    ];
+    if (hasConfidenceData) {
+      opts.push({ value: "confidence_desc", label: "Confidence", icon });
+    }
+    return opts;
+  }, [hasConfidenceData]);
+
+  const pageSizeOptions = useMemo<SelectOption[]>(
+    () =>
+      PAGE_SIZE_OPTIONS.map((opt) => ({
+        value: String(opt),
+        label: `Show ${opt}`,
+      })),
+    [],
+  );
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -78,44 +101,28 @@ export const ExplorerToolbar: React.FC<ExplorerToolbarProps> = ({
       {/* Right: Sort, View Toggle, Page Size */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Sort Select */}
-        <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs text-text-secondary">
-          <ArrowUpDown
-            size={13}
-            className="text-text-muted shrink-0"
-            aria-hidden="true"
-          />
-          <span className="sr-only">Sort entities</span>
-          <select
+        <div className="w-40">
+          <Select
             value={sortOption}
-            onChange={(e) => onSortChange(e.target.value as SortOption)}
-            aria-label="Sort entities"
-            className="bg-transparent text-text font-medium outline-none cursor-pointer pr-1"
-          >
-            <option value="newest">Newest</option>
-            <option value="name_asc">Name (A–Z)</option>
-            <option value="name_desc">Name (Z–A)</option>
-            {hasConfidenceData && (
-              <option value="confidence_desc">Confidence</option>
-            )}
-          </select>
-        </label>
+            onChange={(val) => onSortChange(val as SortOption)}
+            options={sortOptions}
+            ariaLabel="Sort entities"
+            size="sm"
+            align="end"
+          />
+        </div>
 
         {/* Page Size Select */}
-        <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs text-text-secondary">
-          <span className="text-text-muted hidden sm:inline">Show</span>
-          <select
-            value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            aria-label="Results per page"
-            className="bg-transparent text-text font-medium outline-none cursor-pointer"
-          >
-            {PAGE_SIZE_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="w-28">
+          <Select
+            value={String(pageSize)}
+            onChange={(val) => onPageSizeChange(Number(val))}
+            options={pageSizeOptions}
+            ariaLabel="Results per page"
+            size="sm"
+            align="end"
+          />
+        </div>
 
         {/* Cards / Table Segmented Toggle */}
         <div

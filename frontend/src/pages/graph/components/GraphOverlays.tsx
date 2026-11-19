@@ -70,20 +70,20 @@ export const GraphOverlays: React.FC<GraphOverlaysProps> = ({
     return (
       <div
         role="alert"
-        className="absolute inset-0 z-15 flex flex-col items-center justify-center bg-surface/90 backdrop-blur-xs text-center p-6"
+        className="absolute inset-0 z-15 flex flex-col items-center justify-center rounded-lg overflow-y-auto bg-surface/90 backdrop-blur-xs text-center px-6 pt-16 pb-6"
       >
-        <div className="w-12 h-12 rounded-lg bg-error-bg border border-error-border flex items-center justify-center text-error mb-3">
+        <div className="w-12 h-12 rounded-lg bg-error-bg border border-error-border flex items-center justify-center text-error mb-3 shrink-0">
           <AlertCircle className="w-6 h-6" aria-hidden="true" />
         </div>
         <h3 className="text-sm font-semibold text-text">
           Couldn&apos;t load the graph
         </h3>
-        <p className="text-xs text-text-secondary max-w-md mt-1 mb-4">
+        <p className="text-xs text-text-secondary max-w-md mt-1 mb-4 leading-relaxed">
           The graph service did not return a valid response. Check your
           connection or try again.
         </p>
 
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
           <Button
             size="sm"
             variant="primary"

@@ -202,11 +202,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* Autocomplete Dropdown */}
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute z-40 w-full mt-2 bg-surface border border-border rounded-xl overflow-hidden shadow-lg max-h-60 overflow-y-auto">
-          <div className="px-4 py-2 text-[11px] font-semibold text-text-muted border-b border-border-subtle uppercase tracking-wider bg-surface-subtle">
+        <div className="absolute z-40 w-full mt-1.5 rounded-xl border border-border bg-surface p-1.5 shadow-lg shadow-black/10 dark:shadow-black/40 max-h-[320px] overflow-y-auto animate-dropdown-in select-none">
+          <div className="px-2.5 py-1 text-[11px] font-semibold text-text-muted uppercase tracking-wider">
             Matching entities
           </div>
-          <ul className="divide-y divide-border-subtle" role="listbox">
+          <ul className="flex flex-col gap-0.5" role="listbox">
             {suggestions.map((val, idx) => {
               const isActive = activeIndex === idx;
               return (
@@ -216,26 +216,26 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   aria-selected={isActive}
                   onClick={() => selectSuggestion(val)}
                   onMouseEnter={() => setActiveIndex(idx)}
-                  className={`px-4 py-2.5 text-xs cursor-pointer flex items-center justify-between transition-colors duration-150 motion-reduce:transition-none ${
+                  className={`w-full h-9 min-h-[36px] px-2.5 rounded-lg text-sm font-medium cursor-pointer flex items-center justify-between gap-2.5 transition-colors duration-150 motion-reduce:transition-none ${
                     isActive
-                      ? "bg-primary-tint text-primary"
+                      ? "bg-primary-tint text-primary font-semibold"
                       : "text-text hover:bg-surface-hover"
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <Search
                       size={14}
                       className={
                         isActive
                           ? "text-primary shrink-0"
-                          : "text-text-muted shrink-0"
+                          : "text-text-secondary shrink-0"
                       }
                       aria-hidden="true"
                     />
-                    <span className="font-medium truncate">{val}</span>
+                    <span className="truncate">{val}</span>
                   </div>
                   {isActive && (
-                    <span className="text-[10px] text-text-muted font-mono shrink-0 ml-2">
+                    <span className="text-xs text-text-muted font-mono shrink-0 ml-2">
                       Enter
                     </span>
                   )}
