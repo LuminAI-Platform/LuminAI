@@ -90,11 +90,15 @@ let isHandlingUnauthorized = false;
  *  5. Automatically surfaces server / client errors as non-blocking toasts.
  *  6. Throws an `ApiError` for non-2xx responses.
  */
+export interface ApiRequestInit extends RequestInit {
+  timeoutMs?: number;
+}
+
 export async function apiFetch(
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: ApiRequestInit,
 ): Promise<Response> {
-  const resolvedInit: RequestInit = init ?? {};
+  const resolvedInit: ApiRequestInit = init ?? {};
 
   // Resolve full URL
   const url =

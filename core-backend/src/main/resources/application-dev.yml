@@ -53,6 +53,9 @@ spring:
     authentication:
       username: ${NEO4J_USERNAME:neo4j}
       password: ${NEO4J_PASSWORD:luminai_dev_password}
+    driver:
+      connection-timeout: 2s
+      connection-acquisition-timeout: 2s
 
   # Kafka
   kafka:

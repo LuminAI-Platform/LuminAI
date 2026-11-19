@@ -21,11 +21,21 @@ export const EntityHeaderCard: React.FC<EntityHeaderCardProps> = ({
   typeIcon = "package",
   onExploreGraph,
 }) => {
-  const dateFormatted = new Date(createdAt).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const dateFormatted = React.useMemo(() => {
+    if (!createdAt) return "Recently created";
+    try {
+      const d = new Date(createdAt);
+      return isNaN(d.getTime())
+        ? "Recently created"
+        : d.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+    } catch {
+      return "Recently created";
+    }
+  }, [createdAt]);
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 flex flex-col md:flex-row md:items-start justify-between gap-6">

@@ -59,6 +59,13 @@ export const PipelinePage: React.FC = () => {
   // Derive dynamic header badge based on real live connection and active streams
   const headerBadge = (() => {
     if (!streamStatus.isConnected) {
+      if (streamStatus.isPolling) {
+        return {
+          label: "Live polling active",
+          variant: "emerald" as const,
+          pulse: true,
+        };
+      }
       return {
         label: "Live feed disconnected",
         variant: "amber" as const,
@@ -73,8 +80,8 @@ export const PipelinePage: React.FC = () => {
       };
     }
     return {
-      label: "No active streams",
-      variant: "zinc" as const,
+      label: "Live feed connected",
+      variant: "emerald" as const,
       pulse: false,
     };
   })();

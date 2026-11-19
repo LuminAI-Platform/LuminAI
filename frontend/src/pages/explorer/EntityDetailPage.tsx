@@ -69,7 +69,7 @@ export const EntityDetailPage: React.FC = () => {
           </Link>
           <span className="text-zinc-700">/</span>
           <span className="text-zinc-400 font-medium truncate max-w-xs">
-            {entity.canonicalName}
+            {entity.canonicalName || "Unnamed Entity"}
           </span>
         </div>
 
@@ -93,7 +93,7 @@ export const EntityDetailPage: React.FC = () => {
                 Properties & Provenance
               </h2>
               <span className="text-[10px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded-md">
-                {Object.keys(entity.properties).length} attributes
+                {Object.keys(entity.properties || {}).length} attributes
               </span>
             </div>
             <span className="text-[10px] text-zinc-600 italic flex items-center gap-1">
