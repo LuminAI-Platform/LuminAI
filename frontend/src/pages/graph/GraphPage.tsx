@@ -1,16 +1,20 @@
-import React, { useCallback } from "react";
-import { Icons, AlertCircle, RefreshCw, ICON_SIZES } from "../../lib/icons";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Icons, RefreshCw, ICON_SIZES } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { useThemeStore } from "../../stores/themeStore";
+import { getEntityColor } from "../../lib/entityColors";
 import { GraphCanvas } from "./components/GraphCanvas";
 import { GraphControls } from "./components/GraphControls";
 import { NodeDetailPanel } from "./components/NodeDetailPanel";
 import { GraphSearchBar } from "./components/GraphSearchBar";
+import { GraphOverlays, GraphNodeListPanel } from "./components/GraphOverlays";
 import { useGraphData } from "./useGraphData";
 
 export const GraphPage: React.FC = () => {
   const {
-    setSelectedEntityId,
+    selectedEntityLabel,
+    selectEntity,
     depth,
     setDepth,
     layoutType,
@@ -24,7 +28,11 @@ export const GraphPage: React.FC = () => {
     cyRef,
     activeEntityId,
     isLoading,
-    error,
+    errorInfo,
+    viewState,
+    badge,
+    hasLoadedGraph,
+    suggestedEntities,
     refetch,
     filteredElements,
     availableEntityTypes,
@@ -33,18 +41,41 @@ export const GraphPage: React.FC = () => {
     handleZoomOut,
     handleFit,
     handleReset,
+    handleFocusNode,
   } = useGraphData();
+
+  const isDark = useThemeStore((s) => s.isDark);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [isNodeListOpen, setIsNodeListOpen] = useState(false);
+
+  // Focus the search field automatically when in the idle "Choose an entity to explore" state
+  useEffect(() => {
+    if (viewState === "idle" && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [viewState]);
+
+  // Close node list if graph is cleared
+  useEffect(() => {
+    if (!hasLoadedGraph) {
+      setIsNodeListOpen(false);
+    }
+  }, [hasLoadedGraph]);
 
   const handleExpandNode = useCallback(
     (nodeId: string) => {
-      setSelectedEntityId(nodeId);
+      selectEntity(nodeId);
       setDepth((prev) => Math.min(4, prev + 1));
     },
-    [setSelectedEntityId, setDepth],
+    [selectEntity, setDepth],
   );
 
+  const handleFocusSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
   return (
-    <div className="flex flex-col h-full gap-4 pb-4">
+    <div className="flex flex-col gap-4 pb-4">
       {/* Page Header */}
       <PageHeader
         breadcrumbs={[
@@ -60,32 +91,38 @@ export const GraphPage: React.FC = () => {
             aria-hidden="true"
           />
         }
-        badge={{
-          label: "Graph Connected",
-          variant: "purple",
-        }}
+        badge={badge}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <GraphSearchBar
-              onSearch={(id) => {
-                setSelectedEntityId(id);
-                setSelectedNode(null);
+              inputRef={searchInputRef}
+              onSearch={(id, label) => {
+                selectEntity(id, label);
               }}
               isLoading={isLoading}
             />
 
-            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1 text-xs gap-1.5">
-              <span className="text-zinc-500 text-[11px] px-1 font-medium">
+            {/* Traversal Depth Selector */}
+            <div
+              className="flex items-center bg-surface border border-border rounded-lg p-1 text-xs gap-1"
+              role="group"
+              aria-label="Graph traversal depth"
+            >
+              <span className="text-text-secondary text-[11px] px-1.5 font-medium select-none">
                 Depth
               </span>
               {[1, 2, 3, 4].map((d) => (
                 <button
                   key={d}
+                  type="button"
+                  disabled={!hasLoadedGraph}
+                  aria-label={`Traversal depth ${d}`}
+                  aria-pressed={depth === d}
                   onClick={() => setDepth(d)}
-                  className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
-                    depth === d
+                  className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    depth === d && hasLoadedGraph
                       ? "bg-primary text-primary-text"
-                      : "text-text-secondary hover:text-text"
+                      : "text-text-secondary hover:text-text hover:bg-surface-hover disabled:hover:bg-transparent disabled:hover:text-text-secondary"
                   }`}
                 >
                   {d}
@@ -96,6 +133,7 @@ export const GraphPage: React.FC = () => {
             <Button
               variant="secondary"
               size="sm"
+              disabled={isLoading}
               onClick={() => refetch()}
               leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
             >
@@ -105,24 +143,8 @@ export const GraphPage: React.FC = () => {
         }
       />
 
-      {/* Backend connection error banner */}
-      {error && (
-        <div className="bg-error-bg border border-error-border rounded-lg px-3 py-2 flex items-center justify-between text-xs text-error">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-error shrink-0" />
-            <span>
-              Failed to load graph neighbourhood for entity &quot;
-              {activeEntityId}&quot;. Please verify backend graph services.
-            </span>
-          </div>
-          <Button size="xs" variant="ghost" onClick={() => refetch()}>
-            Retry
-          </Button>
-        </div>
-      )}
-
-      {/* Graph Visualizer Main Area */}
-      <div className="relative flex-1 min-h-[500px] w-full">
+      {/* Graph Visualizer Main Area — explicit viewport-relative height so canvas never collapses to 0px */}
+      <div className="relative w-full h-[calc(100vh-15.5rem)] min-h-[520px]">
         {/* Controls Overlay */}
         <GraphControls
           layoutType={layoutType}
@@ -131,37 +153,40 @@ export const GraphPage: React.FC = () => {
           onZoomOut={handleZoomOut}
           onFit={handleFit}
           onReset={handleReset}
+          disabled={!hasLoadedGraph}
           entityTypes={availableEntityTypes}
           selectedEntityType={selectedTypeFilter}
           onSelectEntityType={setSelectedTypeFilter}
           relationshipTypes={availableRelTypes}
           selectedRelType={selectedRelFilter}
           onSelectRelType={setSelectedRelFilter}
+          nodeCount={filteredElements.nodes.length}
+          isNodeListOpen={isNodeListOpen}
+          onToggleNodeList={() => setIsNodeListOpen((prev) => !prev)}
         />
 
-        {/* Empty State Overlay */}
-        {!isLoading && filteredElements.nodes.length === 0 && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-xs text-center p-6 select-none">
-            <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
-              <Icons.KnowledgeGraph size={24} aria-hidden="true" />
-            </div>
-            <h3 className="text-sm font-semibold text-zinc-200">
-              No Graph Relationships Found
-            </h3>
-            <p className="text-xs text-zinc-500 max-w-sm mt-1 mb-4">
-              {activeEntityId
-                ? `Entity "${activeEntityId}" currently has no connected edges or relationships in the graph catalog.`
-                : "No active entity selected to explore in the knowledge graph."}
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setSelectedEntityId(null)}
-            >
-              Reset Selected Entity
-            </Button>
-          </div>
+        {/* Keyboard-Accessible Node List */}
+        {isNodeListOpen && hasLoadedGraph && (
+          <GraphNodeListPanel
+            nodes={filteredElements.nodes}
+            selectedNodeId={selectedNode?.id ?? null}
+            onSelectNode={handleFocusNode}
+            onClose={() => setIsNodeListOpen(false)}
+          />
         )}
+
+        {/* Explicit Canvas States (Loading, Error, Empty, Idle, Not Found, Isolated Notice) */}
+        <GraphOverlays
+          viewState={viewState}
+          activeEntityId={activeEntityId}
+          activeEntityLabel={selectedEntityLabel}
+          suggestedEntities={suggestedEntities}
+          errorInfo={errorInfo}
+          onSelectEntity={(id, label) => selectEntity(id, label)}
+          onClearEntity={() => selectEntity(null)}
+          onRetry={() => refetch()}
+          onFocusSearch={handleFocusSearch}
+        />
 
         {/* Cytoscape Canvas */}
         <GraphCanvas
@@ -182,30 +207,41 @@ export const GraphPage: React.FC = () => {
           onExpand={handleExpandNode}
         />
 
-        {/* Graph Bottom Legend Bar */}
-        <div className="absolute bottom-4 left-4 z-10 bg-surface border border-border rounded-lg px-3 py-1.5 shadow-xs flex items-center gap-4 text-[11px] text-text-secondary">
-          <span className="font-semibold text-text">
-            {filteredElements.nodes.length} Nodes ·{" "}
-            {filteredElements.edges.length} Edges
-          </span>
-          <div className="h-3 w-px bg-border" />
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#12297A] dark:bg-[#6B97FF]" />{" "}
-              Person
+        {/* Dynamic Bottom Legend Bar */}
+        {hasLoadedGraph && (
+          <div
+            className="absolute bottom-4 left-4 z-20 bg-surface/95 backdrop-blur-md border border-border rounded-lg px-3 py-1.5 shadow-xs flex flex-wrap items-center gap-3 text-[11px] text-text-secondary max-w-[calc(100%-2rem)]"
+            aria-label="Graph legend"
+          >
+            <span className="font-semibold text-text">
+              {filteredElements.nodes.length} Nodes &middot;{" "}
+              {filteredElements.edges.length} Edges
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#009E73]" />{" "}
-              Organization
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#E69F00]" /> Dataset
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#56B4E9]" /> Transaction
-            </span>
+            {availableEntityTypes.length > 0 && (
+              <>
+                <div className="h-3 w-px bg-border" aria-hidden="true" />
+                <div className="flex flex-wrap items-center gap-3">
+                  {availableEntityTypes.map((type) => {
+                    const color = getEntityColor(type, isDark);
+                    return (
+                      <span
+                        key={type}
+                        className="inline-flex items-center gap-1.5 text-text"
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: color }}
+                          aria-hidden="true"
+                        />
+                        <span>{type}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

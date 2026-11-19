@@ -12,7 +12,7 @@ export interface PageHeaderProps {
   icon?: React.ReactNode;
   badge?: {
     label: string;
-    variant?: "emerald" | "blue" | "purple" | "amber" | "zinc";
+    variant?: "emerald" | "blue" | "purple" | "amber" | "zinc" | "error";
     pulse?: boolean;
   };
   actions?: React.ReactNode;
@@ -24,6 +24,7 @@ const BADGE_STYLES = {
   purple: "bg-primary-tint text-primary border-primary-border",
   amber: "bg-warning-bg text-warning border-warning-border",
   zinc: "bg-surface-subtle text-text-secondary border-border",
+  error: "bg-error-bg text-error border-error-border",
 };
 
 const DOT_COLORS = {
@@ -32,6 +33,7 @@ const DOT_COLORS = {
   purple: "bg-primary",
   amber: "bg-warning",
   zinc: "bg-text-secondary",
+  error: "bg-error",
 };
 
 export const PageHeader: React.FC<PageHeaderProps> = ({

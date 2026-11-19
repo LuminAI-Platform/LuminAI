@@ -1,28 +1,44 @@
 import React from "react";
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw } from "../../../lib/icons";
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  RotateCcw,
+  Layers,
+} from "../../../lib/icons";
 import type { GraphLayoutType } from "./GraphCanvas";
 import { Tooltip } from "../../../components/ui/Tooltip";
 import { Select } from "../../../components/ui/dropdown";
-import { useThemeStore } from "../../../stores/themeStore";
-import { getEntityColor } from "../../../lib/entityColors";
 
-interface GraphControlsProps {
+export interface GraphControlsProps {
   layoutType: GraphLayoutType;
   onChangeLayout: (layout: GraphLayoutType) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: () => void;
   onReset: () => void;
+  disabled?: boolean;
   entityTypes?: string[];
   selectedEntityType?: string | null;
   onSelectEntityType?: (type: string | null) => void;
   relationshipTypes?: string[];
   selectedRelType?: string | null;
   onSelectRelType?: (type: string | null) => void;
+  nodeCount?: number;
+  isNodeListOpen?: boolean;
+  onToggleNodeList?: () => void;
 }
 
+const LAYOUT_OPTIONS = [
+  { id: "cose", label: "Force" },
+  { id: "circle", label: "Circle" },
+  { id: "concentric", label: "Concentric" },
+  { id: "breadthfirst", label: "Tree" },
+] as const;
+
 /**
- * Control overlay toolbar for graph navigation, layout algorithms, and relationship filtering
+ * Control overlay toolbar for graph navigation, layout algorithms,
+ * entity/relationship filtering, and keyboard-accessible node list toggle.
  */
 export const GraphControls: React.FC<GraphControlsProps> = ({
   layoutType,
@@ -31,70 +47,91 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
   onZoomOut,
   onFit,
   onReset,
+  disabled = false,
   entityTypes = [],
   selectedEntityType,
   onSelectEntityType,
   relationshipTypes = [],
   selectedRelType,
   onSelectRelType,
+  nodeCount = 0,
+  isNodeListOpen = false,
+  onToggleNodeList,
 }) => {
-  const isDark = useThemeStore((s) => s.isDark);
+  const iconButtonClass =
+    "p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
   return (
-    <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
+    <div
+      className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2"
+      role="toolbar"
+      aria-label="Graph controls"
+    >
       {/* Zoom / Navigation Controls */}
-      <div className="flex items-center bg-surface/90 backdrop-blur-md border border-border rounded-lg p-1 shadow-xs">
+      <div className="flex items-center bg-surface/95 backdrop-blur-md border border-border rounded-lg p-1 shadow-sm">
         <Tooltip label="Zoom in">
           <button
+            type="button"
             onClick={onZoomIn}
-            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+            disabled={disabled}
+            aria-label="Zoom in"
+            className={iconButtonClass}
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-4 h-4" aria-hidden="true" />
           </button>
         </Tooltip>
         <Tooltip label="Zoom out">
           <button
+            type="button"
             onClick={onZoomOut}
-            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+            disabled={disabled}
+            aria-label="Zoom out"
+            className={iconButtonClass}
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-4 h-4" aria-hidden="true" />
           </button>
         </Tooltip>
-        <Tooltip label="Fit to screen">
+        <Tooltip label="Fit graph to view">
           <button
+            type="button"
             onClick={onFit}
-            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+            disabled={disabled}
+            aria-label="Fit graph to view"
+            className={iconButtonClass}
           >
-            <Maximize2 className="w-4 h-4" />
+            <Maximize2 className="w-4 h-4" aria-hidden="true" />
           </button>
         </Tooltip>
-        <Tooltip label="Reset viewport">
+        <Tooltip label="Reset layout">
           <button
+            type="button"
             onClick={onReset}
-            className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-md transition-colors cursor-pointer"
+            disabled={disabled}
+            aria-label="Reset layout"
+            className={iconButtonClass}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </Tooltip>
       </div>
 
       {/* Layout Selection */}
-      <div className="flex items-center bg-surface/90 backdrop-blur-md border border-border rounded-lg p-1 shadow-xs">
-        {(
-          [
-            { id: "cose", label: "Force" },
-            { id: "circle", label: "Circle" },
-            { id: "concentric", label: "Concentric" },
-            { id: "breadthfirst", label: "Tree" },
-          ] as const
-        ).map((item) => (
+      <div
+        className="flex items-center bg-surface/95 backdrop-blur-md border border-border rounded-lg p-1 shadow-sm"
+        role="group"
+        aria-label="Graph layout"
+      >
+        {LAYOUT_OPTIONS.map((item) => (
           <button
             key={item.id}
+            type="button"
+            disabled={disabled}
+            aria-pressed={layoutType === item.id}
             onClick={() => onChangeLayout(item.id)}
-            className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer ${
-              layoutType === item.id
+            className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              layoutType === item.id && !disabled
                 ? "bg-primary text-primary-text shadow-xs"
-                : "text-text-secondary hover:text-text hover:bg-surface-hover"
+                : "text-text-secondary hover:text-text hover:bg-surface-hover disabled:hover:bg-transparent disabled:hover:text-text-secondary"
             }`}
           >
             {item.label}
@@ -134,32 +171,25 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
         </div>
       )}
 
-      {/* Shared Entity Types Legend */}
-      {entityTypes.length > 0 && (
-        <div className="flex items-center gap-2 bg-surface/90 backdrop-blur-md border border-border rounded-lg px-2.5 py-1 text-xs shadow-xs">
-          <span className="text-[11px] font-semibold text-text-secondary select-none">
-            Legend:
-          </span>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {entityTypes.map((type) => {
-              const color = getEntityColor(type, isDark);
-              return (
-                <div
-                  key={type}
-                  className="flex items-center gap-1.5 select-none"
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="text-[11px] font-medium text-text">
-                    {type}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {/* Keyboard-Accessible Node List Toggle */}
+      {!disabled && nodeCount > 0 && onToggleNodeList && (
+        <Tooltip label="Browse nodes with keyboard">
+          <button
+            type="button"
+            onClick={onToggleNodeList}
+            aria-expanded={isNodeListOpen}
+            aria-controls="graph-node-list"
+            aria-label={`Toggle node list (${nodeCount} nodes)`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border shadow-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              isNodeListOpen
+                ? "bg-primary text-primary-text border-primary"
+                : "bg-surface/95 backdrop-blur-md text-text-secondary hover:text-text hover:bg-surface-hover border-border"
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Nodes ({nodeCount})</span>
+          </button>
+        </Tooltip>
       )}
     </div>
   );
