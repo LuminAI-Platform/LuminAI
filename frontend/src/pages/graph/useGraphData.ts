@@ -63,6 +63,7 @@ export function useGraphData() {
       try {
         const res = await apiFetch("/api/v1/explorer/search?size=1", {
           headers: { "X-Suppress-Toast": "true" },
+          timeoutMs: 15000,
         });
         const data = await res.json();
         const items = data?.items ?? data?.content ?? [];
@@ -100,13 +101,38 @@ export function useGraphData() {
       try {
         const res = await apiFetch(url, {
           headers: { "X-Suppress-Toast": "true" },
+          timeoutMs: 30000,
         });
-        if (!res.ok) {
-          return { nodes: [], edges: [], totalNodes: 0, totalEdges: 0 };
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.nodes && data.nodes.length > 0) {
+            return data;
+          }
         }
-        return await res.json();
+        // If neighbourhood returned 0 nodes or failed, attempt overview fallback
+        if (activeEntityId) {
+          const fallbackRes = await apiFetch("/api/v1/graph/overview", {
+            headers: { "X-Suppress-Toast": "true" },
+            timeoutMs: 15000,
+          });
+          if (fallbackRes.ok) {
+            return await fallbackRes.json();
+          }
+        }
+        return { nodes: [], edges: [], totalNodes: 0, totalEdges: 0 };
       } catch (err) {
         console.warn("Could not fetch graph data:", err);
+        try {
+          const fallbackRes = await apiFetch("/api/v1/graph/overview", {
+            headers: { "X-Suppress-Toast": "true" },
+            timeoutMs: 15000,
+          });
+          if (fallbackRes.ok) {
+            return await fallbackRes.json();
+          }
+        } catch {
+          // Fallback also failed
+        }
         return { nodes: [], edges: [], totalNodes: 0, totalEdges: 0 };
       }
     },

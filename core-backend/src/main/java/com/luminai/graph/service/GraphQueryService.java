@@ -37,6 +37,39 @@ public class GraphQueryService {
     this.goldenRecordRepository = goldenRecordRepository;
   }
 
+  private <T> T executeWithTimeout(java.util.concurrent.Callable<T> task, long timeoutMs)
+      throws Exception {
+    final java.util.UUID tenantUuid = TenantContext.getTenantUuid();
+    final String tenantSlug = TenantContext.getTenantSlug();
+    java.util.concurrent.FutureTask<T> futureTask =
+        new java.util.concurrent.FutureTask<>(
+            () -> {
+              try {
+                if (tenantUuid != null && tenantSlug != null) {
+                  TenantContext.setTenant(tenantUuid, tenantSlug);
+                } else if (tenantSlug != null) {
+                  TenantContext.setTenantId(tenantSlug);
+                }
+                return task.call();
+              } finally {
+                TenantContext.clear();
+              }
+            });
+    Thread.ofVirtual().name("neo4j-bounded-query").start(futureTask);
+    try {
+      return futureTask.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    } catch (java.util.concurrent.TimeoutException te) {
+      futureTask.cancel(true);
+      throw new java.util.concurrent.TimeoutException(
+          "Neo4j query timed out after " + timeoutMs + "ms");
+    } catch (java.util.concurrent.ExecutionException ee) {
+      if (ee.getCause() instanceof Exception ex) {
+        throw ex;
+      }
+      throw new RuntimeException(ee.getCause());
+    }
+  }
+
   public GraphQueryResponseDto getNeighbourhood(
       String entityId, int depth, String relationshipType) {
     if (depth < 1 || depth > 4) {
@@ -51,14 +84,19 @@ public class GraphQueryService {
 
     try {
       Optional<GraphQueryResponseDto> result =
-          graphRepository.findNeighbourhood(tenantId, entityId, depth, relationshipType);
+          executeWithTimeout(
+              () -> graphRepository.findNeighbourhood(tenantId, entityId, depth, relationshipType),
+              2500);
       if (result.isPresent()
           && (goldenRecordRepository == null
               || (result.get().nodes() != null && !result.get().nodes().isEmpty()))) {
         return result.get();
       }
     } catch (Exception e) {
-      log.warn("Neo4j neighbourhood query failed for entityId {}: {}", entityId, e.getMessage());
+      log.warn(
+          "Neo4j neighbourhood query failed or timed out for entityId {}: {}",
+          entityId,
+          e.getMessage());
     }
 
     if (goldenRecordRepository != null) {
@@ -163,14 +201,15 @@ public class GraphQueryService {
   public GraphQueryResponseDto getOverviewGraph() {
     String tenantId = currentTenantId();
     try {
-      Optional<GraphQueryResponseDto> neoResult = graphRepository.findOverview(tenantId, 25);
+      Optional<GraphQueryResponseDto> neoResult =
+          executeWithTimeout(() -> graphRepository.findOverview(tenantId, 25), 2500);
       if (neoResult.isPresent()
           && neoResult.get().nodes() != null
           && !neoResult.get().nodes().isEmpty()) {
         return neoResult.get();
       }
     } catch (Exception e) {
-      log.warn("Neo4j findOverview failed: {}", e.getMessage());
+      log.warn("Neo4j findOverview failed or timed out: {}", e.getMessage());
     }
 
     if (goldenRecordRepository == null) {
@@ -224,12 +263,20 @@ public class GraphQueryService {
   /** Returns the ordered shortest path in the current tenant's Entity graph. */
   public GraphQueryResponseDto getShortestPath(String sourceId, String targetId) {
     String tenantId = currentTenantId();
-    return graphRepository
-        .findShortestPath(tenantId, sourceId, targetId)
-        .orElseThrow(
-            () ->
-                new com.luminai.common.exception.ResourceNotFoundException(
-                    "Graph path", "sourceId/targetId", sourceId + " -> " + targetId));
+    try {
+      return executeWithTimeout(
+              () -> graphRepository.findShortestPath(tenantId, sourceId, targetId), 2500)
+          .orElseThrow(
+              () ->
+                  new com.luminai.common.exception.ResourceNotFoundException(
+                      "Graph path", "sourceId/targetId", sourceId + " -> " + targetId));
+    } catch (com.luminai.common.exception.ResourceNotFoundException e) {
+      throw e;
+    } catch (Exception e) {
+      log.warn("Shortest path query failed or timed out: {}", e.getMessage());
+      throw new com.luminai.common.exception.ResourceNotFoundException(
+          "Graph path", "sourceId/targetId", sourceId + " -> " + targetId);
+    }
   }
 
   public GraphStatsDto getStats(String entityId) {
