@@ -76,7 +76,7 @@ const STATUS_BADGES: Record<
  * - Rows are links to the run detail view / target resource.
  * - Keyboard focusable with visible focus ring.
  * - Shows the 6 most recent runs with a "View all runs" link to Pipeline Monitor.
- * - Inner scroll with top/bottom fade edges and `overscroll-behavior: contain` (no scroll trapping).
+ * - Natural content height with no inner scroll container so wheel/trackpad/touch always scroll the page.
  * - Empty state with "No activity yet" and "Connect a data source" button.
  */
 export const ActivityFeed: React.FC<ActivityFeedProps> = ({
@@ -126,71 +126,55 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
 
   return (
     <div className="flex flex-col" data-testid="activity-feed-stream">
-      {/* Scrollable Container with Fade Edges & No Scroll Trapping */}
-      <div className="relative">
-        {/* Subtle Top Fade Edge */}
-        <div
-          className="pointer-events-none sticky top-0 left-0 right-0 h-2.5 bg-gradient-to-b from-surface to-transparent z-10 -mb-2.5 opacity-80"
-          aria-hidden="true"
-        />
+      <div
+        className="flex flex-col divide-y divide-border/60"
+        role="feed"
+        aria-label="Recent activity events"
+      >
+        {displayItems.map((item) => {
+          const icon = TYPE_ICONS[item.type] ?? TYPE_ICONS.DEFAULT;
+          const statusConfig = STATUS_BADGES[item.status] ?? STATUS_BADGES.INFO;
+          const route = getActivityTargetRoute(item);
 
-        <div
-          className="flex flex-col divide-y divide-border/60 max-h-[360px] overflow-y-auto pr-1 [overscroll-behavior:contain]"
-          role="feed"
-          aria-label="Recent activity events"
-        >
-          {displayItems.map((item) => {
-            const icon = TYPE_ICONS[item.type] ?? TYPE_ICONS.DEFAULT;
-            const statusConfig =
-              STATUS_BADGES[item.status] ?? STATUS_BADGES.INFO;
-            const route = getActivityTargetRoute(item);
-
-            return (
-              <Link
-                key={item.id}
-                to={route.to}
-                hash={route.hash}
-                className="group py-3 px-2.5 flex items-start justify-between gap-3.5 hover:bg-surface-subtle active:bg-surface-muted/60 rounded-lg transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface select-none"
-                aria-label={`${item.title} - ${item.status}: ${item.description}`}
-                tabIndex={0}
-              >
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-surface-subtle border border-border flex items-center justify-center shrink-0 mt-0.5 group-hover:border-primary/40 group-hover:text-primary transition-colors">
-                    {icon}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-semibold text-text group-hover:text-primary transition-colors truncate">
-                      {item.title}
-                    </h4>
-                    <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">
-                      {item.description}
-                    </p>
-                  </div>
+          return (
+            <Link
+              key={item.id}
+              to={route.to}
+              hash={route.hash}
+              className="group py-3 px-2.5 flex items-start justify-between gap-3.5 hover:bg-surface-subtle active:bg-surface-muted/60 rounded-lg transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface select-none"
+              aria-label={`${item.title} - ${item.status}: ${item.description}`}
+              tabIndex={0}
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-surface-subtle border border-border flex items-center justify-center shrink-0 mt-0.5 group-hover:border-primary/40 group-hover:text-primary transition-colors">
+                  {icon}
                 </div>
-
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <span className="text-[10px] text-text-muted">
-                    {formatRelativeTime(item.timestamp)}
-                  </span>
-                  <Badge variant={statusConfig.variant} withDot>
-                    {statusConfig.label}
-                  </Badge>
-                  <ArrowRight
-                    size={ICON_SIZES.inline}
-                    className="text-text-muted opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all shrink-0"
-                    aria-hidden="true"
-                  />
+                <div className="min-w-0">
+                  <h4 className="text-xs font-semibold text-text group-hover:text-primary transition-colors truncate">
+                    {item.title}
+                  </h4>
+                  <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">
+                    {item.description}
+                  </p>
                 </div>
-              </Link>
-            );
-          })}
-        </div>
+              </div>
 
-        {/* Subtle Bottom Fade Edge */}
-        <div
-          className="pointer-events-none sticky bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-surface to-transparent z-10 -mt-3 opacity-80"
-          aria-hidden="true"
-        />
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className="text-[10px] text-text-muted">
+                  {formatRelativeTime(item.timestamp)}
+                </span>
+                <Badge variant={statusConfig.variant} withDot>
+                  {statusConfig.label}
+                </Badge>
+                <ArrowRight
+                  size={ICON_SIZES.inline}
+                  className="text-text-muted opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all shrink-0"
+                  aria-hidden="true"
+                />
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Footer link to Pipeline Monitor */}
