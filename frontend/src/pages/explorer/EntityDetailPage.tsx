@@ -78,7 +78,7 @@ export const EntityDetailPage: React.FC = () => {
           canonicalName={entity.canonicalName}
           entityType={entity.entityType}
           entityId={entity.id}
-          createdAt={entity.createdAt}
+          createdAt={entity.createdAt ?? ""}
           typeColor={typeConf.color}
           typeIcon={typeConf.icon}
           onExploreGraph={handleExploreGraph}

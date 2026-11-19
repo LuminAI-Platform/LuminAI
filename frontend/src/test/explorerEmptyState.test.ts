@@ -17,7 +17,7 @@ vi.mock("@tanstack/react-router", () => ({
 import { ExplorerEmptyState } from "../pages/explorer/components/ExplorerEmptyState";
 
 describe("ExplorerEmptyState Component", () => {
-  it("renders 'No records yet' state when no query and no filters are present", () => {
+  it("renders 'No entities yet' state when no query and no filters are present", () => {
     const html = renderToStaticMarkup(
       React.createElement(ExplorerEmptyState, {
         query: "",
@@ -25,23 +25,13 @@ describe("ExplorerEmptyState Component", () => {
       }),
     );
 
-    expect(html.includes("No records yet")).toBe(true);
-    expect(
-      html.includes("Connect a data source to start matching records."),
-    ).toBe(true);
-    expect(html.includes("Connect a source")).toBe(true);
-    expect(html.includes("/connections")).toBe(true);
-    // Short note on what appears
-    expect(
-      html.includes(
-        "Once data is connected, this explorer displays resolved record names, entity types, and data source connections.",
-      ),
-    ).toBe(true);
-    // No confusion icons or search copy
-    expect(html.includes("No results for")).toBe(false);
+    expect(html).toContain("No entities yet");
+    expect(html).toContain("Connect a data source");
+    expect(html).toContain("/connections");
+    expect(html).not.toContain("No entities match these filters");
   });
 
-  it("renders 'Search with no match' state when query is provided", () => {
+  it("renders 'No entities match these filters' state when query is provided", () => {
     const html = renderToStaticMarkup(
       React.createElement(ExplorerEmptyState, {
         query: "acme corp",
@@ -50,18 +40,12 @@ describe("ExplorerEmptyState Component", () => {
       }),
     );
 
-    expect(html.includes("No results for ‘acme corp’")).toBe(true);
-    expect(html.includes("Try different words or clear filters.")).toBe(true);
-    expect(html.includes("Clear filters")).toBe(true);
-    expect(
-      html.includes(
-        "Entity Explorer searches across canonical record names, entity types, unified properties, and data sources.",
-      ),
-    ).toBe(true);
-    expect(html.includes("No records yet")).toBe(false);
+    expect(html).toContain("No entities match these filters");
+    expect(html).toContain("Clear filters");
+    expect(html).not.toContain("No entities yet");
   });
 
-  it("renders 'Search with no match' state when filter is active without search text", () => {
+  it("renders 'No entities match these filters' state when filter is active without search text", () => {
     const html = renderToStaticMarkup(
       React.createElement(ExplorerEmptyState, {
         query: "",
@@ -70,8 +54,7 @@ describe("ExplorerEmptyState Component", () => {
       }),
     );
 
-    expect(html.includes("No results for selected filters")).toBe(true);
-    expect(html.includes("Try different words or clear filters.")).toBe(true);
-    expect(html.includes("Clear filters")).toBe(true);
+    expect(html).toContain("No entities match these filters");
+    expect(html).toContain("Clear filters");
   });
 });

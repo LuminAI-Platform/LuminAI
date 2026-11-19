@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, X, CornerDownLeft, ICON_SIZES } from "../../../lib/icons";
 import { Tooltip } from "../../../components/ui/Tooltip";
+import type { ParsedQueryFilter } from "../../../pages/explorer/types";
 
 interface SearchBarProps {
   query: string;
   onChange: (value: string) => void;
   onSearch: () => void;
+  parsedFilters?: ParsedQueryFilter[];
+  onRemoveFilter?: (filter: ParsedQueryFilter) => void;
   suggestions?: string[];
   onSelectSuggestion?: (val: string) => void;
   placeholder?: string;
@@ -15,14 +18,33 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   query,
   onChange,
   onSearch,
+  parsedFilters = [],
+  onRemoveFilter,
   suggestions = [],
   onSelectSuggestion,
-  placeholder = "Search entities, properties, or schemas...",
+  placeholder = "Search entities, or filter like country:US",
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /Mac|iPod|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+
+  // Global Cmd+K / Ctrl+K shortcut to focus search bar
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -38,11 +60,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Keyboard navigation for suggestions dropdown
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!showDropdown || suggestions.length === 0) {
       if (e.key === "Enter") {
         onSearch();
+      } else if (e.key === "Escape") {
+        inputRef.current?.blur();
       }
       return;
     }
@@ -80,10 +103,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-2xl select-none">
-      {/* Search Input Container */}
-      <div className="relative flex items-center bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 transition-colors focus-within:border-zinc-700 group">
-        <Search className="w-4 h-4 text-zinc-500 group-focus-within:text-zinc-300 transition-colors mr-3 shrink-0" />
+    <div ref={containerRef} className="relative w-full">
+      {/* Larger Search Input Container with subtle accent glow on focus */}
+      <div className="relative flex items-center bg-surface border border-border rounded-xl px-4 py-3 shadow-xs transition-all duration-150 motion-reduce:transition-none focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 group">
+        <Search
+          size={ICON_SIZES.card}
+          className="text-text-muted group-focus-within:text-primary transition-colors duration-150 motion-reduce:transition-none mr-3 shrink-0"
+          aria-hidden="true"
+        />
 
         <input
           ref={inputRef}
@@ -97,11 +124,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onFocus={() => setShowDropdown(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="bg-transparent text-zinc-100 placeholder:text-zinc-500 outline-none border-none w-full text-sm font-sans"
+          aria-label="Search entities"
+          className="bg-transparent text-text placeholder:text-text-muted outline-none border-none w-full text-sm font-sans"
         />
 
-        {/* Action controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right Controls: Clear, Shortcut Hint, Search Button */}
+        <div className="flex items-center gap-2 shrink-0 ml-2">
           {query && (
             <Tooltip label="Clear search" side="bottom">
               <button
@@ -111,7 +139,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   setShowDropdown(false);
                   inputRef.current?.focus();
                 }}
-                className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 rounded-md transition-colors cursor-pointer"
+                className="p-1.5 hover:bg-surface-subtle text-text-muted hover:text-text rounded-lg transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
                 aria-label="Clear search"
               >
                 <X size={ICON_SIZES.inline} aria-hidden="true" />
@@ -119,48 +147,96 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             </Tooltip>
           )}
 
+          <kbd
+            className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 text-[11px] font-mono font-medium text-text-muted bg-surface-subtle border border-border rounded-md select-none"
+            aria-hidden="true"
+          >
+            {isMac ? "⌘K" : "Ctrl+K"}
+          </kbd>
+
           <button
+            type="button"
             onClick={() => {
               onSearch();
               setShowDropdown(false);
             }}
-            className="px-2.5 py-1 text-[10px] font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-750 border border-zinc-700/50 rounded-md transition-all flex items-center gap-1 cursor-pointer select-none"
+            className="px-3 py-1.5 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover rounded-lg transition-colors duration-150 motion-reduce:transition-none flex items-center gap-1.5 cursor-pointer select-none"
           >
             <span>Search</span>
-            <CornerDownLeft className="w-2.5 h-2.5" />
+            <CornerDownLeft size={12} aria-hidden="true" />
           </button>
         </div>
       </div>
 
+      {/* Parsed field:value filter chips */}
+      {parsedFilters.length > 0 && (
+        <div
+          className="flex flex-wrap items-center gap-2 mt-2"
+          role="list"
+          aria-label="Active search filters"
+        >
+          {parsedFilters.map((filter, idx) => (
+            <span
+              key={`${filter.key}-${filter.value}-${idx}`}
+              role="listitem"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-primary-tint text-primary border border-primary-border font-medium"
+            >
+              <span className="font-mono text-[11px] opacity-80">
+                {filter.key}:
+              </span>
+              <span className="font-semibold">{filter.value}</span>
+              {onRemoveFilter && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveFilter(filter)}
+                  aria-label={`Remove filter ${filter.key}:${filter.value}`}
+                  className="ml-0.5 p-0.5 rounded hover:bg-primary/15 transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Autocomplete Dropdown */}
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden shadow-2xl shadow-black/80 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
-          <div className="px-3.5 py-2 text-[10px] font-bold text-zinc-500 border-b border-zinc-850 uppercase tracking-widest bg-zinc-900/80">
-            Suggested matches
+        <div className="absolute z-40 w-full mt-2 bg-surface border border-border rounded-xl overflow-hidden shadow-lg max-h-60 overflow-y-auto">
+          <div className="px-4 py-2 text-[11px] font-semibold text-text-muted border-b border-border-subtle uppercase tracking-wider bg-surface-subtle">
+            Matching entities
           </div>
-          <ul className="divide-y divide-zinc-900">
+          <ul className="divide-y divide-border-subtle" role="listbox">
             {suggestions.map((val, idx) => {
               const isActive = activeIndex === idx;
               return (
                 <li
                   key={val + idx}
+                  role="option"
+                  aria-selected={isActive}
                   onClick={() => selectSuggestion(val)}
                   onMouseEnter={() => setActiveIndex(idx)}
-                  className={`px-4 py-2.5 text-xs text-zinc-200 cursor-pointer flex items-center justify-between transition-colors ${
+                  className={`px-4 py-2.5 text-xs cursor-pointer flex items-center justify-between transition-colors duration-150 motion-reduce:transition-none ${
                     isActive
-                      ? "bg-zinc-800/80 text-blue-400"
-                      : "hover:bg-zinc-800/40"
+                      ? "bg-primary-tint text-primary"
+                      : "text-text hover:bg-surface-hover"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <Search
-                      className={`w-3.5 h-3.5 ${isActive ? "text-blue-500" : "text-zinc-500"}`}
+                      size={14}
+                      className={
+                        isActive
+                          ? "text-primary shrink-0"
+                          : "text-text-muted shrink-0"
+                      }
+                      aria-hidden="true"
                     />
-                    <span className="font-medium">{val}</span>
+                    <span className="font-medium truncate">{val}</span>
                   </div>
                   {isActive && (
-                    <span className="text-[10px] text-zinc-500 font-mono">
-                      Select
+                    <span className="text-[10px] text-text-muted font-mono shrink-0 ml-2">
+                      Enter
                     </span>
                   )}
                 </li>
