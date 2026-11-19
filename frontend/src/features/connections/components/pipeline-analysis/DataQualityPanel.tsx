@@ -1,6 +1,7 @@
 import React from "react";
 import { ShieldCheck } from "../../../../lib/icons";
 import type { EngineDataQualityDto } from "./pipelineAnalysisTypes";
+import { isAvailableMetric } from "../../../../hooks/useDataQuality";
 
 interface DataQualityPanelProps {
   dataQuality?: EngineDataQualityDto;
@@ -40,6 +41,21 @@ export const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
     },
   ];
 
+  const allFourAvailable =
+    hasEvaluated &&
+    isAvailableMetric(dataQuality?.completeness) &&
+    isAvailableMetric(dataQuality?.uniqueness) &&
+    isAvailableMetric(dataQuality?.consistency) &&
+    isAvailableMetric(dataQuality?.timeliness);
+
+  const computedOverallScore = allFourAvailable
+    ? ((dataQuality!.completeness as number) +
+        (dataQuality!.uniqueness as number) +
+        (dataQuality!.consistency as number) +
+        (dataQuality!.timeliness as number)) /
+      4
+    : null;
+
   return (
     <div className="bg-surface border border-border rounded-xl p-5 shadow-xs transition-colors select-none">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-border pb-3">
@@ -62,9 +78,9 @@ export const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
               ? `${recordsEvaluated.toLocaleString()} records evaluated`
               : "No records evaluated"}
           </span>
-          {hasEvaluated && dataQuality?.overallScore !== undefined && (
+          {computedOverallScore !== null && (
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-success-bg border border-success-border text-success">
-              {dataQuality.overallScore.toFixed(1)}% Overall
+              {computedOverallScore.toFixed(1)}% Overall
             </span>
           )}
         </div>
@@ -73,14 +89,9 @@ export const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {dimensions.map((dim) => {
           const score = dim.score;
-          const displayScore =
-            hasEvaluated && score !== undefined && score > 0
-              ? `${score.toFixed(1)}%`
-              : "–";
-          const subText =
-            hasEvaluated && score !== undefined && score > 0
-              ? dim.description
-              : "No records evaluated";
+          const isValid = hasEvaluated && isAvailableMetric(score);
+          const displayScore = isValid ? `${score.toFixed(1)}%` : "–";
+          const subText = isValid ? dim.description : "No records evaluated";
 
           return (
             <div
@@ -94,7 +105,11 @@ export const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 </span>
               </div>
 
-              <div className="text-xl font-bold tracking-tight text-text mt-1">
+              <div
+                className={`text-xl font-bold tracking-tight mt-1 ${
+                  isValid ? "text-text" : "text-text-muted"
+                }`}
+              >
                 {displayScore}
               </div>
 
@@ -107,10 +122,9 @@ export const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
                 <div
                   className="bg-primary h-full rounded-full transition-all duration-500"
                   style={{
-                    width:
-                      hasEvaluated && score !== undefined
-                        ? `${Math.min(score, 100)}%`
-                        : "0%",
+                    width: isValid
+                      ? `${Math.max(0, Math.min(score, 100))}%`
+                      : "0%",
                   }}
                 />
               </div>

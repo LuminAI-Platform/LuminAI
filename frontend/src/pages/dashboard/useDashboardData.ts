@@ -49,6 +49,9 @@ export interface DataQuality {
   recordsEvaluated?: number;
   recordsRejected?: number;
   recordsQuarantined?: number;
+  available?: boolean;
+  status?: string;
+  error?: string;
 }
 
 export interface EntityStats {

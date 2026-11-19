@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { NavigationProgressBar } from "./NavigationProgressBar";
+import { EngineStatusPill } from "./EngineStatusPill";
 import { TooltipProvider } from "../ui/Tooltip";
 import {
   CheckCircle2,
@@ -73,7 +74,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
             {/* Status Bar */}
             <footer className="h-9 bg-surface border-t border-border px-6 flex items-center justify-between text-xs text-text-secondary z-10 shrink-0 select-none">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5">
                   {isOnline ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-text-secondary" />
@@ -87,6 +88,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                     {isOnline ? "Connected" : "Offline"}
                   </span>
                 </span>
+                <span
+                  className="h-3.5 w-px bg-border"
+                  aria-hidden="true"
+                />
+                <EngineStatusPill />
               </div>
               <div className="hidden sm:block text-text-secondary">
                 LuminAI Data Platform

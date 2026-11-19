@@ -4,6 +4,10 @@ import type {
   DashboardSummary,
   EngineMetricsResponse,
 } from "../useDashboardData";
+import {
+  useDataQuality,
+  formatQualityMetric,
+} from "../../../hooks/useDataQuality";
 import { Icons } from "../../../lib/icons";
 
 interface DashboardKpiRowProps {
@@ -41,27 +45,12 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
   const hasConnections = totalConnections > 0;
   const hasPipelines = totalPipelines > 0;
 
-  const rawQualityScore = summary?.dataQualityScore;
-  const hasNumericScore =
-    hasPipelines &&
-    typeof rawQualityScore === "number" &&
-    !isNaN(rawQualityScore) &&
-    rawQualityScore > 0;
+  const quality = useDataQuality(engineMetrics);
+  const qualityScore = quality.score;
+  const hasQualityScore = qualityScore !== null;
 
-  const evaluatedCount =
-    engineMetrics?.dataQuality?.recordsEvaluated ??
-    engineMetrics?.pipelineStats?.evaluatedCount ??
-    0;
-  const hasEvaluatedCount = evaluatedCount > 0;
-
-  const quarantinedCount =
-    engineMetrics?.dataQuality?.recordsQuarantined ??
-    engineMetrics?.pipelineStats?.quarantinedCount ??
-    0;
-  const rejectedCount =
-    engineMetrics?.dataQuality?.recordsRejected ??
-    engineMetrics?.pipelineStats?.rejectedCount ??
-    failedRuns;
+  const quarantinedCount = quality.recordsQuarantined;
+  const rejectedCount = quality.recordsRejected || failedRuns;
   const hasQuarantineOrRejectedIssues =
     quarantinedCount > 0 || rejectedCount > 0;
 
@@ -70,27 +59,22 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
     variant?: "neutral" | "success" | "warning" | "danger";
     tooltip?: string;
   } = {
-    text: "None yet",
+    text: "Unverified",
     variant: "neutral",
+    tooltip:
+      "Data quality metrics from the processing engine are unavailable.",
   };
 
-  if (hasNumericScore) {
+  if (hasQualityScore) {
     if (hasQuarantineOrRejectedIssues) {
       qualityBadge = {
         text: "Completed with issues",
         variant: "warning",
         tooltip: `${rejectedCount} rejected · ${quarantinedCount} quarantined`,
       };
-    } else if (rawQualityScore === 100 && !hasEvaluatedCount) {
-      qualityBadge = {
-        text: "Unverified",
-        variant: "neutral",
-        tooltip:
-          "Score has no evaluated-records count, so it cannot be verified.",
-      };
-    } else if (rawQualityScore >= 90) {
+    } else if (qualityScore >= 90) {
       qualityBadge = { text: "Good", variant: "success" };
-    } else if (rawQualityScore >= 70) {
+    } else if (qualityScore >= 70) {
       qualityBadge = { text: "Fair", variant: "warning" };
     } else {
       qualityBadge = { text: "Poor", variant: "danger" };
@@ -158,15 +142,10 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
 
       <KpiCard
         title="Data Quality Score"
-        value={
-          hasNumericScore &&
-          rawQualityScore !== undefined &&
-          rawQualityScore !== null
-            ? `${rawQualityScore.toFixed(1)}%`
-            : "–"
-        }
+        value={formatQualityMetric(qualityScore)}
+        mutedValue={!hasQualityScore}
         subtitle={
-          hasNumericScore ? "Completeness & accuracy" : "No data evaluated"
+          hasQualityScore ? "Completeness & accuracy" : "No data evaluated"
         }
         icon={<Icons.DataQuality />}
         badge={qualityBadge}
