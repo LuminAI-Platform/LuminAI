@@ -159,7 +159,9 @@ export const GraphPage: React.FC = () => {
               variant="outline"
               onClick={() => handleResetSelection()}
             >
-              Reset Selected Entity
+              {activeEntityId
+                ? "View Entire Graph Overview"
+                : "Explore Graph Overview"}
             </Button>
           </div>
         )}

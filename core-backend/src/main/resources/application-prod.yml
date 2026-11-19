@@ -61,6 +61,9 @@ spring:
       username: ${NEO4J_USERNAME:neo4j}
       password: ${NEO4J_PASSWORD:neo4j}
     database: ${NEO4J_DATABASE:neo4j}
+    driver:
+      connection-timeout: 2s
+      connection-acquisition-timeout: 2s
 
   # ── Kafka — Optional Event Streaming (defaults to off if unconfigured) ───
   kafka:

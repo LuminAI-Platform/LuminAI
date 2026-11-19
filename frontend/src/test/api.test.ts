@@ -95,7 +95,6 @@ describe("apiFetch & Network Layer Robustness", () => {
     });
 
     const promise = apiFetch("/api/v1/slow-engine", {
-      // @ts-expect-error test timeoutMs parameter
       timeoutMs: 100,
       headers: { "X-Suppress-Toast": "true" },
     });
