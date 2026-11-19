@@ -26,6 +26,7 @@ import {
 } from "../pages/graph/components/GraphOverlays";
 import { GraphControls } from "../pages/graph/components/GraphControls";
 import { GraphSearchBar } from "../pages/graph/components/GraphSearchBar";
+import { PageHeader } from "../components/layout/PageHeader";
 import { TooltipProvider } from "../components/ui/Tooltip";
 
 describe("Knowledge Graph Explorer — Badge & State Logic", () => {
@@ -279,7 +280,7 @@ describe("Knowledge Graph Explorer — Canvas State Overlays", () => {
 });
 
 describe("Knowledge Graph Explorer — Search & Toolbar Accessibility", () => {
-  it("renders full placeholder and disables Load when input is empty", () => {
+  it("renders full placeholder with non-shrinking width and disables Load when input is empty", () => {
     const html = renderToStaticMarkup(
       React.createElement(GraphSearchBar, {
         onSearch: () => {},
@@ -287,9 +288,38 @@ describe("Knowledge Graph Explorer — Search & Toolbar Accessibility", () => {
       }),
     );
     expect(html).toContain('placeholder="Search entity name or ID"');
+    expect(html).toContain("w-80");
+    expect(html).toContain("min-w-[288px]");
+    expect(html).toContain("shrink-0");
     expect(html).toContain('type="submit"');
     expect(html).toContain("disabled");
     expect(html).toContain("Load");
+  });
+
+  it("renders PageHeader with single-line title and badge, 2-line description, and 1400px container query stacking", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(PageHeader, {
+        breadcrumbs: [
+          { label: "Explore & Overview", to: "/" },
+          { label: "Knowledge Graph" },
+        ],
+        title: "Knowledge Graph Explorer",
+        description:
+          "Explore entity relationships, connected graph clusters, and relationship pathways.",
+        badge: { label: "Graph unavailable", variant: "error" },
+        stackActionsBelowWide: true,
+        actions: React.createElement("div", null, "Controls"),
+      }),
+    );
+    expect(html).toContain("@container");
+    expect(html).toContain("@[1400px]:flex-row");
+    expect(html).toContain("justify-start");
+    expect(html).toContain("flex-nowrap");
+    expect(html).toContain("whitespace-nowrap");
+    expect(html).toContain("truncate");
+    expect(html).toContain("line-clamp-2");
+    expect(html).toContain("Knowledge Graph Explorer");
+    expect(html).toContain("Graph unavailable");
   });
 
   it("disables zoom, fit, reset, and layout controls when nothing is loaded and includes aria-labels", () => {

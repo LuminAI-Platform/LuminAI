@@ -5,6 +5,7 @@ import { StepDropzone } from "./file-upload/StepDropzone";
 import { StepMapping } from "./file-upload/StepMapping";
 import { StepPreview } from "./file-upload/StepPreview";
 import { StepIngesting } from "./file-upload/StepIngesting";
+import { WizardStepper } from "./file-upload/WizardStepper";
 
 export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   onClose,
@@ -50,17 +51,11 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     <div
       role="region"
       aria-labelledby="file-wizard-title"
-      className="w-full max-w-[960px] mx-auto p-6 min-h-full"
-      style={{
-        width: "100%",
-        maxWidth: "960px",
-        margin: "0 auto",
-        padding: "24px",
-      }}
+      className="w-full max-w-[960px] mx-auto px-4 sm:px-6 pt-3 pb-6"
     >
       <div className="bg-surface border border-border rounded-lg shadow-sm flex flex-col">
         {/* Top Header */}
-        <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b border-border bg-surface select-none rounded-t-lg">
+        <div className="shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-border bg-surface select-none rounded-t-lg">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary">
               <svg
@@ -108,49 +103,10 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         </div>
 
         {/* Step Indicator */}
-        <div className="border-b border-border bg-surface px-4 sm:px-6 py-3 select-none text-xs font-semibold">
-          <div className="w-full max-w-[800px] mx-auto flex items-center justify-between">
-            {[
-              { s: 1, name: "Upload File" },
-              { s: 2, name: "Define Types & Mapping" },
-              { s: 3, name: "Preview Data" },
-              { s: 4, name: "Ingestion Summary" },
-            ].map((item, idx) => (
-              <React.Fragment key={item.s}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`w-6 h-6 rounded-full flex items-center justify-center border text-xs font-medium shrink-0 transition-all ${
-                      step === item.s
-                        ? "bg-primary border-primary text-primary-text"
-                        : step > item.s
-                          ? "bg-success-bg border-success-border text-success"
-                          : "bg-surface-subtle border-border text-text-secondary"
-                    }`}
-                  >
-                    {item.s}
-                  </span>
-                  <span
-                    className={`whitespace-nowrap hidden lg:inline ${
-                      step === item.s
-                        ? "text-text font-semibold"
-                        : "text-text-secondary"
-                    }`}
-                  >
-                    {item.name}
-                  </span>
-                </div>
-                {idx < 3 && (
-                  <span className="text-text-muted/40 mx-1 sm:mx-2 font-normal select-none shrink-0">
-                    ➔
-                  </span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+        <WizardStepper step={step} />
 
         {/* Core content area */}
-        <div className="flex-1 p-6 min-h-[360px] bg-surface">
+        <div className="flex-1 px-6 py-5 min-h-[280px] bg-surface">
           {step === 1 && (
             <StepDropzone
               dragActive={dragActive}
@@ -209,7 +165,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
         </div>
 
         {/* Bottom Actions footer */}
-        <div className="px-6 py-4 border-t border-border bg-surface flex items-center justify-between select-none rounded-b-lg">
+        <div className="shrink-0 px-6 py-3.5 border-t border-border bg-surface flex items-center justify-between select-none rounded-b-lg">
           <div>
             {step > 1 && (
               <button

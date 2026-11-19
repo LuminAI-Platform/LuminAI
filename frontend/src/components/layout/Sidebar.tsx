@@ -48,31 +48,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <Tooltip
-              label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              side="right"
-            >
-              <button
-                type="button"
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                onClick={() => {
-                  const next = !collapsed;
-                  setCollapsed(next);
-                  localStorage.setItem(
-                    "luminai_sidebar_collapsed",
-                    String(next),
-                  );
-                }}
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 cursor-pointer transition-transform hover:scale-105"
-              >
+            {collapsed ? (
+              <Tooltip label="Expand sidebar" side="right">
+                <button
+                  type="button"
+                  aria-label="Expand sidebar"
+                  onClick={() => {
+                    setCollapsed(false);
+                    localStorage.setItem("luminai_sidebar_collapsed", "false");
+                  }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 cursor-pointer transition-transform hover:scale-105"
+                >
+                  <img
+                    src={luminaiMark}
+                    alt="LuminAI"
+                    className="w-7 h-7 object-contain select-none"
+                    draggable={false}
+                  />
+                </button>
+              </Tooltip>
+            ) : (
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
                 <img
                   src={luminaiMark}
                   alt="LuminAI"
                   className="w-7 h-7 object-contain select-none"
                   draggable={false}
                 />
-              </button>
-            </Tooltip>
+              </div>
+            )}
             {!collapsed && (
               <div className="flex flex-col overflow-hidden">
                 <span className="text-sm font-bold text-text tracking-tight leading-none">

@@ -92,8 +92,9 @@ export const GraphPage: React.FC = () => {
           />
         }
         badge={badge}
+        stackActionsBelowWide
         actions={
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-start gap-2.5">
             <GraphSearchBar
               inputRef={searchInputRef}
               onSearch={(id, label) => {
@@ -104,7 +105,7 @@ export const GraphPage: React.FC = () => {
 
             {/* Traversal Depth Selector */}
             <div
-              className="flex items-center bg-surface border border-border rounded-lg p-1 text-xs gap-1"
+              className="flex items-center shrink-0 bg-surface border border-border rounded-lg p-1 text-xs gap-1"
               role="group"
               aria-label="Graph traversal depth"
             >
@@ -133,6 +134,7 @@ export const GraphPage: React.FC = () => {
             <Button
               variant="secondary"
               size="sm"
+              className="shrink-0"
               disabled={isLoading}
               onClick={() => refetch()}
               leftIcon={<RefreshCw className="w-3.5 h-3.5" />}

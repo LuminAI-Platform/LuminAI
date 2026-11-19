@@ -147,7 +147,10 @@ export const GraphSearchBar: React.FC<GraphSearchBarProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="relative w-72 sm:w-80">
+    <div
+      ref={containerRef}
+      className="relative w-80 min-w-[288px] max-w-full shrink-0"
+    >
       <form
         onSubmit={handleSubmit}
         role="search"
@@ -199,10 +202,10 @@ export const GraphSearchBar: React.FC<GraphSearchBarProps> = ({
           id={listboxId}
           role="listbox"
           aria-label="Matching entities"
-          className="absolute left-0 right-0 mt-1 z-30 bg-surface border border-border rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto"
+          className="absolute left-0 right-0 mt-1.5 z-30 rounded-xl border border-border bg-surface p-1.5 shadow-lg shadow-black/10 dark:shadow-black/40 max-h-[320px] overflow-y-auto animate-dropdown-in select-none flex flex-col gap-0.5"
         >
           {isSearching && suggestions.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-text-secondary">
+            <li className="px-2.5 py-2 text-xs text-text-muted">
               Searching...
             </li>
           ) : (
@@ -220,23 +223,21 @@ export const GraphSearchBar: React.FC<GraphSearchBarProps> = ({
                     handleSelectSuggestion(item);
                   }}
                   onMouseEnter={() => setActiveIndex(idx)}
-                  className={`px-3 py-2 flex items-center justify-between gap-2 text-xs cursor-pointer transition-colors ${
+                  className={`w-full h-9 min-h-[36px] px-2.5 rounded-lg flex items-center justify-between gap-2.5 text-sm font-medium cursor-pointer transition-colors ${
                     isHighlighted
-                      ? "bg-surface-hover text-text"
+                      ? "bg-primary-tint text-primary font-semibold"
                       : "text-text hover:bg-surface-hover"
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: color }}
                       aria-hidden="true"
                     />
-                    <span className="font-medium truncate">
-                      {item.canonicalName}
-                    </span>
+                    <span className="truncate">{item.canonicalName}</span>
                   </div>
-                  <span className="text-[10px] text-text-secondary shrink-0 px-1.5 py-0.5 rounded bg-surface-subtle border border-border">
+                  <span className="text-[11px] text-text-secondary shrink-0 px-1.5 py-0.5 rounded bg-surface-subtle border border-border">
                     {item.entityType}
                   </span>
                 </li>
