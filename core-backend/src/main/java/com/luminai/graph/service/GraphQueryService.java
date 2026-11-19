@@ -52,14 +52,23 @@ public class GraphQueryService {
     try {
       Optional<GraphQueryResponseDto> result =
           graphRepository.findNeighbourhood(tenantId, entityId, depth, relationshipType);
-      if (result.isPresent() && result.get().nodes() != null && !result.get().nodes().isEmpty()) {
+      if (result.isPresent()
+          && (goldenRecordRepository == null
+              || (result.get().nodes() != null && !result.get().nodes().isEmpty()))) {
         return result.get();
       }
     } catch (Exception e) {
       log.warn("Neo4j neighbourhood query failed for entityId {}: {}", entityId, e.getMessage());
     }
 
-    return getFallbackNeighbourhood(entityId);
+    if (goldenRecordRepository != null) {
+      GraphQueryResponseDto fallback = getFallbackNeighbourhood(entityId);
+      if (fallback != null && fallback.nodes() != null && !fallback.nodes().isEmpty()) {
+        return fallback;
+      }
+    }
+
+    throw new com.luminai.common.exception.ResourceNotFoundException("Entity", "id", entityId);
   }
 
   /**
@@ -217,7 +226,10 @@ public class GraphQueryService {
     String tenantId = currentTenantId();
     return graphRepository
         .findShortestPath(tenantId, sourceId, targetId)
-        .orElseGet(this::getOverviewGraph);
+        .orElseThrow(
+            () ->
+                new com.luminai.common.exception.ResourceNotFoundException(
+                    "Graph path", "sourceId/targetId", sourceId + " -> " + targetId));
   }
 
   public GraphStatsDto getStats(String entityId) {
