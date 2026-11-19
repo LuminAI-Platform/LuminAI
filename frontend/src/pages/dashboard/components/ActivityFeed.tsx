@@ -133,8 +133,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
       >
         {displayItems.map((item) => {
           const icon = TYPE_ICONS[item.type] ?? TYPE_ICONS.DEFAULT;
-          const statusConfig =
-            STATUS_BADGES[item.status] ?? STATUS_BADGES.INFO;
+          const statusConfig = STATUS_BADGES[item.status] ?? STATUS_BADGES.INFO;
           const route = getActivityTargetRoute(item);
 
           return (

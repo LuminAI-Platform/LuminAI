@@ -88,10 +88,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                     {isOnline ? "Connected" : "Offline"}
                   </span>
                 </span>
-                <span
-                  className="h-3.5 w-px bg-border"
-                  aria-hidden="true"
-                />
+                <span className="h-3.5 w-px bg-border" aria-hidden="true" />
                 <EngineStatusPill />
               </div>
               <div className="hidden sm:block text-text-secondary">

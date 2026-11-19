@@ -61,8 +61,7 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
   } = {
     text: "Unverified",
     variant: "neutral",
-    tooltip:
-      "Data quality metrics from the processing engine are unavailable.",
+    tooltip: "Data quality metrics from the processing engine are unavailable.",
   };
 
   if (hasQualityScore) {

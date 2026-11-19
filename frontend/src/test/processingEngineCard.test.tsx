@@ -197,7 +197,7 @@ describe("SystemHealthSection (Pipeline Monitor)", () => {
         },
         dataUpdatedAt: now - 12 * 60_000,
         nowMs: now,
-        onRefresh: () => { },
+        onRefresh: () => {},
       }),
     );
 

@@ -1,11 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Cpu,
-  ShieldCheck,
-  RefreshCw,
-  AlertTriangle,
-} from "../../../lib/icons";
+import { Cpu, ShieldCheck, RefreshCw, AlertTriangle } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { queryClient } from "../../../lib/queryClient";
 import { Badge } from "../../../components/ui/Badge";
@@ -175,7 +170,10 @@ export const SystemHealthSectionContent: React.FC<
           }`}
         >
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <AlertTriangle
+              className="w-3.5 h-3.5 shrink-0"
+              aria-hidden="true"
+            />
             <span className="font-medium">{statusNotice}</span>
           </div>
           {onRefresh && (
