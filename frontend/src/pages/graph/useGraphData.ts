@@ -44,6 +44,7 @@ export function useGraphData() {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(
     getSearchParamEntityId,
   );
+  const [isResetToOverview, setIsResetToOverview] = useState(false);
   const [depth, setDepth] = useState<number>(2);
   const [layoutType, setLayoutType] = useState<GraphLayoutType>("cose");
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
@@ -76,7 +77,9 @@ export function useGraphData() {
     staleTime: 60000,
   });
 
-  const activeEntityId = selectedEntityId || initialEntityId || null;
+  const activeEntityId = isResetToOverview
+    ? null
+    : selectedEntityId || initialEntityId || null;
 
   const {
     data: apiGraph,
@@ -84,18 +87,15 @@ export function useGraphData() {
     error,
     refetch,
   } = useQuery<GraphResponse>({
-    queryKey: [
-      "graph",
-      "neighbourhood",
-      activeEntityId,
-      depth,
-      selectedRelFilter,
-    ],
+    queryKey: ["graph", "data", activeEntityId, depth, selectedRelFilter],
     queryFn: async () => {
-      if (!activeEntityId) return { nodes: [], edges: [] };
-      let url = `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(activeEntityId)}&depth=${depth}`;
+      let url = activeEntityId
+        ? `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(activeEntityId)}&depth=${depth}`
+        : `/api/v1/graph/overview`;
       if (selectedRelFilter) {
-        url += `&relationshipType=${encodeURIComponent(selectedRelFilter)}`;
+        url +=
+          (url.includes("?") ? "&" : "?") +
+          `relationshipType=${encodeURIComponent(selectedRelFilter)}`;
       }
       try {
         const res = await apiFetch(url, {
@@ -106,11 +106,10 @@ export function useGraphData() {
         }
         return await res.json();
       } catch (err) {
-        console.warn("Could not fetch graph neighbourhood:", err);
+        console.warn("Could not fetch graph data:", err);
         return { nodes: [], edges: [], totalNodes: 0, totalEdges: 0 };
       }
     },
-    enabled: !!activeEntityId,
     retry: false,
   });
 
@@ -160,9 +159,22 @@ export function useGraphData() {
     cyRef.current?.layout({ name: layoutType, animate: true }).run();
   }, [layoutType]);
 
+  const handleResetSelection = useCallback(() => {
+    setSelectedEntityId(null);
+    setIsResetToOverview(true);
+    setSelectedNode(null);
+  }, []);
+
+  const handleSelectEntity = useCallback((id: string | null) => {
+    setSelectedEntityId(id);
+    setIsResetToOverview(id === null);
+    setSelectedNode(null);
+  }, []);
+
   return {
     selectedEntityId,
-    setSelectedEntityId,
+    setSelectedEntityId: handleSelectEntity,
+    handleResetSelection,
     depth,
     setDepth,
     layoutType,

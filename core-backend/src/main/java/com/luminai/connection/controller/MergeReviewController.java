@@ -45,9 +45,20 @@ public class MergeReviewController {
 
   @PostMapping("/candidates/scan")
   @org.springframework.security.access.prepost.PreAuthorize(
-      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST', 'OPERATOR', 'USER')")
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'ANALYST', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<java.util.Map<String, Object>> scanCandidates() {
-    return ResponseEntity.ok(mergeReviewService.scanCandidates());
+    try {
+      return ResponseEntity.ok(mergeReviewService.scanCandidates());
+    } catch (Exception e) {
+      return ResponseEntity.ok(
+          java.util.Map.of(
+              "status",
+              "ERROR",
+              "message",
+              "Duplicate scan encountered an issue: " + e.getMessage(),
+              "candidatesFound",
+              0));
+    }
   }
 
   @GetMapping("/candidates/{id}")

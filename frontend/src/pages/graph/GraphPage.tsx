@@ -33,6 +33,7 @@ export const GraphPage: React.FC = () => {
     handleZoomOut,
     handleFit,
     handleReset,
+    handleResetSelection,
   } = useGraphData();
 
   const handleExpandNode = useCallback(
@@ -156,7 +157,7 @@ export const GraphPage: React.FC = () => {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setSelectedEntityId(null)}
+              onClick={() => handleResetSelection()}
             >
               Reset Selected Entity
             </Button>
