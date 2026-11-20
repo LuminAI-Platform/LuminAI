@@ -6,10 +6,7 @@ import { FocusScope } from "@radix-ui/react-focus-scope";
 import { Slot } from "@radix-ui/react-slot";
 import { composeRefs } from "@radix-ui/react-compose-refs";
 import { ChevronDown, Loader2, ICON_SIZES } from "../../../lib/icons";
-import {
-  DropdownMenuContext,
-  useDropdownMenu,
-} from "./DropdownMenuContext";
+import { DropdownMenuContext, useDropdownMenu } from "./DropdownMenuContext";
 
 export { useDropdownMenu, DropdownMenuContext };
 export * from "./DropdownMenuItems";
@@ -71,8 +68,7 @@ export const DropdownMenu = DropdownMenuRoot;
    2. DropdownMenuTrigger
    ========================================================================== */
 
-export interface DropdownMenuTriggerProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
   showChevron?: boolean;
   isLoading?: boolean;
@@ -179,8 +175,7 @@ DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
    3. DropdownMenuContent
    ========================================================================== */
 
-export interface DropdownMenuContentProps
-  extends React.HTMLAttributes<HTMLDivElement> {
+export interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> {
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
   sideOffset?: number;

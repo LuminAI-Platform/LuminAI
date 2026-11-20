@@ -6,8 +6,7 @@ import { useDropdownMenu } from "./DropdownMenuContext";
    DropdownMenuItem
    ========================================================================== */
 
-export interface DropdownMenuItemProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface DropdownMenuItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ReactNode;
   rightSlot?: React.ReactNode;
   destructive?: boolean;

@@ -260,7 +260,8 @@ export const EntityDetailDrawer: React.FC<EntityDetailDrawerProps> = ({
             <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-error-bg border border-error-border text-xs text-error">
               <AlertCircle size={14} className="shrink-0" aria-hidden="true" />
               <span>
-                Showing summary fields. Full detail request failed ({loadError}).
+                Showing summary fields. Full detail request failed ({loadError}
+                ).
               </span>
             </div>
           )}

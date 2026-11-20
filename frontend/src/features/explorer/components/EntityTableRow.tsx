@@ -146,9 +146,7 @@ export const EntityTableRow: React.FC<EntityTableRowProps> = ({
         }
 
         if (col.id === "updatedAt") {
-          const dateStr = formatShortDate(
-            entity.updatedAt || entity.createdAt,
-          );
+          const dateStr = formatShortDate(entity.updatedAt || entity.createdAt);
           return (
             <td
               key={col.id}
@@ -163,11 +161,7 @@ export const EntityTableRow: React.FC<EntityTableRowProps> = ({
           const propKey = col.id.slice(5);
           const val = entity.properties?.[propKey];
           const sensitive = isSensitiveField(propKey);
-          const display = maskSensitiveValue(
-            propKey,
-            val,
-            maskSensitiveData,
-          );
+          const display = maskSensitiveValue(propKey, val, maskSensitiveData);
           return (
             <td
               key={col.id}

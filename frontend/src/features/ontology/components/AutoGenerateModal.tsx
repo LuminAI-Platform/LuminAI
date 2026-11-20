@@ -26,7 +26,9 @@ export const AutoGenerateModal: React.FC<AutoGenerateModalProps> = ({
   // Dataset states
   const [connections, setConnections] = useState<ConnectionSummary[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
-  const [selectedConn, setSelectedConn] = useState<ConnectionSummary | null>(null);
+  const [selectedConn, setSelectedConn] = useState<ConnectionSummary | null>(
+    null,
+  );
   const [entityName, setEntityName] = useState("");
   const [entityLabel, setEntityLabel] = useState("");
   const [entityColor, setEntityColor] = useState("#3b82f6");
@@ -53,7 +55,9 @@ export const AutoGenerateModal: React.FC<AutoGenerateModalProps> = ({
     if (conn.config) {
       try {
         const parsed =
-          typeof conn.config === "string" ? JSON.parse(conn.config) : conn.config;
+          typeof conn.config === "string"
+            ? JSON.parse(conn.config)
+            : conn.config;
         if (Array.isArray(parsed.columns)) {
           cols = parsed.columns;
         } else if (
@@ -134,7 +138,8 @@ export const AutoGenerateModal: React.FC<AutoGenerateModalProps> = ({
                 Auto-Generate Ontology Models
               </h2>
               <p className="text-[11px] text-zinc-500">
-                Generate dynamic schema definitions directly from ingested data sources or industry templates
+                Generate dynamic schema definitions directly from ingested data
+                sources or industry templates
               </p>
             </div>
           </div>

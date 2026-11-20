@@ -60,11 +60,7 @@ export const RunStagesTimeline: React.FC<RunStagesTimelineProps> = ({
                       : "bg-surface-subtle text-text-secondary border-border"
                 }`}
               >
-                {isStepFailed
-                  ? "Failed"
-                  : isCompleted
-                    ? "Completed"
-                    : "Queued"}
+                {isStepFailed ? "Failed" : isCompleted ? "Completed" : "Queued"}
               </span>
             </div>
           );

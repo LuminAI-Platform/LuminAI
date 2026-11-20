@@ -165,7 +165,9 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
               "text-xs sm:text-sm font-medium select-none cursor-pointer transition-colors",
               "bg-surface text-text border border-border hover:bg-surface-hover hover:border-border-focus",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-border-focus",
-              disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : "",
+              disabled
+                ? "opacity-50 cursor-not-allowed pointer-events-none"
+                : "",
               triggerClassName,
             ].join(" ")}
           >

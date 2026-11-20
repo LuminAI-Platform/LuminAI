@@ -68,30 +68,26 @@ export const RunExecutionQualityAndLogs: React.FC<
         </h4>
         <div className="bg-page border border-border rounded-lg p-3 font-mono text-[11px] text-text-secondary max-h-48 overflow-y-auto space-y-1">
           {jobDetail?.logs && jobDetail.logs.length > 0 ? (
-            jobDetail.logs.map((logLine, idx) => (
-              <div key={idx}>{logLine}</div>
-            ))
+            jobDetail.logs.map((logLine, idx) => <div key={idx}>{logLine}</div>)
           ) : (
             <>
               <div>
-                [{new Date(run.startedAt).toISOString()}] Pipeline run
-                initiated for source: {run.connectorName}
+                [{new Date(run.startedAt).toISOString()}] Pipeline run initiated
+                for source: {run.connectorName}
               </div>
               <div>
-                [{new Date(run.startedAt).toISOString()}] Total input
-                records: {run.recordsInput.toLocaleString()}
+                [{new Date(run.startedAt).toISOString()}] Total input records:{" "}
+                {run.recordsInput.toLocaleString()}
               </div>
               {isFailed ? (
                 <div className="text-error">
-                  [
-                  {new Date(run.completedAt || run.startedAt).toISOString()}
-                  ] ERROR: {errorMessage}
+                  [{new Date(run.completedAt || run.startedAt).toISOString()}]
+                  ERROR: {errorMessage}
                 </div>
               ) : (
                 <div className="text-success">
-                  [
-                  {new Date(run.completedAt || run.startedAt).toISOString()}
-                  ] Completed: {run.recordsOutput.toLocaleString()} records
+                  [{new Date(run.completedAt || run.startedAt).toISOString()}]
+                  Completed: {run.recordsOutput.toLocaleString()} records
                   processed
                 </div>
               )}

@@ -1,10 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import {
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Sliders,
-} from "../../../lib/icons";
+import { ArrowUpDown, ArrowUp, ArrowDown, Sliders } from "../../../lib/icons";
 import type { EntityType } from "../../ontology/types";
 import { useThemeStore } from "../../../stores/themeStore";
 import type { SearchResultItem } from "../../../pages/explorer/types";

@@ -27,7 +27,9 @@ interface EntityProvenanceSectionProps {
   matchReasons?: EntityDetail["matchReasons"];
 }
 
-export const EntityProvenanceSection: React.FC<EntityProvenanceSectionProps> = ({
+export const EntityProvenanceSection: React.FC<
+  EntityProvenanceSectionProps
+> = ({
   loading,
   provenance,
   sourceRecordIds,
@@ -131,7 +133,8 @@ export const EntityProvenanceSection: React.FC<EntityProvenanceSectionProps> = (
       </section>
 
       {/* Match Details */}
-      {(confidencePct !== null || (matchReasons && matchReasons.length > 0)) && (
+      {(confidencePct !== null ||
+        (matchReasons && matchReasons.length > 0)) && (
         <section aria-labelledby="drawer-match-heading">
           <h3
             id="drawer-match-heading"

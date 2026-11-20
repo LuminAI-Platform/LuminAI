@@ -40,13 +40,7 @@ export const PipelineFilterToolbar: React.FC<PipelineFilterToolbarProps> = ({
 
       <div className="flex items-center gap-1.5 flex-wrap">
         {(
-          [
-            "ALL",
-            "RUNNING",
-            "CLEANED",
-            "COMPLETED",
-            "FAILED",
-          ] as FilterStatus[]
+          ["ALL", "RUNNING", "CLEANED", "COMPLETED", "FAILED"] as FilterStatus[]
         ).map((st) => (
           <FilterPill
             key={st}

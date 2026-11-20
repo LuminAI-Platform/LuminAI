@@ -1,6 +1,11 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Activity, AlertCircle, ArrowRight, RefreshCw } from "../../../../lib/icons";
+import {
+  Activity,
+  AlertCircle,
+  ArrowRight,
+  RefreshCw,
+} from "../../../../lib/icons";
 import { Button } from "../../../../components/ui/Button";
 import { Skeleton } from "../../../../components/ui/Skeleton";
 

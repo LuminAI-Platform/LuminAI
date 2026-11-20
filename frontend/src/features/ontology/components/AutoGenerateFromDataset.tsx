@@ -28,7 +28,9 @@ interface AutoGenerateFromDatasetProps {
   onClose: () => void;
 }
 
-export const AutoGenerateFromDataset: React.FC<AutoGenerateFromDatasetProps> = ({
+export const AutoGenerateFromDataset: React.FC<
+  AutoGenerateFromDatasetProps
+> = ({
   connections,
   loadingConnections,
   selectedConn,
@@ -87,7 +89,9 @@ export const AutoGenerateFromDataset: React.FC<AutoGenerateFromDatasetProps> = (
       );
     } catch (err) {
       onError(
-        err instanceof Error ? err.message : "Failed to auto-generate entity type",
+        err instanceof Error
+          ? err.message
+          : "Failed to auto-generate entity type",
       );
     } finally {
       setGenerating(false);
@@ -110,7 +114,8 @@ export const AutoGenerateFromDataset: React.FC<AutoGenerateFromDatasetProps> = (
           No active datasets or connections found in this tenant.
         </p>
         <p className="text-[11px] text-zinc-600 mt-1">
-          Upload a file in Data Connections first or use an Industry Template tab.
+          Upload a file in Data Connections first or use an Industry Template
+          tab.
         </p>
       </div>
     );
@@ -209,23 +214,28 @@ export const AutoGenerateFromDataset: React.FC<AutoGenerateFromDatasetProps> = (
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-zinc-400">Icon:</span>
             <div className="flex items-center gap-1.5">
-              {["database", "building", "user", "package", "chart", "globe"].map(
-                (ic) => (
-                  <button
-                    key={ic}
-                    type="button"
-                    onClick={() => setEntityIcon(ic)}
-                    className={`px-2 py-1 text-[10px] rounded-md border flex items-center gap-1 transition-all cursor-pointer ${
-                      entityIcon === ic
-                        ? "bg-zinc-800 border-blue-500 text-blue-400 font-semibold"
-                        : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    <EntityIcon iconKey={ic} size={12} />
-                    <span className="capitalize">{ic}</span>
-                  </button>
-                ),
-              )}
+              {[
+                "database",
+                "building",
+                "user",
+                "package",
+                "chart",
+                "globe",
+              ].map((ic) => (
+                <button
+                  key={ic}
+                  type="button"
+                  onClick={() => setEntityIcon(ic)}
+                  className={`px-2 py-1 text-[10px] rounded-md border flex items-center gap-1 transition-all cursor-pointer ${
+                    entityIcon === ic
+                      ? "bg-zinc-800 border-blue-500 text-blue-400 font-semibold"
+                      : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <EntityIcon iconKey={ic} size={12} />
+                  <span className="capitalize">{ic}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>

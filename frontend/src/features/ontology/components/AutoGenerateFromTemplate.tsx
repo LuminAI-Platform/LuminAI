@@ -12,7 +12,9 @@ interface AutoGenerateFromTemplateProps {
   onClose: () => void;
 }
 
-export const AutoGenerateFromTemplate: React.FC<AutoGenerateFromTemplateProps> = ({
+export const AutoGenerateFromTemplate: React.FC<
+  AutoGenerateFromTemplateProps
+> = ({
   selectedTemplate,
   setSelectedTemplate,
   onSuccess,
@@ -150,9 +152,7 @@ export const AutoGenerateFromTemplate: React.FC<AutoGenerateFromTemplateProps> =
               <div className="flex items-center gap-3 pt-2 border-t border-zinc-800/60 text-[10px] text-zinc-400">
                 <span>{pack.entityTypes.length} Entity Types</span>
                 <span>•</span>
-                <span>
-                  {pack.relationships?.length ?? 0} Relationships
-                </span>
+                <span>{pack.relationships?.length ?? 0} Relationships</span>
               </div>
             </div>
           ))}
@@ -192,7 +192,9 @@ export const AutoGenerateFromTemplate: React.FC<AutoGenerateFromTemplateProps> =
                   <span className="text-zinc-300">{rel.sourceEntity}</span>
                   <ArrowRight className="w-3 h-3 text-purple-400" />
                   <span className="text-zinc-300">{rel.targetEntity}</span>
-                  <span className="text-[10px] text-zinc-500">[{rel.name}]</span>
+                  <span className="text-[10px] text-zinc-500">
+                    [{rel.name}]
+                  </span>
                 </div>
               ))}
             </div>

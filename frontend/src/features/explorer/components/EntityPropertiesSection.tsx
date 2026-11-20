@@ -14,12 +14,9 @@ interface EntityPropertiesSectionProps {
   onToggleReveal: () => void;
 }
 
-export const EntityPropertiesSection: React.FC<EntityPropertiesSectionProps> = ({
-  properties,
-  maskSensitiveData,
-  localReveal,
-  onToggleReveal,
-}) => {
+export const EntityPropertiesSection: React.FC<
+  EntityPropertiesSectionProps
+> = ({ properties, maskSensitiveData, localReveal, onToggleReveal }) => {
   const propertyEntries = Object.entries(properties);
   const sensitivePresent = hasSensitiveProperties(properties);
   const isMasked = maskSensitiveData && !localReveal;
