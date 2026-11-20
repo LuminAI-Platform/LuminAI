@@ -8,9 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * Immutable snapshot of a dataset version commit.
- */
+/** Immutable snapshot of a dataset version commit. */
 @Entity
 @Table(name = "dataset_versions")
 public class DatasetVersion {
@@ -56,36 +54,91 @@ public class DatasetVersion {
 
   public DatasetVersion() {}
 
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-  public UUID getTenantId() { return tenantId; }
-  public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-  public UUID getDatasetId() { return datasetId; }
-  public void setDatasetId(UUID datasetId) { this.datasetId = datasetId; }
+  public UUID getTenantId() {
+    return tenantId;
+  }
 
-  public int getVersion() { return version; }
-  public void setVersion(int version) { this.version = version; }
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
 
-  public String getStorageLocation() { return storageLocation; }
-  public void setStorageLocation(String storageLocation) { this.storageLocation = storageLocation; }
+  public UUID getDatasetId() {
+    return datasetId;
+  }
 
-  public long getRowCount() { return rowCount; }
-  public void setRowCount(long rowCount) { this.rowCount = rowCount; }
+  public void setDatasetId(UUID datasetId) {
+    this.datasetId = datasetId;
+  }
 
-  public String getSchemaSnapshot() { return schemaSnapshot; }
-  public void setSchemaSnapshot(String schemaSnapshot) { this.schemaSnapshot = schemaSnapshot; }
+  public int getVersion() {
+    return version;
+  }
 
-  public String getProfilingSnapshot() { return profilingSnapshot; }
-  public void setProfilingSnapshot(String profilingSnapshot) { this.profilingSnapshot = profilingSnapshot; }
+  public void setVersion(int version) {
+    this.version = version;
+  }
 
-  public String getCommitMessage() { return commitMessage; }
-  public void setCommitMessage(String commitMessage) { this.commitMessage = commitMessage; }
+  public String getStorageLocation() {
+    return storageLocation;
+  }
 
-  public UUID getCreatedBy() { return createdBy; }
-  public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+  public void setStorageLocation(String storageLocation) {
+    this.storageLocation = storageLocation;
+  }
 
-  public Instant getCreatedAt() { return createdAt; }
-  public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+  public long getRowCount() {
+    return rowCount;
+  }
+
+  public void setRowCount(long rowCount) {
+    this.rowCount = rowCount;
+  }
+
+  public String getSchemaSnapshot() {
+    return schemaSnapshot;
+  }
+
+  public void setSchemaSnapshot(String schemaSnapshot) {
+    this.schemaSnapshot = schemaSnapshot;
+  }
+
+  public String getProfilingSnapshot() {
+    return profilingSnapshot;
+  }
+
+  public void setProfilingSnapshot(String profilingSnapshot) {
+    this.profilingSnapshot = profilingSnapshot;
+  }
+
+  public String getCommitMessage() {
+    return commitMessage;
+  }
+
+  public void setCommitMessage(String commitMessage) {
+    this.commitMessage = commitMessage;
+  }
+
+  public UUID getCreatedBy() {
+    return createdBy;
+  }
+
+  public void setCreatedBy(UUID createdBy) {
+    this.createdBy = createdBy;
+  }
+
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(Instant createdAt) {
+    this.createdAt = createdAt;
+  }
 }

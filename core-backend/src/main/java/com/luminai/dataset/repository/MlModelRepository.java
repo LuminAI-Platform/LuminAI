@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MlModelRepository extends JpaRepository<MlModel, UUID> {
   List<MlModel> findAllByTenantIdOrderByUpdatedAtDesc(UUID tenantId);
+
   List<MlModel> findAllByTenantIdAndStatus(UUID tenantId, String status);
+
   Optional<MlModel> findByIdAndTenantId(UUID id, UUID tenantId);
 }

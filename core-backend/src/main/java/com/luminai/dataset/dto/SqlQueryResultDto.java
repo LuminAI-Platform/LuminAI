@@ -8,5 +8,4 @@ public record SqlQueryResultDto(
     List<Map<String, Object>> rows,
     long totalRows,
     long executionTimeMs,
-    String status
-) {}
+    String status) {}

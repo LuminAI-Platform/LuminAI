@@ -10,9 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
-/**
- * Data Science experiment run and registered machine learning model.
- */
+/** Data Science experiment run and registered machine learning model. */
 @Entity
 @Table(name = "ml_models")
 public class MlModel {
@@ -77,51 +75,131 @@ public class MlModel {
 
   public MlModel() {}
 
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-  public UUID getTenantId() { return tenantId; }
-  public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
+  public UUID getTenantId() {
+    return tenantId;
+  }
 
-  public String getAlgorithm() { return algorithm; }
-  public void setAlgorithm(String algorithm) { this.algorithm = algorithm; }
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
 
-  public String getTaskType() { return taskType; }
-  public void setTaskType(String taskType) { this.taskType = taskType; }
+  public String getName() {
+    return name;
+  }
 
-  public UUID getTrainingDatasetId() { return trainingDatasetId; }
-  public void setTrainingDatasetId(UUID trainingDatasetId) { this.trainingDatasetId = trainingDatasetId; }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-  public Integer getDatasetVersion() { return datasetVersion; }
-  public void setDatasetVersion(Integer datasetVersion) { this.datasetVersion = datasetVersion; }
+  public String getAlgorithm() {
+    return algorithm;
+  }
 
-  public String getFeatures() { return features; }
-  public void setFeatures(String features) { this.features = features; }
+  public void setAlgorithm(String algorithm) {
+    this.algorithm = algorithm;
+  }
 
-  public String getTargetColumn() { return targetColumn; }
-  public void setTargetColumn(String targetColumn) { this.targetColumn = targetColumn; }
+  public String getTaskType() {
+    return taskType;
+  }
 
-  public String getHyperparameters() { return hyperparameters; }
-  public void setHyperparameters(String hyperparameters) { this.hyperparameters = hyperparameters; }
+  public void setTaskType(String taskType) {
+    this.taskType = taskType;
+  }
 
-  public String getMetrics() { return metrics; }
-  public void setMetrics(String metrics) { this.metrics = metrics; }
+  public UUID getTrainingDatasetId() {
+    return trainingDatasetId;
+  }
 
-  public String getStatus() { return status; }
-  public void setStatus(String status) { this.status = status; }
+  public void setTrainingDatasetId(UUID trainingDatasetId) {
+    this.trainingDatasetId = trainingDatasetId;
+  }
 
-  public String getModelArtifactPath() { return modelArtifactPath; }
-  public void setModelArtifactPath(String modelArtifactPath) { this.modelArtifactPath = modelArtifactPath; }
+  public Integer getDatasetVersion() {
+    return datasetVersion;
+  }
 
-  public UUID getCreatedBy() { return createdBy; }
-  public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+  public void setDatasetVersion(Integer datasetVersion) {
+    this.datasetVersion = datasetVersion;
+  }
 
-  public Instant getCreatedAt() { return createdAt; }
-  public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+  public String getFeatures() {
+    return features;
+  }
 
-  public Instant getUpdatedAt() { return updatedAt; }
-  public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+  public void setFeatures(String features) {
+    this.features = features;
+  }
+
+  public String getTargetColumn() {
+    return targetColumn;
+  }
+
+  public void setTargetColumn(String targetColumn) {
+    this.targetColumn = targetColumn;
+  }
+
+  public String getHyperparameters() {
+    return hyperparameters;
+  }
+
+  public void setHyperparameters(String hyperparameters) {
+    this.hyperparameters = hyperparameters;
+  }
+
+  public String getMetrics() {
+    return metrics;
+  }
+
+  public void setMetrics(String metrics) {
+    this.metrics = metrics;
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
+  public String getModelArtifactPath() {
+    return modelArtifactPath;
+  }
+
+  public void setModelArtifactPath(String modelArtifactPath) {
+    this.modelArtifactPath = modelArtifactPath;
+  }
+
+  public UUID getCreatedBy() {
+    return createdBy;
+  }
+
+  public void setCreatedBy(UUID createdBy) {
+    this.createdBy = createdBy;
+  }
+
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(Instant createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public void setUpdatedAt(Instant updatedAt) {
+    this.updatedAt = updatedAt;
+  }
 }

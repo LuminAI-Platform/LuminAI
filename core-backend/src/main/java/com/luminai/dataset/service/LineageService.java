@@ -18,9 +18,7 @@ public class LineageService {
   private final DatasetRepository datasetRepository;
 
   public LineageService(
-      DatasetLineageRepository lineageRepository,
-      DatasetRepository datasetRepository
-  ) {
+      DatasetLineageRepository lineageRepository, DatasetRepository datasetRepository) {
     this.lineageRepository = lineageRepository;
     this.datasetRepository = datasetRepository;
   }
@@ -36,9 +34,10 @@ public class LineageService {
   @Transactional(readOnly = true)
   public LineageGraphDto getLineageGraph(UUID datasetId) {
     UUID tenantId = requireTenant();
-    List<DatasetLineage> edges = datasetId != null
-        ? lineageRepository.findAllByTenantId(tenantId)
-        : lineageRepository.findAllByTenantId(tenantId);
+    List<DatasetLineage> edges =
+        datasetId != null
+            ? lineageRepository.findAllByTenantId(tenantId)
+            : lineageRepository.findAllByTenantId(tenantId);
 
     List<Dataset> datasets = datasetRepository.findAllByTenantIdOrderByUpdatedAtDesc(tenantId);
     Map<UUID, Dataset> datasetMap = new HashMap<>();
@@ -72,7 +71,8 @@ public class LineageService {
   }
 
   @Transactional
-  public DatasetLineage recordLineage(UUID sourceId, UUID targetId, UUID pipelineId, String transformType) {
+  public DatasetLineage recordLineage(
+      UUID sourceId, UUID targetId, UUID pipelineId, String transformType) {
     UUID tenantId = requireTenant();
     DatasetLineage lineage = new DatasetLineage();
     lineage.setTenantId(tenantId);

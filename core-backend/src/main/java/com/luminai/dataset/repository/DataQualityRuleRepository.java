@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DataQualityRuleRepository extends JpaRepository<DataQualityRule, UUID> {
   List<DataQualityRule> findAllByTenantId(UUID tenantId);
+
   List<DataQualityRule> findAllByTenantIdAndDatasetId(UUID tenantId, UUID datasetId);
+
   Optional<DataQualityRule> findByIdAndTenantId(UUID id, UUID tenantId);
 }

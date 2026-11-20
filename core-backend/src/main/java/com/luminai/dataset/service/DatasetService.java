@@ -26,9 +26,7 @@ public class DatasetService {
   private final DatasetVersionRepository versionRepository;
 
   public DatasetService(
-      DatasetRepository datasetRepository,
-      DatasetVersionRepository versionRepository
-  ) {
+      DatasetRepository datasetRepository, DatasetVersionRepository versionRepository) {
     this.datasetRepository = datasetRepository;
     this.versionRepository = versionRepository;
   }
@@ -48,7 +46,9 @@ public class DatasetService {
     if (layer != null) {
       list = datasetRepository.findAllByTenantIdAndLayerOrderByUpdatedAtDesc(tenantId, layer);
     } else if (projectType != null) {
-      list = datasetRepository.findAllByTenantIdAndProjectTypeOrderByUpdatedAtDesc(tenantId, projectType);
+      list =
+          datasetRepository.findAllByTenantIdAndProjectTypeOrderByUpdatedAtDesc(
+              tenantId, projectType);
     } else {
       list = datasetRepository.findAllByTenantIdOrderByUpdatedAtDesc(tenantId);
     }
@@ -58,8 +58,10 @@ public class DatasetService {
   @Transactional(readOnly = true)
   public DatasetDto getDataset(UUID id) {
     UUID tenantId = requireTenant();
-    Dataset dataset = datasetRepository.findByIdAndTenantId(id, tenantId)
-        .orElseThrow(() -> new ResourceNotFoundException("Dataset", id));
+    Dataset dataset =
+        datasetRepository
+            .findByIdAndTenantId(id, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dataset", id));
     return DatasetDto.fromEntity(dataset);
   }
 
@@ -98,10 +100,18 @@ public class DatasetService {
   }
 
   @Transactional
-  public DatasetVersionDto commitVersion(UUID datasetId, String storageLocation, long rowCount, String schema, String profiling, String commitMessage) {
+  public DatasetVersionDto commitVersion(
+      UUID datasetId,
+      String storageLocation,
+      long rowCount,
+      String schema,
+      String profiling,
+      String commitMessage) {
     UUID tenantId = requireTenant();
-    Dataset dataset = datasetRepository.findByIdAndTenantId(datasetId, tenantId)
-        .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
+    Dataset dataset =
+        datasetRepository
+            .findByIdAndTenantId(datasetId, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
 
     int nextVersion = dataset.getCurrentVersion() + 1;
     dataset.setCurrentVersion(nextVersion);
@@ -115,7 +125,8 @@ public class DatasetService {
     version.setTenantId(tenantId);
     version.setDatasetId(datasetId);
     version.setVersion(nextVersion);
-    version.setStorageLocation(storageLocation != null ? storageLocation : dataset.getStorageLocation());
+    version.setStorageLocation(
+        storageLocation != null ? storageLocation : dataset.getStorageLocation());
     version.setRowCount(rowCount);
     version.setSchemaSnapshot(schema != null ? schema : dataset.getSchemaMetadata());
     version.setProfilingSnapshot(profiling != null ? profiling : "{}");
@@ -128,15 +139,21 @@ public class DatasetService {
   @Transactional(readOnly = true)
   public List<DatasetVersionDto> getVersions(UUID datasetId) {
     UUID tenantId = requireTenant();
-    return versionRepository.findAllByDatasetIdAndTenantIdOrderByVersionDesc(datasetId, tenantId)
-        .stream().map(DatasetVersionDto::fromEntity).toList();
+    return versionRepository
+        .findAllByDatasetIdAndTenantIdOrderByVersionDesc(datasetId, tenantId)
+        .stream()
+        .map(DatasetVersionDto::fromEntity)
+        .toList();
   }
 
   @Transactional
-  public DatasetDto updateProfiling(UUID datasetId, String profilingSummary, Dataset.QualityStatus status) {
+  public DatasetDto updateProfiling(
+      UUID datasetId, String profilingSummary, Dataset.QualityStatus status) {
     UUID tenantId = requireTenant();
-    Dataset dataset = datasetRepository.findByIdAndTenantId(datasetId, tenantId)
-        .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
+    Dataset dataset =
+        datasetRepository
+            .findByIdAndTenantId(datasetId, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
 
     if (profilingSummary != null) dataset.setProfilingSummary(profilingSummary);
     if (status != null) dataset.setQualityStatus(status);

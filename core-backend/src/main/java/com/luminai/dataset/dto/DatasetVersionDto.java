@@ -14,8 +14,7 @@ public record DatasetVersionDto(
     String profilingSnapshot,
     String commitMessage,
     UUID createdBy,
-    Instant createdAt
-) {
+    Instant createdAt) {
   public static DatasetVersionDto fromEntity(DatasetVersion entity) {
     return new DatasetVersionDto(
         entity.getId(),
@@ -27,7 +26,6 @@ public record DatasetVersionDto(
         entity.getProfilingSnapshot(),
         entity.getCommitMessage(),
         entity.getCreatedBy(),
-        entity.getCreatedAt()
-    );
+        entity.getCreatedAt());
   }
 }

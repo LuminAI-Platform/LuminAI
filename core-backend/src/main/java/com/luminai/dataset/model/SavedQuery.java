@@ -10,9 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
-/**
- * Analyst workspace saved queries with visualization configurations.
- */
+/** Analyst workspace saved queries with visualization configurations. */
 @Entity
 @Table(name = "saved_queries")
 public class SavedQuery {
@@ -56,33 +54,83 @@ public class SavedQuery {
 
   public SavedQuery() {}
 
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-  public UUID getTenantId() { return tenantId; }
-  public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-  public String getTitle() { return title; }
-  public void setTitle(String title) { this.title = title; }
+  public UUID getTenantId() {
+    return tenantId;
+  }
 
-  public String getDescription() { return description; }
-  public void setDescription(String description) { this.description = description; }
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
 
-  public String getSqlQuery() { return sqlQuery; }
-  public void setSqlQuery(String sqlQuery) { this.sqlQuery = sqlQuery; }
+  public String getTitle() {
+    return title;
+  }
 
-  public UUID getDatasetId() { return datasetId; }
-  public void setDatasetId(UUID datasetId) { this.datasetId = datasetId; }
+  public void setTitle(String title) {
+    this.title = title;
+  }
 
-  public String getVisualConfig() { return visualConfig; }
-  public void setVisualConfig(String visualConfig) { this.visualConfig = visualConfig; }
+  public String getDescription() {
+    return description;
+  }
 
-  public UUID getCreatedBy() { return createdBy; }
-  public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+  public void setDescription(String description) {
+    this.description = description;
+  }
 
-  public Instant getCreatedAt() { return createdAt; }
-  public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+  public String getSqlQuery() {
+    return sqlQuery;
+  }
 
-  public Instant getUpdatedAt() { return updatedAt; }
-  public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+  public void setSqlQuery(String sqlQuery) {
+    this.sqlQuery = sqlQuery;
+  }
+
+  public UUID getDatasetId() {
+    return datasetId;
+  }
+
+  public void setDatasetId(UUID datasetId) {
+    this.datasetId = datasetId;
+  }
+
+  public String getVisualConfig() {
+    return visualConfig;
+  }
+
+  public void setVisualConfig(String visualConfig) {
+    this.visualConfig = visualConfig;
+  }
+
+  public UUID getCreatedBy() {
+    return createdBy;
+  }
+
+  public void setCreatedBy(UUID createdBy) {
+    this.createdBy = createdBy;
+  }
+
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(Instant createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public void setUpdatedAt(Instant updatedAt) {
+    this.updatedAt = updatedAt;
+  }
 }

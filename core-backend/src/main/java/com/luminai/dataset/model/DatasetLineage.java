@@ -8,9 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * End-to-end dataset-level and column-level lineage graph edge.
- */
+/** End-to-end dataset-level and column-level lineage graph edge. */
 @Entity
 @Table(name = "dataset_lineage")
 public class DatasetLineage {
@@ -47,27 +45,67 @@ public class DatasetLineage {
 
   public DatasetLineage() {}
 
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-  public UUID getTenantId() { return tenantId; }
-  public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-  public UUID getSourceDatasetId() { return sourceDatasetId; }
-  public void setSourceDatasetId(UUID sourceDatasetId) { this.sourceDatasetId = sourceDatasetId; }
+  public UUID getTenantId() {
+    return tenantId;
+  }
 
-  public UUID getTargetDatasetId() { return targetDatasetId; }
-  public void setTargetDatasetId(UUID targetDatasetId) { this.targetDatasetId = targetDatasetId; }
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
 
-  public UUID getPipelineId() { return pipelineId; }
-  public void setPipelineId(UUID pipelineId) { this.pipelineId = pipelineId; }
+  public UUID getSourceDatasetId() {
+    return sourceDatasetId;
+  }
 
-  public String getTransformationType() { return transformationType; }
-  public void setTransformationType(String transformationType) { this.transformationType = transformationType; }
+  public void setSourceDatasetId(UUID sourceDatasetId) {
+    this.sourceDatasetId = sourceDatasetId;
+  }
 
-  public String getColumnLineage() { return columnLineage; }
-  public void setColumnLineage(String columnLineage) { this.columnLineage = columnLineage; }
+  public UUID getTargetDatasetId() {
+    return targetDatasetId;
+  }
 
-  public Instant getCreatedAt() { return createdAt; }
-  public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+  public void setTargetDatasetId(UUID targetDatasetId) {
+    this.targetDatasetId = targetDatasetId;
+  }
+
+  public UUID getPipelineId() {
+    return pipelineId;
+  }
+
+  public void setPipelineId(UUID pipelineId) {
+    this.pipelineId = pipelineId;
+  }
+
+  public String getTransformationType() {
+    return transformationType;
+  }
+
+  public void setTransformationType(String transformationType) {
+    this.transformationType = transformationType;
+  }
+
+  public String getColumnLineage() {
+    return columnLineage;
+  }
+
+  public void setColumnLineage(String columnLineage) {
+    this.columnLineage = columnLineage;
+  }
+
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(Instant createdAt) {
+    this.createdAt = createdAt;
+  }
 }

@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DatasetLineageRepository extends JpaRepository<DatasetLineage, UUID> {
   List<DatasetLineage> findAllByTenantId(UUID tenantId);
+
   List<DatasetLineage> findAllByTenantIdAndSourceDatasetId(UUID tenantId, UUID sourceDatasetId);
+
   List<DatasetLineage> findAllByTenantIdAndTargetDatasetId(UUID tenantId, UUID targetDatasetId);
 }

@@ -22,8 +22,7 @@ public record DatasetDto(
     Dataset.QualityStatus qualityStatus,
     UUID createdBy,
     Instant createdAt,
-    Instant updatedAt
-) {
+    Instant updatedAt) {
   public static DatasetDto fromEntity(Dataset entity) {
     return new DatasetDto(
         entity.getId(),
@@ -43,7 +42,6 @@ public record DatasetDto(
         entity.getQualityStatus(),
         entity.getCreatedBy(),
         entity.getCreatedAt(),
-        entity.getUpdatedAt()
-    );
+        entity.getUpdatedAt());
   }
 }

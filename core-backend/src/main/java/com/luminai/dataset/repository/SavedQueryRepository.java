@@ -10,7 +10,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SavedQueryRepository extends JpaRepository<SavedQuery, UUID> {
   List<SavedQuery> findAllByTenantIdOrderByUpdatedAtDesc(UUID tenantId);
+
   List<SavedQuery> findAllByTenantIdAndDatasetId(UUID tenantId, UUID datasetId);
+
   Optional<SavedQuery> findByIdAndTenantId(UUID id, UUID tenantId);
+
   void deleteByIdAndTenantId(UUID id, UUID tenantId);
 }

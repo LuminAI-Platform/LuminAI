@@ -14,5 +14,4 @@ public record CreateDatasetRequest(
     String schemaMetadata,
     String storageLocation,
     long rowCount,
-    long byteSize
-) {}
+    long byteSize) {}

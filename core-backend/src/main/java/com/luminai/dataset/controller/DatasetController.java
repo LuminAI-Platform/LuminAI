@@ -24,8 +24,7 @@ public class DatasetController {
   public DatasetController(
       DatasetService datasetService,
       LineageService lineageService,
-      SqlAnalyticsService sqlAnalyticsService
-  ) {
+      SqlAnalyticsService sqlAnalyticsService) {
     this.datasetService = datasetService;
     this.lineageService = lineageService;
     this.sqlAnalyticsService = sqlAnalyticsService;
@@ -34,8 +33,7 @@ public class DatasetController {
   @GetMapping
   public ResponseEntity<List<DatasetDto>> listDatasets(
       @RequestParam(required = false) Dataset.Layer layer,
-      @RequestParam(required = false) Dataset.ProjectType projectType
-  ) {
+      @RequestParam(required = false) Dataset.ProjectType projectType) {
     return ResponseEntity.ok(datasetService.listDatasets(layer, projectType));
   }
 
@@ -45,7 +43,8 @@ public class DatasetController {
   }
 
   @PostMapping
-  public ResponseEntity<DatasetDto> createDataset(@Valid @RequestBody CreateDatasetRequest request) {
+  public ResponseEntity<DatasetDto> createDataset(
+      @Valid @RequestBody CreateDatasetRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED).body(datasetService.createDataset(request));
   }
 
@@ -70,7 +69,8 @@ public class DatasetController {
   }
 
   @GetMapping("/queries")
-  public ResponseEntity<List<SavedQuery>> listSavedQueries(@RequestParam(required = false) UUID datasetId) {
+  public ResponseEntity<List<SavedQuery>> listSavedQueries(
+      @RequestParam(required = false) UUID datasetId) {
     return ResponseEntity.ok(sqlAnalyticsService.listSavedQueries(datasetId));
   }
 }

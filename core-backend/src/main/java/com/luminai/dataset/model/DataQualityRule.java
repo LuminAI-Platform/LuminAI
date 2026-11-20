@@ -10,9 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
-/**
- * Continuous boundary data quality rule for datasets.
- */
+/** Continuous boundary data quality rule for datasets. */
 @Entity
 @Table(name = "data_quality_rules")
 public class DataQualityRule {
@@ -69,45 +67,115 @@ public class DataQualityRule {
 
   public DataQualityRule() {}
 
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-  public UUID getTenantId() { return tenantId; }
-  public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-  public UUID getDatasetId() { return datasetId; }
-  public void setDatasetId(UUID datasetId) { this.datasetId = datasetId; }
+  public UUID getTenantId() {
+    return tenantId;
+  }
 
-  public String getRuleName() { return ruleName; }
-  public void setRuleName(String ruleName) { this.ruleName = ruleName; }
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
 
-  public String getDimension() { return dimension; }
-  public void setDimension(String dimension) { this.dimension = dimension; }
+  public UUID getDatasetId() {
+    return datasetId;
+  }
 
-  public String getColumnName() { return columnName; }
-  public void setColumnName(String columnName) { this.columnName = columnName; }
+  public void setDatasetId(UUID datasetId) {
+    this.datasetId = datasetId;
+  }
 
-  public String getRuleType() { return ruleType; }
-  public void setRuleType(String ruleType) { this.ruleType = ruleType; }
+  public String getRuleName() {
+    return ruleName;
+  }
 
-  public String getParameters() { return parameters; }
-  public void setParameters(String parameters) { this.parameters = parameters; }
+  public void setRuleName(String ruleName) {
+    this.ruleName = ruleName;
+  }
 
-  public String getSeverity() { return severity; }
-  public void setSeverity(String severity) { this.severity = severity; }
+  public String getDimension() {
+    return dimension;
+  }
 
-  public String getStatus() { return status; }
-  public void setStatus(String status) { this.status = status; }
+  public void setDimension(String dimension) {
+    this.dimension = dimension;
+  }
 
-  public Instant getLastRunAt() { return lastRunAt; }
-  public void setLastRunAt(Instant lastRunAt) { this.lastRunAt = lastRunAt; }
+  public String getColumnName() {
+    return columnName;
+  }
 
-  public String getLastStatus() { return lastStatus; }
-  public void setLastStatus(String lastStatus) { this.lastStatus = lastStatus; }
+  public void setColumnName(String columnName) {
+    this.columnName = columnName;
+  }
 
-  public Instant getCreatedAt() { return createdAt; }
-  public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+  public String getRuleType() {
+    return ruleType;
+  }
 
-  public Instant getUpdatedAt() { return updatedAt; }
-  public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+  public void setRuleType(String ruleType) {
+    this.ruleType = ruleType;
+  }
+
+  public String getParameters() {
+    return parameters;
+  }
+
+  public void setParameters(String parameters) {
+    this.parameters = parameters;
+  }
+
+  public String getSeverity() {
+    return severity;
+  }
+
+  public void setSeverity(String severity) {
+    this.severity = severity;
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
+  public Instant getLastRunAt() {
+    return lastRunAt;
+  }
+
+  public void setLastRunAt(Instant lastRunAt) {
+    this.lastRunAt = lastRunAt;
+  }
+
+  public String getLastStatus() {
+    return lastStatus;
+  }
+
+  public void setLastStatus(String lastStatus) {
+    this.lastStatus = lastStatus;
+  }
+
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(Instant createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public void setUpdatedAt(Instant updatedAt) {
+    this.updatedAt = updatedAt;
+  }
 }

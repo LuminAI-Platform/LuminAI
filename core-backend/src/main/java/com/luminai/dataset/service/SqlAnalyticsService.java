@@ -42,11 +42,15 @@ public class SqlAnalyticsService {
     // Security check: Enforce read-only SELECT queries
     String cleanUpper = query.toUpperCase();
     if (!cleanUpper.startsWith("SELECT") && !cleanUpper.startsWith("WITH")) {
-      throw new IllegalArgumentException("Only read-only SELECT and WITH analytical queries are permitted.");
+      throw new IllegalArgumentException(
+          "Only read-only SELECT and WITH analytical queries are permitted.");
     }
-    if (cleanUpper.contains("DROP ") || cleanUpper.contains("DELETE ") ||
-        cleanUpper.contains("UPDATE ") || cleanUpper.contains("INSERT ") ||
-        cleanUpper.contains("TRUNCATE ") || cleanUpper.contains("ALTER ")) {
+    if (cleanUpper.contains("DROP ")
+        || cleanUpper.contains("DELETE ")
+        || cleanUpper.contains("UPDATE ")
+        || cleanUpper.contains("INSERT ")
+        || cleanUpper.contains("TRUNCATE ")
+        || cleanUpper.contains("ALTER ")) {
       throw new IllegalArgumentException("Destructive DDL/DML statements are strictly prohibited.");
     }
 
@@ -80,7 +84,8 @@ public class SqlAnalyticsService {
   }
 
   @Transactional
-  public SavedQuery saveQuery(String title, String description, String sql, UUID datasetId, String visualConfig) {
+  public SavedQuery saveQuery(
+      String title, String description, String sql, UUID datasetId, String visualConfig) {
     UUID tenantId = requireTenant();
     SavedQuery sq = new SavedQuery();
     sq.setTenantId(tenantId);

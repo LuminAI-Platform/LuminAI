@@ -11,8 +11,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 /**
- * First-class managed enterprise dataset entity.
- * Repositories and queries MUST enforce tenant_id isolation.
+ * First-class managed enterprise dataset entity. Repositories and queries MUST enforce tenant_id
+ * isolation.
  */
 @Entity
 @Table(name = "datasets")
@@ -113,57 +113,147 @@ public class Dataset {
 
   public Dataset() {}
 
-  public UUID getId() { return id; }
-  public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-  public UUID getTenantId() { return tenantId; }
-  public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
+  public UUID getTenantId() {
+    return tenantId;
+  }
 
-  public String getDisplayName() { return displayName; }
-  public void setDisplayName(String displayName) { this.displayName = displayName; }
+  public void setTenantId(UUID tenantId) {
+    this.tenantId = tenantId;
+  }
 
-  public String getDescription() { return description; }
-  public void setDescription(String description) { this.description = description; }
+  public String getName() {
+    return name;
+  }
 
-  public Layer getLayer() { return layer; }
-  public void setLayer(Layer layer) { this.layer = layer; }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-  public ProjectType getProjectType() { return projectType; }
-  public void setProjectType(ProjectType projectType) { this.projectType = projectType; }
+  public String getDisplayName() {
+    return displayName;
+  }
 
-  public UUID getSourceConnectionId() { return sourceConnectionId; }
-  public void setSourceConnectionId(UUID sourceConnectionId) { this.sourceConnectionId = sourceConnectionId; }
+  public void setDisplayName(String displayName) {
+    this.displayName = displayName;
+  }
 
-  public int getCurrentVersion() { return currentVersion; }
-  public void setCurrentVersion(int currentVersion) { this.currentVersion = currentVersion; }
+  public String getDescription() {
+    return description;
+  }
 
-  public long getRowCount() { return rowCount; }
-  public void setRowCount(long rowCount) { this.rowCount = rowCount; }
+  public void setDescription(String description) {
+    this.description = description;
+  }
 
-  public long getByteSize() { return byteSize; }
-  public void setByteSize(long byteSize) { this.byteSize = byteSize; }
+  public Layer getLayer() {
+    return layer;
+  }
 
-  public String getStorageLocation() { return storageLocation; }
-  public void setStorageLocation(String storageLocation) { this.storageLocation = storageLocation; }
+  public void setLayer(Layer layer) {
+    this.layer = layer;
+  }
 
-  public String getSchemaMetadata() { return schemaMetadata; }
-  public void setSchemaMetadata(String schemaMetadata) { this.schemaMetadata = schemaMetadata; }
+  public ProjectType getProjectType() {
+    return projectType;
+  }
 
-  public String getProfilingSummary() { return profilingSummary; }
-  public void setProfilingSummary(String profilingSummary) { this.profilingSummary = profilingSummary; }
+  public void setProjectType(ProjectType projectType) {
+    this.projectType = projectType;
+  }
 
-  public QualityStatus getQualityStatus() { return qualityStatus; }
-  public void setQualityStatus(QualityStatus qualityStatus) { this.qualityStatus = qualityStatus; }
+  public UUID getSourceConnectionId() {
+    return sourceConnectionId;
+  }
 
-  public UUID getCreatedBy() { return createdBy; }
-  public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+  public void setSourceConnectionId(UUID sourceConnectionId) {
+    this.sourceConnectionId = sourceConnectionId;
+  }
 
-  public Instant getCreatedAt() { return createdAt; }
-  public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+  public int getCurrentVersion() {
+    return currentVersion;
+  }
 
-  public Instant getUpdatedAt() { return updatedAt; }
-  public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+  public void setCurrentVersion(int currentVersion) {
+    this.currentVersion = currentVersion;
+  }
+
+  public long getRowCount() {
+    return rowCount;
+  }
+
+  public void setRowCount(long rowCount) {
+    this.rowCount = rowCount;
+  }
+
+  public long getByteSize() {
+    return byteSize;
+  }
+
+  public void setByteSize(long byteSize) {
+    this.byteSize = byteSize;
+  }
+
+  public String getStorageLocation() {
+    return storageLocation;
+  }
+
+  public void setStorageLocation(String storageLocation) {
+    this.storageLocation = storageLocation;
+  }
+
+  public String getSchemaMetadata() {
+    return schemaMetadata;
+  }
+
+  public void setSchemaMetadata(String schemaMetadata) {
+    this.schemaMetadata = schemaMetadata;
+  }
+
+  public String getProfilingSummary() {
+    return profilingSummary;
+  }
+
+  public void setProfilingSummary(String profilingSummary) {
+    this.profilingSummary = profilingSummary;
+  }
+
+  public QualityStatus getQualityStatus() {
+    return qualityStatus;
+  }
+
+  public void setQualityStatus(QualityStatus qualityStatus) {
+    this.qualityStatus = qualityStatus;
+  }
+
+  public UUID getCreatedBy() {
+    return createdBy;
+  }
+
+  public void setCreatedBy(UUID createdBy) {
+    this.createdBy = createdBy;
+  }
+
+  public Instant getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(Instant createdAt) {
+    this.createdAt = createdAt;
+  }
+
+  public Instant getUpdatedAt() {
+    return updatedAt;
+  }
+
+  public void setUpdatedAt(Instant updatedAt) {
+    this.updatedAt = updatedAt;
+  }
 }
