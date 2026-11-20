@@ -84,25 +84,25 @@ export const TenantRegistrationPage = lazyComponent(
 export const DatasetsPage = lazyComponent(
   () => import("./pages/datasets/DatasetsPage"),
   "DatasetsPage",
-  <ConnectionsSkeleton />,
+  <RouteLoader label="Loading Datasets" delayMs={300} />,
 );
 export const DatasetDetailPage = lazyComponent(
   () => import("./pages/datasets/DatasetDetailPage"),
   "DatasetDetailPage",
-  <ConnectionsSkeleton />,
+  <RouteLoader label="Loading Dataset Details" delayMs={300} />,
 );
 export const SqlStudioPage = lazyComponent(
   () => import("./pages/analytics/SqlStudioPage"),
   "SqlStudioPage",
-  <ConnectionsSkeleton />,
+  <RouteLoader label="Loading SQL Studio" delayMs={300} />,
 );
 export const ModelWorkbenchPage = lazyComponent(
   () => import("./pages/datascience/ModelWorkbenchPage"),
   "ModelWorkbenchPage",
-  <ConnectionsSkeleton />,
+  <RouteLoader label="Loading Model Workbench" delayMs={300} />,
 );
 export const ProjectsLineagePage = lazyComponent(
   () => import("./pages/projects/ProjectsLineagePage"),
   "ProjectsLineagePage",
-  <ConnectionsSkeleton />,
+  <RouteLoader label="Loading Projects & Lineage" delayMs={300} />,
 );

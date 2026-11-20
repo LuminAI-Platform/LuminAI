@@ -188,35 +188,35 @@ const datasetsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/datasets",
   component: DatasetsPage,
-  pendingComponent: ConnectionsSkeleton,
+  pendingComponent: makePendingComponent("Loading Datasets"),
 });
 
 const datasetDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/datasets/$datasetId",
   component: DatasetDetailPage,
-  pendingComponent: ConnectionsSkeleton,
+  pendingComponent: makePendingComponent("Loading Dataset Details"),
 });
 
 const sqlStudioRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/analytics/sql",
   component: SqlStudioPage,
-  pendingComponent: ConnectionsSkeleton,
+  pendingComponent: makePendingComponent("Loading SQL Studio"),
 });
 
 const modelWorkbenchRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/datascience/models",
   component: ModelWorkbenchPage,
-  pendingComponent: ConnectionsSkeleton,
+  pendingComponent: makePendingComponent("Loading Model Workbench"),
 });
 
 const projectsLineageRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/projects",
   component: ProjectsLineagePage,
-  pendingComponent: ConnectionsSkeleton,
+  pendingComponent: makePendingComponent("Loading Projects & Lineage"),
 });
 
 const routeTree = rootRoute.addChildren([
