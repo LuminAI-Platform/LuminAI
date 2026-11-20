@@ -1,4 +1,6 @@
 export * from "./Button";
+export * from "./BrandLoader";
+export * from "./brandLoaderUtils";
 export * from "./Input";
 export * from "./Badge";
 export * from "./Card";

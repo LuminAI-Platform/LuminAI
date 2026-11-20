@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { isPlatformAdmin, useAuthStore } from "../../stores/authStore";
+import { BrandLoader } from "../ui/BrandLoader";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -60,13 +61,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         <div className="absolute inset-0 bg-grid-dots opacity-40 pointer-events-none" />
 
         <div className="flex flex-col items-center gap-6 relative z-10">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full border-2 border-border" />
-            <div className="absolute inset-0 rounded-full border-2 border-t-text-secondary border-r-border animate-spin" />
-            <div className="absolute inset-2 rounded-full border border-border bg-page flex items-center justify-center">
-              <span className="w-2 h-2 rounded-full bg-text-secondary" />
-            </div>
-          </div>
+          <BrandLoader
+            variant="shine"
+            size={150}
+            statusText="Authenticating — Establishing secure connection to LuminAI"
+          />
 
           <div className="flex flex-col items-center gap-1.5">
             <h3 className="text-sm font-semibold tracking-wider uppercase text-text-secondary">
@@ -99,10 +98,7 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex h-full w-full items-center justify-center py-32">
-        <div className="relative w-10 h-10">
-          <div className="absolute inset-0 rounded-full border-2 border-border" />
-          <div className="absolute inset-0 rounded-full border-2 border-t-primary border-r-primary-tint animate-spin" />
-        </div>
+        <BrandLoader variant="ring" label="Checking permissions" />
       </div>
     );
   }

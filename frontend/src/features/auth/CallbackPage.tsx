@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
+import { BrandLoader } from "../../components/ui/BrandLoader";
 
 export const CallbackPage: React.FC = () => {
   const { handleCallback, error, clearError } = useAuthStore();
@@ -77,13 +78,11 @@ export const CallbackPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 rounded-full border-2 border-border" />
-              <div className="absolute inset-0 rounded-full border-2 border-t-text-secondary border-r-border animate-spin" />
-              <div className="absolute inset-2 rounded-full border border-border bg-page flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-text-secondary" />
-              </div>
-            </div>
+            <BrandLoader
+              variant="shine"
+              size={150}
+              statusText="Finalizing Session"
+            />
 
             <div className="space-y-1.5">
               <h3 className="text-sm font-semibold tracking-wider uppercase text-text-secondary">

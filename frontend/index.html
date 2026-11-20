@@ -2,7 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/brand/logo-mark.svg" />
+    <link
+      rel="preload"
+      as="image"
+      href="/brand/logo-mark.svg"
+      type="image/svg+xml"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="/brand/logo-mark-light.svg"
+      type="image/svg+xml"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LuminAI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -32,9 +44,138 @@
         } catch (e) {}
       })();
     </script>
+    <style>
+      .app-boot-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f6f7f9;
+        color: #1a2230;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      html.dark .app-boot-splash {
+        background-color: #12161d;
+        color: #e9edf4;
+      }
+      .app-boot-logo-wrap {
+        position: relative;
+        width: 150px;
+        height: 150px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .app-boot-logo-dark {
+        display: none;
+      }
+      html.dark .app-boot-logo-light {
+        display: none;
+      }
+      html.dark .app-boot-logo-dark {
+        display: block;
+      }
+      .app-boot-base {
+        opacity: 0.2;
+      }
+      .app-boot-shine {
+        position: absolute;
+        inset: 0;
+        -webkit-mask-image: linear-gradient(
+          115deg,
+          transparent 28%,
+          #000 50%,
+          transparent 72%
+        );
+        mask-image: linear-gradient(
+          115deg,
+          transparent 28%,
+          #000 50%,
+          transparent 72%
+        );
+        -webkit-mask-size: 260% 100%;
+        mask-size: 260% 100%;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        animation: app-boot-sweep 1.8s ease-in-out infinite;
+      }
+      @keyframes app-boot-sweep {
+        0% {
+          -webkit-mask-position: 135% 0;
+          mask-position: 135% 0;
+        }
+        100% {
+          -webkit-mask-position: -135% 0;
+          mask-position: -135% 0;
+        }
+      }
+      .app-boot-sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .app-boot-base {
+          opacity: 1;
+        }
+        .app-boot-shine {
+          display: none !important;
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-boot-splash" role="status" aria-live="polite">
+        <div class="app-boot-logo-wrap">
+          <img
+            src="/brand/logo-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width="150"
+            height="150"
+            class="app-boot-logo-light app-boot-base"
+          />
+          <img
+            src="/brand/logo-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width="150"
+            height="150"
+            class="app-boot-logo-light app-boot-shine"
+          />
+          <img
+            src="/brand/logo-mark-light.svg"
+            alt=""
+            aria-hidden="true"
+            width="150"
+            height="150"
+            class="app-boot-logo-dark app-boot-base"
+          />
+          <img
+            src="/brand/logo-mark-light.svg"
+            alt=""
+            aria-hidden="true"
+            width="150"
+            height="150"
+            class="app-boot-logo-dark app-boot-shine"
+          />
+        </div>
+        <span class="app-boot-sr">Loading LuminAI</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
-import { Shield, ArrowRight, Loader2, AlertCircle } from "../../lib/icons";
+import { Shield, ArrowRight, AlertCircle } from "../../lib/icons";
+import { BrandLoader } from "../../components/ui/BrandLoader";
 import dashboardImg from "../../assets/How Data Science Connects the Dots.jpg";
 import logoImg from "../../assets/luminai-logo.svg";
 
@@ -80,7 +81,7 @@ export const LoginPage: React.FC = () => {
           >
             {busy ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <BrandLoader variant="inline" size={18} />
                 Signing in…
               </>
             ) : (
