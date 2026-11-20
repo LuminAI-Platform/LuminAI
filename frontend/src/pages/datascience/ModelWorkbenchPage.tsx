@@ -5,10 +5,7 @@ import {
   Cpu,
   Play,
   Award,
-  RefreshCw,
   CheckCircle,
-  AlertCircle,
-  ShieldCheck,
   BarChart3,
   ICON_SIZES,
 } from "../../lib/icons";
@@ -22,36 +19,38 @@ import {
 import type {
   MlExperiment,
   MlModelRegistryItem,
+  MlTrainOutcome,
 } from "../../features/datasets/types";
 
 export const ModelWorkbenchPage: React.FC = () => {
-  const [modelName, setModelName] = useState<string>("Customer Churn Predictor");
+  const [modelName, setModelName] = useState<string>(
+    "Customer Churn Predictor",
+  );
   const [algorithm, setAlgorithm] = useState<string>("Random Forest");
   const [taskType, setTaskType] = useState<"CLASSIFICATION" | "REGRESSION">(
     "CLASSIFICATION",
   );
   const [targetColumn, setTargetColumn] = useState<string>("churn");
-  const [activeTab, setActiveTab] = useState<"train" | "experiments" | "registry">(
-    "train",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "train" | "experiments" | "registry"
+  >("train");
 
-  const {
-    data: experiments = [],
-    refetch: refetchExperiments,
-  } = useQuery<MlExperiment[]>({
+  const { data: experiments = [], refetch: refetchExperiments } = useQuery<
+    MlExperiment[]
+  >({
     queryKey: ["ml-experiments"],
     queryFn: () => fetchMlExperiments("acme"),
   });
 
-  const {
-    data: registeredModels = [],
-    refetch: refetchRegistry,
-  } = useQuery<MlModelRegistryItem[]>({
+  const { data: registeredModels = [], refetch: refetchRegistry } = useQuery<
+    MlModelRegistryItem[]
+  >({
     queryKey: ["ml-registry"],
     queryFn: () => fetchRegisteredModels("acme"),
   });
 
-  const [lastTrainedResult, setLastTrainedResult] = useState<any | null>(null);
+  const [lastTrainedResult, setLastTrainedResult] =
+    useState<MlTrainOutcome | null>(null);
 
   const trainMutation = useMutation({
     mutationFn: async () => {
@@ -148,7 +147,9 @@ export const ModelWorkbenchPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Configuration Card */}
           <div className="p-5 rounded-xl border border-border bg-surface flex flex-col gap-4">
-            <h3 className="text-sm font-semibold text-text">Experiment Setup</h3>
+            <h3 className="text-sm font-semibold text-text">
+              Experiment Setup
+            </h3>
 
             <div className="flex flex-col gap-1">
               <label className="text-xs text-text-secondary">Model Name</label>
@@ -183,22 +184,30 @@ export const ModelWorkbenchPage: React.FC = () => {
               >
                 {taskType === "CLASSIFICATION" ? (
                   <>
-                    <option value="Random Forest">Random Forest Classifier</option>
+                    <option value="Random Forest">
+                      Random Forest Classifier
+                    </option>
                     <option value="Gradient Boosting">Gradient Boosting</option>
-                    <option value="Logistic Regression">Logistic Regression</option>
+                    <option value="Logistic Regression">
+                      Logistic Regression
+                    </option>
                   </>
                 ) : (
                   <>
                     <option value="Linear Regression">Linear Regression</option>
                     <option value="Ridge">Ridge Regression</option>
-                    <option value="Random Forest Regressor">Random Forest Regressor</option>
+                    <option value="Random Forest Regressor">
+                      Random Forest Regressor
+                    </option>
                   </>
                 )}
               </select>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-secondary">Target Column</label>
+              <label className="text-xs text-text-secondary">
+                Target Column
+              </label>
               <input
                 type="text"
                 value={targetColumn}
@@ -225,12 +234,16 @@ export const ModelWorkbenchPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <h3 className="text-sm font-semibold text-text">Training Completed</h3>
+                    <h3 className="text-sm font-semibold text-text">
+                      Training Completed
+                    </h3>
                   </div>
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => promoteMutation.mutate(lastTrainedResult.run_id)}
+                    onClick={() =>
+                      promoteMutation.mutate(lastTrainedResult.run_id)
+                    }
                     isLoading={promoteMutation.isPending}
                     leftIcon={<Award className="w-3.5 h-3.5" />}
                   >
@@ -239,26 +252,41 @@ export const ModelWorkbenchPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {Object.entries(lastTrainedResult.metrics || {}).map(([metric, val]) => (
-                    <div key={metric} className="p-3 rounded-lg bg-surface-subtle border border-border">
-                      <span className="text-[11px] text-text-secondary uppercase block">{metric}</span>
-                      <span className="text-lg font-bold text-emerald-400">
-                        {typeof val === "number" ? val.toFixed(3) : String(val)}
-                      </span>
-                    </div>
-                  ))}
+                  {Object.entries(lastTrainedResult.metrics || {}).map(
+                    ([metric, val]) => (
+                      <div
+                        key={metric}
+                        className="p-3 rounded-lg bg-surface-subtle border border-border"
+                      >
+                        <span className="text-[11px] text-text-secondary uppercase block">
+                          {metric}
+                        </span>
+                        <span className="text-lg font-bold text-emerald-400">
+                          {typeof val === "number"
+                            ? val.toFixed(3)
+                            : String(val)}
+                        </span>
+                      </div>
+                    ),
+                  )}
                 </div>
 
                 {lastTrainedResult.feature_importances && (
                   <div className="flex flex-col gap-2 pt-2">
-                    <span className="text-xs font-semibold text-text">Feature Importances</span>
+                    <span className="text-xs font-semibold text-text">
+                      Feature Importances
+                    </span>
                     <div className="flex flex-col gap-2">
                       {lastTrainedResult.feature_importances.map(
                         (fi: { feature: string; importance: number }) => (
                           <div key={fi.feature} className="flex flex-col gap-1">
                             <div className="flex justify-between text-xs">
-                              <span className="font-mono text-text">{fi.feature}</span>
-                              <span className="text-text-secondary">{(fi.importance * 100).toFixed(1)}%</span>
+                              <span className="font-mono text-text">
+                                {fi.feature}
+                              </span>
+                              <span className="text-text-secondary">
+                                {(fi.importance * 100).toFixed(1)}%
+                              </span>
                             </div>
                             <div className="h-1.5 bg-surface-subtle rounded-full overflow-hidden border border-border">
                               <div
@@ -276,9 +304,12 @@ export const ModelWorkbenchPage: React.FC = () => {
             ) : (
               <div className="p-12 rounded-xl border border-dashed border-border bg-surface text-center text-text-secondary flex flex-col items-center justify-center gap-2">
                 <Cpu className="w-8 h-8 text-text-secondary" />
-                <span className="text-sm font-medium">No active training execution</span>
+                <span className="text-sm font-medium">
+                  No active training execution
+                </span>
                 <span className="text-xs max-w-sm">
-                  Configure hyperparameters on the left and click "Train Model" to compute real scikit-learn cross-validation metrics.
+                  Configure hyperparameters on the left and click "Train Model"
+                  to compute real scikit-learn cross-validation metrics.
                 </span>
               </div>
             )}
@@ -302,12 +333,22 @@ export const ModelWorkbenchPage: React.FC = () => {
             <tbody className="divide-y divide-border font-mono">
               {experiments.map((exp) => (
                 <tr key={exp.runId} className="hover:bg-surface-subtle/40">
-                  <td className="py-3 px-4 font-mono text-primary text-[11px]">{exp.runId.substring(0, 8)}...</td>
-                  <td className="py-3 px-4 font-sans font-medium text-text">{exp.modelName}</td>
-                  <td className="py-3 px-4 text-text-secondary">{exp.algorithm}</td>
-                  <td className="py-3 px-4 text-text-secondary">{exp.taskType}</td>
+                  <td className="py-3 px-4 font-mono text-primary text-[11px]">
+                    {exp.runId.substring(0, 8)}...
+                  </td>
+                  <td className="py-3 px-4 font-sans font-medium text-text">
+                    {exp.modelName}
+                  </td>
+                  <td className="py-3 px-4 text-text-secondary">
+                    {exp.algorithm}
+                  </td>
+                  <td className="py-3 px-4 text-text-secondary">
+                    {exp.taskType}
+                  </td>
                   <td className="py-3 px-4 text-emerald-400 font-bold">
-                    {exp.metrics.accuracy ? `Acc: ${exp.metrics.accuracy.toFixed(3)}` : `R²: ${exp.metrics.r2_score?.toFixed(3)}`}
+                    {exp.metrics.accuracy
+                      ? `Acc: ${exp.metrics.accuracy.toFixed(3)}`
+                      : `R²: ${exp.metrics.r2_score?.toFixed(3)}`}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <button
@@ -327,9 +368,14 @@ export const ModelWorkbenchPage: React.FC = () => {
       {activeTab === "registry" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {registeredModels.map((m) => (
-            <div key={m.modelId} className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-3">
+            <div
+              key={m.modelId}
+              className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-3"
+            >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-text">{m.name}</span>
+                <span className="text-xs font-mono font-bold text-text">
+                  {m.name}
+                </span>
                 <span
                   className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                     m.status === "CHAMPION"
@@ -340,7 +386,9 @@ export const ModelWorkbenchPage: React.FC = () => {
                   {m.status}
                 </span>
               </div>
-              <span className="text-xs text-text-secondary">{m.description || "Production model release."}</span>
+              <span className="text-xs text-text-secondary">
+                {m.description || "Production model release."}
+              </span>
               <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-text-secondary">
                 <span>Version {m.version}</span>
                 <span>{m.algorithm}</span>

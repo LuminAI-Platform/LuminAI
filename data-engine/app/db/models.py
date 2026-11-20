@@ -43,9 +43,15 @@ class GoldenRecord(Base):
     cluster_size: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     source_record_ids: Mapped[str] = mapped_column(Text, nullable=False)
     attributes: Mapped[str] = mapped_column(Text, nullable=False)
-    quality_state: Mapped[str] = mapped_column(String(50), default="VERIFIED", nullable=False)
-    quality_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
-    confidence_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    quality_state: Mapped[str] = mapped_column(
+        String(50), server_default="VERIFIED", default="VERIFIED", nullable=False
+    )
+    quality_score: Mapped[float] = mapped_column(
+        Float, server_default="1.0", default=1.0, nullable=False
+    )
+    confidence_score: Mapped[float] = mapped_column(
+        Float, server_default="1.0", default=1.0, nullable=False
+    )
     conflicts: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -5,6 +5,7 @@ import type {
   LineageGraph,
   MlExperiment,
   MlModelRegistryItem,
+  MlTrainOutcome,
   SavedQuery,
   SqlQueryResult,
 } from "./types";
@@ -15,7 +16,8 @@ export async function fetchDatasets(params?: {
   search?: string;
 }): Promise<Dataset[]> {
   const query = new URLSearchParams();
-  if (params?.layer && params.layer !== "ALL") query.append("layer", params.layer);
+  if (params?.layer && params.layer !== "ALL")
+    query.append("layer", params.layer);
   if (params?.projectType) query.append("projectType", params.projectType);
   if (params?.search) query.append("search", params.search);
 
@@ -67,7 +69,9 @@ export async function runSqlQuery(payload: {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(
-      errorData.detail || errorData.message || `SQL Execution failed (${res.status})`,
+      errorData.detail ||
+        errorData.message ||
+        `SQL Execution failed (${res.status})`,
     );
   }
   return res.json();
@@ -107,7 +111,7 @@ export async function trainMlModel(payload: {
   algorithm: string;
   task_type: "CLASSIFICATION" | "REGRESSION";
   test_size?: number;
-}): Promise<any> {
+}): Promise<MlTrainOutcome> {
   const res = await apiFetch("/analytics/ml/train", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

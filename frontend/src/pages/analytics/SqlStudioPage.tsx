@@ -7,10 +7,7 @@ import {
   Save,
   Clock,
   Database,
-  RefreshCw,
   AlertCircle,
-  CheckCircle,
-  Copy,
   ICON_SIZES,
 } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
@@ -42,7 +39,9 @@ export const SqlStudioPage: React.FC = () => {
   const [saveQueryName, setSaveQueryName] = useState<string>("");
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
 
-  const { data: savedQueries = [], refetch: refetchSaved } = useQuery<SavedQuery[]>({
+  const { data: savedQueries = [], refetch: refetchSaved } = useQuery<
+    SavedQuery[]
+  >({
     queryKey: ["saved-queries"],
     queryFn: fetchSavedQueries,
   });
@@ -81,7 +80,9 @@ export const SqlStudioPage: React.FC = () => {
         breadcrumbs={[{ label: "Analytics" }, { label: "SQL Studio" }]}
         title="Interactive SQL Studio"
         description="High-performance analytical SQL query engine powered by DuckDB over versioned datasets and staging records."
-        icon={<Table size={ICON_SIZES.header} className="text-text-secondary" />}
+        icon={
+          <Table size={ICON_SIZES.header} className="text-text-secondary" />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -115,7 +116,9 @@ export const SqlStudioPage: React.FC = () => {
                 <Database className="w-3.5 h-3.5 text-primary" />
                 SQL Query Editor (DuckDB Dialect)
               </span>
-              <span className="text-[11px] text-text-secondary">Press Ctrl+Enter to execute</span>
+              <span className="text-[11px] text-text-secondary">
+                Press Ctrl+Enter to execute
+              </span>
             </div>
             <textarea
               value={queryText}
@@ -162,7 +165,7 @@ export const SqlStudioPage: React.FC = () => {
                         <th key={col.name} className="py-2.5 px-4 font-mono">
                           {col.name}
                           <span className="block text-[10px] font-normal text-text-secondary">
-                            {col.data_type || "VARCHAR"}
+                            {col.dataType || col.data_type || "VARCHAR"}
                           </span>
                         </th>
                       ))}
@@ -192,7 +195,9 @@ export const SqlStudioPage: React.FC = () => {
               Saved Queries ({savedQueries.length})
             </h3>
             {savedQueries.length === 0 ? (
-              <span className="text-xs text-text-secondary">No queries saved yet.</span>
+              <span className="text-xs text-text-secondary">
+                No queries saved yet.
+              </span>
             ) : (
               <div className="flex flex-col gap-2">
                 {savedQueries.map((sq) => (
@@ -201,7 +206,9 @@ export const SqlStudioPage: React.FC = () => {
                     onClick={() => setQueryText(sq.sqlText)}
                     className="p-2.5 rounded-lg border border-border bg-surface-subtle hover:border-primary text-left text-xs transition-colors cursor-pointer"
                   >
-                    <span className="font-semibold text-text block">{sq.name}</span>
+                    <span className="font-semibold text-text block">
+                      {sq.name}
+                    </span>
                     <span className="text-[11px] text-text-secondary truncate block font-mono mt-0.5">
                       {sq.sqlText}
                     </span>
@@ -217,7 +224,9 @@ export const SqlStudioPage: React.FC = () => {
             </h3>
             <button
               onClick={() =>
-                setQueryText("SELECT * FROM customers WHERE tier = 'Enterprise' LIMIT 50;")
+                setQueryText(
+                  "SELECT * FROM customers WHERE tier = 'Enterprise' LIMIT 50;",
+                )
               }
               className="text-left text-xs text-primary hover:underline"
             >
@@ -243,7 +252,9 @@ export const SqlStudioPage: React.FC = () => {
           <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-xl">
             <h3 className="text-base font-bold text-text">Save SQL Query</h3>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-text-secondary">Query Name</label>
+              <label className="text-xs font-medium text-text-secondary">
+                Query Name
+              </label>
               <input
                 type="text"
                 value={saveQueryName}
@@ -253,7 +264,11 @@ export const SqlStudioPage: React.FC = () => {
               />
             </div>
             <div className="flex items-center justify-end gap-2 mt-2">
-              <Button variant="secondary" size="sm" onClick={() => setShowSaveModal(false)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowSaveModal(false)}
+              >
                 Cancel
               </Button>
               <Button
@@ -262,7 +277,10 @@ export const SqlStudioPage: React.FC = () => {
                 disabled={!saveQueryName.trim()}
                 isLoading={saveMutation.isPending}
                 onClick={() =>
-                  saveMutation.mutate({ name: saveQueryName, sqlText: queryText })
+                  saveMutation.mutate({
+                    name: saveQueryName,
+                    sqlText: queryText,
+                  })
                 }
               >
                 Save

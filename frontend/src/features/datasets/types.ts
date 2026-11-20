@@ -83,6 +83,15 @@ export interface SavedQuery {
 export interface SqlColumnInfo {
   name: string;
   dataType: string;
+  data_type?: string;
+}
+
+export interface MlTrainOutcome {
+  run_id: string;
+  model_name: string;
+  metrics: Record<string, number>;
+  feature_importances?: Array<{ feature: string; importance: number }>;
+  status?: string;
 }
 
 export interface SqlQueryResult {

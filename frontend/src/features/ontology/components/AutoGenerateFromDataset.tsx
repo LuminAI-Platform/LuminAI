@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { Check, Loader2 } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { EntityIcon } from "./EntityTypeEditor";
-import {
-  type ConnectionSummary,
-  type InferredProp,
-  sanitizePropertyName,
-  inferTypeFromDataType,
-} from "./autoGenerateUtils";
+import { type ConnectionSummary, type InferredProp } from "./autoGenerateUtils";
 
 interface AutoGenerateFromDatasetProps {
   connections: ConnectionSummary[];

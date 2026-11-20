@@ -4,6 +4,7 @@ import { Tooltip } from "../ui/Tooltip";
 export interface BreadcrumbItem {
   label: string;
   to?: string;
+  href?: string;
 }
 
 export interface PageHeaderProps {

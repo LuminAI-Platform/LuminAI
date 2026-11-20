@@ -18,12 +18,35 @@ import { Button } from "../../components/ui/Button";
 import { fetchDatasets } from "../../features/datasets/datasetApi";
 import type { Dataset, DatasetLayer } from "../../features/datasets/types";
 
-const LAYER_BADGES: Record<DatasetLayer, { bg: string; text: string; border: string }> = {
-  RAW: { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20" },
-  PREPARED: { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20" },
-  CURATED: { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20" },
-  ANALYTICAL: { bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/20" },
-  MODEL_READY: { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" },
+const LAYER_BADGES: Record<
+  DatasetLayer,
+  { bg: string; text: string; border: string }
+> = {
+  RAW: {
+    bg: "bg-slate-500/10",
+    text: "text-slate-400",
+    border: "border-slate-500/20",
+  },
+  PREPARED: {
+    bg: "bg-blue-500/10",
+    text: "text-blue-400",
+    border: "border-blue-500/20",
+  },
+  CURATED: {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-400",
+    border: "border-emerald-500/20",
+  },
+  ANALYTICAL: {
+    bg: "bg-purple-500/10",
+    text: "text-purple-400",
+    border: "border-purple-500/20",
+  },
+  MODEL_READY: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-400",
+    border: "border-amber-500/20",
+  },
 };
 
 export const DatasetsPage: React.FC = () => {
@@ -73,12 +96,20 @@ export const DatasetsPage: React.FC = () => {
               size="sm"
               onClick={() => refetch()}
               isLoading={isRefetching}
-              leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`} />}
+              leftIcon={
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin" : ""}`}
+                />
+              }
             >
               Refresh
             </Button>
             <Link to="/connections">
-              <Button variant="primary" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+              >
                 Ingest New Dataset
               </Button>
             </Link>
@@ -93,8 +124,12 @@ export const DatasetsPage: React.FC = () => {
             <span>Total Datasets</span>
             <Database className="w-4 h-4 text-primary" />
           </div>
-          <span className="text-2xl font-bold text-text">{datasets.length}</span>
-          <span className="text-xs text-text-secondary">Across all storage tiers</span>
+          <span className="text-2xl font-bold text-text">
+            {datasets.length}
+          </span>
+          <span className="text-xs text-text-secondary">
+            Across all storage tiers
+          </span>
         </div>
 
         <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
@@ -102,8 +137,12 @@ export const DatasetsPage: React.FC = () => {
             <span>Catalog Volume</span>
             <Layers className="w-4 h-4 text-purple-400" />
           </div>
-          <span className="text-2xl font-bold text-text">{totalRows.toLocaleString()}</span>
-          <span className="text-xs text-text-secondary">Total records under management</span>
+          <span className="text-2xl font-bold text-text">
+            {totalRows.toLocaleString()}
+          </span>
+          <span className="text-xs text-text-secondary">
+            Total records under management
+          </span>
         </div>
 
         <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
@@ -111,8 +150,12 @@ export const DatasetsPage: React.FC = () => {
             <span>Avg Quality Score</span>
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
           </div>
-          <span className="text-2xl font-bold text-emerald-400">{avgQuality}%</span>
-          <span className="text-xs text-text-secondary">DAMA-aligned 6-dimension evaluation</span>
+          <span className="text-2xl font-bold text-emerald-400">
+            {avgQuality}%
+          </span>
+          <span className="text-xs text-text-secondary">
+            DAMA-aligned 6-dimension evaluation
+          </span>
         </div>
 
         <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
@@ -121,14 +164,23 @@ export const DatasetsPage: React.FC = () => {
             <Icons.PipelineMonitor className="w-4 h-4 text-blue-400" />
           </div>
           <span className="text-2xl font-bold text-text">5 Tiers</span>
-          <span className="text-xs text-text-secondary">Raw → Curated → Model-Ready</span>
+          <span className="text-xs text-text-secondary">
+            Raw → Curated → Model-Ready
+          </span>
         </div>
       </div>
 
       {/* Layer Filter Tabs & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-1 rounded-xl bg-surface border border-border">
         <div className="flex items-center gap-1 overflow-x-auto p-1">
-          {["ALL", "RAW", "PREPARED", "CURATED", "ANALYTICAL", "MODEL_READY"].map((layer) => (
+          {[
+            "ALL",
+            "RAW",
+            "PREPARED",
+            "CURATED",
+            "ANALYTICAL",
+            "MODEL_READY",
+          ].map((layer) => (
             <button
               key={layer}
               onClick={() => setSelectedLayer(layer)}
@@ -165,9 +217,12 @@ export const DatasetsPage: React.FC = () => {
         ) : datasets.length === 0 ? (
           <div className="p-12 text-center text-text-secondary flex flex-col items-center justify-center gap-3">
             <FilterX className="w-8 h-8 text-text-secondary" />
-            <span className="text-sm font-medium">No datasets found in tier "{selectedLayer}".</span>
+            <span className="text-sm font-medium">
+              No datasets found in tier "{selectedLayer}".
+            </span>
             <span className="text-xs text-text-secondary max-w-sm">
-              Ingest a data source via Data Connections or adjust your search filter.
+              Ingest a data source via Data Connections or adjust your search
+              filter.
             </span>
           </div>
         ) : (
@@ -189,7 +244,10 @@ export const DatasetsPage: React.FC = () => {
                 {datasets.map((d) => {
                   const badge = LAYER_BADGES[d.layer] || LAYER_BADGES.RAW;
                   return (
-                    <tr key={d.id} className="hover:bg-surface-subtle/50 transition-colors">
+                    <tr
+                      key={d.id}
+                      className="hover:bg-surface-subtle/50 transition-colors"
+                    >
                       <td className="py-3.5 px-4">
                         <Link
                           to="/datasets/$datasetId"
@@ -210,7 +268,9 @@ export const DatasetsPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-text-secondary">
-                        <span className="text-[11px] font-medium">{d.projectType}</span>
+                        <span className="text-[11px] font-medium">
+                          {d.projectType}
+                        </span>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-text">
                         v{d.currentVersion || 1}
@@ -223,11 +283,15 @@ export const DatasetsPage: React.FC = () => {
                           <div className="w-16 h-1.5 bg-surface-subtle rounded-full overflow-hidden border border-border">
                             <div
                               className="h-full bg-emerald-500 rounded-full"
-                              style={{ width: `${Math.min(100, d.qualityScore || 0)}%` }}
+                              style={{
+                                width: `${Math.min(100, d.qualityScore || 0)}%`,
+                              }}
                             />
                           </div>
                           <span className="font-semibold text-text">
-                            {d.qualityScore ? `${Math.round(d.qualityScore)}%` : "N/A"}
+                            {d.qualityScore
+                              ? `${Math.round(d.qualityScore)}%`
+                              : "N/A"}
                           </span>
                         </div>
                       </td>

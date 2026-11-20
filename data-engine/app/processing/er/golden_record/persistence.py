@@ -233,16 +233,30 @@ def persist_golden_records(
                 persisted_count += len(chunk)
         else:
             # Declarative SQLite / SQLAlchemy schema
-            insert_record_sql = text("""
-                INSERT INTO golden_records (golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, created_at, updated_at)
-                VALUES (:golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :created_at, :updated_at)
-            """)
-            update_record_sql = text("""
-                UPDATE golden_records
-                SET version = :version, cluster_size = :cluster_size, source_record_ids = :source_record_ids,
-                    attributes = :attributes, updated_at = :updated_at
-                WHERE golden_id = :golden_id
-            """)
+            has_quality_cols = ("quality_state" in cols) or (not cols)
+            if has_quality_cols:
+                insert_record_sql = text("""
+                    INSERT INTO golden_records (golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, quality_state, quality_score, confidence_score, conflicts, created_at, updated_at)
+                    VALUES (:golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :quality_state, :quality_score, :confidence_score, :conflicts, :created_at, :updated_at)
+                """)
+                update_record_sql = text("""
+                    UPDATE golden_records
+                    SET version = :version, cluster_size = :cluster_size, source_record_ids = :source_record_ids,
+                        attributes = :attributes, quality_state = :quality_state, quality_score = :quality_score,
+                        confidence_score = :confidence_score, conflicts = :conflicts, updated_at = :updated_at
+                    WHERE golden_id = :golden_id
+                """)
+            else:
+                insert_record_sql = text("""
+                    INSERT INTO golden_records (golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, created_at, updated_at)
+                    VALUES (:golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :created_at, :updated_at)
+                """)
+                update_record_sql = text("""
+                    UPDATE golden_records
+                    SET version = :version, cluster_size = :cluster_size, source_record_ids = :source_record_ids,
+                        attributes = :attributes, updated_at = :updated_at
+                    WHERE golden_id = :golden_id
+                """)
             insert_history_sql = text("""
                 INSERT INTO golden_record_history (id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, action, created_at)
                 VALUES (:id, :golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :action, :created_at)
@@ -269,11 +283,30 @@ def persist_golden_records(
                             "version",
                             "cluster_size",
                             "source_record_ids",
+                            "quality_state",
+                            "quality_score",
+                            "confidence_score",
+                            "conflicts",
                             "created_at",
                             "updated_at",
                         }
                     }
                     attr_json = json.dumps(attr_dict)
+
+                    q_state = str(row.get("quality_state") or "VERIFIED")
+                    try:
+                        q_score = float(row.get("quality_score") if row.get("quality_score") is not None else 1.0)
+                    except (ValueError, TypeError):
+                        q_score = 1.0
+                    try:
+                        conf_score = float(row.get("confidence_score") if row.get("confidence_score") is not None else 1.0)
+                    except (ValueError, TypeError):
+                        conf_score = 1.0
+                    c_conflicts = row.get("conflicts")
+                    if isinstance(c_conflicts, (dict, list)):
+                        c_conflicts = json.dumps(c_conflicts)
+                    elif c_conflicts is not None:
+                        c_conflicts = str(c_conflicts)
 
                     chunk_prepared.append(
                         {
@@ -282,6 +315,10 @@ def persist_golden_records(
                             "cluster_size": c_size,
                             "source_record_ids": s_ids,
                             "attributes": attr_json,
+                            "quality_state": q_state,
+                            "quality_score": q_score,
+                            "confidence_score": conf_score,
+                            "conflicts": c_conflicts,
                         }
                     )
                     chunk_gids.append(gid)
@@ -312,16 +349,20 @@ def persist_golden_records(
 
                     if gid in existing_map:
                         new_version = existing_map[gid] + 1
-                        records_to_update.append(
-                            {
-                                "golden_id": gid,
-                                "version": new_version,
-                                "cluster_size": c_size,
-                                "source_record_ids": s_ids,
-                                "attributes": attr_json,
-                                "updated_at": now_utc,
-                            }
-                        )
+                        rec_update = {
+                            "golden_id": gid,
+                            "version": new_version,
+                            "cluster_size": c_size,
+                            "source_record_ids": s_ids,
+                            "attributes": attr_json,
+                            "updated_at": now_utc,
+                        }
+                        if has_quality_cols:
+                            rec_update["quality_state"] = item["quality_state"]
+                            rec_update["quality_score"] = item["quality_score"]
+                            rec_update["confidence_score"] = item["confidence_score"]
+                            rec_update["conflicts"] = item["conflicts"]
+                        records_to_update.append(rec_update)
                         history_to_insert.append(
                             {
                                 "id": str(uuid.uuid4()),
@@ -337,18 +378,22 @@ def persist_golden_records(
                         )
                     else:
                         new_version = 1
-                        records_to_insert.append(
-                            {
-                                "golden_id": gid,
-                                "tenant_id": rec_tenant_id,
-                                "version": new_version,
-                                "cluster_size": c_size,
-                                "source_record_ids": s_ids,
-                                "attributes": attr_json,
-                                "created_at": now_utc,
-                                "updated_at": now_utc,
-                            }
-                        )
+                        rec_insert = {
+                            "golden_id": gid,
+                            "tenant_id": rec_tenant_id,
+                            "version": new_version,
+                            "cluster_size": c_size,
+                            "source_record_ids": s_ids,
+                            "attributes": attr_json,
+                            "created_at": now_utc,
+                            "updated_at": now_utc,
+                        }
+                        if has_quality_cols:
+                            rec_insert["quality_state"] = item["quality_state"]
+                            rec_insert["quality_score"] = item["quality_score"]
+                            rec_insert["confidence_score"] = item["confidence_score"]
+                            rec_insert["conflicts"] = item["conflicts"]
+                        records_to_insert.append(rec_insert)
                         history_to_insert.append(
                             {
                                 "id": str(uuid.uuid4()),
