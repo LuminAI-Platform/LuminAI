@@ -13,9 +13,7 @@ Tests all requirements:
 10. End-to-end execution on the torture dataset (qa_datasets/02_negative_dirty_torture.csv).
 """
 
-import os
 from pathlib import Path
-import pytest
 
 from app.processing.engine.type_inference import TypeInferenceEngine, InferredType
 from app.processing.engine.date_cleaner import DateCleaner
@@ -23,8 +21,7 @@ from app.processing.engine.text_cleaner import TextCleaner
 from app.processing.engine.name_standardizer import NameStandardizer
 from app.processing.engine.categorical_standardizer import CategoricalStandardizer
 from app.processing.engine.identifier_cleaner import IdentifierCleaner
-from app.processing.engine.profiler import DataProfiler
-from app.processing.engine.deduplicator import MultiStageEntityResolver, MatchState, MatchDecision
+from app.processing.engine.deduplicator import MultiStageEntityResolver, MatchState
 from app.processing.engine.golden_record_engine import GoldenRecordEngine
 from app.processing.engine.quality_framework import DataQualityFramework
 from app.processing.engine.dataset_cleaner import DatasetCleaner

@@ -10,6 +10,8 @@ Applies multi-criteria survivorship hierarchy:
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from functools import lru_cache
 import logging
 from typing import Any
 import uuid
@@ -19,6 +21,46 @@ import polars as pl
 from app.processing.engine.golden_record_engine import GoldenRecordEngine
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=32768)
+def _parse_date_string_to_epoch(val_str: str) -> float:
+    """Cached parsing of common date formats into UTC epoch timestamp."""
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%d-%m-%Y",
+    ):
+        try:
+            dt = datetime.strptime(val_str, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except ValueError:
+            continue
+    return 0.0
+
+
+def _parse_ts_epoch(ts_val: Any) -> float:
+    """Safely convert any date string or datetime into UTC epoch float for chronological sorting."""
+    if not ts_val:
+        return 0.0
+    if isinstance(ts_val, (int, float)):
+        return float(ts_val)
+    if isinstance(ts_val, datetime):
+        if ts_val.tzinfo is None:
+            ts_val = ts_val.replace(tzinfo=timezone.utc)
+        return ts_val.timestamp()
+
+    val_str = str(ts_val).strip()
+    if not val_str:
+        return 0.0
+    return _parse_date_string_to_epoch(val_str)
 
 
 def merge_cluster_to_golden_record(

@@ -16,7 +16,7 @@ import calendar
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 @dataclass

@@ -24,12 +24,10 @@ from app.processing.engine.categorical_standardizer import CategoricalStandardiz
 from app.processing.engine.date_cleaner import DateCleaner
 from app.processing.engine.identifier_cleaner import IdentifierCleaner
 from app.processing.engine.name_standardizer import NameStandardizer
-from app.processing.engine.quality_framework import DataQualityFramework
 from app.processing.engine.text_cleaner import TextCleaner
-from app.processing.engine.type_inference import InferredType, TypeInferenceEngine
+from app.processing.engine.type_inference import TypeInferenceEngine
 from app.processing.pipelines.cleaning_pipeline.helpers import (
     _parse_currency_string,
-    _parse_date_string,
 )
 from app.telemetry import trace_span
 
@@ -77,7 +75,6 @@ def clean_records(
 
         # Step 1: Process each column dynamically
         cleaned_columns: Dict[str, List[Any]] = {}
-        raw_dicts = raw_df.to_dicts()
 
         # Pre-detect column date format hints across the dataset
         date_hints: Dict[str, Optional[str]] = {}

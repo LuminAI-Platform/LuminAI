@@ -22,7 +22,7 @@ import re
 from typing import Any, Dict, List, Optional, Set
 
 from app.processing.engine.date_cleaner import DateCleaner
-from app.processing.engine.type_inference import InferredType, TypeInferenceEngine
+from app.processing.engine.type_inference import TypeInferenceEngine
 
 
 @dataclass
@@ -118,7 +118,6 @@ class DataQualityFramework:
             )
 
         passed: List[str] = []
-        failed: List[str] = []
         warnings: List[str] = []
         critical_errors: List[str] = []
 
@@ -292,7 +291,6 @@ class DataQualityFramework:
         sum_val = 0.0
         sum_cons = 0.0
         sum_acc = 0.0
-        sum_uniq = 0.0
 
         critical_violations: List[str] = []
         warnings: List[str] = []

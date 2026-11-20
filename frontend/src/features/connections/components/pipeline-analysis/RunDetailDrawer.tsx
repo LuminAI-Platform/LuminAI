@@ -3,9 +3,6 @@ import {
   X,
   RefreshCw,
   AlertOctagon,
-  Layers,
-  FileText,
-  ShieldCheck,
   Wrench,
   ICON_SIZES,
 } from "../../../../lib/icons";
@@ -13,6 +10,8 @@ import { Tooltip } from "../../../../components/ui/Tooltip";
 import { Button } from "../../../../components/ui/Button";
 import { apiFetch } from "../../../../lib/api";
 import type { PipelineRunItem, EngineJobDetail } from "./pipelineAnalysisTypes";
+import { RunStagesTimeline } from "./RunStagesTimeline";
+import { RunExecutionQualityAndLogs } from "./RunExecutionQualityAndLogs";
 
 interface RunDetailDrawerProps {
   run: PipelineRunItem | null;
@@ -32,7 +31,6 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
 
-  // Fetch engine job status for this run
   useEffect(() => {
     if (!run?.id) {
       setJobDetail(null);
@@ -59,13 +57,11 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
     };
   }, [run?.id]);
 
-  // Handle Escape key and focus return
   useEffect(() => {
     if (!run) return;
 
     const returnFocusElement = triggerButtonRef?.current;
 
-    // Focus close button on open
     setTimeout(() => {
       closeBtnRef.current?.focus();
     }, 50);
@@ -94,7 +90,6 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
     run.errorMessage ||
     (isFailed ? "Step execution halted due to error" : null);
 
-  // Derive suggested fix based on failed step or message
   const getSuggestedFix = () => {
     if (!errorMessage) return "Review source records and schema mapping.";
     const lower = errorMessage.toLowerCase();
@@ -141,13 +136,6 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
       setIsRetrying(false);
     }
   };
-
-  const stagesList = [
-    { key: "ingest", name: "Data Ingest" },
-    { key: "clean", name: "Data Cleaning" },
-    { key: "dedupe", name: "Deduplication" },
-    { key: "resolve", name: "Entity Resolution" },
-  ];
 
   return (
     <div
@@ -285,145 +273,15 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
           )}
 
           {/* Stage Timeline */}
-          <div className="bg-surface-subtle border border-border rounded-xl p-4">
-            <h4 className="text-xs font-bold text-text mb-3 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-primary" />
-              <span>Pipeline Stage Execution Timeline</span>
-            </h4>
-            <div className="space-y-2">
-              {stagesList.map((st, idx) => {
-                const isStepFailed =
-                  isFailed &&
-                  (failedStep === st.key ||
-                    (!failedStep && idx === stagesList.length - 1));
-                const isCompleted =
-                  !isFailed ||
-                  stagesList.findIndex((s) => s.key === failedStep) > idx;
+          <RunStagesTimeline isFailed={isFailed} failedStep={failedStep} />
 
-                return (
-                  <div
-                    key={st.key}
-                    className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isStepFailed
-                            ? "bg-error"
-                            : isCompleted
-                              ? "bg-success"
-                              : "bg-nodata"
-                        }`}
-                      />
-                      <span className="font-medium text-text">{st.name}</span>
-                    </div>
-
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                        isStepFailed
-                          ? "bg-error-bg text-error border-error-border"
-                          : isCompleted
-                            ? "bg-success-bg text-success border-success-border"
-                            : "bg-surface-subtle text-text-secondary border-border"
-                      }`}
-                    >
-                      {isStepFailed
-                        ? "Failed"
-                        : isCompleted
-                          ? "Completed"
-                          : "Queued"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Quality Scores */}
-          <div className="bg-surface-subtle border border-border rounded-xl p-4">
-            <h4 className="text-xs font-bold text-text mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-success" />
-              <span>Evaluated Quality Scores</span>
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded bg-surface border border-border flex justify-between">
-                <span className="text-text-secondary">Completeness</span>
-                <span className="font-bold text-text">
-                  {jobDetail?.quality_scores?.completeness !== undefined
-                    ? `${jobDetail.quality_scores.completeness.toFixed(1)}%`
-                    : run.recordsInput > 0
-                      ? `${(((run.recordsInput - run.recordsFailed) / run.recordsInput) * 100).toFixed(1)}%`
-                      : "–"}
-                </span>
-              </div>
-              <div className="p-2 rounded bg-surface border border-border flex justify-between">
-                <span className="text-text-secondary">Uniqueness</span>
-                <span className="font-bold text-text">
-                  {jobDetail?.quality_scores?.uniqueness !== undefined
-                    ? `${jobDetail.quality_scores.uniqueness.toFixed(1)}%`
-                    : "–"}
-                </span>
-              </div>
-              <div className="p-2 rounded bg-surface border border-border flex justify-between">
-                <span className="text-text-secondary">Consistency</span>
-                <span className="font-bold text-text">
-                  {jobDetail?.quality_scores?.consistency !== undefined
-                    ? `${jobDetail.quality_scores.consistency.toFixed(1)}%`
-                    : "–"}
-                </span>
-              </div>
-              <div className="p-2 rounded bg-surface border border-border flex justify-between">
-                <span className="text-text-secondary">Timeliness</span>
-                <span className="font-bold text-text">
-                  {jobDetail?.quality_scores?.timeliness !== undefined
-                    ? `${jobDetail.quality_scores.timeliness.toFixed(1)}%`
-                    : run.durationSeconds > 0
-                      ? `${run.durationSeconds}s`
-                      : "–"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Logs */}
-          <div className="bg-surface-subtle border border-border rounded-xl p-4">
-            <h4 className="text-xs font-bold text-text mb-2 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-text-secondary" />
-              <span>Execution Logs</span>
-            </h4>
-            <div className="bg-page border border-border rounded-lg p-3 font-mono text-[11px] text-text-secondary max-h-48 overflow-y-auto space-y-1">
-              {jobDetail?.logs && jobDetail.logs.length > 0 ? (
-                jobDetail.logs.map((logLine, idx) => (
-                  <div key={idx}>{logLine}</div>
-                ))
-              ) : (
-                <>
-                  <div>
-                    [{new Date(run.startedAt).toISOString()}] Pipeline run
-                    initiated for source: {run.connectorName}
-                  </div>
-                  <div>
-                    [{new Date(run.startedAt).toISOString()}] Total input
-                    records: {run.recordsInput.toLocaleString()}
-                  </div>
-                  {isFailed ? (
-                    <div className="text-error">
-                      [
-                      {new Date(run.completedAt || run.startedAt).toISOString()}
-                      ] ERROR: {errorMessage}
-                    </div>
-                  ) : (
-                    <div className="text-success">
-                      [
-                      {new Date(run.completedAt || run.startedAt).toISOString()}
-                      ] Completed: {run.recordsOutput.toLocaleString()} records
-                      processed
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          {/* Quality Scores and Logs */}
+          <RunExecutionQualityAndLogs
+            run={run}
+            jobDetail={jobDetail}
+            isFailed={isFailed}
+            errorMessage={errorMessage}
+          />
         </div>
 
         {/* Drawer Footer */}

@@ -16,7 +16,7 @@ import html
 import re
 import unicodedata
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple
+from typing import Any, Tuple
 
 
 @dataclass

@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useRef,
-  useId,
-  useCallback,
-} from "react";
+import React, { useState, useRef, useId, useCallback } from "react";
 import * as Popper from "@radix-ui/react-popper";
 import * as Portal from "@radix-ui/react-portal";
 import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
@@ -13,33 +6,13 @@ import { FocusScope } from "@radix-ui/react-focus-scope";
 import { Slot } from "@radix-ui/react-slot";
 import { composeRefs } from "@radix-ui/react-compose-refs";
 import { ChevronDown, Loader2, ICON_SIZES } from "../../../lib/icons";
-import { Tooltip } from "../Tooltip";
+import {
+  DropdownMenuContext,
+  useDropdownMenu,
+} from "./DropdownMenuContext";
 
-/* ==========================================================================
-   DropdownMenu Context
-   ========================================================================== */
-
-interface DropdownMenuContextValue {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
-  contentId: string;
-  triggerId: string;
-}
-
-const DropdownMenuContext = createContext<DropdownMenuContextValue | null>(
-  null,
-);
-
-const useDropdownMenu = () => {
-  const context = useContext(DropdownMenuContext);
-  if (!context) {
-    throw new Error(
-      "DropdownMenu subcomponents must be used within DropdownMenuRoot",
-    );
-  }
-  return context;
-};
+export { useDropdownMenu, DropdownMenuContext };
+export * from "./DropdownMenuItems";
 
 /* ==========================================================================
    1. DropdownMenuRoot
@@ -98,7 +71,8 @@ export const DropdownMenu = DropdownMenuRoot;
    2. DropdownMenuTrigger
    ========================================================================== */
 
-export interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface DropdownMenuTriggerProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
   showChevron?: boolean;
   isLoading?: boolean;
@@ -162,14 +136,10 @@ export const DropdownMenuTrigger = React.forwardRef<
             asChild
               ? className
               : [
-                  // Base layout matching buttons
                   "inline-flex items-center justify-between gap-2 px-3 h-9 min-h-[36px]",
                   "text-xs font-semibold rounded-lg select-none cursor-pointer transition-colors",
-                  // Border & surface
                   "bg-surface text-text border border-border hover:bg-surface-hover hover:border-border-focus",
-                  // Focus ring
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-border-focus",
-                  // Disabled
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                   className,
                 ].join(" ")
@@ -209,7 +179,8 @@ DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
    3. DropdownMenuContent
    ========================================================================== */
 
-export interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface DropdownMenuContentProps
+  extends React.HTMLAttributes<HTMLDivElement> {
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
   sideOffset?: number;
@@ -250,13 +221,11 @@ export const DropdownMenuContent = React.forwardRef<
       }
     };
 
-    // Return focus to trigger on close
     const handleDismiss = () => {
       setOpen(false);
       triggerRef.current?.focus();
     };
 
-    // Keyboard navigation within the menu
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
       onKeyDown?.(e);
       if (e.defaultPrevented) return;
@@ -331,12 +300,9 @@ export const DropdownMenuContent = React.forwardRef<
                 : undefined,
             }}
             className={[
-              // Visual spec: radius 12px, 1px border, layered soft shadow, 6px padding
               "z-[9999] rounded-xl border border-border bg-surface p-1.5",
               "shadow-lg shadow-black/10 dark:shadow-black/40",
-              // Sizing spec: max-width 320px, max-height 320px with internal scroll
               "w-max min-w-[180px] max-w-[320px] max-h-[320px] overflow-y-auto",
-              // Animation: 120ms fade plus 4px slide
               "animate-dropdown-in outline-none select-none",
               className,
             ].join(" ")}
@@ -352,195 +318,3 @@ export const DropdownMenuContent = React.forwardRef<
   },
 );
 DropdownMenuContent.displayName = "DropdownMenuContent";
-
-/* ==========================================================================
-   4. DropdownMenuItem
-   ========================================================================== */
-
-export interface DropdownMenuItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  icon?: React.ReactNode;
-  rightSlot?: React.ReactNode;
-  destructive?: boolean;
-  selected?: boolean;
-  disabledTooltip?: string;
-}
-
-export const DropdownMenuItem = React.forwardRef<
-  HTMLButtonElement,
-  DropdownMenuItemProps
->(
-  (
-    {
-      children,
-      icon,
-      rightSlot,
-      destructive = false,
-      selected = false,
-      disabledTooltip,
-      disabled = false,
-      className = "",
-      onClick,
-      ...props
-    },
-    ref,
-  ) => {
-    const { setOpen, triggerRef } = useDropdownMenu();
-
-    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (disabled) return;
-      onClick?.(e);
-      if (!e.defaultPrevented) {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    const itemNode = (
-      <button
-        ref={ref}
-        type="button"
-        role="menuitem"
-        aria-disabled={disabled}
-        disabled={disabled}
-        onClick={handleClick}
-        className={[
-          // Visual spec: 36px tall, 8px radius, 10px gap, 14px label
-          "w-full h-9 min-h-[40px] sm:min-h-[36px] px-2.5 rounded-lg flex items-center gap-2.5",
-          "text-sm font-medium transition-colors text-left cursor-pointer",
-          // Focus and hover states
-          "focus:outline-none",
-          destructive
-            ? "text-error hover:bg-error-bg hover:text-error focus:bg-error-bg focus:text-error"
-            : selected
-              ? "bg-primary-tint text-primary font-semibold"
-              : "text-text hover:bg-surface-hover hover:text-text focus:bg-surface-hover focus:text-text",
-          // Disabled state
-          disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : "",
-          className,
-        ].join(" ")}
-        {...props}
-      >
-        {icon && (
-          <span
-            className={`w-4 h-4 shrink-0 flex items-center justify-center ${
-              destructive
-                ? "text-error"
-                : selected
-                  ? "text-primary"
-                  : "text-text-secondary"
-            }`}
-          >
-            {icon}
-          </span>
-        )}
-        <span className="truncate flex-1">{children}</span>
-        {rightSlot && (
-          <span className="shrink-0 text-xs text-text-muted flex items-center gap-1">
-            {rightSlot}
-          </span>
-        )}
-      </button>
-    );
-
-    if (disabled && disabledTooltip) {
-      return (
-        <Tooltip label={disabledTooltip} side="right">
-          <div className="w-full">{itemNode}</div>
-        </Tooltip>
-      );
-    }
-
-    return itemNode;
-  },
-);
-DropdownMenuItem.displayName = "DropdownMenuItem";
-
-/* ==========================================================================
-   5. DropdownMenuGroup & DropdownMenuLabel
-   ========================================================================== */
-
-export const DropdownMenuGroup: React.FC<
-  React.HTMLAttributes<HTMLDivElement>
-> = ({ children, className = "", ...props }) => {
-  return (
-    <div
-      role="group"
-      className={`flex flex-col gap-0.5 ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
-
-export const DropdownMenuLabel: React.FC<
-  React.HTMLAttributes<HTMLDivElement>
-> = ({ children, className = "", ...props }) => {
-  return (
-    <div
-      className={`px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
-
-/* ==========================================================================
-   6. DropdownMenuSeparator
-   ========================================================================== */
-
-export const DropdownMenuSeparator: React.FC<
-  React.HTMLAttributes<HTMLDivElement>
-> = ({ className = "", ...props }) => {
-  return (
-    <div
-      role="separator"
-      className={`h-px bg-border my-1.5 -mx-1.5 ${className}`}
-      {...props}
-    />
-  );
-};
-
-/* ==========================================================================
-   7. DropdownMenuHeader (specifically for User Menu Header)
-   ========================================================================== */
-
-export interface DropdownMenuHeaderProps {
-  avatar?: React.ReactNode;
-  name: string;
-  email?: string;
-  className?: string;
-}
-
-export const DropdownMenuHeader: React.FC<DropdownMenuHeaderProps> = ({
-  avatar,
-  name,
-  email,
-  className = "",
-}) => {
-  return (
-    <div
-      className={`flex items-start gap-3 p-2.5 bg-surface-subtle/60 rounded-lg border border-border/60 mb-1 ${className}`}
-    >
-      {avatar && (
-        <div className="w-9 h-9 rounded-full bg-surface border border-border flex items-center justify-center text-text text-xs font-bold shrink-0 select-none">
-          {avatar}
-        </div>
-      )}
-      <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-xs font-semibold text-text truncate" title={name}>
-          {name}
-        </span>
-        {email && (
-          <span
-            className="text-[11px] text-text-secondary truncate leading-snug mt-0.5"
-            title={email}
-          >
-            {email}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-};
