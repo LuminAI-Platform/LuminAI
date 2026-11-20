@@ -16,31 +16,62 @@ import { RunExecutionQualityAndLogs } from "./RunExecutionQualityAndLogs";
 
 interface RunDetailDrawerProps {
   run: PipelineRunItem | null;
+  runId?: string | null;
   onClose: () => void;
   triggerButtonRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
-  run,
+  run: propRun,
+  runId,
   onClose,
   triggerButtonRef,
 }) => {
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
+  const [fetchedRun, setFetchedRun] = useState<PipelineRunItem | null>(null);
   const [jobDetail, setJobDetail] = useState<EngineJobDetail | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
 
+  const run = propRun ?? fetchedRun;
+  const activeRunId = propRun?.id ?? runId ?? null;
+
   useEffect(() => {
-    if (!run?.id) {
+    if (propRun || !runId) {
+      setFetchedRun(null);
+      return;
+    }
+
+    let isMounted = true;
+    apiFetch(`/api/v1/pipelines/runs/${encodeURIComponent(runId)}`, {
+      headers: { "X-Suppress-Toast": "true" },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data) {
+          setFetchedRun(data as PipelineRunItem);
+        }
+      })
+      .catch(() => {
+        // Ignore if run lookup fails
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propRun, runId]);
+
+  useEffect(() => {
+    if (!activeRunId) {
       setJobDetail(null);
       return;
     }
 
     let isMounted = true;
 
-    apiFetch(`/api/v1/engine/process/jobs/${run.id}`, {
+    apiFetch(`/api/v1/engine/process/jobs/${activeRunId}`, {
       headers: { "X-Suppress-Toast": "true" },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -56,10 +87,10 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [run?.id]);
+  }, [activeRunId]);
 
   useEffect(() => {
-    if (!run) return;
+    if (!activeRunId) return;
 
     const returnFocusElement = triggerButtonRef?.current;
 
@@ -79,11 +110,26 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
       window.removeEventListener("keydown", handleKeyDown);
       returnFocusElement?.focus();
     };
-  }, [run, onClose, triggerButtonRef]);
+  }, [activeRunId, onClose, triggerButtonRef]);
 
   if (!run) return null;
 
   const isFailed = run.status === "FAILED" || Boolean(jobDetail?.error);
+  const hasIssues =
+    !isFailed &&
+    (run.status === "COMPLETED" ||
+      run.status === "CLEANED" ||
+      run.status === "VALIDATED") &&
+    run.recordsFailed > 0;
+  const statusDisplayLabel = isFailed
+    ? "Failed"
+    : hasIssues
+      ? "Completed with issues"
+      : run.status === "COMPLETED"
+        ? "Completed"
+        : run.status === "RUNNING"
+          ? "Syncing"
+          : run.status;
   const failedStep =
     jobDetail?.failed_step || (isFailed ? "data_cleaning" : null);
   const errorMessage =
@@ -141,7 +187,7 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
   return (
     <BodyPortal>
       <div
-        className="fixed inset-0 z-[9990] flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 z-[9990] flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="run-drawer-title"
@@ -151,22 +197,24 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
       >
         <div
           ref={drawerRef}
-          className="w-full max-w-xl h-full bg-surface border-l border-border shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-250 select-none"
+          className="w-full max-w-xl h-full bg-surface border-l border-border shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-250 motion-reduce:animate-none select-none"
         >
           {/* Drawer Header */}
           <div className="p-5 border-b border-border flex items-start justify-between gap-3 bg-surface-subtle/40">
             <div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
                     isFailed
                       ? "bg-error-bg text-error border-error-border"
-                      : run.status === "COMPLETED"
-                        ? "bg-success-bg text-success border-success-border"
-                        : "bg-warning-bg text-warning border-warning-border"
+                      : hasIssues
+                        ? "bg-warning-bg text-warning border-warning-border"
+                        : run.status === "COMPLETED"
+                          ? "bg-success-bg text-success border-success-border"
+                          : "bg-warning-bg text-warning border-warning-border"
                   }`}
                 >
-                  {run.status}
+                  {statusDisplayLabel}
                 </span>
                 <span className="text-[11px] font-mono text-text-secondary">
                   ID: {run.id.slice(0, 8)}...

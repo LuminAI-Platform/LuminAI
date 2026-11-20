@@ -24,6 +24,8 @@ import {
   PipelineMonitorEmpty,
 } from "./pipeline-monitor/PipelineEmptyStates";
 import { PipelineFilterToolbar } from "./pipeline-monitor/PipelineFilterToolbar";
+import { RunDetailDrawer } from "./pipeline-analysis/RunDetailDrawer";
+import type { PipelineRunItem } from "./pipeline-analysis/pipelineAnalysisTypes";
 
 interface PipelineMonitorProps {
   initialJobs?: PipelineJob[];
@@ -46,8 +48,33 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [is404Error, setIs404Error] = useState(false);
+  const [selectedRun, setSelectedRun] = useState<PipelineRunItem | null>(null);
+  const drawerTriggerRef = useRef<HTMLElement | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleOpenJobDetail = useCallback(
+    (job: PipelineJob, triggerEl: HTMLElement | null) => {
+      drawerTriggerRef.current = triggerEl;
+      setSelectedRun({
+        id: job.id,
+        connectorName: job.connectorName,
+        connectorType: job.connectorType,
+        pipelineType: "",
+        status: job.status,
+        progress: job.progress,
+        recordsInput: job.recordsInput,
+        recordsOutput: job.recordsOutput,
+        recordsFailed: job.recordsFailed,
+        throughput: job.throughput,
+        startedAt: job.startedAt,
+        completedAt: null,
+        durationSeconds: job.durationSeconds,
+        errorMessage: job.errors[0]?.message ?? null,
+      });
+    },
+    [],
+  );
 
   const ingestPayload = useCallback((raw: unknown) => {
     try {
@@ -381,9 +408,21 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       ) : (
         <div className="flex flex-col gap-2.5">
           {filtered.map((job) => (
-            <PipelineJobCard key={job.id} job={job} />
+            <PipelineJobCard
+              key={job.id}
+              job={job}
+              onSelectRun={handleOpenJobDetail}
+            />
           ))}
         </div>
+      )}
+
+      {selectedRun && (
+        <RunDetailDrawer
+          run={selectedRun}
+          onClose={() => setSelectedRun(null)}
+          triggerButtonRef={drawerTriggerRef}
+        />
       )}
     </div>
   );

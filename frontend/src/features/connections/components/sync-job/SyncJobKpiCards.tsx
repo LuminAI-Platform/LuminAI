@@ -1,49 +1,20 @@
 import React from "react";
-import type { SyncJob } from "./syncJobTypes";
+import type { SyncJobStatus } from "./syncJobTypes";
 import { formatNumber, formatDuration } from "./syncJobHelpers";
-import { AlertCircle, Clock, ICON_SIZES } from "../../../../lib/icons";
-
-const ProgressRing: React.FC<{
-  pct: number;
-  color?: string;
-  size?: number;
-}> = ({ pct, color = "#3b82f6", size = 40 }) => {
-  const r = (size - 6) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (pct / 100) * circ;
-  return (
-    <svg width={size} height={size} className="rotate-[-90deg]">
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke="#27272a"
-        strokeWidth="3"
-        fill="none"
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke={color}
-        strokeWidth="3"
-        fill="none"
-        strokeDasharray={circ}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        className="transition-all duration-500 ease-out"
-      />
-    </svg>
-  );
-};
+import {
+  AlertCircle,
+  Clock,
+  Activity,
+  CheckCircle2,
+  ICON_SIZES,
+} from "../../../../lib/icons";
 
 const Sparkline: React.FC<{
   data: number[];
-  color?: string;
   width?: number;
   height?: number;
-}> = ({ data, color = "#3b82f6", width = 64, height = 24 }) => {
-  if (data.length < 2) return <div style={{ width, height }} />;
+}> = ({ data, width = 56, height = 20 }) => {
+  if (data.length < 2) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
@@ -56,12 +27,17 @@ const Sparkline: React.FC<{
     .join(" ");
 
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg
+      width={width}
+      height={height}
+      className="overflow-visible shrink-0 text-primary"
+      aria-hidden="true"
+    >
       <polyline
         points={pts}
         fill="none"
-        stroke={color}
-        strokeWidth="1.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -69,128 +45,251 @@ const Sparkline: React.FC<{
   );
 };
 
-interface SyncJobKpiCardsProps {
-  job: SyncJob;
-  overallPct: number;
-  totalSynced: number;
-  totalRecords: number;
-  currentSpeed: number;
+export interface SyncJobKpiCardsProps {
+  status: SyncJobStatus;
+  isAllScope: boolean;
+  datasetCount: number;
+  totalSynced?: number;
+  totalRecords?: number;
+  isActive: boolean;
+  currentSpeed?: number;
   speedHistory: number[];
-  avgSpeed: number;
-  totalErrors: number;
-  durationSec: number;
+  avgSpeed?: number;
+  rejectedCount?: number;
+  quarantinedCount?: number;
+  durationSec?: number;
 }
 
 export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
-  job,
-  overallPct,
+  status,
+  isAllScope,
+  datasetCount,
   totalSynced,
   totalRecords,
+  isActive,
   currentSpeed,
   speedHistory,
   avgSpeed,
-  totalErrors,
+  rejectedCount,
+  quarantinedCount,
   durationSec,
 }) => {
+  const hasProgress =
+    typeof totalSynced === "number" && typeof totalRecords === "number";
+  const pct =
+    hasProgress && totalRecords > 0
+      ? Math.min(100, Math.round((totalSynced / totalRecords) * 100))
+      : status === "completed" || status === "completed_with_issues"
+        ? 100
+        : undefined;
+
+  const progressValue = hasProgress
+    ? `${formatNumber(totalSynced)} of ${formatNumber(totalRecords)} records`
+    : typeof totalSynced === "number"
+      ? `${formatNumber(totalSynced)} records`
+      : "–";
+
+  const progressCaption =
+    pct !== undefined
+      ? `${pct}% complete`
+      : isAllScope
+        ? `${datasetCount} ${datasetCount === 1 ? "dataset" : "datasets"}`
+        : "–";
+
+  // Speed card: sparkline ONLY while active; plain "Avg speed" when finished
+  const speedLabel = isActive ? "Speed" : "Avg speed";
+  const speedNumeric = isActive ? (currentSpeed ?? avgSpeed) : avgSpeed;
+  const speedValue =
+    typeof speedNumeric === "number" && speedNumeric > 0
+      ? `${formatNumber(Math.round(speedNumeric))} rec/s`
+      : "–";
+  const speedCaption = isActive
+    ? typeof avgSpeed === "number" && avgSpeed > 0
+      ? `Avg ${formatNumber(Math.round(avgSpeed))} rec/s`
+      : "Live throughput"
+    : typeof speedNumeric === "number" && speedNumeric > 0
+      ? isAllScope
+        ? `Across ${datasetCount} ${datasetCount === 1 ? "dataset" : "datasets"}`
+        : "Run average"
+      : "Unavailable";
+
+  // Errors card: show 0 ONLY when API explicitly reports 0 errors, always with rejected counts
+  const hasRejected = typeof rejectedCount === "number";
+  const hasQuarantined = typeof quarantinedCount === "number";
+  const totalIssues =
+    hasRejected || hasQuarantined
+      ? (rejectedCount ?? 0) + (quarantinedCount ?? 0)
+      : undefined;
+
+  const errorsValue =
+    totalIssues !== undefined ? formatNumber(totalIssues) : "–";
+
+  const errorsCaption = (() => {
+    if (!hasRejected && !hasQuarantined) return "Not reported";
+    if (hasRejected && hasQuarantined) {
+      return `${formatNumber(rejectedCount)} rejected, ${formatNumber(quarantinedCount)} quarantined`;
+    }
+    if (hasRejected) {
+      return `${formatNumber(rejectedCount)} rejected`;
+    }
+    return `${formatNumber(quarantinedCount!)} quarantined`;
+  })();
+
+  const errorsValueClass =
+    (rejectedCount ?? 0) > 0
+      ? "text-error"
+      : (quarantinedCount ?? 0) > 0
+        ? "text-warning"
+        : "text-text";
+
+  // Duration card: "Total processing time" for totals view, "Duration" for single dataset
+  const durationLabel = isAllScope ? "Total processing time" : "Duration";
+  const formattedDuration = formatDuration(durationSec);
+  const durationCaption = (() => {
+    if (isAllScope) {
+      return `Across ${datasetCount} ${datasetCount === 1 ? "dataset" : "datasets"}`;
+    }
+    if (status === "running") return "In progress";
+    if (status === "paused") return "Paused";
+    if (status === "failed") {
+      return formattedDuration !== "–"
+        ? `Failed after ${formattedDuration}`
+        : "Failed";
+    }
+    return formattedDuration !== "–"
+      ? `Completed in ${formattedDuration}`
+      : "Unavailable";
+  })();
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5">
-      {/* Progress */}
-      <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-        <div className="relative flex-shrink-0">
-          <ProgressRing
-            pct={overallPct}
-            color={job.status === "failed" ? "#ef4444" : "#3b82f6"}
-          />
-          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-zinc-300">
-            {Math.floor(overallPct)}%
-          </span>
-        </div>
-        <div>
-          <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
-            Progress
-          </div>
-          <div className="text-xs text-zinc-200 font-semibold leading-tight mt-0.5">
-            {formatNumber(totalSynced)}
-            <span className="text-zinc-500 font-normal">
-              /{formatNumber(totalRecords)}
+    <div className="@container px-4 sm:px-5">
+      <div className="grid grid-cols-2 @[560px]:grid-cols-4 gap-3 items-stretch">
+        {/* Progress */}
+        <div className="bg-surface-subtle border border-border rounded-lg p-3.5 flex flex-col justify-between gap-2 min-w-0 h-full">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-text-secondary truncate">
+              Progress
             </span>
+            <CheckCircle2
+              size={ICON_SIZES.inline}
+              aria-hidden="true"
+              className={
+                status === "failed"
+                  ? "text-error shrink-0"
+                  : status === "completed_with_issues"
+                    ? "text-warning shrink-0"
+                    : status === "completed"
+                      ? "text-success shrink-0"
+                      : "text-primary shrink-0"
+              }
+            />
           </div>
-        </div>
-      </div>
-
-      {/* Speed */}
-      <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-        <div className="flex-shrink-0">
-          <Sparkline data={speedHistory} color="#3b82f6" />
-        </div>
-        <div>
-          <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
-            Speed
-          </div>
-          <div className="text-xs text-blue-400 font-bold leading-tight mt-0.5">
-            {formatNumber(currentSpeed)}
-            <span className="text-zinc-500 font-normal text-[10px]">
-              {" "}
-              rec/s
-            </span>
-          </div>
-          <div className="text-[10px] text-zinc-500">
-            avg {formatNumber(avgSpeed)}/s
-          </div>
-        </div>
-      </div>
-
-      {/* Errors */}
-      <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center flex-shrink-0">
-          <AlertCircle
-            size={ICON_SIZES.card}
-            aria-hidden="true"
-            className={totalErrors > 0 ? "text-red-400" : "text-zinc-500"}
-          />
-        </div>
-        <div>
-          <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
-            Errors
-          </div>
-          <div
-            className={`text-xs font-bold leading-tight mt-0.5 ${totalErrors > 0 ? "text-red-400" : "text-zinc-300"}`}
-          >
-            {formatNumber(totalErrors)}
-          </div>
-          <div className="text-[10px] text-zinc-500">
-            {totalRecords > 0
-              ? `${((totalErrors / totalRecords) * 100).toFixed(2)}% rate`
-              : "–"}
-          </div>
-        </div>
-      </div>
-
-      {/* Duration */}
-      <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center flex-shrink-0">
-          <Clock
-            size={ICON_SIZES.card}
-            aria-hidden="true"
-            className="text-zinc-400"
-          />
-        </div>
-        <div>
-          <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
-            Duration
-          </div>
-          <div className="text-xs text-zinc-200 font-semibold leading-tight mt-0.5">
-            {formatDuration(durationSec)}
-          </div>
-          {job.estimatedEnd && (
-            <div className="text-[10px] text-zinc-500">
-              eta{" "}
-              {job.estimatedEnd.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+          <div className="min-w-0">
+            <div
+              className="text-sm font-semibold text-text leading-snug line-clamp-2 break-words"
+              title={progressValue}
+            >
+              {progressValue}
             </div>
-          )}
+            <div className="text-xs text-text-secondary leading-snug line-clamp-2 mt-0.5">
+              {progressCaption}
+            </div>
+          </div>
+        </div>
+
+        {/* Speed / Avg speed */}
+        <div className="bg-surface-subtle border border-border rounded-lg p-3.5 flex flex-col justify-between gap-2 min-w-0 h-full">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-text-secondary truncate">
+              {speedLabel}
+            </span>
+            {isActive && speedHistory.length >= 2 ? (
+              <Sparkline data={speedHistory} />
+            ) : (
+              <Activity
+                size={ICON_SIZES.inline}
+                aria-hidden="true"
+                className="text-text-secondary shrink-0"
+              />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div
+              className={`text-sm font-semibold leading-snug line-clamp-2 break-words ${
+                isActive && typeof speedNumeric === "number" && speedNumeric > 0
+                  ? "text-primary"
+                  : "text-text"
+              }`}
+              title={speedValue}
+            >
+              {speedValue}
+            </div>
+            <div className="text-xs text-text-secondary leading-snug line-clamp-2 mt-0.5">
+              {speedCaption}
+            </div>
+          </div>
+        </div>
+
+        {/* Errors */}
+        <div className="bg-surface-subtle border border-border rounded-lg p-3.5 flex flex-col justify-between gap-2 min-w-0 h-full">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-text-secondary truncate">
+              Errors
+            </span>
+            <AlertCircle
+              size={ICON_SIZES.inline}
+              aria-hidden="true"
+              className={
+                (rejectedCount ?? 0) > 0
+                  ? "text-error shrink-0"
+                  : (quarantinedCount ?? 0) > 0
+                    ? "text-warning shrink-0"
+                    : "text-text-secondary shrink-0"
+              }
+            />
+          </div>
+          <div className="min-w-0">
+            <div
+              className={`text-sm font-semibold leading-snug line-clamp-2 break-words ${errorsValueClass}`}
+              title={errorsValue}
+            >
+              {errorsValue}
+            </div>
+            <div
+              className="text-xs text-text-secondary leading-snug line-clamp-2 mt-0.5"
+              title={errorsCaption}
+            >
+              {errorsCaption}
+            </div>
+          </div>
+        </div>
+
+        {/* Duration / Total processing time */}
+        <div className="bg-surface-subtle border border-border rounded-lg p-3.5 flex flex-col justify-between gap-2 min-w-0 h-full">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-text-secondary truncate">
+              {durationLabel}
+            </span>
+            <Clock
+              size={ICON_SIZES.inline}
+              aria-hidden="true"
+              className="text-text-secondary shrink-0"
+            />
+          </div>
+          <div className="min-w-0">
+            <div
+              className="text-sm font-semibold text-text leading-snug line-clamp-2 break-words"
+              title={formattedDuration}
+            >
+              {formattedDuration}
+            </div>
+            <div
+              className="text-xs text-text-secondary leading-snug line-clamp-2 mt-0.5"
+              title={durationCaption}
+            >
+              {durationCaption}
+            </div>
+          </div>
         </div>
       </div>
     </div>

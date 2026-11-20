@@ -309,3 +309,36 @@ The following capabilities requested for the **Configure database source** dialo
 ### 6.4 No Structured Error Codes on Connection Failure
 - **Observed Behavior**: Failed discovery calls return HTTP 400 with `{ "message": "Database connection rejected: <raw exception message>" }` and no machine-readable error code (e.g., `AUTH_FAILED`, `HOST_UNREACHABLE`, `TIMEOUT`, `DB_NOT_FOUND`).
 - **Frontend Impact**: The frontend classifies common error patterns client-side into clear titles + suggested fixes and places the raw message inside a collapsed `"Technical details"` disclosure with a Copy button.
+
+
+---
+
+## 7. Sync Progress Panel & Pipeline Execution Stream (`/api/v1/pipelines`) Missing API Fields & Capabilities
+
+The following gaps were identified during a read-only audit of `core-backend` (`PipelineMonitoringController.java`, `PipelineMonitoringService.java`, `PipelineRunDto.java`, `PipelineRun.java`, `PipelineSseController.java`) while improving the Sync Progress panel and Pipeline Execution Stream on `/connections`.
+
+### 7.1 No `recordsQuarantined` or Distinct `recordsRejected` vs `errorsCount` on `PipelineRunDto`
+- **Endpoints**: `GET /api/v1/pipelines`, `GET /api/v1/pipelines/runs`, `GET /api/v1/pipelines/runs/{id}`
+- **Observed Behavior**: `PipelineRun` and `PipelineRunDto` only expose `recordsInput`, `recordsOutput`, and `recordsFailed` (plus `metadata` JSON). There is no `recordsQuarantined` field, and `ConnectionUploadService` / `PipelineMonitoringService.syncRunsForActiveConnections()` initialize `recordsFailed = 0` without reporting quarantined or rejected counts from the cleaning/quarantine stage.
+- **Expected Behavior**: Persist and return explicit `recordsRejected` and `recordsQuarantined` (and `errorsCount` if distinct) on `PipelineRunDto` so runs with quarantined or rejected rows surface exact breakdowns (`"Loaded 840 - Quarantined 25 - Rejected 5"`).
+- **Frontend Impact**: The frontend reads `recordsQuarantined` / `quarantinedRecords` and `recordsRejected` / `recordsFailed` from the API response (and `metadata` JSON) when present, shows `"Completed with issues"` (amber) whenever either is `> 0`, and displays `"–"` when counts are not reported.
+
+### 7.2 No Per-Dataset Breakdown or `datasetId` Link on `PipelineRunDto`
+- **Endpoints**: `GET /api/v1/pipelines`, `GET /api/v1/pipelines/runs`
+- **Observed Behavior**:
+  - Each `PipelineRunDto` links only to `connectionId` (a `Connection`), not a `datasetId` or a per-dataset array with per-dataset durations/counts.
+  - `PipelineMonitoringService.syncRunsForActiveConnections()` hardcodes `pipelineType = "FILE_INGESTION"` for all backfilled connections (regardless of `Connection.Type`), and `PipelineRunDto.fromEntity()` falls back to `connectorType = "Database"` when the referenced connection no longer exists, which previously caused `FILE_INGESTION` rows to appear with a contradicting `Database` type tag.
+- **Expected Behavior**: Return `datasetId` (and per-dataset metrics if a run processes multiple datasets), and derive `pipelineType` accurately from the connection's actual `Connection.Type`.
+- **Frontend Impact**: The frontend resolves source type (`File`, `Database`, or `API`) honestly without displaying contradicting `FILE_INGESTION` + `Database` tags, shows run IDs (`#abcd1234`) and filenames so duplicate runs remain visible, and links both dataset rows and log run IDs to the shared `RunDetailDrawer`.
+
+### 7.3 Inflated `durationSeconds` When `completedAt` Is Null on Finished Runs
+- **DTO**: `com.luminai.connection.dto.PipelineRunDto.fromEntity`
+- **Observed Behavior**: `PipelineRunDto.fromEntity` computes `durationSeconds` as `Duration.between(startedAt, completedAt != null ? completedAt : Instant.now())`. If a finished run was persisted without `completedAt`, its `durationSeconds` grows indefinitely on every poll.
+- **Expected Behavior**: Always persist `completedAt` when transitioning a run to `COMPLETED`, `CLEANED`, `VALIDATED`, `FAILED`, or `CANCELLED`, or return `null` for `durationSeconds` when a finished run lacks `completedAt`.
+- **Frontend Impact**: The frontend displays each run's own `durationSeconds` for finished runs (and only ticks live elapsed time while `status === "running"`).
+
+### 7.4 No Historical Pipeline Execution Log Endpoint
+- **Endpoints**: `GET /api/v1/pipelines/stream` (SSE only), `GET /api/v1/pipelines` (run summaries only)
+- **Observed Behavior**: There is no REST endpoint returning historical line-by-line execution log entries for pipeline runs (nor any `DELETE` endpoint to clear server-side log history). The SSE stream (`/api/v1/pipelines/stream`) only emits live `pipeline.progress`, `pipeline.error`, `pipeline.complete`, and `ping` events.
+- **Expected Behavior**: Provide a paginated `GET /api/v1/pipelines/logs` (or `GET /api/v1/pipelines/runs/{id}/logs`) endpoint returning timestamped structured log lines with level, source, runId, message, and row counts.
+- **Frontend Impact**: The Pipeline Execution Stream combines live SSE events from `/api/v1/pipelines/stream` with timestamped lifecycle entries from `/api/v1/pipelines`, and the clear-view confirmation explicitly states `"Clear this view? History is kept."` because clearing only empties the local UI buffer.

@@ -17,9 +17,13 @@ export type {
 
 interface PipelineJobCardProps {
   job: PipelineJob;
+  onSelectRun?: (job: PipelineJob, triggerEl: HTMLElement | null) => void;
 }
 
-export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
+export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({
+  job,
+  onSelectRun,
+}) => {
   const [expanded, setExpanded] = useState(false);
   const meta = STATUS_META[job.status];
   const hasErrors = job.errors.length > 0;
@@ -30,18 +34,38 @@ export const PipelineJobCard: React.FC<PipelineJobCardProps> = ({ job }) => {
       className="bg-surface border border-border rounded-lg overflow-hidden transition-all duration-200 hover:border-text-secondary/40 shadow-xs"
     >
       {/* ── Main Row ──────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-12 items-center gap-3 px-4 py-3.5 select-none">
+      <div
+        className={`grid grid-cols-12 items-center gap-3 px-4 py-3.5 select-none ${
+          onSelectRun ? "cursor-pointer hover:bg-surface-hover/60" : ""
+        }`}
+        onClick={(e) => {
+          if (onSelectRun && !(e.target as HTMLElement).closest("button")) {
+            onSelectRun(job, e.currentTarget);
+          }
+        }}
+      >
         {/* Connector name + type */}
         <div className="col-span-3 flex items-center gap-2.5 min-w-0">
           <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary">
             <ConnectorIcon type={job.connectorType} />
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-text truncate leading-tight">
-              {job.connectorName}
-            </div>
+            {onSelectRun ? (
+              <button
+                type="button"
+                onClick={(e) => onSelectRun(job, e.currentTarget)}
+                className="text-xs font-semibold text-text hover:text-primary truncate leading-tight text-left block max-w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                title={job.connectorName}
+              >
+                {job.connectorName}
+              </button>
+            ) : (
+              <div className="text-xs font-semibold text-text truncate leading-tight">
+                {job.connectorName}
+              </div>
+            )}
             <div className="text-[10px] text-text-secondary font-mono truncate mt-0.5">
-              {job.connectorType}
+              {job.connectorType} · #{job.id.slice(0, 8)}
             </div>
           </div>
         </div>
