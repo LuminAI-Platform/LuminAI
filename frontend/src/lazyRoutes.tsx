@@ -81,3 +81,28 @@ export const TenantRegistrationPage = lazyComponent(
   "TenantRegistrationPage",
   <RouteLoader label="Loading Tenant Management" delayMs={300} />,
 );
+export const DatasetsPage = lazyComponent(
+  () => import("./pages/datasets/DatasetsPage"),
+  "DatasetsPage",
+  <ConnectionsSkeleton />,
+);
+export const DatasetDetailPage = lazyComponent(
+  () => import("./pages/datasets/DatasetDetailPage"),
+  "DatasetDetailPage",
+  <ConnectionsSkeleton />,
+);
+export const SqlStudioPage = lazyComponent(
+  () => import("./pages/analytics/SqlStudioPage"),
+  "SqlStudioPage",
+  <ConnectionsSkeleton />,
+);
+export const ModelWorkbenchPage = lazyComponent(
+  () => import("./pages/datascience/ModelWorkbenchPage"),
+  "ModelWorkbenchPage",
+  <ConnectionsSkeleton />,
+);
+export const ProjectsLineagePage = lazyComponent(
+  () => import("./pages/projects/ProjectsLineagePage"),
+  "ProjectsLineagePage",
+  <ConnectionsSkeleton />,
+);

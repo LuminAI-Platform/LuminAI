@@ -27,6 +27,11 @@ import {
   SettingsPage,
   UserRegistrationPage,
   TenantRegistrationPage,
+  DatasetsPage,
+  DatasetDetailPage,
+  SqlStudioPage,
+  ModelWorkbenchPage,
+  ProjectsLineagePage,
 } from "./lazyRoutes";
 
 const makePendingComponent = (label: string) =>
@@ -179,6 +184,41 @@ const adminTenantsRoute = createRoute({
   pendingComponent: makePendingComponent("Loading Tenant Management"),
 });
 
+const datasetsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/datasets",
+  component: DatasetsPage,
+  pendingComponent: ConnectionsSkeleton,
+});
+
+const datasetDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/datasets/$datasetId",
+  component: DatasetDetailPage,
+  pendingComponent: ConnectionsSkeleton,
+});
+
+const sqlStudioRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/analytics/sql",
+  component: SqlStudioPage,
+  pendingComponent: ConnectionsSkeleton,
+});
+
+const modelWorkbenchRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/datascience/models",
+  component: ModelWorkbenchPage,
+  pendingComponent: ConnectionsSkeleton,
+});
+
+const projectsLineageRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/projects",
+  component: ProjectsLineagePage,
+  pendingComponent: ConnectionsSkeleton,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   callbackRoute,
@@ -198,6 +238,11 @@ const routeTree = rootRoute.addChildren([
     settingsRoute,
     adminUsersRoute,
     adminTenantsRoute,
+    datasetsRoute,
+    datasetDetailRoute,
+    sqlStudioRoute,
+    modelWorkbenchRoute,
+    projectsLineageRoute,
   ]),
 ]);
 

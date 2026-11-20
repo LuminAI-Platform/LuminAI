@@ -190,6 +190,27 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
 
       {!collapsed && (
         <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary select-none">
+          Analytics & Intelligence
+        </div>
+      )}
+      {navItems
+        .filter((i) => i.section === "analytics")
+        .map((i) => (
+          <SidebarNavLinkItem
+            key={i.to}
+            to={i.to}
+            label={i.label}
+            icon={i.icon}
+            collapsed={collapsed}
+            exact={false}
+            onNavigate={() => setMobileOpen(false)}
+            pendingPath={pendingPath}
+            setPendingPath={setPendingPath}
+          />
+        ))}
+
+      {!collapsed && (
+        <div className="px-2 pt-4 pb-1 text-[11px] font-medium text-text-secondary select-none">
           Configuration
         </div>
       )}

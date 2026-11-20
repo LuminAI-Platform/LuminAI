@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import * as Popover from "@radix-ui/react-popover";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { RefreshCw, ArrowRight } from "../../lib/icons";
@@ -101,35 +100,34 @@ export const EngineStatusPillView: React.FC<EngineStatusPillViewProps> = ({
   const isStale = staleMinutes >= 2;
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger asChild>
-        <button
-          type="button"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border bg-surface-subtle/70 hover:bg-surface-subtle transition-colors text-xs cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
-          aria-label={`Engine status: ${config.label}. Click for engine details.`}
-          data-testid="engine-status-pill"
-        >
-          <span
-            className={`w-2 h-2 rounded-full shrink-0 ${config.dotClass}`}
-            aria-hidden="true"
-          />
-          <span className="text-text-secondary">Engine:</span>
-          <span className={`font-medium ${config.textClass}`}>
-            {config.label}
-          </span>
-        </button>
-      </Popover.Trigger>
+    <div
+      className="relative inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border bg-surface-subtle/70 hover:bg-surface-subtle transition-colors text-xs cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-surface"
+        aria-label={`Engine status: ${config.label}. Click for engine details.`}
+        aria-expanded={open}
+        data-testid="engine-status-pill"
+      >
+        <span
+          className={`w-2 h-2 rounded-full shrink-0 ${config.dotClass}`}
+          aria-hidden="true"
+        />
+        <span className="text-text-secondary">Engine:</span>
+        <span className={`font-medium ${config.textClass}`}>
+          {config.label}
+        </span>
+      </button>
 
-      <Popover.Portal>
-        <Popover.Content
-          side="top"
-          align="start"
-          sideOffset={8}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          className="z-[200] w-64 rounded-lg bg-surface border border-border shadow-lg p-3 text-xs text-text outline-none"
+      {open && (
+        <div
+          role="region"
+          aria-label="Engine status details"
+          className="absolute bottom-full left-0 mb-2 z-[200] w-64 rounded-lg bg-surface border border-border shadow-lg p-3 text-xs text-text outline-none"
           data-testid="engine-status-popover"
         >
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-border">
@@ -213,9 +211,9 @@ export const EngineStatusPillView: React.FC<EngineStatusPillViewProps> = ({
               </button>
             )}
           </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+        </div>
+      )}
+    </div>
   );
 };
 
