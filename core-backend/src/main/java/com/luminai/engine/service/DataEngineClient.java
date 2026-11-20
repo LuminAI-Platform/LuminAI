@@ -189,6 +189,22 @@ public class DataEngineClient {
     }
   }
 
+  public Map<String, Object> cleanDatasetDirect(Map<String, Object> requestPayload) {
+    try {
+      return restClient
+          .post()
+          .uri("/process/dataset/clean")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(requestPayload)
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(MAP_TYPE);
+    } catch (Exception e) {
+      log.debug("Data Engine direct dataset cleaning bypassed or unavailable: {}", e.getMessage());
+      return null;
+    }
+  }
+
   public Map<String, Object> resolveEntities(Object requestPayload) {
     try {
       return restClient

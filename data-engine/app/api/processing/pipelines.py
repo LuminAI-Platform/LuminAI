@@ -11,7 +11,10 @@ Endpoints:
 """
 
 import uuid
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from pydantic import BaseModel, Field
+import polars as pl
 
 from app.api.processing.models import (
     ErTriggerRequest,
@@ -20,10 +23,51 @@ from app.api.processing.models import (
     TriggerRequest,
     TriggerResponse,
 )
+from app.processing.engine import DatasetCleaner
 from app.processing.run_tracker import get_run_tracker
 from app.processing.trigger import DagsterTrigger
 
 router = APIRouter()
+
+
+class DatasetCleanRequest(BaseModel):
+    """Payload for on-demand synchronous dataset cleaning and evaluation."""
+    tenant_id: str = "acme"
+    source_id: str = "dataset"
+    entity_type: Optional[str] = None
+    rows: List[Dict[str, Any]] = Field(default_factory=list)
+    options: Dict[str, Any] = Field(default_factory=dict)
+
+
+@router.post(
+    "/dataset/clean",
+    summary="Synchronously clean, standardize, and evaluate dataset",
+    response_model=Dict[str, Any],
+)
+async def clean_dataset_sync(request: DatasetCleanRequest) -> Dict[str, Any]:
+    """Execute full data cleaning, profiling, ER, and DAMA quality assessment synchronously."""
+    cleaner = DatasetCleaner(tenant_id=request.tenant_id, source_id=request.source_id)
+    if not request.rows:
+        return {
+            "connectionId": request.source_id,
+            "totalRawRecords": 0,
+            "totalCleanRecords": 0,
+            "duplicatesMerged": 0,
+            "dataQualityScore": 100.0,
+            "status": "COMPLETED",
+            "columns": [],
+            "rows": [],
+            "goldenRecords": [],
+        }
+
+    try:
+        df = pl.DataFrame(request.rows)
+    except Exception:
+        import pandas as pd
+        df = pl.from_pandas(pd.DataFrame(request.rows))
+
+    result = cleaner.process_dataframe(df, entity_type_hint=request.entity_type)
+    return result.to_api_response()
 
 
 @router.post(

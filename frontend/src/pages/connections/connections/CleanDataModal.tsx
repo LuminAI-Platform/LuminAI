@@ -12,6 +12,7 @@ import {
   X,
   Loader2,
   CheckCircle2,
+  AlertTriangle,
 } from "../../../lib/icons";
 
 interface CleanDataModalProps {
@@ -33,6 +34,8 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
 }) => {
   const [selectedTableFilter, setSelectedTableFilter] =
     React.useState<string>("ALL");
+  const [selectedStateFilter, setSelectedStateFilter] =
+    React.useState<string>("ALL");
 
   const availableTables = React.useMemo(() => {
     const set = new Set<string>();
@@ -45,6 +48,14 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
   const filteredRows = (cleanData?.rows || []).filter((r) => {
     if (selectedTableFilter !== "ALL" && r._table !== selectedTableFilter) {
       return false;
+    }
+    if (selectedStateFilter !== "ALL") {
+      const stateStr = String(
+        r.quality_state || r.record_state || r.qualityState || r.status || "",
+      ).toUpperCase();
+      if (!stateStr.includes(selectedStateFilter)) {
+        return false;
+      }
     }
     if (!cleanSearchFilter) return true;
     const q = cleanSearchFilter.toLowerCase();
@@ -80,6 +91,30 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
     document.body.removeChild(link);
   };
 
+  const verifiedCount =
+    cleanData?.verifiedRecords ??
+    (cleanData?.rows || []).filter(
+      (r) =>
+        String(r.quality_state || r.record_state || "").toUpperCase() ===
+        "VERIFIED",
+    ).length;
+
+  const needsReviewCount =
+    cleanData?.needsReviewRecords ??
+    (cleanData?.rows || []).filter((r) =>
+      String(r.quality_state || r.record_state || "")
+        .toUpperCase()
+        .includes("REVIEW"),
+    ).length;
+
+  const rejectedCount =
+    cleanData?.rejectedRecords ??
+    (cleanData?.rows || []).filter((r) =>
+      String(r.quality_state || r.record_state || "")
+        .toUpperCase()
+        .includes("REJECT"),
+    ).length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
       <div className="bg-surface border border-border rounded-lg w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-sm animate-in fade-in zoom-in-95 duration-150">
@@ -93,12 +128,12 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
               <h3 className="text-sm font-bold text-text flex items-center gap-2">
                 Semantic Clean Data View
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success-bg border border-success-border text-success">
-                  Golden Records
+                  Golden Records & Quality
                 </span>
               </h3>
               <p className="text-[11px] text-text-secondary">
                 Source: {cleanPreviewFile.name} · Cleaned, deduplicated, and
-                resolved
+                standardized
               </p>
             </div>
           </div>
@@ -121,7 +156,7 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
 
         {/* Telemetry Strip */}
         <div className="px-5 py-2.5 bg-surface-subtle border-b border-border flex flex-wrap items-center justify-between gap-4 text-xs shrink-0">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <div>
               <span className="text-[10px] uppercase text-text-secondary block font-semibold">
                 Raw Records
@@ -148,10 +183,36 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
             </div>
             <div>
               <span className="text-[10px] uppercase text-text-secondary block font-semibold">
-                Quality Score
+                Verified
               </span>
               <span className="font-mono text-success font-bold">
-                {cleanData?.dataQualityScore ?? 98.5}%
+                {verifiedCount}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase text-text-secondary block font-semibold">
+                Needs Review
+              </span>
+              <span className="font-mono text-warning font-bold">
+                {needsReviewCount}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase text-text-secondary block font-semibold">
+                Quarantined
+              </span>
+              <span className="font-mono text-error font-bold">
+                {rejectedCount}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase text-text-secondary block font-semibold">
+                DAMA Quality Score
+              </span>
+              <span className="font-mono text-success font-bold">
+                {cleanData?.dataQualityScore != null
+                  ? `${cleanData.dataQualityScore}%`
+                  : "N/A"}
               </span>
             </div>
           </div>
@@ -167,42 +228,68 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
           </div>
         </div>
 
-        {/* Multi-table tab selector for archives */}
-        {availableTables.length > 0 && (
-          <div className="px-5 py-2 bg-surface border-b border-border flex items-center gap-2 overflow-x-auto shrink-0">
+        {/* Quality State & Table Filters */}
+        <div className="px-5 py-2 bg-surface border-b border-border flex items-center justify-between gap-4 overflow-x-auto shrink-0">
+          <div className="flex items-center gap-1.5">
             <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider mr-1">
-              Extracted Tables:
+              Quality State:
             </span>
-            <button
-              onClick={() => setSelectedTableFilter("ALL")}
-              className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
-                selectedTableFilter === "ALL"
-                  ? "bg-primary text-primary-text font-semibold shadow-xs"
-                  : "bg-surface-subtle border border-border text-text-secondary hover:text-text"
-              }`}
-            >
-              All Tables ({(cleanData?.rows || []).length})
-            </button>
-            {availableTables.map((tbl) => {
-              const count = (cleanData?.rows || []).filter(
-                (r) => r._table === tbl,
-              ).length;
-              return (
-                <button
-                  key={tbl}
-                  onClick={() => setSelectedTableFilter(tbl)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
-                    selectedTableFilter === tbl
-                      ? "bg-primary text-primary-text font-semibold shadow-xs"
-                      : "bg-surface-subtle border border-border text-text-secondary hover:text-text"
-                  }`}
-                >
-                  {tbl} ({count})
-                </button>
-              );
-            })}
+            {[
+              { id: "ALL", label: "All" },
+              { id: "VERIFIED", label: `Verified (${verifiedCount})` },
+              { id: "REVIEW", label: `Review (${needsReviewCount})` },
+              { id: "REJECT", label: `Quarantined (${rejectedCount})` },
+            ].map((st) => (
+              <button
+                key={st.id}
+                onClick={() => setSelectedStateFilter(st.id)}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
+                  selectedStateFilter === st.id
+                    ? "bg-primary text-primary-text font-semibold shadow-xs"
+                    : "bg-surface-subtle border border-border text-text-secondary hover:text-text"
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
           </div>
-        )}
+
+          {availableTables.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider mr-1">
+                Tables:
+              </span>
+              <button
+                onClick={() => setSelectedTableFilter("ALL")}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
+                  selectedTableFilter === "ALL"
+                    ? "bg-primary text-primary-text font-semibold shadow-xs"
+                    : "bg-surface-subtle border border-border text-text-secondary hover:text-text"
+                }`}
+              >
+                All ({(cleanData?.rows || []).length})
+              </button>
+              {availableTables.map((tbl) => {
+                const count = (cleanData?.rows || []).filter(
+                  (r) => r._table === tbl,
+                ).length;
+                return (
+                  <button
+                    key={tbl}
+                    onClick={() => setSelectedTableFilter(tbl)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
+                      selectedTableFilter === tbl
+                        ? "bg-primary text-primary-text font-semibold shadow-xs"
+                        : "bg-surface-subtle border border-border text-text-secondary hover:text-text"
+                    }`}
+                  >
+                    {tbl} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Content Table */}
         <div className="flex-1 overflow-auto bg-surface min-h-0">
@@ -261,9 +348,18 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
             Showing {Math.min(filteredRows.length, 200)} of{" "}
             {cleanData?.rows?.length || 0} records
           </span>
-          <span className="flex items-center gap-1.5 text-success">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Pipeline Verified Clean
-          </span>
+          {rejectedCount > 0 || needsReviewCount > 0 ? (
+            <span className="flex items-center gap-1.5 text-warning font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+              DAMA/ISO 25012 Audited · {rejectedCount} Quarantined ·{" "}
+              {needsReviewCount} Require Review
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-success font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5" /> DAMA/ISO 25012 Audited ·
+              All Records Verified
+            </span>
+          )}
         </div>
       </div>
     </div>

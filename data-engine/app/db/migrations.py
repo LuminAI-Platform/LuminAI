@@ -114,6 +114,30 @@ def ensure_tables_exist(engine: Optional[Engine] = None) -> None:
                             "ALTER TABLE golden_records ADD COLUMN updated_at DATETIME"
                         )
                     )
+                if "quality_state" not in columns:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE golden_records ADD COLUMN quality_state VARCHAR(50) DEFAULT 'VERIFIED' NOT NULL"
+                        )
+                    )
+                if "quality_score" not in columns:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE golden_records ADD COLUMN quality_score FLOAT DEFAULT 1.0 NOT NULL"
+                        )
+                    )
+                if "confidence_score" not in columns:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE golden_records ADD COLUMN confidence_score FLOAT DEFAULT 1.0 NOT NULL"
+                        )
+                    )
+                if "conflicts" not in columns:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE golden_records ADD COLUMN conflicts TEXT"
+                        )
+                    )
     except Exception as exc:
         logger.debug("Schema alignment notice: %s", exc)
 

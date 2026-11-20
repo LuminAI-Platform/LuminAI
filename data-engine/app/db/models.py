@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -42,6 +43,10 @@ class GoldenRecord(Base):
     cluster_size: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     source_record_ids: Mapped[str] = mapped_column(Text, nullable=False)
     attributes: Mapped[str] = mapped_column(Text, nullable=False)
+    quality_state: Mapped[str] = mapped_column(String(50), default="VERIFIED", nullable=False)
+    quality_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    confidence_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    conflicts: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -110,6 +115,48 @@ class ProvenanceRecord(Base):
     source_record_id: Mapped[str] = mapped_column(String(255), nullable=False)
     source_id: Mapped[str] = mapped_column(String(255), nullable=False)
     confidence_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class DataQualityReport(Base):
+    """Aggregate data quality assessment metrics and profiling results."""
+
+    __tablename__ = "data_quality_reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    dataset_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    overall_score: Mapped[float] = mapped_column(Float, nullable=False)
+    dimension_scores: Mapped[str] = mapped_column(Text, nullable=False)
+    verified_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    needs_review_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rejected_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    profiling_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class TransformationAuditRecord(Base):
+    """Fine-grained lineage tracking transformation steps for auditability."""
+
+    __tablename__ = "transformation_audit_records"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    record_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    stage: Mapped[str] = mapped_column(String(50), nullable=False)
+    step_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    field_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    original_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    transformed_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
