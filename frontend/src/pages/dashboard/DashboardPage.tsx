@@ -11,7 +11,6 @@ import { Button } from "../../components/ui/Button";
 import { EntityBreakdownChart } from "./components/EntityBreakdownChart";
 import { PipelineTimelineChart } from "./components/PipelineTimelineChart";
 import { ActivityFeed } from "./components/ActivityFeed";
-import { DataEngineTelemetryCard } from "../../features/dashboard/components/DataEngineTelemetryCard";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useDashboardData } from "./useDashboardData";
 import { DashboardKpiRow } from "./components/DashboardKpiRow";
@@ -37,7 +36,7 @@ export const DashboardPage: React.FC = () => {
   } = useDashboardData();
 
   return (
-    <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-8">
+    <div className="flex flex-col gap-6 pb-8">
       {/* Standard Page Header */}
       <PageHeader
         breadcrumbs={[{ label: "Dashboard" }]}
@@ -121,12 +120,6 @@ export const DashboardPage: React.FC = () => {
         engineMetrics={engineMetrics}
       />
 
-      {/* Processing Engine */}
-      <DataEngineTelemetryCard
-        summary={summary}
-        engineMetrics={engineMetrics}
-      />
-
       {/* 2. Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-surface border border-border rounded-lg p-5 shadow-xs">
@@ -181,7 +174,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* 3. Bottom Row: Activity Feed & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
         <div className="lg:col-span-2 bg-surface border border-border rounded-lg p-5 shadow-xs">
           <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
             <div>

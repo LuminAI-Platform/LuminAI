@@ -140,8 +140,10 @@ describe("Dashboard ActivityFeed Component", () => {
     expect(html).toContain("View all runs");
     expect(html).toContain('href="/connections/pipelines"');
 
-    // Contains overscroll-behavior: contain to prevent scroll trapping
-    expect(html).toContain("[overscroll-behavior:contain]");
+    // Must NOT have inner scroll container or overscroll containment that traps page scroll
+    expect(html).not.toContain("[overscroll-behavior:contain]");
+    expect(html).not.toContain("overflow-y-auto");
+    expect(html).not.toContain("max-h-[360px]");
   });
 
   it("resolves correct target routes for various activity types", () => {

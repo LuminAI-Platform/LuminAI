@@ -75,10 +75,10 @@ export const EntityDetailPage: React.FC = () => {
 
         {/* Entity Header Card */}
         <EntityHeaderCard
-          canonicalName={entity.canonicalName || "Unnamed Entity"}
-          entityType={entity.entityType || "Entity"}
-          entityId={entity.id || entityId}
-          createdAt={entity.createdAt}
+          canonicalName={entity.canonicalName}
+          entityType={entity.entityType}
+          entityId={entity.id}
+          createdAt={entity.createdAt ?? ""}
           typeColor={typeConf.color}
           typeIcon={typeConf.icon}
           onExploreGraph={handleExploreGraph}

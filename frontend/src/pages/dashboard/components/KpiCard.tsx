@@ -17,6 +17,7 @@ export interface KpiCardProps {
   status?: "default" | "warning" | "danger" | "success";
   isLoading?: boolean;
   isCached?: boolean;
+  mutedValue?: boolean;
 }
 
 /**
@@ -35,6 +36,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   status = "default",
   isLoading = false,
   isCached = false,
+  mutedValue = false,
 }) => {
   const getIconContainerStyle = () => {
     if (status === "danger" || badge?.variant === "danger") {
@@ -78,9 +80,9 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         ) : (
           <>
             <span
-              className={`text-3xl font-semibold tabular-nums tracking-tight text-text ${
-                isCached ? "opacity-70" : ""
-              }`}
+              className={`text-3xl font-semibold tabular-nums tracking-tight ${
+                mutedValue ? "text-text-muted" : "text-text"
+              } ${isCached ? "opacity-70" : ""}`}
             >
               {typeof value === "number" ? value.toLocaleString() : value}
             </span>

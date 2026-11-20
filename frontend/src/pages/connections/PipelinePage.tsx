@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Icons, ArrowRight, BarChart3, ICON_SIZES } from "../../lib/icons";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { PipelineMonitor } from "../../features/connections/components/PipelineMonitor";
+import { SystemHealthSection } from "../../features/connections/components/SystemHealthSection";
 import { PipelineAnalysisView } from "../../features/connections/components/pipeline-analysis/PipelineAnalysisView";
 
 type PipelineTab = "live" | "analysis";
@@ -173,8 +174,11 @@ export const PipelinePage: React.FC = () => {
 
       {/* Main Tab View */}
       {activeTab === "live" ? (
-        <div className="bg-surface border border-border rounded-lg p-5">
-          <PipelineMonitor onStreamStatusChange={setStreamStatus} />
+        <div className="flex flex-col gap-5">
+          <div className="bg-surface border border-border rounded-lg p-5">
+            <PipelineMonitor onStreamStatusChange={setStreamStatus} />
+          </div>
+          <SystemHealthSection />
         </div>
       ) : (
         <PipelineAnalysisView />
