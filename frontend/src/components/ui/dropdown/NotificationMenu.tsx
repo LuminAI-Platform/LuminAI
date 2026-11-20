@@ -114,7 +114,7 @@ export const NotificationMenu: React.FC<NotificationMenuProps> = ({
           >
             <Bell size={ICON_SIZES.header} aria-hidden="true" />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[15px] h-3.5 px-1 bg-primary text-primary-text text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+              <span className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 px-1 bg-primary text-primary-text text-[8px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-surface">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}

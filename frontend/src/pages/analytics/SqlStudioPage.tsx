@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { BodyPortal } from "../../components/ui/BodyPortal";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import {
@@ -248,46 +249,48 @@ export const SqlStudioPage: React.FC = () => {
 
       {/* Save Query Modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-xl">
-            <h3 className="text-base font-bold text-text">Save SQL Query</h3>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-text-secondary">
-                Query Name
-              </label>
-              <input
-                type="text"
-                value={saveQueryName}
-                onChange={(e) => setSaveQueryName(e.target.value)}
-                placeholder="e.g. Monthly Revenue by Tier"
-                className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowSaveModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={!saveQueryName.trim()}
-                isLoading={saveMutation.isPending}
-                onClick={() =>
-                  saveMutation.mutate({
-                    name: saveQueryName,
-                    sqlText: queryText,
-                  })
-                }
-              >
-                Save
-              </Button>
+        <BodyPortal>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9990] flex items-center justify-center p-4">
+            <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-xl">
+              <h3 className="text-base font-bold text-text">Save SQL Query</h3>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-text-secondary">
+                  Query Name
+                </label>
+                <input
+                  type="text"
+                  value={saveQueryName}
+                  onChange={(e) => setSaveQueryName(e.target.value)}
+                  placeholder="e.g. Monthly Revenue by Tier"
+                  className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowSaveModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!saveQueryName.trim()}
+                  isLoading={saveMutation.isPending}
+                  onClick={() =>
+                    saveMutation.mutate({
+                      name: saveQueryName,
+                      sqlText: queryText,
+                    })
+                  }
+                >
+                  Save
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </BodyPortal>
       )}
     </div>
   );

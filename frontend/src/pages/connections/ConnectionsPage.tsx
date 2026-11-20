@@ -150,19 +150,6 @@ export const ConnectionsPage: React.FC = () => {
     });
   };
 
-  if (isWizardOpen) {
-    return (
-      <FileUploadWizard
-        initialFile={initialUploadFile}
-        onClose={closeWizard}
-        onSuccess={() => {
-          closeWizard();
-          loadConnectors(false);
-        }}
-      />
-    );
-  }
-
   const tabs: { id: ConnectionsTab; label: string }[] = [
     { id: "all", label: `All sources (${unifiedSources.length})` },
     {
@@ -335,6 +322,17 @@ export const ConnectionsPage: React.FC = () => {
         <SyncJobDetails />
         <ExecutionLogs />
       </div>
+
+      {isWizardOpen && (
+        <FileUploadWizard
+          initialFile={initialUploadFile}
+          onClose={closeWizard}
+          onSuccess={() => {
+            closeWizard();
+            loadConnectors(false);
+          }}
+        />
+      )}
 
       {isDbModalOpen && (
         <DatabaseConnectorForm

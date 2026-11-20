@@ -143,8 +143,8 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
 
   return (
     <nav
-      className={`flex-1 py-4 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0 ${
-        collapsed ? "px-2 items-center" : "px-3.5"
+      className={`sidebar-scroll flex-1 py-4 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0 ${
+        collapsed ? "px-2 items-center" : "pl-3.5 pr-3"
       }`}
     >
       {!collapsed && (

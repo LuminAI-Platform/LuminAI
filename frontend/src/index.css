@@ -325,6 +325,29 @@ svg.lucide {
   scrollbar-color: var(--color-border) var(--color-page);
 }
 
+/* Sidebar scrollbar: hidden until hover, with stable right gutter so active highlights are never clipped */
+.sidebar-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: var(--color-border) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+}
+
 /* Clean, calm background grid — no neon, no high contrast */
 .bg-grid-dots {
   background-image: radial-gradient(currentColor 0.75px, transparent 0.75px);

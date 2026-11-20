@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { BodyPortal } from "../../../components/ui/BodyPortal";
 import { Link } from "@tanstack/react-router";
 import {
   X,
@@ -149,18 +150,18 @@ export const EntityDetailDrawer: React.FC<EntityDetailDrawerProps> = ({
   const updatedLabel = formatShortDate(detail?.updatedAt || entity.updatedAt);
 
   return (
-    <>
+    <BodyPortal>
       <div
         onClick={onClose}
         aria-hidden="true"
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity duration-150 motion-reduce:transition-none"
+        className="fixed inset-0 z-[9990] bg-black/40 backdrop-blur-[2px] transition-opacity duration-150 motion-reduce:transition-none"
       />
 
       <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby="entity-drawer-title"
-        className="fixed top-0 right-0 z-50 h-full w-full max-w-lg bg-surface border-l border-border shadow-2xl flex flex-col"
+        className="fixed top-0 right-0 z-[9991] h-full w-full max-w-lg bg-surface border-l border-border shadow-2xl flex flex-col"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-border shrink-0">
@@ -305,6 +306,6 @@ export const EntityDetailDrawer: React.FC<EntityDetailDrawerProps> = ({
           </Link>
         </div>
       </aside>
-    </>
+    </BodyPortal>
   );
 };

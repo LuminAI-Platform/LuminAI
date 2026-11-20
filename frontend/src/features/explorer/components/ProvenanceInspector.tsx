@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { BodyPortal } from "../../../components/ui/BodyPortal";
 import { X, GitBranch, Info, RefreshCw, ICON_SIZES } from "../../../lib/icons";
 import { Tooltip } from "../../../components/ui/Tooltip";
 import { apiFetch } from "../../../lib/api";
@@ -88,10 +89,10 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
     : provenanceLines;
 
   return (
-    <>
+    <BodyPortal>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        className={`fixed inset-0 z-[9990] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
         onClick={onClose}
         aria-hidden="true"
       />
@@ -101,7 +102,7 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label="Property Provenance Inspector"
-        className={`fixed top-0 right-0 h-full z-50 w-full max-w-md bg-zinc-950 border-l border-zinc-800/80 shadow-2xl shadow-black/80 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed top-0 right-0 h-full z-[9991] w-full max-w-md bg-zinc-950 border-l border-zinc-800/80 shadow-2xl shadow-black/80 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0">
@@ -188,6 +189,6 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
           )}
         </div>
       </aside>
-    </>
+    </BodyPortal>
   );
 };
