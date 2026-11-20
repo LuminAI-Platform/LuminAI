@@ -247,7 +247,14 @@ class GoldenRecordEngine:
         for rec in cluster_records:
             rec_id = str(rec.get("id") or rec.get("record_id") or rec.get("raw_id") or "")
             src = str(rec.get("_table") or rec.get("source_id") or "default")
-            ts = self._parse_timestamp(rec.get("updated_at") or rec.get("created_at") or rec.get("staged_at"))
+            ts = self._parse_timestamp(
+                rec.get("updated_at")
+                or rec.get("created_at")
+                or rec.get("staged_at")
+                or rec.get("joined_at")
+                or rec.get("timestamp")
+                or next((v for k, v in rec.items() if k.endswith("_at") or "date" in k.lower()), None)
+            )
 
             for k, v in rec.items():
                 if k in exclude_keys or k.startswith("_"):
