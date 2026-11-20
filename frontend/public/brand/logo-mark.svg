@@ -1,0 +1,22 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top Face (Luminex Illuminated Navy with sharp chisel cuts) -->
+  <path d="M18 3.5L31 10.5L18 17.5L5 10.5L18 3.5Z" fill="#1B4278"/>
+
+  <!-- Left Face: Forms the vertical spine of the 'L' (Deep Luminex Navy) -->
+  <path d="M5 10.5L18 17.5V32.5L5 25.5V10.5Z" fill="#0A1B36"/>
+
+  <!-- Right Face (Rich Luminex Corporate Navy) -->
+  <path d="M18 17.5L31 10.5V25.5L18 32.5V17.5Z" fill="#102F5E"/>
+
+  <!-- Luminex Angular Chisel Spur (matching the acute cut on the 'L' stem) -->
+  <path d="M5 10.5L10 7.5L8.5 12L5 10.5Z" fill="#D31A24"/>
+
+  <!-- Luminex Ascending Kinetic Streak (Red Vector Arrow cutting through the cube) -->
+  <path d="M4 22L13 17L18 17.5L10 26L4 22Z" fill="#D31A24"/>
+  <path d="M18 17.5L26 13L33 9L29 18L18 17.5Z" fill="#E0242D"/>
+
+  <!-- Central Illuminated Core Node & Graph Nexus -->
+  <circle cx="18" cy="17.5" r="2.5" fill="#FFFFFF"/>
+  <path d="M18 17.5V6" stroke="#93C5FD" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M18 17.5L28 23.5" stroke="#93C5FD" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

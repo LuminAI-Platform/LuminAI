@@ -13,17 +13,7 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
 import { SandboxLoginPage } from "./features/auth/SandboxLoginPage";
 import { NotFoundPage } from "./pages/common/NotFoundPage";
-import {
-  DashboardSkeleton,
-  PipelineMonitorSkeleton,
-  ConnectionsSkeleton,
-  ExplorerSkeleton,
-  GraphSkeleton,
-  SchemaMapSkeleton,
-  MergeReviewSkeleton,
-  OntologySkeleton,
-  SettingsSkeleton,
-} from "./components/skeletons/RouteSkeletons";
+import { RouteLoader } from "./components/ui/BrandLoader";
 import {
   DashboardPage,
   ExplorerPage,
@@ -38,6 +28,11 @@ import {
   UserRegistrationPage,
   TenantRegistrationPage,
 } from "./lazyRoutes";
+
+const makePendingComponent = (label: string) =>
+  function RoutePendingLoader() {
+    return <RouteLoader label={label} delayMs={0} />;
+  };
 
 // 1. Root Route
 const rootRoute = createRootRoute({
@@ -88,42 +83,42 @@ const indexRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/",
   component: DashboardPage,
-  pendingComponent: DashboardSkeleton,
+  pendingComponent: makePendingComponent("Loading Dashboard"),
 });
 
 const explorerRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer",
   component: ExplorerPage,
-  pendingComponent: ExplorerSkeleton,
+  pendingComponent: makePendingComponent("Loading Entity Explorer"),
 });
 
 const entityDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/explorer/$entityId",
   component: EntityDetailPage,
-  pendingComponent: ExplorerSkeleton,
+  pendingComponent: makePendingComponent("Loading Entity Details"),
 });
 
 const connectionsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections",
   component: ConnectionsPage,
-  pendingComponent: ConnectionsSkeleton,
+  pendingComponent: makePendingComponent("Loading Connections"),
 });
 
 const schemaMapRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/schema-map",
   component: SchemaMapPage,
-  pendingComponent: SchemaMapSkeleton,
+  pendingComponent: makePendingComponent("Loading Schema Studio"),
 });
 
 const pipelineRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/pipelines",
   component: PipelinePage,
-  pendingComponent: PipelineMonitorSkeleton,
+  pendingComponent: makePendingComponent("Loading Pipeline Monitor"),
 });
 
 const legacyPipelineRoute = createRoute({
@@ -138,28 +133,28 @@ const mergeReviewRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/connections/merge-review",
   component: MergeReviewPage,
-  pendingComponent: MergeReviewSkeleton,
+  pendingComponent: makePendingComponent("Loading Merge Review"),
 });
 
 const ontologyRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/ontology",
   component: OntologyPage,
-  pendingComponent: OntologySkeleton,
+  pendingComponent: makePendingComponent("Loading Ontology Manager"),
 });
 
 const graphRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/graph",
   component: GraphPage,
-  pendingComponent: GraphSkeleton,
+  pendingComponent: makePendingComponent("Loading Knowledge Graph"),
 });
 
 const settingsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/settings",
   component: SettingsPage,
-  pendingComponent: SettingsSkeleton,
+  pendingComponent: makePendingComponent("Loading Settings"),
 });
 
 const adminUsersRoute = createRoute({
@@ -170,7 +165,7 @@ const adminUsersRoute = createRoute({
       <UserRegistrationPage />
     </AdminRoute>
   ),
-  pendingComponent: SettingsSkeleton,
+  pendingComponent: makePendingComponent("Loading User Management"),
 });
 
 const adminTenantsRoute = createRoute({
@@ -181,7 +176,7 @@ const adminTenantsRoute = createRoute({
       <TenantRegistrationPage />
     </AdminRoute>
   ),
-  pendingComponent: SettingsSkeleton,
+  pendingComponent: makePendingComponent("Loading Tenant Management"),
 });
 
 const routeTree = rootRoute.addChildren([
@@ -211,8 +206,8 @@ const router = createRouter({
   defaultNotFoundComponent: AppShellNotFound,
   defaultPreload: "intent",
   defaultPreloadDelay: 50,
-  defaultPendingMs: 50,
-  defaultPendingMinMs: 150,
+  defaultPendingMs: 300,
+  defaultPendingMinMs: 400,
 });
 
 declare module "@tanstack/react-router" {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2, ICON_SIZES } from "../../lib/icons";
+import { BrandLoader } from "./BrandLoader";
 
 export type ButtonVariant =
   | "primary"
@@ -67,15 +67,7 @@ export const Button: React.FC<ButtonProps> = ({
       className={`inline-flex items-center justify-center font-medium transition-colors duration-150 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...props}
     >
-      {isLoading ? (
-        <Loader2
-          size={ICON_SIZES.inline}
-          className="animate-spin motion-reduce:animate-none shrink-0"
-          aria-hidden="true"
-        />
-      ) : (
-        leftIcon
-      )}
+      {isLoading ? <BrandLoader variant="inline" size={18} /> : leftIcon}
       <span>{children}</span>
       {!isLoading && rightIcon}
     </button>

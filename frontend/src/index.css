@@ -194,6 +194,110 @@
   }
 }
 
+/* ========================================================
+   BrandLoader Animations (Ring, Shine, Inline)
+   ======================================================== */
+@keyframes brand-ring-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes brand-logo-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes brand-shine-sweep {
+  0% {
+    -webkit-mask-position: 135% 0;
+    mask-position: 135% 0;
+  }
+  100% {
+    -webkit-mask-position: -135% 0;
+    mask-position: -135% 0;
+  }
+}
+
+.brand-loader-arc-1 {
+  transform-origin: center;
+  animation: brand-ring-spin 1.35s linear infinite;
+}
+
+.brand-loader-arc-2 {
+  transform-origin: center;
+  animation: brand-ring-spin 2.1s linear infinite reverse;
+}
+
+.brand-loader-arc-3 {
+  transform-origin: center;
+  animation: brand-ring-spin 2.85s linear infinite;
+}
+
+.brand-loader-inline-ring {
+  transform-origin: center;
+  animation: brand-ring-spin 1.1s linear infinite;
+}
+
+.brand-loader-pulse {
+  animation: brand-logo-pulse 2.4s ease-in-out infinite;
+}
+
+.brand-loader-shine-base {
+  opacity: 0.2;
+}
+
+.brand-loader-shine-overlay {
+  -webkit-mask-image: linear-gradient(
+    115deg,
+    transparent 28%,
+    #000 50%,
+    transparent 72%
+  );
+  mask-image: linear-gradient(
+    115deg,
+    transparent 28%,
+    #000 50%,
+    transparent 72%
+  );
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: brand-shine-sweep 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-arc-1,
+  .brand-loader-arc-2,
+  .brand-loader-arc-3,
+  .brand-loader-inline-ring,
+  .brand-loader-pulse,
+  .brand-loader-shine-overlay {
+    animation: none !important;
+  }
+
+  .brand-loader-pulse {
+    opacity: 1 !important;
+  }
+
+  .brand-loader-shine-base {
+    opacity: 1 !important;
+  }
+
+  .brand-loader-shine-overlay {
+    display: none !important;
+  }
+}
+
 /* Global Icon Styling: Single stroke width globally, currentColor for theme tokens */
 svg.lucide {
   stroke-width: 2px;
