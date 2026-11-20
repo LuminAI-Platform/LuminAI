@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Icons,
@@ -12,6 +12,8 @@ import { FileUploadWizard } from "../../features/connections/components/FileUplo
 import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
+import { RunDetailDrawer } from "../../features/connections/components/pipeline-analysis/RunDetailDrawer";
+import type { PipelineRunItem } from "../../features/connections/components/pipeline-analysis/pipelineAnalysisTypes";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useConnectionModalStore } from "../../stores/connectionModalStore";
@@ -35,11 +37,28 @@ const TAB_ORDER: ConnectionsTab[] = ["all", "connectors", "files"];
 
 export const ConnectionsPage: React.FC = () => {
   const openChooser = useConnectionModalStore((state) => state.openChooser);
+  const [selectedRunDetail, setSelectedRunDetail] = useState<{
+    run: PipelineRunItem | null;
+    runId?: string | null;
+  } | null>(null);
+  const runDetailTriggerRef = useRef<HTMLElement | null>(null);
   const tabRefs = useRef<Record<ConnectionsTab, HTMLButtonElement | null>>({
     all: null,
     connectors: null,
     files: null,
   });
+
+  const handleOpenRunDetail = (
+    runOrId: PipelineRunItem | string,
+    triggerEl: HTMLElement | null,
+  ) => {
+    runDetailTriggerRef.current = triggerEl;
+    if (typeof runOrId === "string") {
+      setSelectedRunDetail({ run: null, runId: runOrId });
+    } else {
+      setSelectedRunDetail({ run: runOrId, runId: runOrId.id });
+    }
+  };
 
   const {
     isWizardOpen,
@@ -317,11 +336,20 @@ export const ConnectionsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Observability Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-2">
-        <SyncJobDetails />
-        <ExecutionLogs />
+      {/* Observability Section — stacks below 1100px */}
+      <div className="grid grid-cols-1 min-[1100px]:grid-cols-2 gap-5 mt-2 items-start">
+        <SyncJobDetails onOpenRunDetail={handleOpenRunDetail} />
+        <ExecutionLogs onOpenRunDetail={handleOpenRunDetail} />
       </div>
+
+      {selectedRunDetail && (
+        <RunDetailDrawer
+          run={selectedRunDetail.run}
+          runId={selectedRunDetail.runId}
+          onClose={() => setSelectedRunDetail(null)}
+          triggerButtonRef={runDetailTriggerRef}
+        />
+      )}
 
       {isWizardOpen && (
         <FileUploadWizard

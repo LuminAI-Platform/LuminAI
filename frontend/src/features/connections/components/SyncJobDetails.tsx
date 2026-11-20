@@ -1,118 +1,111 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { apiFetch, ApiError } from "../../../lib/api";
+import { Database, FileText, Plug, ICON_SIZES } from "../../../lib/icons";
+import type { PipelineRunItem } from "./pipeline-analysis/pipelineAnalysisTypes";
 import type {
   SyncJobStatus,
   SyncDataset,
   SyncJob,
 } from "./sync-job/syncJobTypes";
-import { SOURCE_ICONS, STATUS_CONFIG } from "./sync-job/syncJobTypes";
+import { STATUS_CONFIG } from "./sync-job/syncJobTypes";
+import {
+  parseSyncDatasetFromApi,
+  formatOutcomeSummary,
+} from "./sync-job/syncJobHelpers";
 import { SyncJobKpiCards } from "./sync-job/SyncJobKpiCards";
 import { SyncDatasetRow } from "./sync-job/SyncDatasetRow";
 
 export type { SyncJobStatus, SyncDataset, SyncJob };
 
 interface SyncJobDetailsProps {
-  job?: SyncJob;
+  datasets?: SyncDataset[];
+  onOpenRunDetail?: (
+    run: PipelineRunItem,
+    triggerEl: HTMLElement | null,
+  ) => void;
   onPause?: (jobId: string) => void;
   onResume?: (jobId: string) => void;
   onCancel?: (jobId: string) => void;
 }
 
 export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
-  job: controlledJob,
+  datasets: controlledDatasets,
+  onOpenRunDetail,
   onPause,
   onResume,
   onCancel,
 }) => {
-  const [internalJob, setJob] = useState<SyncJob | null>(null);
+  const [internalDatasets, setInternalDatasets] = useState<SyncDataset[]>([]);
+  // "all" shows totals across all datasets; otherwise holds the selected dataset/run ID
+  const [selectedScope, setSelectedScope] = useState<string | null>(null);
   const [speedHistory, setSpeedHistory] = useState<number[]>([]);
-  const [currentSpeed, setCurrentSpeed] = useState<number>(0);
-  const [avgSpeed, setAvgSpeed] = useState<number>(0);
-  const [, setTick] = useState(0);
-  const [now, setNow] = useState(0);
+  const [liveNow, setLiveNow] = useState<number>(() => Date.now());
+  const [liveAnnouncement, setLiveAnnouncement] = useState<string>("");
 
-  const tickRef = useRef(0);
+  const prevStatusesRef = useRef<Record<string, SyncJobStatus>>({});
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const job = controlledJob ?? internalJob;
+  const datasets = controlledDatasets ?? internalDatasets;
 
   const fetchSyncJobs = useCallback(async () => {
     try {
       const res = await apiFetch("/api/v1/pipelines?size=20", {
         headers: { "X-Suppress-Toast": "true" },
       });
-      if (res.ok) {
-        const page = (await res.json()) as unknown;
-        const items: Record<string, unknown>[] = Array.isArray(page)
-          ? page
-          : Array.isArray((page as { content?: unknown[] })?.content)
-            ? ((page as { content: unknown[] }).content as Record<
-                string,
-                unknown
-              >[])
-            : [];
-        if (items.length > 0) {
-          const raw = items[0];
-          const statusRaw = String(raw.status ?? "RUNNING").toLowerCase();
-          const mappedStatus = (
-            ["running", "paused", "completed", "failed"].includes(statusRaw)
-              ? statusRaw
-              : "running"
-          ) as SyncJobStatus;
+      if (!res.ok) return;
 
-          const datasets: SyncDataset[] = items.map(
-            (item: Record<string, unknown>, i: number) => {
-              const dsStatus = String(item.status ?? "RUNNING").toLowerCase();
-              return {
-                id: String(item.id ?? `ds-${i}`),
-                name: String(
-                  item.pipelineType ?? item.connectorName ?? `dataset-${i}`,
-                ),
-                source: String(item.connectorType ?? "database"),
-                totalRecords: Number(item.recordsInput ?? 1000),
-                syncedRecords: Number(item.recordsOutput ?? 0),
-                failedRecords: Number(item.recordsFailed ?? 0),
-                status: (["running", "paused", "completed", "failed"].includes(
-                  dsStatus,
-                )
-                  ? dsStatus
-                  : "running") as SyncJobStatus,
-                startedAt: item.startedAt
-                  ? new Date(String(item.startedAt))
-                  : new Date(),
-              };
-            },
-          );
+      const page = (await res.json()) as unknown;
+      const items: Record<string, unknown>[] = Array.isArray(page)
+        ? page
+        : Array.isArray((page as { content?: unknown[] })?.content)
+          ? ((page as { content: unknown[] }).content as Record<
+              string,
+              unknown
+            >[])
+          : [];
 
-          const throughput =
-            typeof raw.throughput === "number" ? Math.round(raw.throughput) : 0;
+      const parsed = items.map((item, idx) =>
+        parseSyncDatasetFromApi(item, idx),
+      );
 
-          setJob({
-            id: String(raw.id ?? `job-${Date.now()}`),
-            name: `Sync: ${String(raw.connectorName ?? "Pipeline")}`,
-            connection: String(raw.connectorName ?? "Data Connector"),
-            connectionType: String(raw.connectorType ?? "postgresql")
-              .toLowerCase()
-              .replace(/\s+/g, "") as SyncJob["connectionType"],
-            status: mappedStatus,
-            startedAt: raw.startedAt
-              ? new Date(String(raw.startedAt))
-              : new Date(),
-            estimatedEnd: undefined,
-            datasets,
-          });
-
-          if (throughput > 0) {
-            setCurrentSpeed(throughput);
-            setSpeedHistory((h) => {
-              const next = [...h, throughput].slice(-24);
-              setAvgSpeed(
-                Math.floor(next.reduce((a, b) => a + b, 0) / next.length),
-              );
-              return next;
-            });
-          }
+      // Announce run completions via ARIA live region
+      const prevMap = prevStatusesRef.current;
+      for (const ds of parsed) {
+        const prevStatus = prevMap[ds.id];
+        if (
+          prevStatus === "running" &&
+          (ds.status === "completed" ||
+            ds.status === "completed_with_issues" ||
+            ds.status === "failed")
+        ) {
+          const outcome = formatOutcomeSummary(ds);
+          const statusText = STATUS_CONFIG[ds.status].label.toLowerCase();
+          setLiveAnnouncement(`Sync ${statusText} for ${ds.name}: ${outcome}.`);
+          break;
         }
+      }
+      const nextMap: Record<string, SyncJobStatus> = {};
+      parsed.forEach((ds) => {
+        nextMap[ds.id] = ds.status;
+      });
+      prevStatusesRef.current = nextMap;
+
+      setInternalDatasets(parsed);
+
+      // Record live throughput samples ONLY when a run is actively running
+      const activeRun = parsed.find((d) => d.status === "running");
+      if (activeRun && typeof activeRun.throughput === "number") {
+        setSpeedHistory((h) =>
+          [...h, Math.round(activeRun.throughput!)].slice(-24),
+        );
+      } else {
+        setSpeedHistory([]);
       }
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 401) {
@@ -125,6 +118,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
   }, []);
 
   useEffect(() => {
+    if (controlledDatasets !== undefined) return;
     Promise.resolve().then(() => {
       fetchSyncJobs();
     });
@@ -132,183 +126,311 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
     return () => {
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
     };
-  }, [fetchSyncJobs]);
+  }, [controlledDatasets, fetchSyncJobs]);
 
-  const advance = useCallback(() => {
-    const ts = Date.now();
-    setNow(ts);
-    tickRef.current++;
-    setTick(tickRef.current);
-  }, []);
+  // Default to the most recent dataset (index 0)
+  const effectiveScope = useMemo(() => {
+    if (datasets.length === 0) return null;
+    if (selectedScope === "all") return "all";
+    if (selectedScope && datasets.some((d) => d.id === selectedScope)) {
+      return selectedScope;
+    }
+    return datasets[0].id;
+  }, [datasets, selectedScope]);
+
+  const isAllScope = effectiveScope === "all";
+  const selectedDataset = useMemo(
+    () =>
+      isAllScope
+        ? null
+        : (datasets.find((d) => d.id === effectiveScope) ??
+          datasets[0] ??
+          null),
+    [datasets, effectiveScope, isAllScope],
+  );
+
+  const hasActiveInScope = isAllScope
+    ? datasets.some((d) => d.status === "running")
+    : selectedDataset?.status === "running";
 
   useEffect(() => {
-    const id = setInterval(advance, 1000);
+    if (!hasActiveInScope) return;
+    const id = setInterval(() => setLiveNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [advance]);
+  }, [hasActiveInScope]);
 
-  if (!job) {
+  const handleSelectRow = useCallback(
+    (ds: SyncDataset, triggerEl: HTMLButtonElement | null) => {
+      setSelectedScope(ds.id);
+      if (ds.rawRun && onOpenRunDetail) {
+        onOpenRunDetail(ds.rawRun, triggerEl);
+      }
+    },
+    [onOpenRunDetail],
+  );
+
+  if (datasets.length === 0) {
     return (
-      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-8 flex flex-col items-center justify-center text-center">
-        <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <ellipse cx="12" cy="5" rx="9" ry="3" />
-            <path d="M3 5v14c0 1.657 4.03 3 9 3s9-1.343 9-3V5" />
-            <path d="M3 12c0 1.657 4.03 3 9 3s9-1.343 9-3" />
-          </svg>
+      <section
+        aria-label="Sync progress"
+        className="bg-surface border border-border rounded-lg p-8 flex flex-col items-center justify-center text-center"
+      >
+        <div className="w-10 h-10 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary mb-3">
+          <Database size={ICON_SIZES.header} aria-hidden="true" />
         </div>
-        <p className="text-sm font-semibold text-zinc-300">
+        <p className="text-sm font-semibold text-text">
           No active sync pipeline
         </p>
-        <p className="text-xs text-zinc-500 mt-1 max-w-sm">
-          Start a pipeline ingestion job or upload a dataset to monitor
-          real-time sync metrics here.
+        <p className="text-xs text-text-secondary mt-1 max-w-sm">
+          Start a pipeline ingestion job or upload a dataset to monitor sync
+          metrics here.
         </p>
-      </div>
+      </section>
     );
   }
 
-  const totalRecords = job.datasets.reduce(
-    (acc, ds) => acc + ds.totalRecords,
-    0,
+  // Compute scoped metrics — strictly matching the selected scope
+  const scopeDatasets = isAllScope
+    ? datasets
+    : selectedDataset
+      ? [selectedDataset]
+      : [];
+
+  const scopeStatus: SyncJobStatus = (() => {
+    if (!isAllScope && selectedDataset) return selectedDataset.status;
+    if (scopeDatasets.some((d) => d.status === "running")) return "running";
+    if (scopeDatasets.some((d) => d.status === "failed")) return "failed";
+    if (scopeDatasets.some((d) => d.status === "completed_with_issues")) {
+      return "completed_with_issues";
+    }
+    if (scopeDatasets.some((d) => d.status === "paused")) return "paused";
+    return "completed";
+  })();
+
+  const hasAnyTotal = scopeDatasets.some(
+    (d) => typeof d.totalRecords === "number",
   );
-  const totalSynced = job.datasets.reduce(
-    (acc, ds) => acc + ds.syncedRecords,
-    0,
+  const hasAnySynced = scopeDatasets.some(
+    (d) => typeof d.syncedRecords === "number",
   );
-  const totalErrors = job.datasets.reduce(
-    (acc, ds) => acc + ds.failedRecords,
-    0,
+  const totalRecords = hasAnyTotal
+    ? scopeDatasets.reduce((sum, d) => sum + (d.totalRecords ?? 0), 0)
+    : undefined;
+  const totalSynced = hasAnySynced
+    ? scopeDatasets.reduce((sum, d) => sum + (d.syncedRecords ?? 0), 0)
+    : undefined;
+
+  const hasAnyRejected = scopeDatasets.some(
+    (d) => typeof d.rejectedRecords === "number",
   );
-  const overallPct = totalRecords > 0 ? (totalSynced / totalRecords) * 100 : 0;
-  const durationSec = Math.max(
-    0,
-    Math.floor((now - job.startedAt.getTime()) / 1000),
+  const rejectedCount = hasAnyRejected
+    ? scopeDatasets.reduce((sum, d) => sum + (d.rejectedRecords ?? 0), 0)
+    : undefined;
+
+  const hasAnyQuarantined = scopeDatasets.some(
+    (d) => typeof d.quarantinedRecords === "number",
   );
-  const cfg = STATUS_CONFIG[job.status];
+  const quarantinedCount = hasAnyQuarantined
+    ? scopeDatasets.reduce((sum, d) => sum + (d.quarantinedRecords ?? 0), 0)
+    : undefined;
+
+  const durationSec: number | undefined = (() => {
+    if (!isAllScope && selectedDataset) {
+      if (selectedDataset.status === "running" && selectedDataset.startedAt) {
+        return Math.max(
+          0,
+          Math.floor((liveNow - selectedDataset.startedAt.getTime()) / 1000),
+        );
+      }
+      return selectedDataset.durationSeconds;
+    }
+    const withDur = scopeDatasets.filter(
+      (d) => typeof d.durationSeconds === "number",
+    );
+    if (withDur.length === 0) return undefined;
+    return withDur.reduce((sum, d) => sum + (d.durationSeconds ?? 0), 0);
+  })();
+
+  const throughputValues = scopeDatasets
+    .map((d) => d.throughput)
+    .filter((v): v is number => typeof v === "number" && v > 0);
+  const avgSpeed =
+    throughputValues.length > 0
+      ? throughputValues.reduce((a, b) => a + b, 0) / throughputValues.length
+      : undefined;
+  const currentSpeed = hasActiveInScope
+    ? (scopeDatasets.find((d) => d.status === "running")?.throughput ??
+      avgSpeed)
+    : undefined;
+
+  const headerTitle = isAllScope
+    ? "All sync activity"
+    : `Sync: ${selectedDataset?.name ?? "Dataset"}`;
+  const scopeCaption = isAllScope
+    ? `${datasets.length} ${datasets.length === 1 ? "dataset" : "datasets"}`
+    : "1 dataset";
+  const cfg = STATUS_CONFIG[scopeStatus];
+
+  const SourceIcon =
+    !isAllScope && selectedDataset?.sourceType === "File"
+      ? FileText
+      : !isAllScope && selectedDataset?.sourceType === "API"
+        ? Plug
+        : Database;
 
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden flex flex-col gap-4 py-4">
+    <section
+      aria-label="Sync progress"
+      className="bg-surface border border-border rounded-lg overflow-hidden flex flex-col gap-4 py-4 shadow-sm"
+    >
+      {/* ARIA live region for run completion announcements */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {liveAnnouncement}
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between px-5">
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-100 leading-none">
-              {job.name}
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 sm:px-5">
+        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${cfg.dot} ${
+              scopeStatus === "running"
+                ? "animate-pulse motion-reduce:animate-none"
+                : ""
+            }`}
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <h2
+              className="text-sm font-semibold text-text leading-snug truncate"
+              title={headerTitle}
+            >
+              {headerTitle}
             </h2>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-zinc-500 text-[10px]">
-                {SOURCE_ICONS[job.connectionType]}
-              </span>
-              <span className="text-[11px] text-zinc-500 font-mono">
-                {job.connection}
-              </span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-text-secondary">
+              <span>{scopeCaption}</span>
+              {!isAllScope && selectedDataset && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <SourceIcon size={12} aria-hidden="true" />
+                    <span>{selectedDataset.sourceType}</span>
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span
+                    className="font-mono text-[11px] text-text-muted"
+                    title={`Run ID: ${selectedDataset.id}`}
+                  >
+                    #{selectedDataset.id.slice(0, 8)}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          {datasets.length > 1 && (
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedScope(isAllScope ? datasets[0].id : "all")
+              }
+              className="text-xs font-medium px-2.5 py-1 rounded-md bg-surface-subtle border border-border text-text-secondary hover:text-text hover:border-border-focus transition-colors motion-reduce:transition-none cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              {isAllScope ? "Latest dataset" : "All sync activity"}
+            </button>
+          )}
           <span
-            className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${cfg.badge}`}
+            className={`text-xs px-2.5 py-1 rounded-full border whitespace-nowrap ${cfg.badge}`}
           >
             {cfg.label}
           </span>
-          {onPause && job.status === "running" && (
-            <button
-              onClick={() => {
-                setJob((j) => (j ? { ...j, status: "paused" } : null));
-                onPause?.(job.id);
-              }}
-              title="Pause sync"
-              className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-amber-400 hover:border-amber-500/30 transition-all cursor-pointer"
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <rect x="6" y="4" width="4" height="16" rx="1" />
-                <rect x="14" y="4" width="4" height="16" rx="1" />
-              </svg>
-            </button>
-          )}
-          {onResume && job.status === "paused" && (
-            <button
-              onClick={() => {
-                setJob((j) => (j ? { ...j, status: "running" } : null));
-                onResume?.(job.id);
-              }}
-              title="Resume sync"
-              className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all cursor-pointer"
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            </button>
-          )}
-          {onCancel &&
-            (job.status === "running" || job.status === "paused") && (
+          {!isAllScope &&
+            selectedDataset &&
+            onPause &&
+            selectedDataset.status === "running" && (
               <button
-                onClick={() => {
-                  setJob((j) => (j ? { ...j, status: "failed" } : null));
-                  onCancel?.(job.id);
-                }}
-                title="Cancel sync"
-                className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-400 hover:border-red-500/30 transition-all cursor-pointer"
+                type="button"
+                onClick={() => onPause(selectedDataset.id)}
+                title="Pause sync"
+                aria-label="Pause sync"
+                className="p-1.5 rounded-lg bg-surface-subtle border border-border text-text-secondary hover:text-warning hover:border-warning-border transition-colors cursor-pointer"
               >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                Pause
+              </button>
+            )}
+          {!isAllScope &&
+            selectedDataset &&
+            onResume &&
+            selectedDataset.status === "paused" && (
+              <button
+                type="button"
+                onClick={() => onResume(selectedDataset.id)}
+                title="Resume sync"
+                aria-label="Resume sync"
+                className="p-1.5 rounded-lg bg-surface-subtle border border-border text-text-secondary hover:text-success hover:border-success-border transition-colors cursor-pointer"
+              >
+                Resume
+              </button>
+            )}
+          {!isAllScope &&
+            selectedDataset &&
+            onCancel &&
+            (selectedDataset.status === "running" ||
+              selectedDataset.status === "paused") && (
+              <button
+                type="button"
+                onClick={() => onCancel(selectedDataset.id)}
+                title="Cancel sync"
+                aria-label="Cancel sync"
+                className="p-1.5 rounded-lg bg-surface-subtle border border-border text-text-secondary hover:text-error hover:border-error-border transition-colors cursor-pointer"
+              >
+                Cancel
               </button>
             )}
         </div>
       </div>
 
-      {/* KPI Row */}
+      {/* Stat Cards */}
       <SyncJobKpiCards
-        job={job}
-        overallPct={overallPct}
+        status={scopeStatus}
+        isAllScope={isAllScope}
+        datasetCount={datasets.length}
         totalSynced={totalSynced}
         totalRecords={totalRecords}
+        isActive={hasActiveInScope}
         currentSpeed={currentSpeed}
         speedHistory={speedHistory}
         avgSpeed={avgSpeed}
-        totalErrors={totalErrors}
+        rejectedCount={rejectedCount}
+        quarantinedCount={quarantinedCount}
         durationSec={durationSec}
       />
 
       {/* Dataset Breakdown */}
-      <div className="px-5 flex flex-col gap-2">
-        <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">
-          Datasets ({job.datasets.length})
+      <div className="px-4 sm:px-5 flex flex-col gap-2">
+        <div className="flex items-center justify-between text-xs font-medium text-text-secondary">
+          <span>Datasets ({datasets.length})</span>
+          <span className="text-[11px] text-text-muted">
+            Select a dataset to view stats and run detail
+          </span>
         </div>
-        <div className="flex flex-col gap-2">
-          {job.datasets.map((ds) => (
-            <SyncDatasetRow key={ds.id} ds={ds} />
+        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-0.5">
+          {datasets.map((ds) => (
+            <SyncDatasetRow
+              key={ds.id}
+              ds={ds}
+              isSelected={!isAllScope && selectedDataset?.id === ds.id}
+              onSelect={handleSelectRow}
+            />
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 };
