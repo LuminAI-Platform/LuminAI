@@ -63,7 +63,9 @@ const SidebarNavLinkItem: React.FC<SidebarNavLinkItemProps> = ({
         preload="intent"
         activeOptions={{ exact }}
         aria-label={tooltipLabel}
-        className={`flex items-center p-2 rounded-lg gap-3 font-medium transition-all duration-150 border cursor-pointer relative ${
+        className={`flex items-center rounded-lg font-medium transition-all duration-150 border cursor-pointer relative ${
+          collapsed ? "justify-center w-10 h-10 mx-auto p-0 gap-0" : "p-2 gap-3"
+        } ${
           isItemPending
             ? "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!"
             : "text-text-secondary hover:bg-surface-subtle hover:text-text border-transparent hover:border-border"
@@ -88,13 +90,11 @@ const SidebarNavLinkItem: React.FC<SidebarNavLinkItemProps> = ({
             </span>
           )}
         </span>
-        <span
-          className={`text-[13px] transition-opacity duration-200 whitespace-nowrap flex-1 truncate ${
-            collapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100"
-          }`}
-        >
-          {label}
-        </span>
+        {!collapsed && (
+          <span className="text-[13px] whitespace-nowrap flex-1 truncate">
+            {label}
+          </span>
+        )}
 
         {/* Pending Review Badge (Expanded) */}
         {!collapsed && formattedBadge && (
@@ -142,7 +142,11 @@ export const SidebarNavList: React.FC<SidebarNavListProps> = ({
   }, [routerState.status, routerState.isLoading]);
 
   return (
-    <nav className="flex-1 py-4 px-3.5 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0">
+    <nav
+      className={`flex-1 py-4 flex flex-col gap-1 overflow-y-auto overflow-x-hidden min-h-0 ${
+        collapsed ? "px-2 items-center" : "px-3.5"
+      }`}
+    >
       {!collapsed && (
         <div className="px-2 pt-1 pb-1 text-[11px] font-medium text-text-secondary select-none">
           Explore and overview

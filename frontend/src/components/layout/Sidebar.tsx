@@ -117,13 +117,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
 
         {/* Footer section */}
-        <div className="p-3 border-t border-border flex flex-col gap-1 shrink-0">
+        <div
+          className={`p-3 border-t border-border flex flex-col gap-1 shrink-0 ${
+            collapsed ? "items-center" : ""
+          }`}
+        >
           {/* Settings */}
           <SidebarTooltip label="Settings" enabled={collapsed}>
             <Link
               to="/settings"
               aria-label="Settings"
-              className="flex items-center p-2.5 text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg gap-3 font-medium transition-all duration-150 border border-transparent"
+              className={`flex items-center text-text-secondary hover:bg-surface-subtle hover:text-text rounded-lg font-medium transition-all duration-150 border border-transparent ${
+                collapsed ? "justify-center w-10 h-10 p-0 gap-0" : "p-2.5 gap-3"
+              }`}
               activeProps={{
                 className:
                   "bg-primary-tint! text-primary! font-semibold! border-primary-border! border!",
@@ -135,15 +141,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="shrink-0"
                 aria-hidden="true"
               />
-              <span
-                className={`text-[13px] transition-opacity duration-200 whitespace-nowrap ${
-                  collapsed
-                    ? "opacity-0 w-0 pointer-events-none"
-                    : "opacity-100"
-                }`}
-              >
-                Settings
-              </span>
+              {!collapsed && (
+                <span className="text-[13px] whitespace-nowrap">Settings</span>
+              )}
             </Link>
           </SidebarTooltip>
         </div>

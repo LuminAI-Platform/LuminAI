@@ -10,6 +10,7 @@ import { WizardStepper } from "./file-upload/WizardStepper";
 export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   onClose,
   onSuccess,
+  initialFile,
 }) => {
   const {
     step,
@@ -45,7 +46,7 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     updateMapping,
     startIngestion,
     handleClose,
-  } = useFileUpload(onClose, onSuccess);
+  } = useFileUpload(onClose, onSuccess, initialFile);
 
   return (
     <div

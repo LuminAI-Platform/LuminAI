@@ -4,7 +4,11 @@ import { useOntologyFetcher } from "./useOntologyFetcher";
 import { useMappingConfig } from "./useMappingConfig";
 import { useIngestionRunner } from "./useIngestionRunner";
 
-export function useFileUpload(onClose: () => void, onSuccess?: () => void) {
+export function useFileUpload(
+  onClose: () => void,
+  onSuccess?: () => void,
+  initialFile?: File | null,
+) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -13,6 +17,7 @@ export function useFileUpload(onClose: () => void, onSuccess?: () => void) {
     rows: [],
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialFileLoadedRef = useRef(false);
 
   const {
     ontologyEntityTypes,
@@ -40,6 +45,13 @@ export function useFileUpload(onClose: () => void, onSuccess?: () => void) {
     backendEntityTypes,
     onSuccess,
   });
+
+  useEffect(() => {
+    if (initialFile && !initialFileLoadedRef.current) {
+      initialFileLoadedRef.current = true;
+      mapping.handleFile(initialFile);
+    }
+  }, [initialFile, mapping]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
