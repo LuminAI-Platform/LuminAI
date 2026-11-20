@@ -249,3 +249,40 @@ The following missing fields, incomplete endpoint behaviors, and data anomalies 
 - **Endpoint**: `GET /api/v1/explorer/search`
 - **Observed Behavior**: The 60 golden records currently returned by `/api/v1/explorer/search` appear to be earlier seeded/test records rather than records ingested from the hospital patients file.
 - **Expected Behavior**: Confirm that the hospital patients ingestion pipeline has completed and published resolved `GoldenRecord` entries into the active tenant schema, and clear or isolate earlier test seed records if they should not appear alongside hospital patient data.
+
+
+---
+
+## 5. Data Connections & Ingestion (`/connections`) Missing API Fields & Endpoints
+
+The following missing fields, connector types, and actions were identified during a read-only audit of `core-backend` (`ConnectionController.java`, `ConnectionDto.java`, `Connection.java`) for the `/connections` page redesign.
+
+### 5.1 No Object Storage Connector Support
+- **Model**: `com.luminai.connection.model.Connection.Type`
+- **Observed Behavior**: The enum only defines `FILE`, `POSTGRESQL`, `MYSQL`, `MSSQL`, and `API`. No object storage connector type (e.g., `S3`, `GCS`, `AZURE_BLOB`, or `OBJECT_STORAGE`) or bucket configuration endpoint exists.
+- **Frontend Impact**: No "Object storage" tab, connector tile group, or chooser option is rendered, and "object storage" was removed from the `/connections` page subtitle.
+
+### 5.2 No ClickHouse (or Native Snowflake) Enum in `Connection.Type`
+- **Model**: `com.luminai.connection.model.Connection.Type`
+- **Observed Behavior**: `CLICKHOUSE` and `SNOWFLAKE` are not present in `Connection.Type`. (`DatabaseConnectorForm` exposes PostgreSQL, MySQL, SQL Server, and Snowflake, mapping Snowflake to `POSTGRESQL` on save.)
+- **Frontend Impact**: The Database empty-state connector grid shows only connectors currently supported by the connection form (`PostgreSQL`, `MySQL`, `SQL Server`, `Snowflake`); ClickHouse is omitted until backend support exists.
+
+### 5.3 No "Sync now" Trigger Endpoint
+- **Controller**: `com.luminai.connection.controller.ConnectionController` (`/api/v1/connections`)
+- **Observed Behavior**: Available endpoints are `GET /`, `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /discover`, `POST /{id}/upload`, and preview/export endpoints. There is no `POST /api/v1/connections/{id}/sync` endpoint to trigger an on-demand sync for a connection.
+- **Frontend Impact**: "Sync now" is omitted from the per-row action menu.
+
+### 5.4 Missing `rowsSynced` Metric on Database Connectors
+- **DTO**: `com.luminai.connection.dto.ConnectionDto.Response`
+- **Observed Behavior**: `ConnectionDto.Response` returns `id`, `tenantId`, `name`, `type`, `config`, `credentialsRef`, `status`, `lastSyncAt`, `createdBy`, `createdAt`, and `updatedAt`. It does not return a `rowsSynced` count for database connectors (only `FILE` connections store `rowsCount` inside their JSON `config`).
+- **Frontend Impact**: Rows synced displays the exact count for flat files and `—` for database connectors unless the API begins returning `rowsSynced`.
+
+### 5.5 Missing Schema Drift Warning Metadata
+- **DTO**: `com.luminai.connection.dto.ConnectionDto.Response`
+- **Observed Behavior**: No `schemaDrift` boolean or drift warning description is returned by `GET /api/v1/connections`.
+- **Frontend Impact**: Schema drift warning badges are skipped unless `schemaDrift` is present in the API response or connection `config`.
+
+### 5.6 No `SYNCING` Status in `Connection.Status`
+- **Model**: `com.luminai.connection.model.Connection.Status`
+- **Observed Behavior**: `Connection.Status` only defines `ACTIVE`, `INACTIVE`, and `ERROR` (no `SYNCING` state).
+- **Frontend Impact**: The frontend maps `ACTIVE` → `Connected`, `INACTIVE` → `Paused`, and `ERROR` → `Failed`, and will automatically display `Syncing` if the API adds `SYNCING`.

@@ -4,6 +4,7 @@ import { TopBar } from "./TopBar";
 import { NavigationProgressBar } from "./NavigationProgressBar";
 import { EngineStatusPill } from "./EngineStatusPill";
 import { TooltipProvider } from "../ui/Tooltip";
+import { NewConnectionChooserModal } from "../../features/connections/components/NewConnectionChooserModal";
 import {
   CheckCircle2,
   AlertCircle,
@@ -97,6 +98,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             </footer>
           </div>
         </div>
+        <NewConnectionChooserModal />
       </TooltipProvider>
     </LucideProvider>
   );

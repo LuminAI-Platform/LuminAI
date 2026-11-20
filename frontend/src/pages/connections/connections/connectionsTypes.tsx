@@ -1,12 +1,18 @@
 import React from "react";
 
+export type ConnectionsTab = "all" | "connectors" | "files";
+
+export type SourceStatus = "Connected" | "Syncing" | "Failed" | "Paused";
+
 export interface IngestedFile {
   id: string;
   name: string;
   size: string;
   recordsCount: number;
-  status: "Synced" | "Failed" | "Syncing";
+  status: SourceStatus | "Synced";
   createdAt: string;
+  lastSyncedAt?: string;
+  schemaDriftWarning?: string;
   columns?: string[];
   sampleRows?: Record<string, unknown>[];
 }
@@ -35,25 +41,58 @@ export interface CleanDataResponse {
 export interface DatabaseConnector {
   id?: string;
   name: string;
-  status: string;
+  status: SourceStatus | string;
   pipelines: number;
   type: string;
   desc: string;
   lastSyncedAt?: string;
+  rowsSynced?: number;
+  schemaDriftWarning?: string;
+}
+
+export interface UnifiedSource {
+  id: string;
+  name: string;
+  category: "database" | "file";
+  typeLabel: string;
+  rawType: string;
+  status: SourceStatus;
+  lastSyncAt?: string;
+  rowsSynced?: number;
+  schemaDriftWarning?: string;
+  desc?: string;
+  size?: string;
+  pipelines?: number;
+  fileRef?: IngestedFile;
+  connectorRef?: DatabaseConnector;
 }
 
 export function formatRelativeTime(dateInput?: string | Date | null): string {
-  if (!dateInput) return "Just now";
+  if (!dateInput) return "never";
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  if (isNaN(date.getTime())) return "Recently";
+  if (isNaN(date.getTime())) return "recently";
   const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diffSec < 15) return "Just now";
+  if (diffSec < 15) return "just now";
   if (diffSec < 60) return `${diffSec}s ago`;
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) return `${diffMin}m ago`;
   const diffHours = Math.floor(diffMin / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
   return `${Math.floor(diffHours / 24)}d ago`;
+}
+
+export function formatExactTimestamp(dateInput?: string | Date | null): string {
+  if (!dateInput) return "No sync recorded yet";
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return String(dateInput);
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 export function formatTimeAgo(dateStr: string): string {

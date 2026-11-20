@@ -14,16 +14,25 @@ import { ConnectedSummary } from "./db-connector/ConnectedSummary";
 interface DatabaseConnectorFormProps {
   onClose: () => void;
   onSuccess: () => void;
+  initialDbType?: DBType;
 }
+
+const DEFAULT_PORTS: Record<DBType, number> = {
+  postgresql: 5432,
+  mysql: 3306,
+  snowflake: 443,
+  sqlserver: 1433,
+};
 
 export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   onClose,
   onSuccess,
+  initialDbType = "postgresql",
 }) => {
   const [name, setName] = useState("");
-  const [dbType, setDbType] = useState<DBType>("postgresql");
+  const [dbType, setDbType] = useState<DBType>(initialDbType);
   const [host, setHost] = useState("");
-  const [port, setPort] = useState(5432);
+  const [port, setPort] = useState(DEFAULT_PORTS[initialDbType] ?? 5432);
   const [databaseName, setDatabaseName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

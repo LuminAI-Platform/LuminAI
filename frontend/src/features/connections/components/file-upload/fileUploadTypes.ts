@@ -3,6 +3,7 @@ import type { ColumnConfig } from "../DataPreviewTable";
 export interface FileUploadWizardProps {
   onClose: () => void;
   onSuccess?: () => void;
+  initialFile?: File | null;
 }
 
 export interface IngestionLog {

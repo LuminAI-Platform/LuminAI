@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
+import { useConnectionModalStore } from "../../stores/connectionModalStore";
 import {
   ThemeMenu,
   NotificationMenu,
@@ -16,6 +16,7 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { user } = useAuthStore();
+  const openChooser = useConnectionModalStore((state) => state.openChooser);
 
   return (
     <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 md:px-8 z-30 transition-colors">
@@ -59,14 +60,15 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         {/* Divider */}
         <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
 
-        {/* New Connection Action */}
-        <Link
-          to="/connections"
+        {/* New Connection Action — opens chooser dialog */}
+        <button
+          type="button"
+          onClick={openChooser}
           className="bg-primary hover:bg-primary-hover text-primary-text font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer border border-primary shadow-xs"
         >
           <Plus size={ICON_SIZES.inline} aria-hidden="true" />
-          <span>New Connection</span>
-        </Link>
+          <span>New connection</span>
+        </button>
 
         {/* Divider */}
         {user && <div className="w-px h-5 bg-border mx-1 hidden sm:block" />}
