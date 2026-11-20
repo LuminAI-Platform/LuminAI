@@ -55,7 +55,7 @@ export const ModelWorkbenchPage: React.FC = () => {
   const trainMutation = useMutation({
     mutationFn: async () => {
       // Synthetic feature dataset representing structured customer profiles
-      const records = [];
+      const records: Record<string, unknown>[] = [];
       for (let i = 0; i < 60; i++) {
         records.push({
           age: 22 + (i % 25),
