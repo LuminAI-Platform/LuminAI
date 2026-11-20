@@ -242,9 +242,9 @@ class TestQuarantineFailureCapture:
 
             # Verify quarantine reasons
             reasons = [m.error_reason for m in quarantined]
-            assert any("Empty/missing ID" in r for r in reasons)
-            assert any("Empty/missing Name" in r for r in reasons)
-            assert any("Missing '@'" in r for r in reasons)
+            assert any("mandatory identifier" in r.lower() or "empty/missing id" in r.lower() for r in reasons)
+            assert any("mandatory name" in r.lower() or "empty/missing name" in r.lower() for r in reasons)
+            assert any("missing '@'" in r.lower() for r in reasons)
 
 
 # ─── 4. Checkpoint Manager Tests ───────────────────────────────────────────

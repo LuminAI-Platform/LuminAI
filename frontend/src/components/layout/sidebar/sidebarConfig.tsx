@@ -4,7 +4,7 @@ import { Icons } from "../../../lib/icons";
 export interface NavItem {
   label: string;
   to: string;
-  section: "mesh" | "pipelines" | "system";
+  section: "mesh" | "pipelines" | "analytics" | "system";
   icon: LucideIcon;
   badgeKey?: "fusionReview";
 }
@@ -30,12 +30,24 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Icons.KnowledgeGraph,
   },
 
-  // DATA PIPELINES
+  // DATA PIPELINES & DATASETS
   {
     label: "Data Connections",
     to: "/connections",
     section: "pipelines",
     icon: Icons.DataConnections,
+  },
+  {
+    label: "Dataset Catalog",
+    to: "/datasets",
+    section: "pipelines",
+    icon: Icons.Database,
+  },
+  {
+    label: "Projects & Lineage",
+    to: "/projects",
+    section: "pipelines",
+    icon: Icons.GitBranch,
   },
   {
     label: "Schema Studio",
@@ -55,6 +67,20 @@ export const NAV_ITEMS: NavItem[] = [
     to: "/connections/pipelines",
     section: "pipelines",
     icon: Icons.PipelineMonitor,
+  },
+
+  // ANALYTICS & INTELLIGENCE
+  {
+    label: "SQL & Analytics Studio",
+    to: "/analytics/sql",
+    section: "analytics",
+    icon: Icons.Table,
+  },
+  {
+    label: "ML & AI Studio",
+    to: "/datascience/models",
+    section: "analytics",
+    icon: Icons.Cpu,
   },
 
   // SYSTEM ARCHITECTURE

@@ -1,16 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Activity,
-  AlertCircle,
-  ArrowRight,
-  RefreshCw,
-} from "../../../lib/icons";
+import { ArrowRight } from "../../../lib/icons";
 import { apiFetch, ApiError } from "../../../lib/api";
 import { queryClient } from "../../../lib/queryClient";
-import { Button } from "../../../components/ui/Button";
-import { Skeleton } from "../../../components/ui/Skeleton";
 import { PipelineJobCard, type PipelineJob } from "./PipelineJobCard";
 import {
   usePipelineStream,
@@ -22,13 +15,15 @@ import {
   normaliseJob,
   formatNumber,
 } from "./pipeline-monitor/pipelineMonitorUtils";
-import {
-  ConnectionDot,
-  FilterPill,
-} from "./pipeline-monitor/pipelineMonitorTypes";
-import { MultiSelect } from "../../../components/ui/dropdown";
+import { ConnectionDot } from "./pipeline-monitor/pipelineMonitorTypes";
 import { ThroughputGauge } from "./pipeline-monitor/ThroughputGauge";
 import { PipelineKpis } from "./pipeline-monitor/PipelineKpis";
+import {
+  PipelineMonitorLoading,
+  PipelineMonitorError,
+  PipelineMonitorEmpty,
+} from "./pipeline-monitor/PipelineEmptyStates";
+import { PipelineFilterToolbar } from "./pipeline-monitor/PipelineFilterToolbar";
 
 interface PipelineMonitorProps {
   initialJobs?: PipelineJob[];
@@ -72,7 +67,6 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     }
   }, []);
 
-  // React Query with 30s cache retention (stale-while-revalidate)
   const {
     data: queryData,
     isLoading: isQueryLoading,
@@ -132,11 +126,9 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       }
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        if (err.status === 401) {
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
+        if (err.status === 401 && pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
         }
         if (err.status === 404) {
           setIs404Error(true);
@@ -189,10 +181,8 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     onComplete: handleComplete,
   });
 
-  // Calculate active streams / running count
   const activeJobsCount = jobs.filter((j) => j.status === "RUNNING").length;
 
-  // Notify parent of stream connection status
   useEffect(() => {
     onStreamStatusChange?.({
       isConnected: sseConnected,
@@ -201,12 +191,10 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     });
   }, [sseConnected, activeJobsCount, polling, onStreamStatusChange]);
 
-  // Initial fetch on mount
   useEffect(() => {
     fetchOnce();
   }, [fetchOnce]);
 
-  // Polling rule: Poll every 20 seconds ONLY while a run is active
   useEffect(() => {
     const hasActive = jobs.some((j) => j.status === "RUNNING");
     if (pollRef.current) {
@@ -227,134 +215,24 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   }, [jobs, fetchOnce]);
 
   if (isActuallyLoading) {
-    return (
-      <div
-        className="flex flex-col gap-5 select-none"
-        data-testid="pipeline-monitor-loading"
-      >
-        {/* KPIs Row Skeleton */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="p-4 rounded-xl bg-surface border border-border flex flex-col gap-2.5"
-            >
-              <div className="flex justify-between items-center">
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-6 w-6 rounded-md" />
-              </div>
-              <Skeleton className="h-6 w-16" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-          ))}
-        </div>
-
-        {/* Filter bar Skeleton */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-surface border border-border">
-          <div className="flex items-center gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-6 w-16 rounded-full" />
-            ))}
-          </div>
-          <Skeleton className="h-6 w-28 rounded-lg" />
-        </div>
-
-        {/* Job Cards Skeleton */}
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="p-4 rounded-xl bg-surface border border-border flex flex-col gap-3"
-            >
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-8 h-8 rounded-lg" />
-                  <div className="space-y-1">
-                    <Skeleton className="h-4 w-36" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-                <Skeleton className="h-6 w-20 rounded-full" />
-              </div>
-              <Skeleton className="h-2 w-full rounded-full" />
-              <div className="flex justify-between pt-1">
-                <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <PipelineMonitorLoading />;
   }
 
   if (effectiveError && jobs.length === 0) {
     return (
-      <div
-        className="flex flex-col items-center justify-center py-14 px-6 border border-error-border/60 bg-error-bg/30 rounded-xl text-center select-none"
-        data-testid="pipeline-monitor-error"
-      >
-        <div className="w-12 h-12 rounded-xl bg-surface border border-error-border flex items-center justify-center text-error mb-3.5 shadow-2xs">
-          <AlertCircle className="w-6 h-6" />
-        </div>
-
-        <h4 className="text-base font-bold text-text mb-1">
-          Can&apos;t reach the data engine
-        </h4>
-        <p className="text-xs text-text-secondary max-w-sm mb-5 leading-relaxed">
-          {is404
-            ? "The pipeline service endpoint was not found (404)."
-            : effectiveError}
-        </p>
-
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            refetch();
-            fetchOnce();
-          }}
-          leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
-        >
-          Retry Connection
-        </Button>
-      </div>
+      <PipelineMonitorError
+        is404={is404}
+        effectiveError={effectiveError}
+        onRetry={() => {
+          refetch();
+          fetchOnce();
+        }}
+      />
     );
   }
 
   if (jobs.length === 0) {
-    return (
-      <div
-        className="flex flex-col items-center justify-center py-16 px-6 border border-dashed border-border rounded-xl text-center bg-surface-subtle/40 select-none transition-colors"
-        data-testid="pipeline-monitor-empty"
-      >
-        <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center text-text-secondary mb-3.5 shadow-2xs">
-          <Activity className="w-6 h-6 text-primary" />
-        </div>
-
-        <h3 className="text-base font-bold text-text mb-1">Pipeline Monitor</h3>
-        <p className="text-xs text-text-secondary max-w-md mb-4 leading-relaxed">
-          Monitor ingest topics, data cleaning stage throughput, and real-time
-          execution telemetry.
-        </p>
-
-        <span className="text-sm font-semibold text-text mb-1.5">
-          No pipeline runs yet
-        </span>
-        <p className="text-xs text-text-secondary max-w-sm mb-6 leading-relaxed">
-          No pipelines yet. Connect a data source to begin running pipelines and
-          observing live execution telemetry.
-        </p>
-
-        <Link
-          to="/connections"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover border border-primary text-primary-text text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-        >
-          <span>Create a connection</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
-      </div>
-    );
+    return <PipelineMonitorEmpty />;
   }
 
   const counts: Record<FilterStatus, number> = {
@@ -374,6 +252,7 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     }
     return true;
   });
+
   const totalThroughput = jobs
     .filter((j) => j.status === "RUNNING")
     .reduce((acc, j) => acc + j.throughput, 0);
@@ -467,49 +346,13 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       </div>
 
       {/* Status Filter MultiSelect & Pills */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <MultiSelect
-          label="Status"
-          values={selectedStatuses}
-          onChange={(newVals) => {
-            setSelectedStatuses(newVals);
-            if (newVals.length > 0) {
-              setFilter("ALL");
-            }
-          }}
-          options={[
-            { value: "RUNNING", label: "RUNNING", count: counts.RUNNING },
-            { value: "CLEANED", label: "CLEANED", count: counts.CLEANED },
-            { value: "COMPLETED", label: "COMPLETED", count: counts.COMPLETED },
-            { value: "FAILED", label: "FAILED", count: counts.FAILED },
-          ]}
-          searchPlaceholder="Filter status…"
-        />
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {(
-            [
-              "ALL",
-              "RUNNING",
-              "CLEANED",
-              "COMPLETED",
-              "FAILED",
-            ] as FilterStatus[]
-          ).map((st) => (
-            <FilterPill
-              key={st}
-              id={`filter-${st.toLowerCase()}`}
-              label={st}
-              count={counts[st]}
-              active={selectedStatuses.length === 0 && filter === st}
-              onClick={() => {
-                setSelectedStatuses([]);
-                setFilter(st);
-              }}
-            />
-          ))}
-        </div>
-      </div>
+      <PipelineFilterToolbar
+        filter={filter}
+        setFilter={setFilter}
+        selectedStatuses={selectedStatuses}
+        setSelectedStatuses={setSelectedStatuses}
+        counts={counts}
+      />
 
       {/* Jobs list */}
       {filtered.length === 0 ? (

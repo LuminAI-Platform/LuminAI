@@ -22,9 +22,9 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
 
   @Query(
       value =
-          "SELECT * FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:includeAll = true OR LOWER(COALESCE(NULLIF(g.entity_type, ''), 'Person')) IN (:entityTypes))",
+          "SELECT * FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:includeAll = true OR LOWER(COALESCE(NULLIF(g.entity_type, ''), 'Entity')) IN (:entityTypes))",
       countQuery =
-          "SELECT count(*) FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:includeAll = true OR LOWER(COALESCE(NULLIF(g.entity_type, ''), 'Person')) IN (:entityTypes))",
+          "SELECT count(*) FROM golden_records g WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%'))) AND (:includeAll = true OR LOWER(COALESCE(NULLIF(g.entity_type, ''), 'Entity')) IN (:entityTypes))",
       nativeQuery = true)
   Page<GoldenRecord> searchByPropertiesAndTypes(
       @Param("query") String query,
@@ -51,7 +51,7 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
 
   @Query(
       value =
-          "SELECT COALESCE(NULLIF(g.entity_type, ''), 'Person') as entityType, COUNT(*) as cnt FROM golden_records g GROUP BY COALESCE(NULLIF(g.entity_type, ''), 'Person')",
+          "SELECT COALESCE(NULLIF(g.entity_type, ''), 'Entity') as entityType, COUNT(*) as cnt FROM golden_records g GROUP BY COALESCE(NULLIF(g.entity_type, ''), 'Entity')",
       nativeQuery = true)
   List<Object[]> countByEntityType();
 }

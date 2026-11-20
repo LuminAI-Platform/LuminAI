@@ -21,6 +21,15 @@ export interface CleanDataResponse {
   status: string;
   columns: string[];
   rows: Record<string, unknown>[];
+  verifiedRecords?: number;
+  needsReviewRecords?: number;
+  rejectedRecords?: number;
+  qualityBreakdown?: Record<string, number>;
+  profilingDelta?: {
+    before?: Record<string, unknown>;
+    after?: Record<string, unknown>;
+    improvements?: string[];
+  };
 }
 
 export interface DatabaseConnector {
@@ -130,6 +139,37 @@ export function formatCellValue(
   }
 
   const colLower = colName.toLowerCase();
+
+  if (
+    colLower === "qualitystate" ||
+    colLower === "quality_state" ||
+    colLower === "recordstate" ||
+    colLower === "record_state"
+  ) {
+    const s = String(val).toUpperCase();
+    if (s.includes("VERIFIED")) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-success-bg text-success border border-success-border">
+          <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
+          VERIFIED
+        </span>
+      );
+    }
+    if (s.includes("REVIEW")) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-warning-bg text-warning border border-warning-border">
+          <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
+          NEEDS REVIEW
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-error-bg text-error border border-error-border">
+        <span className="w-1.5 h-1.5 rounded-full bg-error shrink-0" />
+        REJECTED
+      </span>
+    );
+  }
 
   if (
     colLower.includes("confidence") ||

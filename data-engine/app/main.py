@@ -14,7 +14,16 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import analytics, dashboard, health, metrics, processing
+from app.api import (
+    analytics,
+    dashboard,
+    datasets_api,
+    health,
+    metrics,
+    ml_studio_api,
+    processing,
+    sql_studio_api,
+)
 from app.config import get_settings
 from app.kafka.consumers import IngestRawConsumer
 from app.logging import (
@@ -192,6 +201,18 @@ def create_app() -> FastAPI:
         dashboard.router,
         prefix="/analytics/dashboard",
         tags=["Dashboard Analytics"],
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        sql_studio_api.router,
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        ml_studio_api.router,
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        datasets_api.router,
         dependencies=[Depends(get_current_identity)],
     )
 

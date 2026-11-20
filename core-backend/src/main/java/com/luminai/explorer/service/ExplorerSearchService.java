@@ -43,7 +43,7 @@ public class ExplorerSearchService {
   @Cacheable(
       value = CacheConfig.CACHE_EXPLORER_SEARCH,
       key =
-          "T(com.luminai.common.tenant.TenantContext).getTenantSlug() + ':' + #query + ':' + #entityType + ':' + #page + ':' + #size",
+          "T(com.luminai.common.tenant.TenantContext).getTenantSlug() + ':' + #query + ':' + #entityType + ':' + #page + ':' + #size + ':' + #sortBy + ':' + #sortDirection",
       unless = "#result == null")
   public SearchResponseDto.Response search(
       String query, String entityType, int page, int size, String sortBy, String sortDirection) {
@@ -72,18 +72,30 @@ public class ExplorerSearchService {
     // exhaustion
     Page<GoldenRecord> dbPage = null;
     try {
-      org.springframework.data.domain.Sort sort =
-          "canonicalName".equalsIgnoreCase(sortBy)
-              ? org.springframework.data.domain.Sort.by(
-                  "DESC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.DESC
-                      : org.springframework.data.domain.Sort.Direction.ASC,
-                  "canonical_name")
-              : org.springframework.data.domain.Sort.by(
-                  "ASC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.ASC
-                      : org.springframework.data.domain.Sort.Direction.DESC,
-                  "created_at");
+      org.springframework.data.domain.Sort sort;
+      if ("canonicalName".equalsIgnoreCase(sortBy)) {
+        sort =
+            org.springframework.data.domain.Sort.by(
+                "DESC".equalsIgnoreCase(sortDirection)
+                    ? org.springframework.data.domain.Sort.Direction.DESC
+                    : org.springframework.data.domain.Sort.Direction.ASC,
+                "canonical_name");
+      } else if ("confidenceScore".equalsIgnoreCase(sortBy)
+          || "confidence_score".equalsIgnoreCase(sortBy)) {
+        sort =
+            org.springframework.data.domain.Sort.by(
+                "ASC".equalsIgnoreCase(sortDirection)
+                    ? org.springframework.data.domain.Sort.Direction.ASC
+                    : org.springframework.data.domain.Sort.Direction.DESC,
+                "confidence_score");
+      } else {
+        sort =
+            org.springframework.data.domain.Sort.by(
+                "ASC".equalsIgnoreCase(sortDirection)
+                    ? org.springframework.data.domain.Sort.Direction.ASC
+                    : org.springframework.data.domain.Sort.Direction.DESC,
+                "created_at");
+      }
       org.springframework.data.domain.Pageable pageable =
           org.springframework.data.domain.PageRequest.of(safePage, safeSize, sort);
       dbPage =
@@ -127,7 +139,7 @@ public class ExplorerSearchService {
                 gr.getId(),
                 canonicalName,
                 grType,
-                gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 0.95,
+                gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0,
                 gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1,
                 props,
                 gr.getCreatedAt(),
@@ -204,7 +216,7 @@ public class ExplorerSearchService {
                 gr.getId(),
                 canonicalName,
                 grType,
-                gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 0.95,
+                gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0,
                 gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1,
                 props,
                 gr.getCreatedAt(),
@@ -222,6 +234,13 @@ public class ExplorerSearchService {
                   .reversed()
               : Comparator.comparing(
                   SearchResponseDto.SearchItem::canonicalName, String.CASE_INSENSITIVE_ORDER));
+    } else if ("confidenceScore".equalsIgnoreCase(sortBy)
+        || "confidence_score".equalsIgnoreCase(sortBy)) {
+      matchingItems.sort(
+          "ASC".equalsIgnoreCase(sortDirection)
+              ? Comparator.comparingDouble(SearchResponseDto.SearchItem::confidenceScore)
+              : Comparator.comparingDouble(SearchResponseDto.SearchItem::confidenceScore)
+                  .reversed());
     } else {
       matchingItems.sort(
           "ASC".equalsIgnoreCase(sortDirection)
@@ -269,18 +288,21 @@ public class ExplorerSearchService {
             new ProvenanceItem(
                 pe.getFieldName(),
                 pe.getSourceRecordId(),
-                "Raw Connector",
+                "Data Ingestion",
                 val,
                 pe.getAction(),
                 pe.getOccurredAt()));
       }
     }
 
+    double entityConfidence =
+        gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0;
+
     return new EntityDetailDto.Response(
         gr.getId() != null ? gr.getId() : id,
         canonicalName,
         entityType,
-        0.95,
+        entityConfidence,
         gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1,
         gr.getProperties() != null ? gr.getProperties() : Map.of(),
         gr.getCreatedAt(),

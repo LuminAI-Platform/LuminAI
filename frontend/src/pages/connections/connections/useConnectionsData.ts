@@ -203,8 +203,8 @@ export function useConnectionsData() {
           totalCleanRecords: file.recordsCount || rawRows.length,
           duplicatesMerged: 0,
           compressionRatio: "1.0x",
-          dataQualityScore: 98.5,
-          status: "COMPLETED",
+          dataQualityScore: 0.0,
+          status: "FAILED",
           columns: rawCols,
           rows: rawRows,
         });
@@ -219,8 +219,8 @@ export function useConnectionsData() {
         totalCleanRecords: file.recordsCount || rawRows.length,
         duplicatesMerged: 0,
         compressionRatio: "1.0x",
-        dataQualityScore: 98.5,
-        status: "COMPLETED",
+        dataQualityScore: 0.0,
+        status: "FAILED",
         columns: rawCols,
         rows: rawRows,
       });

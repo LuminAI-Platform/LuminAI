@@ -99,6 +99,14 @@ public class ConnectionController {
     }
   }
 
+  @Autowired
+  public void configureDataEngineClient(
+      @Autowired(required = false) com.luminai.engine.service.DataEngineClient dataEngineClient) {
+    if (this.cleanPreviewService != null && dataEngineClient != null) {
+      this.cleanPreviewService.setDataEngineClient(dataEngineClient);
+    }
+  }
+
   @PostMapping
   @PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
