@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { ChevronDown } from "../../../lib/icons";
 
 interface SchemaAccordionItemProps {
   schema: string;
@@ -34,74 +35,74 @@ export const SchemaAccordionItem: React.FC<SchemaAccordionItemProps> = ({
   }, [someSelected]);
 
   return (
-    <div className="border border-zinc-850/80 rounded-lg overflow-hidden bg-zinc-900/10">
+    <div className="border border-border rounded-lg overflow-hidden bg-surface">
       {/* Schema Header row */}
-      <div className="flex items-center justify-between p-3 bg-zinc-900/30 border-b border-zinc-850/60 hover:bg-zinc-900/50 transition-colors select-none">
-        <div className="flex items-center gap-3">
-          {/* Checkbox */}
+      <div className="flex items-center justify-between p-2.5 bg-surface-subtle/60 border-b border-border hover:bg-surface-subtle transition-colors select-none">
+        <div className="flex items-center gap-2.5 min-w-0">
           <input
             type="checkbox"
             ref={checkboxRef}
             checked={allSelected}
             onChange={() => onToggleSchema(schema, tables)}
-            className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950 cursor-pointer"
+            aria-label={`Select all tables in schema ${schema}`}
+            className="w-4 h-4 rounded border-border bg-surface text-primary focus:ring-primary cursor-pointer shrink-0"
           />
 
-          {/* Schema name & count */}
-          <div
-            className="flex items-center gap-2 cursor-pointer"
+          <button
+            type="button"
+            className="flex items-center gap-2 cursor-pointer text-left min-w-0"
             onClick={() => onToggleExpand(schema)}
           >
-            <span className="text-xs font-mono font-bold text-zinc-200">
+            <span className="text-xs font-mono font-semibold text-text truncate">
               {schema}
             </span>
-            <span className="text-[10px] bg-zinc-850 text-zinc-500 px-1.5 py-0.5 rounded font-mono">
+            <span className="text-[11px] bg-surface border border-border text-text-secondary px-1.5 py-0.5 rounded tabular-nums shrink-0">
               {selectedCount}/{tables.length}
             </span>
-          </div>
+          </button>
         </div>
 
-        {/* Expand toggle arrow */}
         <button
+          type="button"
           onClick={() => onToggleExpand(schema)}
-          className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-          aria-label={isExpanded ? "Collapse schema" : "Expand schema"}
+          className="p-1 text-text-secondary hover:text-text transition-colors cursor-pointer rounded"
+          aria-label={
+            isExpanded ? `Collapse schema ${schema}` : `Expand schema ${schema}`
+          }
+          aria-expanded={isExpanded}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            className={`transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform ${
+              isExpanded ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
         </button>
       </div>
 
-      {/* Table List (Accordion content) */}
+      {/* Table List */}
       {isExpanded && (
-        <div className="p-3 bg-zinc-950/20 divide-y divide-zinc-900/60">
+        <div className="p-2 bg-surface divide-y divide-border-subtle">
           {tables.map((table) => {
             const checked = isTableSelected(schema, table);
+            const checkboxId = `table-${schema}-${table}`;
             return (
-              <div
+              <label
                 key={table}
-                onClick={() => onToggleTable(schema, table)}
-                className="flex items-center gap-3 py-2 px-1 hover:bg-zinc-900/30 rounded cursor-pointer group transition-colors"
+                htmlFor={checkboxId}
+                className="flex items-center gap-2.5 py-2 px-2 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
               >
                 <input
+                  id={checkboxId}
                   type="checkbox"
                   checked={checked}
-                  onChange={() => {}} // Handled by outer click
-                  className="w-3.5 h-3.5 rounded border-zinc-800 bg-zinc-950 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950 cursor-pointer"
+                  onChange={() => onToggleTable(schema, table)}
+                  className="w-3.5 h-3.5 rounded border-border bg-surface text-primary focus:ring-primary cursor-pointer shrink-0"
                 />
-                <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                <span className="text-xs font-mono text-text-secondary group-hover:text-text transition-colors truncate">
                   {table}
                 </span>
-              </div>
+              </label>
             );
           })}
         </div>

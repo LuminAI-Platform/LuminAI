@@ -286,3 +286,26 @@ The following missing fields, connector types, and actions were identified durin
 - **Model**: `com.luminai.connection.model.Connection.Status`
 - **Observed Behavior**: `Connection.Status` only defines `ACTIVE`, `INACTIVE`, and `ERROR` (no `SYNCING` state).
 - **Frontend Impact**: The frontend maps `ACTIVE` → `Connected`, `INACTIVE` → `Paused`, and `ERROR` → `Failed`, and will automatically display `Syncing` if the API adds `SYNCING`.
+
+
+---
+
+## 6. Configure Database Source Dialog (`/api/v1/connections/discover`) Missing API Capabilities
+
+The following capabilities requested for the **Configure database source** dialog are not currently supported by `ConnectionController.discoverSchemas` (`POST /api/v1/connections/discover`) or `PostgresConnectorService.discoverSchemasDirect`:
+
+### 6.1 No Separate Test-Connection Endpoint or Server-Side Latency
+- **Observed Behavior**: There is no `POST /api/v1/connections/test` endpoint; `POST /api/v1/connections/discover` performs both connection verification and schema discovery in a single call and does not return a `latencyMs` field.
+- **Frontend Impact**: "Test connection" calls `POST /api/v1/connections/discover`, measures client-side round-trip latency, caches the discovered schemas, and enables immediate progression to table selection.
+
+### 6.2 No SSL/TLS Mode or Schema Name Filter Parameters
+- **Observed Behavior**: `ConnectionController.discoverSchemas` only reads `host`, `port`, `database`/`databaseName`, `username`, and `password`. It ignores `sslMode` and `schema`.
+- **Frontend Impact**: SSL/TLS mode and Schema name inputs are omitted until the backend accepts them.
+
+### 6.3 No Column Counts or Row Estimates in Schema Discovery Response
+- **Observed Behavior**: `POST /api/v1/connections/discover` returns `[{ "schema": "public", "tables": ["users", "orders"] }]` (table names only, no column counts or estimated row counts).
+- **Frontend Impact**: The table picker displays schema groups, table names, search, Select all, and selected counts without fabricating column counts or row estimates.
+
+### 6.4 No Structured Error Codes on Connection Failure
+- **Observed Behavior**: Failed discovery calls return HTTP 400 with `{ "message": "Database connection rejected: <raw exception message>" }` and no machine-readable error code (e.g., `AUTH_FAILED`, `HOST_UNREACHABLE`, `TIMEOUT`, `DB_NOT_FOUND`).
+- **Frontend Impact**: The frontend classifies common error patterns client-side into clear titles + suggested fixes and places the raw message inside a collapsed `"Technical details"` disclosure with a Copy button.

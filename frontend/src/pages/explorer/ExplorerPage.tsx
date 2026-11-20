@@ -1,3 +1,4 @@
+import { BodyPortal } from "../../components/ui/BodyPortal";
 import React, {
   useCallback,
   useEffect,
@@ -280,17 +281,17 @@ export const ExplorerPage: React.FC = () => {
 
         {/* Mobile / Narrow-Screen Filters Drawer */}
         {mobileFiltersOpen && (
-          <>
+          <BodyPortal>
             <div
               onClick={() => setMobileFiltersOpen(false)}
               aria-hidden="true"
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] lg:hidden"
+              className="fixed inset-0 z-[9990] bg-black/40 backdrop-blur-[2px] lg:hidden"
             />
             <div
               role="dialog"
               aria-modal="true"
               aria-label="Entity filters"
-              className="fixed top-0 left-0 z-50 h-full w-80 max-w-[85vw] bg-surface border-r border-border shadow-2xl p-4 overflow-y-auto lg:hidden"
+              className="fixed top-0 left-0 z-[9991] h-full w-80 max-w-[85vw] bg-surface border-r border-border shadow-2xl p-4 overflow-y-auto lg:hidden"
             >
               <FacetFilterSidebar
                 selectedTypes={selectedTypes}
@@ -302,7 +303,7 @@ export const ExplorerPage: React.FC = () => {
                 onCloseDrawer={() => setMobileFiltersOpen(false)}
               />
             </div>
-          </>
+          </BodyPortal>
         )}
 
         {/* Search Results Pane */}
