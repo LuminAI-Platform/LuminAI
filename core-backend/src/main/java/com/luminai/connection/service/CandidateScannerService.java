@@ -1,10 +1,8 @@
 package com.luminai.connection.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.tenant.TenantContext;
-import com.luminai.connection.model.Connection;
-import com.luminai.connection.model.ErCandidate;
+import com.luminai.connection.model.ErCandidate.CandidateStatus;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.ErCandidateRepository;
 import com.luminai.engine.service.DataEngineClient;
@@ -17,8 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service for scanning active tenant datasets to discover entity resolution candidate pairs falling
- * within the human review similarity threshold [0.70, 0.90).
+ * Service for scanning active tenant datasets to discover entity resolution candidate pairs
+ * strictly through the Python Data Engine ER pipeline.
  */
 @Service
 public class CandidateScannerService {
@@ -26,7 +24,6 @@ public class CandidateScannerService {
   private static final Logger log = LoggerFactory.getLogger(CandidateScannerService.class);
 
   private final ErCandidateRepository candidateRepository;
-  private final PairSimilarityMatcher similarityMatcher;
 
   @Autowired(required = false)
   private ConnectionRepository connectionRepository;
@@ -40,10 +37,20 @@ public class CandidateScannerService {
   @Autowired(required = false)
   private ObjectMapper objectMapper = new ObjectMapper();
 
+  public CandidateScannerService(ErCandidateRepository candidateRepository) {
+    this(candidateRepository, null);
+  }
+
+  @Autowired
   public CandidateScannerService(
-      ErCandidateRepository candidateRepository, PairSimilarityMatcher similarityMatcher) {
+      ErCandidateRepository candidateRepository,
+      @Autowired(required = false) DataEngineClient dataEngineClient) {
     this.candidateRepository = candidateRepository;
-    this.similarityMatcher = similarityMatcher;
+    this.dataEngineClient = dataEngineClient;
+  }
+
+  public void setDataEngineClient(DataEngineClient dataEngineClient) {
+    this.dataEngineClient = dataEngineClient;
   }
 
   @Transactional
@@ -62,141 +69,67 @@ public class CandidateScannerService {
       String schemaName = "tenant_" + tenantSlug;
       ensureTableCompatibility(schemaName);
 
-      if (dataEngineClient != null) {
-        try {
-          dataEngineClient.resolveEntities(
-              Map.of("tenant_id", tenantSlug, "source_id", "connections"));
-        } catch (Exception e) {
-          log.debug("Remote Data Engine ER trigger skipped: {}", e.getMessage());
-        }
-      }
-
-      List<Connection> connections =
-          connectionRepository != null
-              ? connectionRepository.findAllByTenantId(tenantUuid)
-              : List.of();
-
-      int generatedCount = 0;
-      List<Map<String, Object>> candidatePool = new ArrayList<>();
-
-      for (Connection conn : connections) {
-        if (conn.getConfig() == null || conn.getConfig().isBlank()) {
-          continue;
-        }
-        try {
-          JsonNode root = objectMapper.readTree(conn.getConfig());
-          String connName = conn.getName() != null ? conn.getName() : "Dataset";
-
-          if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
-            for (JsonNode rowNode : root.get("sampleRows")) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> row = objectMapper.convertValue(rowNode, Map.class);
-              if (row != null && !row.isEmpty()) {
-                Map<String, Object> copy = new LinkedHashMap<>(row);
-                copy.put("sourceSystem", connName);
-                candidatePool.add(copy);
-              }
-            }
-          }
-
-          if (root.has("tables") && root.get("tables").isObject()) {
-            Iterator<String> tableKeys = root.get("tables").fieldNames();
-            while (tableKeys.hasNext()) {
-              String tableName = tableKeys.next();
-              JsonNode tableNode = root.get("tables").get(tableName);
-              if (tableNode.has("sampleRows") && tableNode.get("sampleRows").isArray()) {
-                for (JsonNode rowNode : tableNode.get("sampleRows")) {
-                  @SuppressWarnings("unchecked")
-                  Map<String, Object> row = objectMapper.convertValue(rowNode, Map.class);
-                  if (row != null && !row.isEmpty()) {
-                    Map<String, Object> copy = new LinkedHashMap<>(row);
-                    copy.put("sourceSystem", connName + " [" + tableName + "]");
-                    candidatePool.add(copy);
-                  }
-                }
-              }
-            }
-          }
-        } catch (Exception e) {
-          log.warn("Error reading connection config during candidate scan: {}", e.getMessage());
-        }
-      }
-
-      int poolSize = candidatePool.size();
-      if (poolSize == 0) {
+      if (dataEngineClient == null) {
+        log.error("Data Engine client is null. Cannot perform ER candidate scan.");
         return Map.of(
-            "status", "SUCCESS",
+            "status",
+            "ERROR",
             "message",
-                "No records found in active connections to analyze. Upload a dataset to begin entity resolution.",
-            "candidatesFound", 0);
+            "Data Engine is offline or not configured. Candidate scanning must be processed by the Python Data Engine.",
+            "candidatesFound",
+            0);
       }
 
-      for (int i = 0; i < poolSize && generatedCount < 50; i++) {
-        Map<String, Object> rowA = candidatePool.get(i);
-        String nameA = similarityMatcher.extractName(rowA);
-        String emailA = similarityMatcher.extractString(rowA, "email");
-        String phoneA = similarityMatcher.extractPhone(rowA);
-
-        for (int j = i + 1; j < poolSize && generatedCount < 50; j++) {
-          Map<String, Object> rowB = candidatePool.get(j);
-          String nameB = similarityMatcher.extractName(rowB);
-          String emailB = similarityMatcher.extractString(rowB, "email");
-          String phoneB = similarityMatcher.extractPhone(rowB);
-
-          double similarity =
-              similarityMatcher.computeSimilarity(
-                  nameA, nameB, emailA, emailB, phoneA, phoneB, rowA, rowB);
-          if (similarity >= 0.70 && similarity < 0.90) {
-            UUID recordAId = similarityMatcher.extractOrGenerateUuid(rowA, i);
-            UUID recordBId = similarityMatcher.extractOrGenerateUuid(rowB, j);
-
-            if (!candidateRepository.existsByRecordAIdAndRecordBId(recordAId, recordBId)) {
-              String rationale = similarityMatcher.buildRationale(nameA, nameB, similarity);
-              ErCandidate candidate = new ErCandidate(recordAId, recordBId, similarity, rationale);
-              candidate.setTenantId(tenantUuid);
-              candidate.setMatchMethod("JARO_WINKLER_LEVENSHTEIN");
-              candidate.setRecordASnapshot(new LinkedHashMap<>(rowA));
-              candidate.setRecordBSnapshot(new LinkedHashMap<>(rowB));
-              candidate.setComparisonDetails(
-                  Map.of(
-                      "similarityScore",
-                      similarity,
-                      "matchedAlgorithm",
-                      "JARO_WINKLER_LEVENSHTEIN",
-                      "recordA_id",
-                      recordAId.toString(),
-                      "recordB_id",
-                      recordBId.toString()));
-              try {
-                candidateRepository.saveAndFlush(candidate);
-                generatedCount++;
-              } catch (Exception se) {
-                log.warn(
-                    "Failed to persist candidate pair ({}, {}): {}",
-                    recordAId,
-                    recordBId,
-                    se.getMessage());
-              }
-            }
-          }
-        }
+      Map<String, Object> erResult;
+      try {
+        erResult =
+            dataEngineClient.resolveEntities(
+                Map.of("tenant_id", tenantSlug, "source_id", "connections"));
+      } catch (Exception e) {
+        log.error("Failed to trigger entity resolution on Data Engine: {}", e.getMessage());
+        return Map.of(
+            "status",
+            "ERROR",
+            "message",
+            "Data Engine ER service is unreachable: " + e.getMessage(),
+            "candidatesFound",
+            0);
       }
+
+      if (erResult == null
+          || "ERROR".equals(erResult.get("status"))
+          || erResult.containsKey("error")) {
+        String errMsg =
+            erResult != null && erResult.get("error") != null
+                ? String.valueOf(erResult.get("error"))
+                : "Data Engine ER service returned an error.";
+        return Map.of(
+            "status",
+            "ERROR",
+            "message",
+            "Data Engine ER service failed: " + errMsg,
+            "candidatesFound",
+            0);
+      }
+
+      long pendingCount =
+          candidateRepository != null
+              ? candidateRepository.countByStatus(CandidateStatus.PENDING)
+              : 0;
 
       String summaryMessage =
-          generatedCount > 0
+          pendingCount > 0
               ? String.format(
-                  "Entity Resolution scan identified %d candidate duplicate pair(s) across %d records.",
-                  generatedCount, poolSize)
-              : String.format(
-                  "Scan complete: 0 duplicate pairs detected across %d records in your active connections. All records appear distinct.",
-                  poolSize);
+                  "Data Engine ER scan complete: %d candidate duplicate pair(s) pending review.",
+                  pendingCount)
+              : "Data Engine ER scan complete: 0 duplicate pairs detected. All records appear distinct.";
 
       return Map.of(
           "status", "SUCCESS",
           "message", summaryMessage,
-          "candidatesFound", generatedCount);
+          "candidatesFound", pendingCount);
     } catch (Exception e) {
-      log.error("Error during duplicate candidate scan: {}", e.getMessage(), e);
+      log.error("Error during candidate scan: {}", e.getMessage(), e);
       return Map.of(
           "status",
           "ERROR",

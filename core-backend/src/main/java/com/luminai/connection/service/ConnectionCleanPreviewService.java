@@ -22,8 +22,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 /**
- * Production service managing data cleaning, validation, multi-stage entity resolution, explicit
- * data quality states (Verified, Needs Review, Rejected), and RFC-4180 CSV export.
+ * Service managing dataset cleaning preview and golden record persistence by strictly delegating
+ * data cleaning, standardization, and quality profiling to the Python Data Engine (:8000).
  */
 @Service
 public class ConnectionCleanPreviewService {
@@ -33,17 +33,10 @@ public class ConnectionCleanPreviewService {
   private final ConnectionPreviewService connectionPreviewService;
   private final ConnectionRepository connectionRepository;
   private final ObjectMapper objectMapper;
-
-  private final DataNormalizationService normalizationService;
-  private final InMemoryDeduplicationService deduplicationService;
   private final GoldenRecordPersistenceService persistenceService;
 
   @Autowired(required = false)
   private DataEngineClient dataEngineClient;
-
-  private static final Set<String> NULL_SENTINELS =
-      Set.of(
-          "", "null", "none", "nil", "n/a", "na", "-", "--", "?", "??", "undefined", "#n/a", "nan");
 
   public ConnectionCleanPreviewService(
       ConnectionPreviewService connectionPreviewService,
@@ -51,14 +44,7 @@ public class ConnectionCleanPreviewService {
       GoldenRecordRepository goldenRecordRepository,
       ObjectMapper objectMapper) {
     this(
-        connectionPreviewService,
-        connectionRepository,
-        goldenRecordRepository,
-        objectMapper,
-        new DataNormalizationService(),
-        new InMemoryDeduplicationService(),
-        new GoldenRecordPersistenceService(
-            goldenRecordRepository, connectionRepository, objectMapper));
+        connectionPreviewService, connectionRepository, goldenRecordRepository, objectMapper, null);
   }
 
   @Autowired
@@ -67,21 +53,14 @@ public class ConnectionCleanPreviewService {
       ConnectionRepository connectionRepository,
       GoldenRecordRepository goldenRecordRepository,
       ObjectMapper objectMapper,
-      DataNormalizationService normalizationService,
-      InMemoryDeduplicationService deduplicationService,
-      GoldenRecordPersistenceService persistenceService) {
+      @Autowired(required = false) DataEngineClient dataEngineClient) {
     this.connectionPreviewService = connectionPreviewService;
     this.connectionRepository = connectionRepository;
     this.objectMapper = objectMapper;
-    this.normalizationService =
-        normalizationService != null ? normalizationService : new DataNormalizationService();
-    this.deduplicationService =
-        deduplicationService != null ? deduplicationService : new InMemoryDeduplicationService();
     this.persistenceService =
-        persistenceService != null
-            ? persistenceService
-            : new GoldenRecordPersistenceService(
-                goldenRecordRepository, connectionRepository, objectMapper);
+        new GoldenRecordPersistenceService(
+            goldenRecordRepository, connectionRepository, objectMapper);
+    this.dataEngineClient = dataEngineClient;
   }
 
   public void setNeo4jGraphRepository(Neo4jGraphRepository repo) {
@@ -114,7 +93,6 @@ public class ConnectionCleanPreviewService {
 
     List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
     String configuredEntityType = null;
-    long actualTotalRows = 0;
 
     if (connectionRepository != null) {
       Optional<Connection> connOpt = connectionRepository.findByIdAndTenantId(id, currentTenant);
@@ -126,9 +104,6 @@ public class ConnectionCleanPreviewService {
           } else if (root.has("entityType") && !root.get("entityType").asText().isBlank()) {
             configuredEntityType = root.get("entityType").asText();
           }
-          long countFromRows = root.has("rowsCount") ? root.get("rowsCount").asLong() : 0;
-          long countFromRecords = root.has("recordsCount") ? root.get("recordsCount").asLong() : 0;
-          actualTotalRows = Math.max(countFromRows, countFromRecords);
 
           if (root.has("tables") && root.get("tables").isArray() && root.get("tables").size() > 0) {
             List<Map<String, Object>> archiveRows = new ArrayList<>();
@@ -166,250 +141,72 @@ public class ConnectionCleanPreviewService {
       }
     }
 
-    if (dataEngineClient != null && !rawRows.isEmpty()) {
-      try {
-        Map<String, Object> remoteReq = new HashMap<>();
-        remoteReq.put("tenant_id", currentTenant.toString());
-        remoteReq.put("source_id", id.toString());
-        remoteReq.put(
-            "entity_type", configuredEntityType != null ? configuredEntityType : "Person");
-        remoteReq.put("rows", rawRows);
+    if (rawRows.isEmpty()) {
+      Map<String, Object> emptyRes = new LinkedHashMap<>();
+      emptyRes.put("connectionId", id.toString());
+      emptyRes.put("totalRawRecords", 0);
+      emptyRes.put("totalCleanRecords", 0);
+      emptyRes.put("duplicatesMerged", 0);
+      emptyRes.put("verifiedRecords", 0);
+      emptyRes.put("needsReviewRecords", 0);
+      emptyRes.put("rejectedRecords", 0);
+      emptyRes.put("dataQualityScore", 100.0);
+      emptyRes.put("status", "COMPLETED");
+      emptyRes.put("columns", List.of());
+      emptyRes.put("rows", List.of());
+      return ResponseEntity.ok(emptyRes);
+    }
 
-        Map<String, Object> engineRes = dataEngineClient.cleanDatasetDirect(remoteReq);
-        if (engineRes != null
-            && engineRes.containsKey("rows")
-            && engineRes.get("rows") instanceof List) {
-          @SuppressWarnings("unchecked")
-          List<Map<String, Object>> rRows = (List<Map<String, Object>>) engineRes.get("rows");
-          if (!rRows.isEmpty()) {
-            persistenceService.persistGoldenRecords(id, currentTenant, rRows);
-            return ResponseEntity.ok(engineRes);
-          }
-        }
-      } catch (Exception ex) {
-        log.debug(
-            "Remote Data Engine sync failed; using verified in-JVM engine: {}", ex.getMessage());
+    if (dataEngineClient == null) {
+      log.error("Data Engine client is null. Cannot perform clean preview.");
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(
+              Map.of(
+                  "error", "Data Engine service is offline or not configured.",
+                  "status", "SERVICE_UNAVAILABLE"));
+    }
+
+    Map<String, Object> remoteReq = new HashMap<>();
+    remoteReq.put("tenant_id", currentTenant.toString());
+    remoteReq.put("source_id", id.toString());
+    remoteReq.put("entity_type", configuredEntityType != null ? configuredEntityType : "Person");
+    remoteReq.put("rows", rawRows);
+
+    Map<String, Object> engineRes;
+    try {
+      engineRes = dataEngineClient.cleanDatasetDirect(remoteReq);
+    } catch (Exception ex) {
+      log.error("Data Engine cleaning request failed for connection {}: {}", id, ex.getMessage());
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(
+              Map.of(
+                  "error",
+                  "Data Engine service is offline or failed: " + ex.getMessage(),
+                  "status",
+                  "SERVICE_UNAVAILABLE"));
+    }
+
+    if (engineRes == null
+        || engineRes.containsKey("error")
+        || !"COMPLETED".equals(engineRes.get("status"))) {
+      String errorMsg =
+          engineRes != null && engineRes.get("error") != null
+              ? String.valueOf(engineRes.get("error"))
+              : "Data Engine did not return completed clean preview results.";
+      log.warn("Data Engine returned error or invalid status: {}", errorMsg);
+      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+          .body(Map.of("error", errorMsg, "status", "SERVICE_UNAVAILABLE"));
+    }
+
+    if (engineRes.containsKey("rows") && engineRes.get("rows") instanceof List) {
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> rRows = (List<Map<String, Object>>) engineRes.get("rows");
+      if (!rRows.isEmpty()) {
+        persistenceService.persistGoldenRecords(id, currentTenant, rRows);
       }
     }
 
-    // In-JVM Production Cleaning, Normalization, and DAMA Quality Assessment
-    Set<String> columnSet =
-        new LinkedHashSet<>(
-            List.of(
-                "canonicalName", "entityType", "qualityState", "qualityScore", "confidenceScore"));
-
-    long rawCount = actualTotalRows > 0 ? actualTotalRows : rawRows.size();
-    int verifiedCount = 0;
-    int needsReviewCount = 0;
-    int rejectedCount = 0;
-
-    long totalEvaluatedFields = 0;
-    long nonNullFields = 0;
-    long validFields = 0;
-
-    List<Map<String, Object>> processedRows = new ArrayList<>();
-
-    for (Map<String, Object> raw : rawRows) {
-      Map<String, Object> cleaned = new LinkedHashMap<>();
-      List<String> validationErrors = new ArrayList<>();
-      List<String> validationWarnings = new ArrayList<>();
-
-      for (Map.Entry<String, Object> e : raw.entrySet()) {
-        String k = e.getKey() != null ? e.getKey().trim() : "";
-        if (k.isBlank() || k.startsWith("_")) continue;
-
-        totalEvaluatedFields++;
-        Object v = e.getValue();
-        String strVal = v != null ? String.valueOf(v).trim() : null;
-
-        if (strVal == null || NULL_SENTINELS.contains(strVal.toLowerCase())) {
-          cleaned.put(k, "");
-          continue;
-        }
-
-        nonNullFields++;
-        String sanitized = normalizationService.sanitizeText(strVal);
-        String lk = k.toLowerCase().replace("_", "").replace("-", "");
-
-        if (lk.contains("date")
-            || lk.equals("dob")
-            || lk.equals("birthdate")
-            || lk.equals("joinedat")) {
-          DataNormalizationService.DateValidationResult dRes =
-              normalizationService.validateAndNormalizeDate(sanitized, lk);
-          if (dRes.isValid) {
-            cleaned.put(k, dRes.isoDate);
-            validFields++;
-            if (dRes.isAmbiguous)
-              validationWarnings.add("Field '" + k + "' has ambiguous date: " + strVal);
-          } else {
-            cleaned.put(k, sanitized);
-            validationErrors.add("Field '" + k + "': " + dRes.error);
-          }
-          columnSet.add(k);
-          continue;
-        }
-
-        if (lk.equals("name")
-            || lk.equals("fullname")
-            || lk.equals("patientname")
-            || lk.equals("customername")) {
-          DataNormalizationService.NameValidationResult nRes =
-              normalizationService.normalizeName(sanitized);
-          cleaned.put(k, nRes.normalizedName);
-          validFields++;
-          if (nRes.isPlaceholder)
-            validationWarnings.add(
-                "Field '" + k + "': Placeholder identity detected ('" + sanitized + "')");
-          columnSet.add(k);
-          continue;
-        }
-
-        if (lk.contains("email")) {
-          String emailClean = sanitized.toLowerCase();
-          if (emailClean.contains("@") && emailClean.contains(".")) {
-            cleaned.put(k, emailClean);
-            validFields++;
-          } else {
-            cleaned.put(k, sanitized);
-            validationErrors.add("Field '" + k + "': Invalid email syntax ('" + sanitized + "')");
-          }
-          columnSet.add(k);
-          continue;
-        }
-
-        if (lk.equals("gender") || lk.equals("sex")) {
-          DataNormalizationService.CategoricalValResult gRes =
-              normalizationService.normalizeGender(sanitized);
-          cleaned.put(k, gRes.canonicalValue != null ? gRes.canonicalValue : sanitized);
-          if (gRes.isValid) validFields++;
-          else validationWarnings.add("Field '" + k + "': " + gRes.error);
-          columnSet.add(k);
-          continue;
-        }
-
-        if (lk.equals("country") || lk.equals("nation") || lk.equals("nationality")) {
-          DataNormalizationService.CategoricalValResult cRes =
-              normalizationService.normalizeCountry(sanitized);
-          cleaned.put(k, cRes.canonicalValue != null ? cRes.canonicalValue : sanitized);
-          if (cRes.isValid) validFields++;
-          else validationWarnings.add("Field '" + k + "': " + cRes.error);
-          columnSet.add(k);
-          continue;
-        }
-
-        if (lk.equals("city") || lk.equals("town") || lk.equals("region")) {
-          DataNormalizationService.CategoricalValResult cityRes =
-              normalizationService.normalizeCity(sanitized);
-          cleaned.put(k, cityRes.canonicalValue != null ? cityRes.canonicalValue : sanitized);
-          validFields++;
-          if (cityRes.needsReview) validationWarnings.add("Field '" + k + "': " + cityRes.error);
-          columnSet.add(k);
-          continue;
-        }
-
-        if (lk.equals("mrn")
-            || lk.equals("nationalid")
-            || lk.equals("ssn")
-            || lk.equals("idnumber")) {
-          cleaned.put(k, sanitized.toUpperCase());
-          validFields++;
-          columnSet.add(k);
-          continue;
-        }
-
-        cleaned.put(k, sanitized);
-        validFields++;
-        columnSet.add(k);
-      }
-
-      String qualityState;
-      double recordScore;
-      if (!validationErrors.isEmpty()) {
-        qualityState = "REJECTED";
-        recordScore = 48.0;
-        rejectedCount++;
-      } else if (!validationWarnings.isEmpty()) {
-        qualityState = "NEEDS_REVIEW";
-        recordScore = 78.0;
-        needsReviewCount++;
-      } else {
-        qualityState = "VERIFIED";
-        recordScore = 98.0;
-        verifiedCount++;
-      }
-
-      String rowEntityType = configuredEntityType != null ? configuredEntityType : "Person";
-      String name = ConnectionFileParser.extractRowName(cleaned, rowEntityType);
-
-      cleaned.put("_canonicalName", name);
-      cleaned.put("_entityType", rowEntityType);
-      cleaned.put("_qualityState", qualityState);
-      cleaned.put("_qualityScore", recordScore);
-      cleaned.put("_validationErrors", validationErrors);
-      cleaned.put("_validationWarnings", validationWarnings);
-      cleaned.put("_primaryKey", deduplicationService.extractCompositeKey(cleaned, name));
-      processedRows.add(cleaned);
-    }
-
-    // Entity Resolution Clustering & Field Survivorship
-    List<List<Map<String, Object>>> clusters = deduplicationService.clusterRecords(processedRows);
-    List<Map<String, Object>> cleanRows = new ArrayList<>();
-    long mergedCount = 0;
-
-    for (List<Map<String, Object>> cluster : clusters) {
-      if (cluster.size() > 1) {
-        mergedCount += (cluster.size() - 1);
-      }
-      cleanRows.add(deduplicationService.buildGoldenRecord(cluster));
-    }
-
-    long cleanCount =
-        actualTotalRows > 0 ? Math.max(0, actualTotalRows - mergedCount) : cleanRows.size();
-
-    double completeness =
-        totalEvaluatedFields > 0
-            ? Math.round(((double) nonNullFields / (double) totalEvaluatedFields) * 1000.0) / 10.0
-            : 100.0;
-    double validity =
-        nonNullFields > 0
-            ? Math.round(((double) validFields / (double) nonNullFields) * 1000.0) / 10.0
-            : 100.0;
-    double uniqueness =
-        rawRows.size() > 0
-            ? Math.round(((double) cleanRows.size() / (double) rawRows.size()) * 1000.0) / 10.0
-            : 100.0;
-    double compositeQualityScore =
-        Math.round((completeness * 0.30 + validity * 0.40 + uniqueness * 0.30) * 10.0) / 10.0;
-
-    persistenceService.persistGoldenRecords(id, currentTenant, cleanRows);
-
-    Map<String, Object> response = new LinkedHashMap<>();
-    response.put("connectionId", id.toString());
-    response.put("totalRawRecords", rawCount);
-    response.put("totalCleanRecords", cleanCount);
-    response.put("duplicatesMerged", mergedCount);
-    response.put("verifiedRecords", verifiedCount);
-    response.put("needsReviewRecords", needsReviewCount);
-    response.put("rejectedRecords", rejectedCount);
-    response.put(
-        "compressionRatio",
-        rawCount > 0
-            ? String.format("%.1f%%", ((double) mergedCount / (double) rawCount) * 100.0)
-            : "0.0%");
-    response.put("dataQualityScore", compositeQualityScore);
-    response.put(
-        "qualityBreakdown",
-        Map.of(
-            "completeness", completeness,
-            "validity", validity,
-            "uniqueness", uniqueness,
-            "consistency", 95.0));
-    response.put("status", "COMPLETED");
-    response.put("columns", new ArrayList<>(columnSet));
-    response.put("rows", cleanRows);
-
-    return ResponseEntity.ok(response);
+    return ResponseEntity.ok(engineRes);
   }
 
   public void exportCleanCsv(UUID id, HttpServletResponse response) throws IOException {
@@ -419,7 +216,9 @@ public class ConnectionCleanPreviewService {
 
     ResponseEntity<Map<String, Object>> previewRes = getCleanPreview(id);
     List<Map<String, Object>> cleanRows = new ArrayList<>();
-    if (previewRes.getBody() != null && previewRes.getBody().get("rows") instanceof List) {
+    if (previewRes.getStatusCode().is2xxSuccessful()
+        && previewRes.getBody() != null
+        && previewRes.getBody().get("rows") instanceof List) {
       @SuppressWarnings("unchecked")
       List<Map<String, Object>> rowsList =
           (List<Map<String, Object>>) previewRes.getBody().get("rows");
