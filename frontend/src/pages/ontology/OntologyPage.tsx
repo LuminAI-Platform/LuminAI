@@ -6,6 +6,7 @@ import { useOntologyData, type Tab } from "./useOntologyData";
 import { EntityTypesTab } from "./EntityTypesTab";
 import { RelationshipsTab } from "./RelationshipsTab";
 import { VersionsTab } from "./VersionsTab";
+import { OntologyStatsBar } from "./OntologyStatsBar";
 import { Icons, Loader2, PenLine, ICON_SIZES } from "../../lib/icons";
 
 export const OntologyPage: React.FC = () => {
@@ -37,6 +38,11 @@ export const OntologyPage: React.FC = () => {
   const entityName = (id: string) =>
     entities.find((e) => e.id === id)?.name ?? id;
 
+  const totalProperties = entities.reduce(
+    (sum, e) => sum + (e.properties?.length ?? 0),
+    0,
+  );
+
   return (
     <div className="flex flex-col gap-0 h-full overflow-hidden">
       {/* Page Header */}
@@ -61,6 +67,7 @@ export const OntologyPage: React.FC = () => {
           }}
           actions={
             <button
+              type="button"
               id="publish-ontology-btn"
               onClick={publishVersion}
               disabled={publishing}
@@ -81,87 +88,11 @@ export const OntologyPage: React.FC = () => {
         />
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-3 mb-5 shrink-0">
-        {[
-          {
-            label: "Entity Types",
-            value: entities.length,
-            color: "#3b82f6",
-            icon: (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="8" r="4" />
-                <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
-              </svg>
-            ),
-          },
-          {
-            label: "Relationship Types",
-            value: relationships.length,
-            color: "#a855f7",
-            icon: (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            ),
-          },
-          {
-            label: "Total Properties",
-            value: entities.reduce(
-              (s, e) => s + (e.properties?.length ?? 0),
-              0,
-            ),
-            color: "#10b981",
-            icon: (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                <rect x="9" y="3" width="6" height="4" rx="1" />
-              </svg>
-            ),
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="flex items-center gap-3 px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg"
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: `${s.color}18`, color: s.color }}
-            >
-              {s.icon}
-            </div>
-            <div>
-              <div className="text-lg font-bold text-zinc-100 leading-none">
-                {s.value}
-              </div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">{s.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <OntologyStatsBar
+        entityCount={entities.length}
+        relationshipCount={relationships.length}
+        propertyCount={totalProperties}
+      />
 
       {/* Tabs */}
       <div className="flex border-b border-zinc-800/80 shrink-0 mb-5">
@@ -191,6 +122,7 @@ export const OntologyPage: React.FC = () => {
         <div className="mb-4 px-4 py-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-between shrink-0">
           <span>{error}</span>
           <button
+            type="button"
             onClick={() => setError(null)}
             className="underline hover:text-red-300 cursor-pointer"
           >

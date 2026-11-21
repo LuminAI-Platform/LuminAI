@@ -2,13 +2,11 @@ import React, { useState, useEffect } from "react";
 import { apiFetch } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 import { PropertySchemaForm } from "./PropertySchemaForm";
-import type { EntityType, PropertySchema } from "../types";
-import {
-  EntityIcon,
-  ENTITY_ICON_KEYS,
-  ENTITY_ICON_LABELS,
-} from "./entity-editor/EntityIcon";
+import type { EntityType } from "../types";
+import { EntityIcon } from "./entity-editor/EntityIcon";
 import { EntityMetaTab } from "./entity-editor/EntityMetaTab";
+import { hydrateInitialEntity } from "./entity-editor/hydrateEntity";
+import { EntityEditorHeader } from "./entity-editor/EntityEditorHeader";
 
 interface EntityTypeEditorProps {
   initial?: EntityType;
@@ -18,63 +16,6 @@ interface EntityTypeEditorProps {
 
 export type { EntityType };
 export { EntityIcon };
-
-const EMPTY: EntityType = {
-  name: "",
-  label: "",
-  description: "",
-  color: "#3b82f6",
-  icon: "package",
-  properties: [],
-};
-
-function hydrateInitialEntity(initial?: EntityType): EntityType {
-  if (!initial) return EMPTY;
-  let props = initial.properties ?? [];
-  const rawSchema = (
-    initial as unknown as {
-      propertiesSchema?: string | Record<string, unknown>;
-    }
-  ).propertiesSchema;
-  if ((!props || props.length === 0) && rawSchema) {
-    try {
-      const parsed =
-        typeof rawSchema === "string" ? JSON.parse(rawSchema) : rawSchema;
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        (parsed as Record<string, unknown>).properties
-      ) {
-        const schemaProps = (
-          parsed as {
-            properties: Record<
-              string,
-              { type?: string; default?: unknown; description?: string }
-            >;
-          }
-        ).properties;
-        const reqList = Array.isArray(
-          (parsed as { required?: string[] }).required,
-        )
-          ? (parsed as { required: string[] }).required
-          : [];
-        props = Object.entries(schemaProps).map(([name, def]) => ({
-          id: name,
-          name,
-          type: (def?.type
-            ? def.type.toUpperCase()
-            : "STRING") as PropertySchema["type"],
-          required: reqList.includes(name),
-          defaultValue: def?.default !== undefined ? String(def.default) : "",
-          description: def?.description || "",
-        }));
-      }
-    } catch {
-      // fallback
-    }
-  }
-  return { ...initial, properties: props };
-}
 
 export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
   initial,
@@ -133,73 +74,16 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
       hideHeader={true}
     >
       <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0 select-none bg-zinc-950/60">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center border-2 shrink-0 cursor-pointer select-none transition-all hover:scale-105"
-              style={{
-                backgroundColor: `${form.color}20`,
-                borderColor: `${form.color}40`,
-                color: form.color,
-              }}
-              onClick={() => setIconPickerOpen(!iconPickerOpen)}
-              title="Change icon"
-            >
-              <EntityIcon iconKey={form.icon} size={16} />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-100">
-                {form.id ? "Edit Entity Type" : "New Entity Type"}
-              </h2>
-              <p className="text-[10px] text-zinc-500 mt-0.5">
-                {form.name || "Define a new node class for the knowledge graph"}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            id="entity-editor-close-btn"
-            onClick={onClose}
-            className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Icon picker dropdown */}
-        {iconPickerOpen && (
-          <div className="absolute z-60 mt-14 ml-6 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl flex flex-wrap gap-2 w-56">
-            {ENTITY_ICON_KEYS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                title={ENTITY_ICON_LABELS[key]}
-                onClick={() => {
-                  set("icon", key);
-                  setIconPickerOpen(false);
-                }}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center hover:bg-zinc-800 transition-all cursor-pointer ${
-                  form.icon === key
-                    ? "bg-zinc-800 ring-1 ring-blue-500 text-blue-400"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                <EntityIcon iconKey={key} size={15} />
-              </button>
-            ))}
-          </div>
-        )}
+        <EntityEditorHeader
+          form={form}
+          iconPickerOpen={iconPickerOpen}
+          onToggleIconPicker={() => setIconPickerOpen((prev) => !prev)}
+          onSelectIcon={(key) => {
+            set("icon", key);
+            setIconPickerOpen(false);
+          }}
+          onClose={onClose}
+        />
 
         {/* Tabs */}
         <div className="flex border-b border-zinc-800/80 px-6 shrink-0">

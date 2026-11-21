@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Table,
   Cpu,
-  ChevronRight,
   GitBranch,
   ICON_SIZES,
 } from "../../lib/icons";
@@ -27,6 +26,8 @@ import type {
 import { DatasetProfilerTab } from "./components/DatasetProfilerTab";
 import { DatasetSchemaTab } from "./components/DatasetSchemaTab";
 import { DatasetVersionsTab } from "./components/DatasetVersionsTab";
+import { DatasetSummaryCards } from "./components/DatasetSummaryCards";
+import { DatasetLineageTab } from "./components/DatasetLineageTab";
 
 export const DatasetDetailPage: React.FC = () => {
   const { datasetId } = useParams({ strict: false }) as { datasetId: string };
@@ -136,49 +137,15 @@ export const DatasetDetailPage: React.FC = () => {
         }
       />
 
-      {/* Dataset Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Storage Layer</span>
-          <span className="text-lg font-bold text-primary">
-            {dataset.layer}
-          </span>
-          <span className="text-[11px] text-text-secondary">
-            Project: {dataset.projectType}
-          </span>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Current Version</span>
-          <span className="text-lg font-bold text-text">
-            v{dataset.currentVersion}
-          </span>
-          <span className="text-[11px] text-text-secondary font-mono">
-            {dataset.storageFormat}
-          </span>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Total Records</span>
-          <span className="text-lg font-bold text-text">
-            {(dataset.rowCount || 0).toLocaleString()}
-          </span>
-          <span className="text-[11px] text-text-secondary">
-            {schemaEntries.length} columns
-          </span>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Quality Score</span>
-          <span className="text-lg font-bold text-emerald-400">
-            {dataset.qualityScore
-              ? `${Math.round(dataset.qualityScore)}%`
-              : "N/A"}
-          </span>
-          <span className="text-[11px] text-text-secondary">DAMA Verified</span>
-        </div>
-      </div>
+      <DatasetSummaryCards
+        dataset={dataset}
+        columnCount={schemaEntries.length}
+      />
 
       {/* Navigation Tabs */}
       <div className="border-b border-border flex items-center gap-4 text-xs font-medium">
         <button
+          type="button"
           onClick={() => setActiveTab("profiler")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "profiler"
@@ -191,6 +158,7 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab("schema")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "schema"
@@ -203,6 +171,7 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab("versions")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "versions"
@@ -215,6 +184,7 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab("lineage")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "lineage"
@@ -239,51 +209,11 @@ export const DatasetDetailPage: React.FC = () => {
       {activeTab === "versions" && <DatasetVersionsTab versions={versions} />}
 
       {activeTab === "lineage" && (
-        <div className="p-6 rounded-xl border border-border bg-surface flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-text">
-              Dataset Lineage Dependency Graph
-            </h3>
-            {lineage && (
-              <span className="text-xs text-text-secondary font-mono">
-                {lineage.nodes.length} nodes • {lineage.edges.length} edges
-              </span>
-            )}
-          </div>
-          <div className="p-8 border border-dashed border-border rounded-lg bg-surface-subtle/50 flex flex-col items-center justify-center gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg border border-border bg-surface text-center">
-                <span className="text-xs text-text-secondary block">
-                  Upstream
-                </span>
-                <span className="text-xs font-bold text-text">
-                  {lineage?.nodes.find((n) => n.id !== datasetId)?.label ||
-                    "Ingestion Source"}
-                </span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-text-secondary" />
-              <div className="p-3 rounded-lg border-2 border-primary bg-primary/10 text-center">
-                <span className="text-xs text-primary font-bold block">
-                  Current Dataset
-                </span>
-                <span className="text-xs font-bold text-text">
-                  {dataset.displayName}
-                </span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-text-secondary" />
-              <div className="p-3 rounded-lg border border-border bg-surface text-center">
-                <span className="text-xs text-text-secondary block">
-                  Downstream
-                </span>
-                <span className="text-xs font-bold text-text">
-                  {lineage?.edges.length
-                    ? `${lineage.edges.length} Dependencies`
-                    : "Analytics & ML Models"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DatasetLineageTab
+          dataset={dataset}
+          datasetId={datasetId}
+          lineage={lineage}
+        />
       )}
     </div>
   );
