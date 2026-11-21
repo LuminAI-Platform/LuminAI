@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Check, Loader2 } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
-import { EntityIcon } from "./EntityTypeEditor";
 import { type ConnectionSummary, type InferredProp } from "./autoGenerateUtils";
+import { TargetEntityModelForm } from "./auto-generate/TargetEntityModelForm";
+import { InferredPropsTable } from "./auto-generate/InferredPropsTable";
 
 interface AutoGenerateFromDatasetProps {
   connections: ConnectionSummary[];
@@ -149,139 +150,18 @@ export const AutoGenerateFromDataset: React.FC<
         </div>
       </div>
 
-      <div className="p-4 bg-zinc-900/40 border border-zinc-800/80 rounded-xl flex flex-col gap-3">
-        <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-          2. Target Entity Model Definition
-        </span>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[11px] text-zinc-400 block mb-1">
-              Entity Identifier (PascalCase)
-            </label>
-            <input
-              type="text"
-              value={entityName}
-              onChange={(e) => setEntityName(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:border-blue-500 font-mono"
-              placeholder="e.g. CustomerRecord"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] text-zinc-400 block mb-1">
-              Display Label
-            </label>
-            <input
-              type="text"
-              value={entityLabel}
-              onChange={(e) => setEntityLabel(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:border-blue-500"
-              placeholder="e.g. Customer Record"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-6 pt-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-zinc-400">Color:</span>
-            <div className="flex items-center gap-1.5">
-              {[
-                "#3b82f6",
-                "#8b5cf6",
-                "#06b6d4",
-                "#10b981",
-                "#f59e0b",
-                "#ef4444",
-                "#ec4899",
-              ].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setEntityColor(c)}
-                  className={`w-5 h-5 rounded-md border transition-all cursor-pointer ${
-                    entityColor === c
-                      ? "scale-115 ring-2 ring-white border-transparent"
-                      : "border-transparent opacity-70 hover:opacity-100"
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-zinc-400">Icon:</span>
-            <div className="flex items-center gap-1.5">
-              {[
-                "database",
-                "building",
-                "user",
-                "package",
-                "chart",
-                "globe",
-              ].map((ic) => (
-                <button
-                  key={ic}
-                  type="button"
-                  onClick={() => setEntityIcon(ic)}
-                  className={`px-2 py-1 text-[10px] rounded-md border flex items-center gap-1 transition-all cursor-pointer ${
-                    entityIcon === ic
-                      ? "bg-zinc-800 border-blue-500 text-blue-400 font-semibold"
-                      : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  <EntityIcon iconKey={ic} size={12} />
-                  <span className="capitalize">{ic}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <TargetEntityModelForm
+        entityName={entityName}
+        setEntityName={setEntityName}
+        entityLabel={entityLabel}
+        setEntityLabel={setEntityLabel}
+        entityColor={entityColor}
+        setEntityColor={setEntityColor}
+        entityIcon={entityIcon}
+        setEntityIcon={setEntityIcon}
+      />
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-            3. Inferred Attributes & Types ({inferredProps.length})
-          </label>
-          <span className="text-[10px] text-zinc-500">
-            Automatically detected from dataset schema
-          </span>
-        </div>
-        <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950/60 max-h-48 overflow-y-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-900/80 text-[10px] font-semibold text-zinc-400 uppercase border-b border-zinc-800">
-              <tr>
-                <th className="px-3 py-2">Property Name</th>
-                <th className="px-3 py-2">Inferred Type</th>
-                <th className="px-3 py-2">Required</th>
-                <th className="px-3 py-2">Description</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-900 font-mono text-[11px]">
-              {inferredProps.map((p, idx) => (
-                <tr key={idx} className="hover:bg-zinc-900/30">
-                  <td className="px-3 py-2 font-semibold text-zinc-200">
-                    {p.name}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase font-semibold">
-                      {p.type}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-zinc-400">
-                    {p.required ? (
-                      <span className="text-amber-400 font-bold">YES</span>
-                    ) : (
-                      "NO"
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-zinc-500 truncate max-w-xs">
-                    {p.description}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <InferredPropsTable inferredProps={inferredProps} />
 
       <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
         <button
@@ -294,7 +174,7 @@ export const AutoGenerateFromDataset: React.FC<
         <button
           type="button"
           onClick={handleGenerate}
-          disabled={generating || !entityName}
+          disabled={generating || !entityName.trim()}
           className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-lg shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
         >
           {generating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

@@ -1,15 +1,10 @@
 import React, { useState, useRef } from "react";
-import {
-  Search,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-} from "../../../../lib/icons";
+import { Search, ChevronLeft, ChevronRight } from "../../../../lib/icons";
 import type { PipelineRunItem } from "./pipelineAnalysisTypes";
 import { RunDetailDrawer } from "./RunDetailDrawer";
 import { Select } from "../../../../components/ui/dropdown";
+import { RunStatusBadge } from "./RunStatusBadge";
+import { RunsTableHeader } from "./RunsTableHeader";
 
 interface RunsTableProps {
   runs: PipelineRunItem[];
@@ -27,6 +22,14 @@ interface RunsTableProps {
   onSortChange: (field: keyof PipelineRunItem) => void;
   selectedRunId?: string | null;
   onClearSelectedRunId?: () => void;
+}
+
+const STATUS_OPTIONS = ["ALL", "RUNNING", "COMPLETED", "FAILED"];
+
+function formatNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
 }
 
 export const RunsTable: React.FC<RunsTableProps> = ({
@@ -56,46 +59,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
       onClearSelectedRunId?.();
     }
   }, [selectedRunId, runs, onClearSelectedRunId]);
-
-  const statusOptions = ["ALL", "RUNNING", "COMPLETED", "FAILED"];
-
-  const formatNum = (n: number) => {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-    return n.toLocaleString();
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status.toUpperCase()) {
-      case "RUNNING":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warning-bg border border-warning-border text-warning">
-            <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
-            <span>RUNNING</span>
-          </span>
-        );
-      case "COMPLETED":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success-bg border border-success-border text-success">
-            <CheckCircle2 className="w-3 h-3 text-success" />
-            <span>COMPLETED</span>
-          </span>
-        );
-      case "FAILED":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-error-bg border border-error-border text-error">
-            <XCircle className="w-3 h-3 text-error" />
-            <span>FAILED</span>
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-subtle border border-border text-text-secondary">
-            <span>{status}</span>
-          </span>
-        );
-    }
-  };
 
   return (
     <div className="bg-surface border border-border rounded-xl shadow-xs transition-colors select-none">
@@ -129,7 +92,7 @@ export const RunsTable: React.FC<RunsTableProps> = ({
             <Select
               value={statusFilter}
               onChange={onStatusFilterChange}
-              options={statusOptions.map((st) => ({
+              options={STATUS_OPTIONS.map((st) => ({
                 value: st,
                 label: st === "ALL" ? "All Statuses" : st,
               }))}
@@ -143,131 +106,11 @@ export const RunsTable: React.FC<RunsTableProps> = ({
       {/* Table Container */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-border bg-surface-subtle/40 text-text-secondary font-semibold uppercase tracking-wider text-[10px]">
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("connectorName")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "connectorName" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Pipeline
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "connectorName" ? "text-primary" : ""}`}
-                  />
-                  {sortBy === "connectorName" && (
-                    <span className="text-[9px] font-mono lowercase">
-                      ({sortOrder})
-                    </span>
-                  )}
-                </div>
-              </th>
-              <th className="py-2.5 px-4">Source</th>
-              <th className="py-2.5 px-4">Status</th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("startedAt")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "startedAt" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Started
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "startedAt" ? "text-primary" : ""}`}
-                  />
-                  {sortBy === "startedAt" && (
-                    <span className="text-[9px] font-mono lowercase">
-                      ({sortOrder})
-                    </span>
-                  )}
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("durationSeconds")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "durationSeconds"
-                        ? "text-primary font-bold"
-                        : ""
-                    }
-                  >
-                    Duration
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "durationSeconds" ? "text-primary" : ""}`}
-                  />
-                  {sortBy === "durationSeconds" && (
-                    <span className="text-[9px] font-mono lowercase">
-                      ({sortOrder})
-                    </span>
-                  )}
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("recordsInput")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "recordsInput" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    In
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "recordsInput" ? "text-primary" : ""}`}
-                  />
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("recordsOutput")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "recordsOutput" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Out
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "recordsOutput" ? "text-primary" : ""}`}
-                  />
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("recordsFailed")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "recordsFailed" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Rejected
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "recordsFailed" ? "text-primary" : ""}`}
-                  />
-                </div>
-              </th>
-            </tr>
-          </thead>
+          <RunsTableHeader
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={onSortChange}
+          />
           <tbody className="divide-y divide-border">
             {runs.length === 0 ? (
               <tr>
@@ -307,7 +150,9 @@ export const RunsTable: React.FC<RunsTableProps> = ({
                   <td className="py-3 px-4 text-text-secondary font-mono text-[11px]">
                     {run.connectorType}
                   </td>
-                  <td className="py-3 px-4">{getStatusBadge(run.status)}</td>
+                  <td className="py-3 px-4">
+                    <RunStatusBadge status={run.status} />
+                  </td>
                   <td className="py-3 px-4 text-text-secondary font-mono text-[11px]">
                     {new Date(run.startedAt).toLocaleDateString([], {
                       month: "short",

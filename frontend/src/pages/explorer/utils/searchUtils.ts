@@ -1,11 +1,12 @@
 import type {
-  ExplorerInsightCounts,
-  MatchReason,
   ParsedQueryFilter,
-  PossibleDuplicateRef,
   SearchResponse,
   SearchResultItem,
 } from "../types";
+import {
+  normalizeSearchResultItem,
+  parseExplorerInsights,
+} from "./searchResponseNormalizer";
 
 /**
  * Extracts all facet groups returned by the search API.
@@ -36,14 +37,9 @@ export function normalizeFacetGroups(
   return groups;
 }
 
-/**
- * Flattens the entity-type facet map from the search API into a flat
- * Record<string, number> keyed by entity type name.
- */
-export function normalizeFacets(
-  rawFacets: Record<string, unknown>,
+function flattenFacetGroups(
+  groups: Record<string, Record<string, number>>,
 ): Record<string, number> {
-  const groups = normalizeFacetGroups(rawFacets);
   if (groups.entityTypes) return groups.entityTypes;
   if (groups.entityType) return groups.entityType;
 
@@ -52,6 +48,16 @@ export function normalizeFacets(
     Object.assign(flat, group);
   }
   return flat;
+}
+
+/**
+ * Flattens the entity-type facet map from the search API into a flat
+ * Record<string, number> keyed by entity type name.
+ */
+export function normalizeFacets(
+  rawFacets: Record<string, unknown>,
+): Record<string, number> {
+  return flattenFacetGroups(normalizeFacetGroups(rawFacets));
 }
 
 /**
@@ -109,99 +115,7 @@ export function normalizeSearchResponse(
       (item): item is Record<string, unknown> =>
         item != null && typeof item === "object",
     )
-    .map((item) => {
-      const id = String(
-        item.id || item.entityId || "00000000-0000-0000-0000-000000000000",
-      );
-      const rawProps =
-        item.properties && typeof item.properties === "object"
-          ? (item.properties as Record<string, unknown>)
-          : {};
-      const canonicalName = String(
-        item.canonicalName ||
-          item.name ||
-          rawProps.canonicalName ||
-          rawProps.name ||
-          rawProps.title ||
-          rawProps.full_name ||
-          `Entity ${id.slice(0, 8)}`,
-      );
-      const entityType = String(
-        item.entityType ||
-          item.type ||
-          rawProps.entityType ||
-          rawProps.type ||
-          "Entity",
-      );
-
-      const confidenceScore =
-        typeof item.confidenceScore === "number" &&
-        Number.isFinite(item.confidenceScore)
-          ? item.confidenceScore
-          : undefined;
-
-      const sourceCount =
-        typeof item.sourceCount === "number" &&
-        Number.isFinite(item.sourceCount)
-          ? item.sourceCount
-          : undefined;
-
-      const sourceSystems = Array.isArray(item.sourceSystems)
-        ? item.sourceSystems.map((s) => String(s).trim()).filter(Boolean)
-        : undefined;
-
-      const createdAt =
-        typeof item.createdAt === "string" && item.createdAt.trim()
-          ? item.createdAt
-          : undefined;
-
-      const updatedAt =
-        typeof item.updatedAt === "string" && item.updatedAt.trim()
-          ? item.updatedAt
-          : undefined;
-
-      const matchReasons = Array.isArray(item.matchReasons)
-        ? (item.matchReasons as MatchReason[])
-        : undefined;
-
-      let possibleDuplicate: PossibleDuplicateRef | null | undefined;
-      if (
-        item.possibleDuplicate &&
-        typeof item.possibleDuplicate === "object"
-      ) {
-        const dup = item.possibleDuplicate as Record<string, unknown>;
-        const dupName = String(dup.canonicalName || dup.name || "").trim();
-        if (dupName) {
-          possibleDuplicate = {
-            id: dup.id ? String(dup.id) : undefined,
-            name: dupName,
-            candidateId: dup.candidateId ? String(dup.candidateId) : undefined,
-          };
-        }
-      }
-
-      const needsReview =
-        typeof item.needsReview === "boolean" ? item.needsReview : undefined;
-
-      return {
-        id,
-        canonicalName,
-        entityType,
-        properties: rawProps,
-        createdAt,
-        updatedAt,
-        confidenceScore,
-        sourceCount,
-        sourceSystems,
-        highlights:
-          item.highlights && typeof item.highlights === "object"
-            ? (item.highlights as Record<string, string[]>)
-            : undefined,
-        matchReasons,
-        possibleDuplicate,
-        needsReview,
-      };
-    });
+    .map(normalizeSearchResultItem);
 
   const rawTotal = (raw.total ?? raw.totalElements) as number | undefined;
   const totalElements =
@@ -232,26 +146,10 @@ export function normalizeSearchResponse(
       : {};
   const facets =
     rawFacets && typeof rawFacets === "object"
-      ? normalizeFacets(rawFacets as Record<string, unknown>)
+      ? flattenFacetGroups(facetGroups)
       : {};
 
-  let insights: ExplorerInsightCounts | undefined;
-  if (raw.insights && typeof raw.insights === "object") {
-    const rawIns = raw.insights as Record<string, unknown>;
-    const parsed: ExplorerInsightCounts = {};
-    if (typeof rawIns.possibleDuplicates === "number") {
-      parsed.possibleDuplicates = rawIns.possibleDuplicates;
-    }
-    if (typeof rawIns.missingValues === "number") {
-      parsed.missingValues = rawIns.missingValues;
-    }
-    if (typeof rawIns.needsReview === "number") {
-      parsed.needsReview = rawIns.needsReview;
-    }
-    if (Object.keys(parsed).length > 0) {
-      insights = parsed;
-    }
-  }
+  const insights = parseExplorerInsights(raw.insights);
 
   return {
     content: items,
