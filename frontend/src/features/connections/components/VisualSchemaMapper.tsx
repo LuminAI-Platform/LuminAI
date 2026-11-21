@@ -14,6 +14,7 @@ import { TargetPanel } from "./visual-schema/TargetPanel";
 import { FkModal } from "./visual-schema/FkModal";
 import { PayloadPreview } from "./visual-schema/PayloadPreview";
 import { MapperToolbar } from "./visual-schema/MapperToolbar";
+import { SchemaConnectorOverlay } from "./visual-schema/SchemaConnectorOverlay";
 
 export type {
   SourceColumn,
@@ -100,6 +101,9 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   const unmappedCount = sourceColumns.length - mappings.length;
   const fkCount = Object.keys(foreignKeys).length;
   const activeCol = sourceColumns.find((c) => c.id === activeFkColId);
+  const unfilledRequiredCount = ontologyProperties.filter(
+    (p) => p.required && !getMappedColId(p.id),
+  ).length;
 
   return (
     <div className="flex flex-col h-full gap-0 select-none">
@@ -126,54 +130,10 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
 
       {/* ── Main Canvas ── */}
       <div ref={containerRef} className="flex flex-1 min-h-0 relative">
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-10"
-          style={{ overflow: "visible" }}
-        >
-          <defs>
-            <marker
-              id="arrow-head"
-              markerWidth="6"
-              markerHeight="6"
-              refX="3"
-              refY="3"
-              orient="auto"
-            >
-              <path d="M0,0 L0,6 L6,3 z" fill="#3b82f6" opacity="0.7" />
-            </marker>
-          </defs>
-          {connectorLines.map((line) => {
-            const cx1 = line.x1 + (line.x2 - line.x1) * 0.4;
-            const cx2 = line.x1 + (line.x2 - line.x1) * 0.6;
-            return (
-              <path
-                key={line.id}
-                d={`M ${line.x1} ${line.y1} C ${cx1} ${line.y1}, ${cx2} ${line.y2}, ${line.x2} ${line.y2}`}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="1.5"
-                strokeOpacity="0.6"
-                markerEnd="url(#arrow-head)"
-              />
-            );
-          })}
-          {dragPreviewLine && (
-            <path
-              d={`M ${dragPreviewLine.x1} ${dragPreviewLine.y1} C ${
-                dragPreviewLine.x1 +
-                (dragPreviewLine.x2 - dragPreviewLine.x1) * 0.4
-              } ${dragPreviewLine.y1}, ${
-                dragPreviewLine.x1 +
-                (dragPreviewLine.x2 - dragPreviewLine.x1) * 0.6
-              } ${dragPreviewLine.y2}, ${dragPreviewLine.x2} ${dragPreviewLine.y2}`}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              strokeOpacity="0.9"
-              strokeDasharray="5 3"
-            />
-          )}
-        </svg>
+        <SchemaConnectorOverlay
+          connectorLines={connectorLines}
+          dragPreviewLine={dragPreviewLine}
+        />
 
         <SourcePanel
           sourceColumns={sourceColumns}
@@ -235,14 +195,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
             {fkCount} graph relationships defined
           </span>
           <span>·</span>
-          <span>
-            {
-              ontologyProperties.filter(
-                (p) => p.required && !getMappedColId(p.id),
-              ).length
-            }{" "}
-            required properties unfilled
-          </span>
+          <span>{unfilledRequiredCount} required properties unfilled</span>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-zinc-600">
           <svg

@@ -1,19 +1,17 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Cpu, ShieldCheck, RefreshCw, AlertTriangle } from "../../../lib/icons";
+import { Cpu, RefreshCw, AlertTriangle } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import { queryClient } from "../../../lib/queryClient";
 import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
-import {
-  useDataQuality,
-  formatQualityMetric,
-} from "../../../hooks/useDataQuality";
+import { useDataQuality } from "../../../hooks/useDataQuality";
 import {
   deriveEngineStatus,
   formatLastChecked,
 } from "../../../components/layout/engineStatusUtils";
 import type { EngineMetricsResponse } from "../../../pages/dashboard/useDashboardData";
+import { DataQualityBreakdown } from "./system-health/DataQualityBreakdown";
 
 export interface SystemHealthSectionContentProps {
   engineMetrics?: EngineMetricsResponse | null;
@@ -63,34 +61,6 @@ export const SystemHealthSectionContent: React.FC<
       ? `${health.latencyMs} ms`
       : "—";
 
-  const dimensions = [
-    {
-      id: "completeness",
-      label: "Completeness",
-      description: "Non-null essential attributes",
-      value: quality.dimensions.completeness,
-    },
-    {
-      id: "uniqueness",
-      label: "Uniqueness",
-      description: "Deduplicated canonical records",
-      value: quality.dimensions.uniqueness,
-    },
-    {
-      id: "consistency",
-      label: "Consistency",
-      description: "Conforming to ontology schemas",
-      value: quality.dimensions.consistency,
-    },
-    {
-      id: "timeliness",
-      label: "Timeliness",
-      description: "Recency within SLA thresholds",
-      value: quality.dimensions.timeliness,
-    },
-  ];
-
-  // Show a specific, actionable status notice only when relevant
   let statusNotice: string | null = null;
   if (statusKind === "offline") {
     statusNotice = "Engine unreachable — unable to load live quality metrics.";
@@ -190,74 +160,10 @@ export const SystemHealthSectionContent: React.FC<
       )}
 
       {/* Data Quality Breakdown */}
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            <ShieldCheck
-              className="w-4 h-4 text-text-secondary"
-              aria-hidden="true"
-            />
-            <span className="text-xs font-semibold text-text">
-              Data Quality Breakdown
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-text-secondary">Overall:</span>
-            <span
-              className={`font-semibold tabular-nums ${
-                quality.score === null ? "text-text-muted" : "text-text"
-              }`}
-            >
-              {formatQualityMetric(quality.score)}
-            </span>
-            {quality.score === null && (
-              <Badge variant="neutral">Unverified</Badge>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {dimensions.map((dim) => {
-            const isAvailable = dim.value !== null;
-            return (
-              <div
-                key={dim.id}
-                className="bg-surface-subtle border border-border rounded-lg p-3.5 flex flex-col justify-between transition-colors"
-              >
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-semibold text-text">{dim.label}</span>
-                  {!isAvailable && (
-                    <span className="text-[10px] text-text-muted">No data</span>
-                  )}
-                </div>
-
-                <div
-                  className={`text-xl font-bold tabular-nums tracking-tight mt-0.5 ${
-                    isAvailable ? "text-text" : "text-text-muted"
-                  }`}
-                >
-                  {formatQualityMetric(dim.value)}
-                </div>
-
-                <div className="text-[11px] text-text-secondary mt-1 leading-snug">
-                  {dim.description}
-                </div>
-
-                <div className="w-full bg-surface border border-border h-1.5 rounded-full overflow-hidden mt-2.5">
-                  <div
-                    className="bg-primary h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: isAvailable
-                        ? `${Math.max(0, Math.min(dim.value!, 100))}%`
-                        : "0%",
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <DataQualityBreakdown
+        score={quality.score}
+        dimensions={quality.dimensions}
+      />
     </section>
   );
 };

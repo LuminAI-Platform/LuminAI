@@ -3,75 +3,26 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
 import type { TimeSeriesPoint } from "./components/PipelineTimelineChart";
 import type { ActivityItem } from "./components/ActivityFeed";
+import {
+  type DashboardSummary,
+  type EngineHealth,
+  type PipelineStats,
+  type DataQuality,
+  type EntityStats,
+  type EngineMetricsResponse,
+  type SyncDiscrepancy,
+  computeSyncDiscrepancy,
+} from "./dashboardTypes";
 
-export interface DashboardSummary {
-  totalEntities: number;
-  totalConnections: number;
-  totalPipelines: number;
-  entityBreakdown: Record<string, number>;
-  recentActivity: ActivityItem[];
-  dataQualityScore: number | null;
-  pipelineHealth: {
-    running: number;
-    completed: number;
-    failed: number;
-  };
-  lastSyncAt: string | null;
-}
-
-export interface EngineHealth {
-  status: "ONLINE" | "STANDBY" | "DEGRADED" | string;
-  appName: string;
-  version: string;
-  latencyMs: number;
-  message: string;
-}
-
-export interface PipelineStats {
-  totalRuns: number;
-  successRate: number;
-  avgDuration: number;
-  p95Duration?: number;
-  recordsProcessed: number;
-  runsSinceStart?: number;
-  lastRunAt?: string;
-  quarantinedCount?: number;
-  rejectedCount?: number;
-  evaluatedCount?: number;
-}
-
-export interface DataQuality {
-  overallScore?: number | null;
-  completeness?: number | null;
-  uniqueness?: number | null;
-  consistency?: number | null;
-  timeliness?: number | null;
-  recordsEvaluated?: number;
-  recordsRejected?: number;
-  recordsQuarantined?: number;
-  available?: boolean;
-  status?: string;
-  error?: string;
-}
-
-export interface EntityStats {
-  totalEntities?: number;
-  totalGoldenRecords?: number;
-  totalStagingRecords?: number;
-}
-
-export interface EngineMetricsResponse {
-  engineHealth?: EngineHealth;
-  pipelineStats?: PipelineStats;
-  dataQuality?: DataQuality;
-  entityStats?: EntityStats;
-}
-
-export interface SyncDiscrepancy {
-  runsMismatch: boolean;
-  entitiesMismatch: boolean;
-  message?: string;
-}
+export type {
+  DashboardSummary,
+  EngineHealth,
+  PipelineStats,
+  DataQuality,
+  EntityStats,
+  EngineMetricsResponse,
+  SyncDiscrepancy,
+};
 
 export function useDashboardData() {
   const [timeRange, setTimeRange] = useState<"7d" | "14d" | "30d">("7d");
@@ -94,7 +45,6 @@ export function useDashboardData() {
       return res.json();
     },
     refetchInterval: (query) => {
-      // Pause completely when tab is hidden
       if (typeof document !== "undefined" && document.hidden) {
         return false;
       }
@@ -141,9 +91,7 @@ export function useDashboardData() {
     queryFn: async () => {
       const res = await apiFetch(
         `/api/v1/dashboard/stats/timeseries?range=${timeRange}`,
-        {
-          headers: { "X-Suppress-Toast": "true" },
-        },
+        { headers: { "X-Suppress-Toast": "true" } },
       );
       return res.json();
     },
@@ -168,7 +116,6 @@ export function useDashboardData() {
       return res.json();
     },
     refetchInterval: (query) => {
-      // Pause completely when tab is hidden
       if (typeof document !== "undefined" && document.hidden) {
         return false;
       }
@@ -208,7 +155,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // Determine if any run is currently executing
   const hasRunningRuns = useMemo(() => {
     const activityRunning = activity.some(
       (item) => item.status?.toUpperCase() === "RUNNING",
@@ -217,46 +163,29 @@ export function useDashboardData() {
     return activityRunning || summaryRunning;
   }, [activity, summary]);
 
-  // Check for cross-endpoint figure discrepancies
-  const syncDiscrepancy = useMemo<SyncDiscrepancy>(() => {
-    const summaryPipelines = summary?.totalPipelines;
-    const engineRuns = engineMetrics?.pipelineStats?.totalRuns;
-    const runsMismatch =
-      summaryPipelines !== undefined &&
-      engineRuns !== undefined &&
-      summaryPipelines !== engineRuns;
+  const syncDiscrepancy = useMemo<SyncDiscrepancy>(
+    () => computeSyncDiscrepancy(summary, engineMetrics),
+    [summary, engineMetrics],
+  );
 
-    const summaryEntities = summary?.totalEntities;
-    const engineEntities =
-      engineMetrics?.entityStats?.totalEntities ??
-      engineMetrics?.entityStats?.totalGoldenRecords;
-    const entitiesMismatch =
-      summaryEntities !== undefined &&
-      engineEntities !== undefined &&
-      summaryEntities !== engineEntities;
-
-    let message: string | undefined;
-    if (runsMismatch && entitiesMismatch) {
-      message = `Runs (${summaryPipelines} platform vs ${engineRuns} engine) and entities (${summaryEntities} vs ${engineEntities}) are out of sync.`;
-    } else if (runsMismatch) {
-      message = `Platform history reports ${summaryPipelines} runs, while engine live telemetry reports ${engineRuns} runs.`;
-    } else if (entitiesMismatch) {
-      message = `Platform reports ${summaryEntities} entities, while engine reports ${engineEntities} entities.`;
-    }
-
-    if (import.meta.env.DEV && (runsMismatch || entitiesMismatch)) {
+  useEffect(() => {
+    if (
+      import.meta.env.DEV &&
+      (syncDiscrepancy.runsMismatch || syncDiscrepancy.entitiesMismatch)
+    ) {
       console.warn(
-        `[Dashboard Sync Discrepancy] Figures may be out of sync between core backend and engine:`,
-        { summaryPipelines, engineRuns, summaryEntities, engineEntities },
+        "[Dashboard Sync Discrepancy] Figures may be out of sync between core backend and engine:",
+        {
+          summaryPipelines: summary?.totalPipelines,
+          engineRuns: engineMetrics?.pipelineStats?.totalRuns,
+          summaryEntities: summary?.totalEntities,
+          engineEntities:
+            engineMetrics?.entityStats?.totalEntities ??
+            engineMetrics?.entityStats?.totalGoldenRecords,
+        },
       );
     }
-
-    return {
-      runsMismatch,
-      entitiesMismatch,
-      message,
-    };
-  }, [summary, engineMetrics]);
+  }, [syncDiscrepancy, summary, engineMetrics]);
 
   // When tab transitions back from hidden to visible, immediately refresh
   useEffect(() => {

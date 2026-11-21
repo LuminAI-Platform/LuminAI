@@ -1,6 +1,7 @@
 import React from "react";
 import type { ColumnConfig } from "../DataPreviewTable";
 import type { ColumnMappingConfig, IngestionLog } from "./fileUploadTypes";
+import { IngestionConsolePanel } from "./IngestionConsolePanel";
 
 interface StepIngestingProps {
   file: File | null;
@@ -43,6 +44,7 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
       : mappedTypes.length === 0
         ? "Person"
         : null;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full min-h-0 overflow-y-auto">
       {/* Left pane: file summary */}
@@ -75,7 +77,7 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
             <div className="flex justify-between py-1 border-b border-border">
               <span className="text-text-secondary">Active Mappings:</span>
               <span className="font-semibold text-primary">
-                {columnsConfig.filter((c) => c.active).length} fields
+                {activeCols.length} fields
               </span>
             </div>
           </div>
@@ -104,6 +106,7 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
 
           {!ingesting && !ingestionFinished && !ingestionFailed && (
             <button
+              type="button"
               onClick={startIngestion}
               className="w-full mt-4 py-2.5 bg-primary hover:bg-primary-hover text-primary-text border border-primary rounded-lg text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
@@ -132,6 +135,7 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
                   "An unexpected error occurred during ingestion."}
               </span>
               <button
+                type="button"
                 onClick={startIngestion}
                 className="px-3 py-1.5 bg-transparent border border-error-border text-error hover:bg-error-bg rounded text-xs font-semibold transition-colors cursor-pointer"
               >
@@ -159,96 +163,37 @@ export const StepIngesting: React.FC<StepIngestingProps> = ({
             Ontology Actions
           </h4>
           <div className="flex flex-col gap-2">
-            {columnsConfig
-              .filter((c) => c.active)
-              .slice(0, 5)
-              .map((c) => {
-                const m = mappings[c.name];
-                return (
-                  <div
-                    key={c.name}
-                    className="flex justify-between items-center text-[10px]"
-                  >
-                    <span className="font-mono text-zinc-400 truncate max-w-[90px]">
-                      {c.name}
-                    </span>
-                    <span className="text-zinc-600">➔</span>
-                    <span className="font-semibold text-zinc-300">
-                      {m?.targetEntityType}.{m?.targetProperty}
-                    </span>
-                  </div>
-                );
-              })}
-            {columnsConfig.filter((c) => c.active).length > 5 && (
+            {activeCols.slice(0, 5).map((c) => {
+              const m = mappings[c.name];
+              return (
+                <div
+                  key={c.name}
+                  className="flex justify-between items-center text-[10px]"
+                >
+                  <span className="font-mono text-zinc-400 truncate max-w-[90px]">
+                    {c.name}
+                  </span>
+                  <span className="text-zinc-600">➔</span>
+                  <span className="font-semibold text-zinc-300">
+                    {m?.targetEntityType}.{m?.targetProperty}
+                  </span>
+                </div>
+              );
+            })}
+            {activeCols.length > 5 && (
               <div className="text-[10px] text-center text-zinc-500 italic mt-1">
-                + {columnsConfig.filter((c) => c.active).length - 5} more
-                columns
+                + {activeCols.length - 5} more columns
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Right pane: console logs and progress */}
-      <div className="md:col-span-3 flex flex-col border border-zinc-850 rounded-lg overflow-hidden bg-zinc-950 h-full">
-        {/* Console Bar */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-850 bg-zinc-900/60 select-none">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-zinc-400" />
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-zinc-300">
-              Sync Progress Console
-            </span>
-          </div>
-          {ingesting && (
-            <span className="text-[10px] text-zinc-300">
-              {ingestionProgress}%
-            </span>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        {ingesting && (
-          <div className="w-full h-1.5 bg-surface-muted relative">
-            <div
-              className="absolute top-0 left-0 bottom-0 bg-primary transition-all duration-300"
-              style={{ width: `${ingestionProgress}%` }}
-            />
-          </div>
-        )}
-
-        {/* Ingestion Console Screen */}
-        <div className="flex-1 bg-surface-subtle p-4 font-mono text-[10px] overflow-y-auto flex flex-col gap-2 min-h-[220px]">
-          {ingestionLogs.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-text-secondary italic select-none">
-              Console waiting to initialize... click "Initialize Ingestion Sync"
-            </div>
-          ) : (
-            ingestionLogs.map((log, i) => (
-              <div key={i} className="flex gap-2">
-                <span className="text-text-secondary select-none">
-                  [{log.timestamp}]
-                </span>
-                <span
-                  className={`font-bold select-none ${
-                    log.level === "SUCCESS"
-                      ? "text-success"
-                      : log.level === "WARN"
-                        ? "text-warning"
-                        : log.level === "ERROR"
-                          ? "text-error"
-                          : "text-primary"
-                  }`}
-                >
-                  {log.level}
-                </span>
-                <span className="text-text whitespace-pre-wrap">
-                  {log.message}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <IngestionConsolePanel
+        ingesting={ingesting}
+        ingestionProgress={ingestionProgress}
+        ingestionLogs={ingestionLogs}
+      />
     </div>
   );
 };

@@ -1,0 +1,77 @@
+/* Global Icon Styling: Single stroke width globally, currentColor for theme tokens */
+svg.lucide {
+  stroke-width: 2px;
+  stroke: currentColor;
+}
+
+/* Accessible, clean custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-page);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) var(--color-page);
+}
+
+/* Sidebar scrollbar: hidden until hover, with stable right gutter so active highlights are never clipped */
+.sidebar-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: var(--color-border) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+}
+
+/* Clean, calm background grid — no neon, no high contrast */
+.bg-grid-dots {
+  background-image: radial-gradient(currentColor 0.75px, transparent 0.75px);
+  background-size: 24px 24px;
+  opacity: 0.03;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-inline: none;
+  text-align: left;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-page);
+  color: var(--color-text);
+  overflow: hidden;
+  font-family: var(--font-family-sans);
+}

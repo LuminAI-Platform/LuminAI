@@ -3,6 +3,8 @@ import {
   getTypeBadgeStyles,
   exportToCsv,
 } from "./data-preview/dataPreviewHelpers";
+import { DataPreviewToolbar } from "./data-preview/DataPreviewToolbar";
+import { DataPreviewPagination } from "./data-preview/DataPreviewPagination";
 
 export interface ColumnConfig {
   name: string;
@@ -50,67 +52,13 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
   return (
     <div className="flex flex-col h-full bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden shadow-xl shadow-black/30">
       {/* Header toolbar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-b border-zinc-800/80 bg-zinc-900/40">
-        <div className="flex items-center gap-2.5 select-none">
-          <span className="text-xs font-semibold tracking-wider uppercase text-zinc-400">
-            Preview Dataset
-          </span>
-          <span className="text-xs text-zinc-500">
-            ({filteredRows.length} of {rows.length} rows)
-          </span>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-72">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500 pointer-events-none">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              placeholder="Search active columns..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 bg-zinc-900 border border-zinc-800/85 rounded-lg text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500/80 transition-colors"
-            />
-          </div>
-          <button
-            id="export-preview-csv-btn"
-            type="button"
-            onClick={() => exportToCsv(filteredRows, columns)}
-            disabled={filteredRows.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs font-medium transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
-            title="Export filtered preview to CSV"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-zinc-400"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <span>Export CSV</span>
-          </button>
-        </div>
-      </div>
+      <DataPreviewToolbar
+        filteredCount={filteredRows.length}
+        totalCount={rows.length}
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        onExportCsv={() => exportToCsv(filteredRows, columns)}
+      />
 
       {/* Table viewport */}
       <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
@@ -161,6 +109,7 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
                       </span>
                       {onToggleColumn && (
                         <button
+                          type="button"
                           onClick={() => onToggleColumn(col.name)}
                           title={
                             col.active ? "Disable column" : "Enable column"
@@ -247,63 +196,14 @@ export const DataPreviewTable: React.FC<DataPreviewTableProps> = ({
       </div>
 
       {/* Pagination footer */}
-      <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800/80 bg-zinc-900/40 select-none">
-        <div className="text-zinc-500 text-xs">
-          Showing{" "}
-          <span className="font-semibold text-zinc-400">
-            {Math.min(
-              filteredRows.length,
-              (currentPage - 1) * itemsPerPage + 1,
-            )}
-          </span>{" "}
-          to{" "}
-          <span className="font-semibold text-zinc-400">
-            {Math.min(filteredRows.length, currentPage * itemsPerPage)}
-          </span>{" "}
-          of{" "}
-          <span className="font-semibold text-zinc-400">
-            {filteredRows.length}
-          </span>{" "}
-          entries
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <span className="text-zinc-400 text-xs px-3 font-semibold">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <DataPreviewPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        itemsPerPage={itemsPerPage}
+        totalFilteredRows={filteredRows.length}
+        onPreviousPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
+        onNextPage={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+      />
     </div>
   );
 };

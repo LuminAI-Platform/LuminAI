@@ -8,6 +8,7 @@ import type {
   DashboardSummary,
   EngineMetricsResponse,
 } from "../../../pages/dashboard/useDashboardData";
+import { DataQualityDimensionsPanel } from "./DataQualityDimensionsPanel";
 
 export interface DataEngineTelemetryCardProps {
   summary?: DashboardSummary;
@@ -62,29 +63,6 @@ export const DataEngineTelemetryCardContent: React.FC<{
     quality?.recordsEvaluated ??
     stats?.evaluatedCount ??
     (hasLiveRuns ? stats?.recordsProcessed : undefined);
-
-  // Evaluation status text in Data quality header
-  let evaluationCaption: React.ReactNode;
-  if (typeof recordsEvaluated === "number" && recordsEvaluated > 0) {
-    evaluationCaption = `${recordsEvaluated.toLocaleString()} records evaluated`;
-  } else if (!hasLiveRuns && hasCompletedRuns) {
-    const tooltipText =
-      "Run history is available, but the engine has not reported live metrics.";
-    evaluationCaption = (
-      <Tooltip label={tooltipText} side="top">
-        <span
-          title={tooltipText}
-          className="cursor-help underline decoration-dotted underline-offset-2"
-        >
-          No live data from engine
-        </span>
-      </Tooltip>
-    );
-  } else if (hasLiveRuns) {
-    evaluationCaption = `${liveRuns.toLocaleString()} runs recorded`;
-  } else {
-    evaluationCaption = "No runs yet";
-  }
 
   // Avg run time display
   const hasAvgDuration =
@@ -165,65 +143,13 @@ export const DataEngineTelemetryCardContent: React.FC<{
       </div>
 
       {/* Quality Dimensions Breakdown */}
-      <div className="bg-surface-subtle border border-border rounded-lg p-3">
-        <div className="flex items-center justify-between text-xs text-text-secondary mb-2">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-text">Data quality</span>
-            {hasLiveRuns && (
-              <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary bg-surface px-1.5 py-0.5 rounded border border-border">
-                Live
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] text-text-secondary">
-            {evaluationCaption}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-          <div className="flex flex-col">
-            <span className="text-[11px] text-text-secondary">
-              Completeness
-            </span>
-            <span className="text-text font-semibold">
-              {quality?.completeness !== undefined &&
-              quality.completeness !== null &&
-              (hasLiveRuns || hasCompletedRuns)
-                ? `${quality.completeness.toFixed(1)}%`
-                : "–"}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] text-text-secondary">Uniqueness</span>
-            <span className="text-text font-semibold">
-              {quality?.uniqueness !== undefined &&
-              quality.uniqueness !== null &&
-              (hasLiveRuns || hasCompletedRuns)
-                ? `${quality.uniqueness.toFixed(1)}%`
-                : "–"}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] text-text-secondary">Consistency</span>
-            <span className="text-text font-semibold">
-              {quality?.consistency !== undefined &&
-              quality.consistency !== null &&
-              (hasLiveRuns || hasCompletedRuns)
-                ? `${quality.consistency.toFixed(1)}%`
-                : "–"}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] text-text-secondary">Timeliness</span>
-            <span className="text-text font-semibold">
-              {quality?.timeliness !== undefined &&
-              quality.timeliness !== null &&
-              (hasLiveRuns || hasCompletedRuns)
-                ? `${quality.timeliness.toFixed(1)}%`
-                : "–"}
-            </span>
-          </div>
-        </div>
-      </div>
+      <DataQualityDimensionsPanel
+        quality={quality}
+        hasLiveRuns={hasLiveRuns}
+        hasCompletedRuns={hasCompletedRuns}
+        liveRuns={liveRuns}
+        recordsEvaluated={recordsEvaluated}
+      />
     </div>
   );
 };
