@@ -177,7 +177,7 @@ public class DataEngineClient {
       log.warn("Failed to trigger cleanData on Data Engine ({}): {}", baseUrl, e.getMessage());
       return Map.of(
           "status",
-          "DEGRADED",
+          "ERROR",
           "available",
           false,
           "recordsProcessed",
@@ -200,8 +200,16 @@ public class DataEngineClient {
           .retrieve()
           .body(MAP_TYPE);
     } catch (Exception e) {
-      log.debug("Data Engine direct dataset cleaning bypassed or unavailable: {}", e.getMessage());
-      return null;
+      log.warn("Data Engine direct dataset cleaning failed ({}): {}", baseUrl, e.getMessage());
+      return Map.of(
+          "status",
+          "ERROR",
+          "available",
+          false,
+          "message",
+          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").",
+          "error",
+          e.getMessage() != null ? e.getMessage() : "Connection failed");
     }
   }
 
@@ -220,7 +228,7 @@ public class DataEngineClient {
           "Failed to trigger resolveEntities on Data Engine ({}): {}", baseUrl, e.getMessage());
       return Map.of(
           "status",
-          "DEGRADED",
+          "ERROR",
           "available",
           false,
           "resolvedEntities",

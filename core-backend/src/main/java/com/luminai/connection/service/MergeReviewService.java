@@ -49,7 +49,7 @@ public class MergeReviewService {
     this.candidateScannerService =
         candidateScannerService != null
             ? candidateScannerService
-            : new CandidateScannerService(candidateRepository, new PairSimilarityMatcher());
+            : new CandidateScannerService(candidateRepository);
   }
 
   @Transactional(readOnly = true)
