@@ -126,15 +126,27 @@ class TypeInferenceEngine:
         return False
 
     @staticmethod
-    def detect_scalar_type(val: Any) -> InferredType:
-        """Detects the specific semantic type of an individual value."""
-        if TypeInferenceEngine.is_null_value(val):
+    def is_identifier_context(col_name: Optional[str]) -> bool:
+        """Determines if column naming implies an identifier rather than numerical quantity."""
+        if not col_name:
+            return False
+        cn = col_name.lower().replace("-", "_")
+        parts = [p for p in cn.split("_") if p]
+        id_keys = {"id", "identifier", "code", "acc", "account", "num", "no", "number", "mrn", "ssn", "zip", "postal", "pin", "sku", "key", "ref", "reference"}
+        return any(p in id_keys for p in parts) or cn.endswith("id") or cn.endswith("no") or cn.endswith("code")
+
+    @classmethod
+    def detect_scalar_type(cls, val: Any, col_name: Optional[str] = None) -> InferredType:
+        """Detects the specific semantic type of an individual value with context awareness."""
+        if cls.is_null_value(val):
             return InferredType.NULL
 
         if isinstance(val, bool):
             return InferredType.BOOLEAN
 
         if isinstance(val, int):
+            if cls.is_identifier_context(col_name):
+                return InferredType.IDENTIFIER
             return InferredType.INTEGER
 
         if isinstance(val, float):
@@ -150,7 +162,40 @@ class TypeInferenceEngine:
         if lower in BOOLEAN_TRUE or lower in BOOLEAN_FALSE:
             return InferredType.BOOLEAN
 
-        # Integers
+        # Rule: Numeric strings with leading zero (e.g. "001234", "0712345678") are identifiers or phone numbers
+        if len(s) > 1 and s.isdigit() and s.startswith("0"):
+            digits_only = re.sub(r"\D", "", s)
+            if col_name and any(k in col_name.lower() for k in ("phone", "tel", "mobile")):
+                return InferredType.PHONE
+            return InferredType.IDENTIFIER
+
+        # Email
+        if re.match(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$", s):
+            return InferredType.EMAIL
+
+        # Phone
+        digits_only = re.sub(r"\D", "", s)
+        if 7 <= len(digits_only) <= 15 and re.match(r"^\+?[0-9\s\-\(\)\.]{7,25}$", s):
+            if not s.isdigit() or s.startswith("+") or (col_name and any(k in col_name.lower() for k in ("phone", "tel", "mobile"))):
+                return InferredType.PHONE
+
+        # Dates / Datetime
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", s) or re.match(r"^\d{2}[/-]\d{2}[/-]\d{4}$", s):
+            return InferredType.DATE
+
+        if col_name and any(k in col_name.lower() for k in ("date", "dob", "birth", "created", "admit", "timestamp")):
+            if re.match(r"^\d{8}$", s):  # YYYYMMDD
+                return InferredType.DATE
+
+        if "t" in lower or ":" in s:
+            if re.match(r"^\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(z|[+-]\d{2}:?\d{2})?$", lower):
+                return InferredType.DATETIME
+
+        # Check identifier column context for digits
+        if cls.is_identifier_context(col_name) and re.match(r"^[A-Za-z0-9\-_.]+$", s):
+            return InferredType.IDENTIFIER
+
+        # Integers (excluding leading zero identifiers)
         if re.match(r"^[-+]?\d+$", s):
             return InferredType.INTEGER
 
@@ -162,24 +207,6 @@ class TypeInferenceEngine:
         clean_num = s.replace(",", "")
         if re.match(r"^[-+]?\d+(\.\d+)?$", clean_num):
             return InferredType.FLOAT if "." in clean_num else InferredType.INTEGER
-
-        # Check Date / Datetime pattern
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", s) or re.match(r"^\d{2}[/-]\d{2}[/-]\d{4}$", s):
-            return InferredType.DATE
-
-        if "t" in lower or ":" in s:
-            if re.match(r"^\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(z|[+-]\d{2}:?\d{2})?$", lower):
-                return InferredType.DATETIME
-
-        # Email
-        if re.match(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$", s):
-            return InferredType.EMAIL
-
-        # Phone
-        digits_only = re.sub(r"\D", "", s)
-        if 7 <= len(digits_only) <= 15 and re.match(r"^\+?[0-9\s\-\(\)\.]{7,25}$", s):
-            if not s.isdigit() or s.startswith("+"):
-                return InferredType.PHONE
 
         return InferredType.STRING
 
@@ -201,7 +228,7 @@ class TypeInferenceEngine:
         invalids: List[Any] = []
 
         for val in values:
-            stype = self.detect_scalar_type(val)
+            stype = self.detect_scalar_type(val, col_name=col_name)
             if stype == InferredType.NULL:
                 null_count += 1
             else:
@@ -240,7 +267,7 @@ class TypeInferenceEngine:
         if predominant != InferredType.STRING:
             for v in values:
                 if not self.is_null_value(v):
-                    vt = self.detect_scalar_type(v)
+                    vt = self.detect_scalar_type(v, col_name=col_name)
                     if vt != predominant and not (predominant == InferredType.FLOAT and vt == InferredType.INTEGER):
                         if v not in invalids and len(invalids) < 5:
                             invalids.append(v)
@@ -272,7 +299,7 @@ class TypeInferenceEngine:
                 transformation="null_normalized" if val is not None and str(val).strip() != "" else None,
             )
 
-        if target_type == InferredType.STRING:
+        if target_type in (InferredType.STRING, InferredType.IDENTIFIER):
             s_val = str(val).strip()
             return ConversionResult(
                 success=True,
@@ -355,6 +382,14 @@ class TypeInferenceEngine:
                         warning=f"Infinite numeric value '{val}' rejected",
                     )
                 if target_type == InferredType.INTEGER:
+                    if clean_s.startswith("0") and len(clean_s) > 1 and not allow_lossy:
+                        return ConversionResult(
+                            success=False,
+                            original_value=val,
+                            converted_value=val,
+                            target_type=target_type,
+                            warning=f"Value '{val}' has leading zeroes; lossy integer conversion rejected to preserve identifier integrity",
+                        )
                     if not clean_s.lstrip("-+").isdigit():
                         if allow_lossy:
                             return ConversionResult(

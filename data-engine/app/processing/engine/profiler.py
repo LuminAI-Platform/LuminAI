@@ -46,8 +46,12 @@ class ColumnProfile:
     mean: Optional[float] = None
     median: Optional[float] = None
     std_dev: Optional[float] = None
+    q1: Optional[float] = None
+    q3: Optional[float] = None
     sample_invalids: List[Any] = field(default_factory=list)
     sample_values: List[Any] = field(default_factory=list)
+    most_frequent_values: List[Dict[str, Any]] = field(default_factory=list)
+    pattern_distribution: Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -57,10 +61,18 @@ class DatasetProfileReport:
     total_rows: int
     total_columns: int
     columns: Dict[str, ColumnProfile] = field(default_factory=dict)
+    total_missing_values: int = 0
+    duplicate_row_count: int = 0
+    valid_record_count: int = 0
+    invalid_record_count: int = 0
+    estimated_memory_bytes: int = 0
+    dataset_size_bytes: int = 0
+    schema_info: Dict[str, str] = field(default_factory=dict)
     overall_completeness: float = 0.0
     overall_validity: float = 0.0
     critical_issues_count: int = 0
     anomalies: List[str] = field(default_factory=list)
+    quality_issues: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert report to dictionary format for JSON serialization."""
@@ -68,10 +80,18 @@ class DatasetProfileReport:
             "stage": self.stage,
             "total_rows": self.total_rows,
             "total_columns": self.total_columns,
+            "total_missing_values": self.total_missing_values,
+            "duplicate_row_count": self.duplicate_row_count,
+            "valid_record_count": self.valid_record_count,
+            "invalid_record_count": self.invalid_record_count,
+            "estimated_memory_bytes": self.estimated_memory_bytes,
+            "dataset_size_bytes": self.dataset_size_bytes,
+            "schema_info": self.schema_info,
             "overall_completeness": self.overall_completeness,
             "overall_validity": self.overall_validity,
             "critical_issues_count": self.critical_issues_count,
             "anomalies": self.anomalies,
+            "quality_issues": self.quality_issues,
             "columns": {k: asdict(v) for k, v in self.columns.items()},
         }
 
@@ -128,6 +148,7 @@ class DataProfiler:
         total_missing = 0
         total_invalids = 0
         anomalies: List[str] = []
+        quality_issues: List[Dict[str, Any]] = []
 
         for col_name in df.columns:
             raw_vals = df[col_name].to_list()
@@ -189,6 +210,7 @@ class DataProfiler:
             # Outlier detection (IQR method)
             outlier_count = 0
             min_val, max_val, mean_val, median_val, std_val = None, None, None, None, None
+            q1_val, q3_val = None, None
             if numeric_vals:
                 sorted_nums = sorted(numeric_vals)
                 n = len(sorted_nums)
@@ -202,6 +224,8 @@ class DataProfiler:
                 if n >= 4:
                     q1 = sorted_nums[n // 4]
                     q3 = sorted_nums[(3 * n) // 4]
+                    q1_val = round(q1, 2)
+                    q3_val = round(q3, 2)
                     iqr = q3 - q1
                     lower_bound = q1 - 1.5 * iqr
                     upper_bound = q3 + 1.5 * iqr
@@ -210,13 +234,62 @@ class DataProfiler:
             # Sample non-null values
             sample_vals = [str(x) for x in non_null_vals[:5]]
 
-            # Register anomalies
-            if null_pct > 50.0:
-                anomalies.append(f"Column '{col_name}' has high missingness ({null_pct}%)")
+            # Frequency distribution (top-5 most frequent values)
+            val_counts: Dict[str, int] = {}
+            for v in non_null_vals:
+                sv = str(v)
+                val_counts[sv] = val_counts.get(sv, 0) + 1
+            sorted_freq = sorted(val_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            most_frequent = [
+                {"value": val, "count": cnt, "percentage": round((cnt / total_rows) * 100.0, 2)}
+                for val, cnt in sorted_freq
+            ]
+
+            # Register anomalies and structured quality issues
+            if null_pct > 0:
+                if null_pct > 50.0:
+                    anomalies.append(f"Column '{col_name}' has high missingness ({null_pct}%)")
+                quality_issues.append({
+                    "column": col_name,
+                    "issue_category": "MISSING_VALUES",
+                    "affected_records": null_count,
+                    "percentage_affected": null_pct,
+                    "example_values": [None],
+                    "severity": "ERROR" if null_pct > 50.0 else "WARNING",
+                    "recommended_action": "Impute missing values or drop affected records",
+                })
             if invalid_count > 0:
                 anomalies.append(f"Column '{col_name}' contains {invalid_count} invalid value(s)")
+                quality_issues.append({
+                    "column": col_name,
+                    "issue_category": "INVALID_VALUES",
+                    "affected_records": invalid_count,
+                    "percentage_affected": round((invalid_count / total_rows) * 100.0, 2) if total_rows > 0 else 0.0,
+                    "example_values": sample_invalids,
+                    "severity": "ERROR",
+                    "recommended_action": "Standardize formatting or quarantine invalid rows",
+                })
             if mojibake_count > 0:
                 anomalies.append(f"Column '{col_name}' contains {mojibake_count} character encoding error(s)")
+                quality_issues.append({
+                    "column": col_name,
+                    "issue_category": "ENCODING_ERROR",
+                    "affected_records": mojibake_count,
+                    "percentage_affected": round((mojibake_count / total_rows) * 100.0, 2) if total_rows > 0 else 0.0,
+                    "example_values": [],
+                    "severity": "WARNING",
+                    "recommended_action": "Apply automated UTF-8 mojibake repair",
+                })
+            if outlier_count > 0:
+                quality_issues.append({
+                    "column": col_name,
+                    "issue_category": "NUMERIC_OUTLIER",
+                    "affected_records": outlier_count,
+                    "percentage_affected": round((outlier_count / total_rows) * 100.0, 2) if total_rows > 0 else 0.0,
+                    "example_values": [],
+                    "severity": "INFO",
+                    "recommended_action": "Inspect extreme values or apply IQR fence capping",
+                })
 
             col_profiles[col_name] = ColumnProfile(
                 column_name=col_name,
@@ -237,22 +310,37 @@ class DataProfiler:
                 mean=mean_val,
                 median=median_val,
                 std_dev=std_val,
+                q1=q1_val,
+                q3=q3_val,
                 sample_invalids=sample_invalids,
                 sample_values=sample_vals,
+                most_frequent_values=most_frequent,
+                pattern_distribution=type_profile.type_counts,
             )
 
         completeness = round(((total_fields - total_missing) / total_fields) * 100.0, 2) if total_fields > 0 else 100.0
         validity = round(((total_fields - total_invalids) / total_fields) * 100.0, 2) if total_fields > 0 else 100.0
+        dup_rows = total_rows - df.unique().height if total_rows > 0 else 0
+        est_mem = df.estimated_size()
+        schema_dict = {col: str(df.schema[col]) for col in df.columns}
 
         return DatasetProfileReport(
             stage=stage,
             total_rows=total_rows,
             total_columns=total_cols,
             columns=col_profiles,
+            total_missing_values=total_missing,
+            duplicate_row_count=dup_rows,
+            valid_record_count=max(0, total_rows - total_invalids),
+            invalid_record_count=min(total_rows, total_invalids),
+            estimated_memory_bytes=est_mem,
+            dataset_size_bytes=est_mem,
+            schema_info=schema_dict,
             overall_completeness=completeness,
             overall_validity=validity,
             critical_issues_count=len(anomalies),
             anomalies=anomalies,
+            quality_issues=quality_issues,
         )
 
     def generate_delta_report(

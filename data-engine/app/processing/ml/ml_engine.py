@@ -50,20 +50,21 @@ class MachineLearningEngine:
             raise ValueError("At least 5 sample records are required to train and evaluate a model.")
 
         df = pl.DataFrame(records)
-        if target_column not in df.columns:
+        is_clustering = task_type.upper() == "CLUSTERING"
+        if not is_clustering and target_column not in df.columns:
             raise ValueError(f"Target column '{target_column}' does not exist in dataset.")
 
         # Determine features
         if not feature_columns:
-            feature_columns = [c for c in df.columns if c != target_column]
+            feature_columns = [c for c in df.columns if c != target_column] if not is_clustering else list(df.columns)
         else:
-            feature_columns = [c for c in feature_columns if c in df.columns and c != target_column]
+            feature_columns = [c for c in feature_columns if c in df.columns and (is_clustering or c != target_column)]
 
         if not feature_columns:
             raise ValueError("No valid feature columns selected for model training.")
 
         # Separate X and y
-        y_raw = df[target_column].to_list()
+        y_raw = df[target_column].to_list() if not is_clustering and target_column in df.columns else []
         
         # Preprocess features: numerical vs categorical
         x_processed_dict: Dict[str, List[float]] = {}
@@ -106,6 +107,13 @@ class MachineLearningEngine:
                 feature_names=final_feature_names,
                 algorithm=algorithm,
                 test_size=test_size,
+                params=params,
+            )
+        elif task_type.upper() == "CLUSTERING":
+            return cls._train_clustering(
+                x_matrix=x_matrix,
+                feature_names=final_feature_names,
+                algorithm=algorithm,
                 params=params,
             )
         else:
@@ -250,6 +258,51 @@ class MachineLearningEngine:
                 "r2_score": round(r2, 4),
             },
             "feature_importances": feature_importances,
+            "hyperparameters": params,
+        }
+
+    @classmethod
+    def _train_clustering(
+        cls,
+        x_matrix: np.ndarray,
+        feature_names: List[str],
+        algorithm: str,
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Trains unsupervised clustering model (K-Means) and computes silhouette score and inertia."""
+        from sklearn.cluster import KMeans
+        from sklearn.metrics import silhouette_score
+
+        k = int(params.get("n_clusters", 3))
+        n_samples = len(x_matrix)
+        k = max(2, min(k, n_samples - 1)) if n_samples > 2 else 2
+
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init="auto")
+        labels = kmeans.fit_predict(x_matrix)
+
+        sil_score = 0.0
+        if len(set(labels)) > 1 and n_samples > k:
+            try:
+                sil_score = float(silhouette_score(x_matrix, labels))
+            except Exception:
+                sil_score = 0.0
+
+        inertia = float(kmeans.inertia_)
+        unique_lbls, counts = np.unique(labels, return_counts=True)
+        dist = {f"Cluster {int(lbl)}": int(cnt) for lbl, cnt in zip(unique_lbls, counts)}
+
+        return {
+            "task_type": "CLUSTERING",
+            "algorithm": "K-Means",
+            "n_clusters": k,
+            "train_samples": n_samples,
+            "test_samples": 0,
+            "metrics": {
+                "silhouette_score": round(sil_score, 4),
+                "inertia": round(inertia, 2),
+            },
+            "cluster_distribution": dist,
+            "feature_importances": [{"feature": f, "importance": round(1.0 / len(feature_names), 4)} for f in feature_names],
             "hyperparameters": params,
         }
 

@@ -6,7 +6,15 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 InsightCategory = Literal[
-    "trend", "anomaly", "data_quality", "distribution", "recommendation"
+    "descriptive",
+    "diagnostic",
+    "predictive",
+    "prescriptive",
+    "trend",
+    "anomaly",
+    "data_quality",
+    "distribution",
+    "recommendation",
 ]
 InsightSeverity = Literal["info", "warning", "critical"]
 
@@ -16,7 +24,7 @@ class InsightItem(BaseModel):
 
     title: str = Field(..., description="Short executive title of the insight.")
     category: InsightCategory = Field(
-        ..., description="Insight category (trend, anomaly, data_quality, etc.)."
+        ..., description="Insight category (descriptive, diagnostic, predictive, prescriptive, etc.)."
     )
     severity: InsightSeverity = Field(..., description="Severity level of the insight.")
     description: str = Field(
@@ -27,6 +35,9 @@ class InsightItem(BaseModel):
     )
     recommendation: Optional[str] = Field(
         default=None, description="Recommended remediation or action item."
+    )
+    evidence: Optional[Dict[str, Any]] = Field(
+        default=None, description="Mathematical calculations, metrics, and parameters supporting the insight."
     )
 
 
