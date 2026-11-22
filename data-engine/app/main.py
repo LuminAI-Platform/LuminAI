@@ -16,11 +16,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
     analytics,
+    cleaning_api,
     dashboard,
     datasets_api,
+    eda_api,
+    graph_api,
     health,
     metrics,
     ml_studio_api,
+    pipelines_builder_api,
     processing,
     sql_studio_api,
 )
@@ -213,6 +217,22 @@ def create_app() -> FastAPI:
     )
     app.include_router(
         datasets_api.router,
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        cleaning_api.router,
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        pipelines_builder_api.router,
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        eda_api.router,
+        dependencies=[Depends(get_current_identity)],
+    )
+    app.include_router(
+        graph_api.router,
         dependencies=[Depends(get_current_identity)],
     )
 

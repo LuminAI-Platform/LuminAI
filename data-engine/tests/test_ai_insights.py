@@ -95,10 +95,11 @@ def test_heuristic_generator_produces_structured_insights(sample_dataset):
     assert len(res.key_metrics) >= 3
 
     categories = [i.category for i in res.insights]
-    # Low completeness on phone should trigger data_quality
-    assert "data_quality" in categories
-    # Outlier on spend should trigger anomaly
-    assert "anomaly" in categories
+    # Check that 4-tier Palantir Foundry insights are generated
+    assert "descriptive" in categories
+    assert "diagnostic" in categories
+    assert "predictive" in categories
+    assert "prescriptive" in categories
 
 
 def test_insights_service_orchestration(sample_dataset):

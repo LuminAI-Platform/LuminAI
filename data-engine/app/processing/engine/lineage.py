@@ -134,3 +134,104 @@ class LineageTracker:
             "total_transformations": total_transformations,
             "merges_executed": len(self.merge_logs),
         }
+
+
+@dataclass
+class DatasetLineageNode:
+    """A node in the enterprise asset provenance graph."""
+
+    node_id: str
+    name: str
+    node_type: str  # SOURCE_FILE, RAW_DATASET, CLEANING_RECIPE, PIPELINE_DAG, CURATED_DATASET, ML_MODEL, GRAPH_ONTOLOGY, ANALYTIC_INSIGHT
+    tier: str  # RAW, WORKING, CURATED
+    version: str = "v1"
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+@dataclass
+class DatasetLineageEdge:
+    """A directed edge in the lineage graph representing derivation or dependency."""
+
+    source_id: str
+    target_id: str
+    relation_type: str  # INGESTED_AS, PROFILED_BY, CLEANED_BY, TRANSFORMED_INTO, TRAINED_FROM, DECOMPOSED_INTO, DERIVED_INSIGHT
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class GlobalLineageGraph:
+    """Global dataset and asset provenance graph connecting raw source files to downstream consumers."""
+
+    def __init__(self, tenant_id: str = "acme"):
+        self.tenant_id = tenant_id
+        self.nodes: Dict[str, DatasetLineageNode] = {}
+        self.edges: List[DatasetLineageEdge] = []
+
+    def register_node(
+        self,
+        node_id: str,
+        name: str,
+        node_type: str,
+        tier: str = "WORKING",
+        version: str = "v1",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> DatasetLineageNode:
+        node = DatasetLineageNode(
+            node_id=node_id,
+            name=name,
+            node_type=node_type,
+            tier=tier,
+            version=version,
+            metadata=metadata or {},
+        )
+        self.nodes[node_id] = node
+        return node
+
+    def link(self, source_id: str, target_id: str, relation_type: str) -> DatasetLineageEdge:
+        edge = DatasetLineageEdge(source_id=source_id, target_id=target_id, relation_type=relation_type)
+        self.edges.append(edge)
+        return edge
+
+    def trace_upstream(self, node_id: str) -> List[Dict[str, Any]]:
+        """Trace backward from any asset to all its upstream dependencies up to raw source files."""
+        visited = set()
+        queue = [node_id]
+        path = []
+        while queue:
+            curr = queue.pop(0)
+            if curr in visited:
+                continue
+            visited.add(curr)
+            if curr in self.nodes:
+                path.append(asdict(self.nodes[curr]))
+            for e in self.edges:
+                if e.target_id == curr and e.source_id not in visited:
+                    queue.append(e.source_id)
+        return path
+
+    def trace_downstream(self, node_id: str) -> List[Dict[str, Any]]:
+        """Trace forward from a dataset to all downstream derived models, graphs, and insights."""
+        visited = set()
+        queue = [node_id]
+        path = []
+        while queue:
+            curr = queue.pop(0)
+            if curr in visited:
+                continue
+            visited.add(curr)
+            if curr in self.nodes:
+                path.append(asdict(self.nodes[curr]))
+            for e in self.edges:
+                if e.source_id == curr and e.target_id not in visited:
+                    queue.append(e.target_id)
+        return path
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "tenant_id": self.tenant_id,
+            "total_nodes": len(self.nodes),
+            "total_edges": len(self.edges),
+            "nodes": [asdict(n) for n in self.nodes.values()],
+            "edges": [asdict(e) for e in self.edges],
+        }
+
