@@ -92,8 +92,7 @@ class SqlAnalyticsServiceTest {
     assertEquals(1, result.totalRows());
 
     // Verify SET search_path was executed for tenant schema
-    verify(setStatement, atLeastOnce())
-        .execute("SET search_path = \"tenant_acme\", public");
+    verify(setStatement, atLeastOnce()).execute("SET search_path = \"tenant_acme\", public");
     // Verify search_path was restored to default
     verify(setStatement, atLeastOnce())
         .execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");

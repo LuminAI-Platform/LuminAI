@@ -81,8 +81,7 @@ public class GraphController {
 
   @PostMapping("/sync/decomposed")
   public ResponseEntity<Map<String, Object>> syncDecomposedGraph(
-      @RequestParam(required = false) String tenantId,
-      @RequestBody Map<String, Object> request) {
+      @RequestParam(required = false) String tenantId, @RequestBody Map<String, Object> request) {
     if (decomposedGraphSyncService == null) {
       return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
           .body(Map.of("error", "DecomposedGraphSyncService unavailable"));
@@ -96,8 +95,7 @@ public class GraphController {
 
   @PostMapping("/decompose-and-sync")
   public ResponseEntity<Map<String, Object>> decomposeAndSync(
-      @RequestParam(required = false) String tenantId,
-      @RequestBody Map<String, Object> request) {
+      @RequestParam(required = false) String tenantId, @RequestBody Map<String, Object> request) {
     if (decomposedGraphSyncService == null) {
       return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
           .body(Map.of("error", "DecomposedGraphSyncService unavailable"));

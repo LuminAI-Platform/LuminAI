@@ -10,8 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
- * Service orchestrating the synchronization of decomposed multi-class entity graph nodes
- * and relationships directly into Neo4j.
+ * Service orchestrating the synchronization of decomposed multi-class entity graph nodes and
+ * relationships directly into Neo4j.
  */
 @Service
 public class DecomposedGraphSyncService {
@@ -41,9 +41,7 @@ public class DecomposedGraphSyncService {
   }
 
   public Map<String, Object> syncNodesAndEdges(
-      String explicitTenant,
-      List<Map<String, Object>> nodes,
-      List<Map<String, Object>> edges) {
+      String explicitTenant, List<Map<String, Object>> nodes, List<Map<String, Object>> edges) {
     String tenant = resolveTenant(explicitTenant);
     log.info(
         "Synchronizing decomposed graph ({} nodes, {} edges) for tenant '{}'",
@@ -93,8 +91,7 @@ public class DecomposedGraphSyncService {
     return result;
   }
 
-  public Map<String, Object> decomposeAndSync(
-      String explicitTenant, Map<String, Object> payload) {
+  public Map<String, Object> decomposeAndSync(String explicitTenant, Map<String, Object> payload) {
     String tenant = resolveTenant(explicitTenant);
     if (dataEngineClient == null) {
       return Map.of(
@@ -104,7 +101,9 @@ public class DecomposedGraphSyncService {
 
     Map<String, Object> engineRes = dataEngineClient.decomposeGraph(payload);
     if (engineRes == null || engineRes.containsKey("error")) {
-      return engineRes != null ? engineRes : Map.of("status", "ERROR", "error", "Empty decomposition response");
+      return engineRes != null
+          ? engineRes
+          : Map.of("status", "ERROR", "error", "Empty decomposition response");
     }
 
     @SuppressWarnings("unchecked")

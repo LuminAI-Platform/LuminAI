@@ -195,8 +195,7 @@ public class DatasetService {
         tenantId,
         connectionId);
 
-    Optional<Dataset> existingOpt =
-        datasetRepository.findByNameAndTenantId(name, tenantId);
+    Optional<Dataset> existingOpt = datasetRepository.findByNameAndTenantId(name, tenantId);
     Dataset dataset;
     boolean isNew = false;
     if (existingOpt.isPresent()) {
@@ -231,7 +230,8 @@ public class DatasetService {
     version.setTenantId(tenantId);
     version.setDatasetId(saved.getId());
     version.setVersion(saved.getCurrentVersion());
-    version.setStorageLocation(storageLocation != null ? storageLocation : saved.getStorageLocation());
+    version.setStorageLocation(
+        storageLocation != null ? storageLocation : saved.getStorageLocation());
     version.setRowCount(rowCount);
     version.setSchemaSnapshot(schemaJson != null ? schemaJson : saved.getSchemaMetadata());
     version.setCommitMessage(isNew ? "Initial RAW dataset ingestion" : "Updated RAW dataset sync");
@@ -248,7 +248,11 @@ public class DatasetService {
             .findByIdAndTenantId(datasetId, tenantId)
             .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
 
-    log.info("Transitioning dataset '{}' layer from {} to {}", datasetId, dataset.getLayer(), targetLayer);
+    log.info(
+        "Transitioning dataset '{}' layer from {} to {}",
+        datasetId,
+        dataset.getLayer(),
+        targetLayer);
     dataset.setLayer(targetLayer);
     Dataset saved = datasetRepository.save(dataset);
     return DatasetDto.fromEntity(saved);
@@ -265,7 +269,8 @@ public class DatasetService {
     datasetRepository.deleteByIdAndTenantId(datasetId, tenantId);
   }
 
-  public Map<String, Object> generateEdaReport(UUID datasetId, List<Map<String, Object>> sampleRecords) {
+  public Map<String, Object> generateEdaReport(
+      UUID datasetId, List<Map<String, Object>> sampleRecords) {
     UUID tenantId = requireTenant();
     String slug = TenantContext.getTenantSlug();
     Dataset dataset =

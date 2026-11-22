@@ -380,10 +380,7 @@ public class DataEngineClient {
     } catch (Exception e) {
       log.warn("Data Engine POST {} failed: {}", uri, e.getMessage());
       return Map.of(
-          "status",
-          "ERROR",
-          "error",
-          e.getMessage() != null ? e.getMessage() : "Request failed");
+          "status", "ERROR", "error", e.getMessage() != null ? e.getMessage() : "Request failed");
     }
   }
 }

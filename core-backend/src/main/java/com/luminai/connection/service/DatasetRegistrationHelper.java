@@ -51,10 +51,7 @@ public class DatasetRegistrationHelper {
   }
 
   public void registerRawArchiveTables(
-      UUID tenantId,
-      UUID connectionId,
-      String archiveName,
-      List<Map<String, Object>> tables) {
+      UUID tenantId, UUID connectionId, String archiveName, List<Map<String, Object>> tables) {
     if (datasetService == null || tables == null) return;
     for (Map<String, Object> tbl : tables) {
       try {

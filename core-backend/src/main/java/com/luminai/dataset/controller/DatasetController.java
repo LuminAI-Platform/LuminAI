@@ -88,8 +88,7 @@ public class DatasetController {
 
   @PostMapping("/{id}/eda")
   public ResponseEntity<java.util.Map<String, Object>> generateEda(
-      @PathVariable UUID id,
-      @RequestBody(required = false) java.util.Map<String, Object> body) {
+      @PathVariable UUID id, @RequestBody(required = false) java.util.Map<String, Object> body) {
     @SuppressWarnings("unchecked")
     List<java.util.Map<String, Object>> records =
         body != null && body.get("records") instanceof List<?> l

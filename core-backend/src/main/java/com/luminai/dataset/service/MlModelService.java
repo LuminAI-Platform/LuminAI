@@ -100,7 +100,9 @@ public class MlModelService {
     }
 
     String runId =
-        outcome.containsKey("run_id") ? String.valueOf(outcome.get("run_id")) : UUID.randomUUID().toString();
+        outcome.containsKey("run_id")
+            ? String.valueOf(outcome.get("run_id"))
+            : UUID.randomUUID().toString();
     model.setModelArtifactPath("storage/ml_registry/" + runId);
 
     MlModel saved = mlModelRepository.save(model);

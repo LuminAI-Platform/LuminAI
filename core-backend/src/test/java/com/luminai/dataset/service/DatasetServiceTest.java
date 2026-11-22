@@ -81,7 +81,8 @@ class DatasetServiceTest {
   @Test
   @DisplayName("registerRawDataset creates new RAW dataset and commits initial version")
   void testRegisterRawDatasetNew() {
-    when(datasetRepository.findByNameAndTenantId("sales_raw", tenantId)).thenReturn(Optional.empty());
+    when(datasetRepository.findByNameAndTenantId("sales_raw", tenantId))
+        .thenReturn(Optional.empty());
 
     Dataset saved = new Dataset();
     saved.setId(datasetId);

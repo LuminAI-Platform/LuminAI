@@ -66,11 +66,13 @@ class MlModelServiceTest {
     engineOutcome.put("metrics", Map.of("accuracy", 0.95, "f1_score", 0.94));
 
     when(dataEngineClient.trainMlModel(any())).thenReturn(engineOutcome);
-    when(mlModelRepository.save(any(MlModel.class))).thenAnswer(inv -> {
-      MlModel m = inv.getArgument(0);
-      m.setId(modelId);
-      return m;
-    });
+    when(mlModelRepository.save(any(MlModel.class)))
+        .thenAnswer(
+            inv -> {
+              MlModel m = inv.getArgument(0);
+              m.setId(modelId);
+              return m;
+            });
 
     Map<String, Object> result = mlModelService.trainAndPersist(req);
 
@@ -102,8 +104,10 @@ class MlModelServiceTest {
     prevChampion.setName("Model A");
     prevChampion.setStatus("CHAMPION");
 
-    when(mlModelRepository.findByIdAndTenantId(modelId, tenantId)).thenReturn(Optional.of(existingModel));
-    when(mlModelRepository.findAllByTenantIdAndStatus(tenantId, "CHAMPION")).thenReturn(List.of(prevChampion));
+    when(mlModelRepository.findByIdAndTenantId(modelId, tenantId))
+        .thenReturn(Optional.of(existingModel));
+    when(mlModelRepository.findAllByTenantIdAndStatus(tenantId, "CHAMPION"))
+        .thenReturn(List.of(prevChampion));
     when(mlModelRepository.save(any(MlModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
     MlModelDto promoted = mlModelService.promoteModel(modelId, "CHAMPION");
