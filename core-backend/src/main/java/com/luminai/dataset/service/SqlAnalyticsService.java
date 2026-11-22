@@ -75,37 +75,46 @@ public class SqlAnalyticsService {
     try {
       return jdbcTemplate.execute(
           (Connection conn) -> {
-            // Set tenant-specific search_path for schema isolation
-            try (Statement setStmt = conn.createStatement()) {
-              setStmt.execute("SET search_path = \"" + targetSchema + "\", public");
-            }
-
-            try (Statement queryStmt = conn.createStatement();
-                ResultSet rs = queryStmt.executeQuery(sqlToRun)) {
-              ResultSetMetaData meta = rs.getMetaData();
-              int colCount = meta.getColumnCount();
-              List<String> columns = new ArrayList<>(colCount);
-              for (int i = 1; i <= colCount; i++) {
-                columns.add(meta.getColumnLabel(i));
+            try {
+              // Set tenant-specific search_path for schema isolation
+              try (Statement setStmt = conn.createStatement()) {
+                setStmt.execute("SET search_path = \"" + targetSchema + "\", public");
               }
 
-              List<Map<String, Object>> rows = new ArrayList<>();
-              while (rs.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
+              try (Statement queryStmt = conn.createStatement();
+                  ResultSet rs = queryStmt.executeQuery(sqlToRun)) {
+                ResultSetMetaData meta = rs.getMetaData();
+                int colCount = meta.getColumnCount();
+                List<String> columns = new ArrayList<>(colCount);
                 for (int i = 1; i <= colCount; i++) {
-                  row.put(columns.get(i - 1), rs.getObject(i));
+                  columns.add(meta.getColumnLabel(i));
                 }
-                rows.add(row);
-              }
 
-              long elapsed = System.currentTimeMillis() - start;
-              return new SqlQueryResultDto(columns, rows, rows.size(), elapsed, "SUCCESS");
+                List<Map<String, Object>> rows = new ArrayList<>();
+                while (rs.next()) {
+                  Map<String, Object> row = new LinkedHashMap<>();
+                  for (int i = 1; i <= colCount; i++) {
+                    row.put(columns.get(i - 1), rs.getObject(i));
+                  }
+                  rows.add(row);
+                }
+
+                long elapsed = System.currentTimeMillis() - start;
+                return new SqlQueryResultDto(columns, rows, rows.size(), elapsed, "SUCCESS");
+              }
             } finally {
               // Always restore connection search_path before returning to pool
               try (Statement resetStmt = conn.createStatement()) {
                 resetStmt.execute(
                     "SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
-              } catch (Exception ignored) {
+              } catch (Exception e) {
+                log.warn(
+                    "Failed to restore search_path in SqlAnalyticsService; aborting connection to prevent reuse: {}",
+                    e.getMessage());
+                try {
+                  conn.abort(Runnable::run);
+                } catch (Exception ignored) {
+                }
               }
             }
           });

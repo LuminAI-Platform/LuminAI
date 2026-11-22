@@ -95,4 +95,33 @@ class DecomposedGraphSyncServiceTest {
     verify(neo4jGraphRepository, times(1))
         .mergeEntityNode("test_tenant", "p-1", "Patient 1", "Patient");
   }
+
+  @Test
+  @DisplayName("syncNodesAndEdges processes realistic volumes in 500-item chunks")
+  void testSyncLargeVolumeChunking() {
+    List<Map<String, Object>> nodes = new ArrayList<>();
+    for (int i = 0; i < 1250; i++) {
+      nodes.add(Map.of("id", "node-" + i, "label", "Entity " + i, "entityType", "Item"));
+    }
+
+    Map<String, Object> result = syncService.syncNodesAndEdges("test_tenant", nodes, List.of());
+
+    assertNotNull(result);
+    assertEquals("COMPLETED", result.get("status"));
+    assertEquals(1250, result.get("nodesSynced"));
+    verify(neo4jGraphRepository, times(1250))
+        .mergeEntityNode(eq("test_tenant"), anyString(), anyString(), eq("Item"));
+  }
+
+  @Test
+  @DisplayName("generateDeterministicId produces identical reproducible IDs for same inputs")
+  void testDeterministicIdConsistency() {
+    String id1 = syncService.generateDeterministicId("test_tenant", "Person", "John Doe");
+    String id2 = syncService.generateDeterministicId("test_tenant", "Person", "John Doe");
+    String diffId = syncService.generateDeterministicId("test_tenant", "Person", "Jane Doe");
+
+    assertNotNull(id1);
+    assertEquals(id1, id2);
+    assertNotEquals(id1, diffId);
+  }
 }

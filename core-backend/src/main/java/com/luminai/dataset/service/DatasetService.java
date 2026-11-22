@@ -29,6 +29,12 @@ public class DatasetService {
   private final DatasetRepository datasetRepository;
   private final DatasetVersionRepository versionRepository;
   private final DataEngineClient dataEngineClient;
+  private LineageService lineageService;
+
+  @Autowired(required = false)
+  public void setLineageService(LineageService lineageService) {
+    this.lineageService = lineageService;
+  }
 
   public DatasetService(
       DatasetRepository datasetRepository, DatasetVersionRepository versionRepository) {
@@ -195,7 +201,14 @@ public class DatasetService {
         tenantId,
         connectionId);
 
-    Optional<Dataset> existingOpt = datasetRepository.findByNameAndTenantId(name, tenantId);
+    Optional<Dataset> existingOpt = Optional.empty();
+    if (connectionId != null) {
+      existingOpt = datasetRepository.findBySourceConnectionIdAndTenantId(connectionId, tenantId);
+    }
+    if (existingOpt.isEmpty()) {
+      existingOpt = datasetRepository.findByNameAndTenantId(name, tenantId);
+    }
+
     Dataset dataset;
     boolean isNew = false;
     if (existingOpt.isPresent()) {
@@ -211,8 +224,16 @@ public class DatasetService {
       isNew = true;
       dataset = new Dataset();
       dataset.setTenantId(tenantId);
-      dataset.setName(name);
-      dataset.setDisplayName(displayName != null ? displayName : name);
+      String finalName = name;
+      if (datasetRepository.existsByNameAndTenantId(finalName, tenantId)) {
+        String suffix =
+            connectionId != null
+                ? connectionId.toString().substring(0, 8)
+                : UUID.randomUUID().toString().substring(0, 8);
+        finalName = name + "_" + suffix;
+      }
+      dataset.setName(finalName);
+      dataset.setDisplayName(displayName != null ? displayName : finalName);
       dataset.setDescription("Ingested raw dataset from file connection " + connectionId);
       dataset.setLayer(Dataset.Layer.RAW);
       dataset.setProjectType(Dataset.ProjectType.SOURCE);
@@ -302,6 +323,29 @@ public class DatasetService {
       return Map.of("status", "ERROR", "error", "Data Engine client is offline");
     }
     Map<String, Object> outcome = dataEngineClient.executeCleaningRecipe(requestPayload);
+    if (outcome != null && !outcome.containsKey("error")) {
+      try {
+        UUID tenantId = TenantContext.getTenantUuid();
+        Object srcIdObj = requestPayload.get("sourceDatasetId");
+        if (lineageService != null && srcIdObj != null && tenantId != null) {
+          UUID srcId = UUID.fromString(srcIdObj.toString());
+          String outName = String.valueOf(outcome.getOrDefault("dataset_name", "clean_dataset"));
+          Dataset cleanDs = new Dataset();
+          cleanDs.setTenantId(tenantId);
+          cleanDs.setName(outName);
+          cleanDs.setDisplayName("Cleaned: " + outName);
+          cleanDs.setLayer(Dataset.Layer.WORKING);
+          cleanDs.setProjectType(Dataset.ProjectType.PREPARATION);
+          cleanDs.setRowCount(
+              outcome.get("total_output_rows") instanceof Number n ? n.longValue() : 0L);
+          Dataset saved = datasetRepository.save(cleanDs);
+          lineageService.recordLineage(tenantId, srcId, saved.getId(), null, "CLEANING", "[]");
+          log.info("Recorded persistent cleaning lineage: {} -> {}", srcId, saved.getId());
+        }
+      } catch (Exception e) {
+        log.warn("Lineage recording skipped for cleaning execution: {}", e.getMessage());
+      }
+    }
     return outcome;
   }
 
@@ -311,6 +355,31 @@ public class DatasetService {
       return Map.of("status", "ERROR", "error", "Data Engine client is offline");
     }
     Map<String, Object> outcome = dataEngineClient.executePipeline(requestPayload);
+    if (outcome != null && !outcome.containsKey("error")) {
+      try {
+        UUID tenantId = TenantContext.getTenantUuid();
+        Object srcIdObj = requestPayload.get("primaryDatasetId");
+        if (lineageService != null && srcIdObj != null && tenantId != null) {
+          UUID srcId = UUID.fromString(srcIdObj.toString());
+          String curName =
+              String.valueOf(outcome.getOrDefault("curated_dataset_name", "curated_dataset"));
+          Dataset curDs = new Dataset();
+          curDs.setTenantId(tenantId);
+          curDs.setName(curName);
+          curDs.setDisplayName("Curated: " + curName);
+          curDs.setLayer(Dataset.Layer.CURATED);
+          curDs.setProjectType(Dataset.ProjectType.TRANSFORMATION);
+          curDs.setRowCount(
+              outcome.get("total_output_rows") instanceof Number n ? n.longValue() : 0L);
+          Dataset saved = datasetRepository.save(curDs);
+          lineageService.recordLineage(
+              tenantId, srcId, saved.getId(), null, "TRANSFORMATION_PIPELINE", "[]");
+          log.info("Recorded persistent pipeline lineage: {} -> {}", srcId, saved.getId());
+        }
+      } catch (Exception e) {
+        log.warn("Lineage recording skipped for pipeline execution: {}", e.getMessage());
+      }
+    }
     return outcome;
   }
 }

@@ -87,12 +87,16 @@ class MlModelServiceTest {
   }
 
   @Test
-  @DisplayName("promoteModel updates status and demotes previous champion for the same dataset")
+  @DisplayName("promoteModel updates status and demotes previous champion for the same scope")
   void testPromoteModelDemotesPreviousChampion() {
     MlModel existingModel = new MlModel();
     existingModel.setId(modelId);
     existingModel.setTenantId(tenantId);
     existingModel.setTrainingDatasetId(datasetId);
+    existingModel.setTargetColumn("churn");
+    existingModel.setTaskType("CLASSIFICATION");
+    existingModel.setModelArtifactPath("storage/ml_registry/run-2");
+    existingModel.setMetrics("{\"accuracy\": 0.95}");
     existingModel.setName("Model B");
     existingModel.setStatus("CHALLENGER");
 
@@ -101,6 +105,10 @@ class MlModelServiceTest {
     prevChampion.setId(prevChampionId);
     prevChampion.setTenantId(tenantId);
     prevChampion.setTrainingDatasetId(datasetId);
+    prevChampion.setTargetColumn("churn");
+    prevChampion.setTaskType("CLASSIFICATION");
+    prevChampion.setModelArtifactPath("storage/ml_registry/run-1");
+    prevChampion.setMetrics("{\"accuracy\": 0.91}");
     prevChampion.setName("Model A");
     prevChampion.setStatus("CHAMPION");
 
@@ -118,6 +126,56 @@ class MlModelServiceTest {
     // Verify previous champion was demoted to CHALLENGER
     assertEquals("CHALLENGER", prevChampion.getStatus());
     verify(mlModelRepository, atLeast(2)).save(any(MlModel.class));
+  }
+
+  @Test
+  @DisplayName("promoteModel rejects promotion if metrics are missing")
+  void testPromoteModelRejectsMissingMetrics() {
+    MlModel unvalidated = new MlModel();
+    unvalidated.setId(modelId);
+    unvalidated.setTenantId(tenantId);
+    unvalidated.setModelArtifactPath("storage/ml_registry/run-x");
+    unvalidated.setMetrics("{}"); // empty metrics
+
+    when(mlModelRepository.findByIdAndTenantId(modelId, tenantId))
+        .thenReturn(Optional.of(unvalidated));
+
+    assertThrows(
+        IllegalStateException.class, () -> mlModelService.promoteModel(modelId, "CHAMPION"));
+  }
+
+  @Test
+  @DisplayName("promoteModel preserves champions with different target columns")
+  void testPromoteModelPreservesDifferentScopeChampion() {
+    MlModel existingModel = new MlModel();
+    existingModel.setId(modelId);
+    existingModel.setTenantId(tenantId);
+    existingModel.setTrainingDatasetId(datasetId);
+    existingModel.setTargetColumn("revenue");
+    existingModel.setTaskType("REGRESSION");
+    existingModel.setModelArtifactPath("storage/ml_registry/run-revenue");
+    existingModel.setMetrics("{\"r2\": 0.88}");
+    existingModel.setStatus("CHALLENGER");
+
+    MlModel churnChampion = new MlModel();
+    churnChampion.setId(UUID.randomUUID());
+    churnChampion.setTenantId(tenantId);
+    churnChampion.setTrainingDatasetId(datasetId);
+    churnChampion.setTargetColumn("churn"); // different target
+    churnChampion.setTaskType("CLASSIFICATION");
+    churnChampion.setStatus("CHAMPION");
+
+    when(mlModelRepository.findByIdAndTenantId(modelId, tenantId))
+        .thenReturn(Optional.of(existingModel));
+    when(mlModelRepository.findAllByTenantIdAndStatus(tenantId, "CHAMPION"))
+        .thenReturn(List.of(churnChampion));
+    when(mlModelRepository.save(any(MlModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    MlModelDto promoted = mlModelService.promoteModel(modelId, "CHAMPION");
+    assertNotNull(promoted);
+    assertEquals("CHAMPION", promoted.status());
+    // Churn champion remains CHAMPION because target differs
+    assertEquals("CHAMPION", churnChampion.getStatus());
   }
 
   @Test
