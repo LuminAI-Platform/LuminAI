@@ -1,83 +1,20 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
-import type { TimeSeriesPoint } from "./components/PipelineTimelineChart";
-import type { ActivityItem } from "./components/ActivityFeed";
+import type {
+  DashboardSummary,
+  EngineMetricsResponse,
+  SyncDiscrepancy,
+  TimeSeriesPoint,
+  ActivityItem,
+} from "./dashboardTypes";
 
-export interface DashboardSummary {
-  totalEntities: number;
-  totalConnections: number;
-  totalPipelines: number;
-  entityBreakdown: Record<string, number>;
-  recentActivity: ActivityItem[];
-  dataQualityScore: number | null;
-  pipelineHealth: {
-    running: number;
-    completed: number;
-    failed: number;
-  };
-  lastSyncAt: string | null;
-}
-
-export interface EngineHealth {
-  status: "ONLINE" | "STANDBY" | "DEGRADED" | string;
-  appName: string;
-  version: string;
-  latencyMs: number;
-  message: string;
-}
-
-export interface PipelineStats {
-  totalRuns: number;
-  successRate: number;
-  avgDuration: number;
-  p95Duration?: number;
-  recordsProcessed: number;
-  runsSinceStart?: number;
-  lastRunAt?: string;
-  quarantinedCount?: number;
-  rejectedCount?: number;
-  evaluatedCount?: number;
-}
-
-export interface DataQuality {
-  overallScore?: number | null;
-  completeness?: number | null;
-  uniqueness?: number | null;
-  consistency?: number | null;
-  timeliness?: number | null;
-  recordsEvaluated?: number;
-  recordsRejected?: number;
-  recordsQuarantined?: number;
-  available?: boolean;
-  status?: string;
-  error?: string;
-}
-
-export interface EntityStats {
-  totalEntities?: number;
-  totalGoldenRecords?: number;
-  totalStagingRecords?: number;
-}
-
-export interface EngineMetricsResponse {
-  engineHealth?: EngineHealth;
-  pipelineStats?: PipelineStats;
-  dataQuality?: DataQuality;
-  entityStats?: EntityStats;
-}
-
-export interface SyncDiscrepancy {
-  runsMismatch: boolean;
-  entitiesMismatch: boolean;
-  message?: string;
-}
+export * from "./dashboardTypes";
 
 export function useDashboardData() {
   const [timeRange, setTimeRange] = useState<"7d" | "14d" | "30d">("7d");
   const [fallbackTime] = useState(() => Date.now());
 
-  // 1. Fetch dashboard summary with adaptive interval and tab-visibility pause
   const {
     data: summary,
     isLoading: isSummaryLoading,
@@ -94,7 +31,6 @@ export function useDashboardData() {
       return res.json();
     },
     refetchInterval: (query) => {
-      // Pause completely when tab is hidden
       if (typeof document !== "undefined" && document.hidden) {
         return false;
       }
@@ -111,7 +47,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // Log raw technical errors to console rather than exposing them in production UI
   useEffect(() => {
     if (summaryError) {
       console.error("[Dashboard] Failed to fetch live metrics:", summaryError);
@@ -131,7 +66,6 @@ export function useDashboardData() {
     hour12: true,
   }).format(new Date(timestamp));
 
-  // 2. Fetch time-series telemetry for charts
   const {
     data: timeSeries = [],
     isLoading: isTimeSeriesLoading,
@@ -153,7 +87,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // 3. Fetch recent platform activity with adaptive interval & background pause
   const {
     data: activity = [],
     isLoading: isActivityLoading,
@@ -168,7 +101,6 @@ export function useDashboardData() {
       return res.json();
     },
     refetchInterval: (query) => {
-      // Pause completely when tab is hidden
       if (typeof document !== "undefined" && document.hidden) {
         return false;
       }
@@ -183,7 +115,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // 4. Fetch engine telemetry metrics using the same polling cadence
   const {
     data: engineMetrics,
     isLoading: isEngineMetricsLoading,
@@ -208,7 +139,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // Determine if any run is currently executing
   const hasRunningRuns = useMemo(() => {
     const activityRunning = activity.some(
       (item) => item.status?.toUpperCase() === "RUNNING",
@@ -217,7 +147,6 @@ export function useDashboardData() {
     return activityRunning || summaryRunning;
   }, [activity, summary]);
 
-  // Check for cross-endpoint figure discrepancies
   const syncDiscrepancy = useMemo<SyncDiscrepancy>(() => {
     const summaryPipelines = summary?.totalPipelines;
     const engineRuns = engineMetrics?.pipelineStats?.totalRuns;
@@ -258,7 +187,6 @@ export function useDashboardData() {
     };
   }, [summary, engineMetrics]);
 
-  // When tab transitions back from hidden to visible, immediately refresh
   useEffect(() => {
     if (typeof document === "undefined") return;
 

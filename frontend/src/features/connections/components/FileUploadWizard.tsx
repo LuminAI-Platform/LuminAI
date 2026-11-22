@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Upload, X, ICON_SIZES } from "../../../lib/icons";
-import { Button } from "../../../components/ui/Button";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import type { FileUploadWizardProps } from "./file-upload/fileUploadTypes";
 import { useFileUpload } from "./file-upload/useFileUpload";
@@ -10,6 +9,7 @@ import { StepMapping } from "./file-upload/StepMapping";
 import { StepPreview } from "./file-upload/StepPreview";
 import { StepIngesting } from "./file-upload/StepIngesting";
 import { WizardStepper } from "./file-upload/WizardStepper";
+import { WizardFooter } from "./file-upload/WizardFooter";
 
 export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   onClose,
@@ -190,67 +190,17 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               )}
             </div>
 
-            {/* Fixed Bottom Actions Footer */}
-            <div className="shrink-0 px-6 py-3.5 border-t border-border bg-surface flex flex-wrap items-center justify-between gap-3 select-none">
-              <div>
-                {step > 1 && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={ingesting}
-                    onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
-                  >
-                    Previous step
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={ingesting}
-                  onClick={requestClose}
-                >
-                  Cancel
-                </Button>
-
-                {step < 4 && step > 1 && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
-                  >
-                    Next step
-                  </Button>
-                )}
-
-                {step === 4 && ingestionFailed && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={startIngestion}
-                  >
-                    Retry ingestion
-                  </Button>
-                )}
-
-                {step === 4 && ingestionFinished && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={handleClose}
-                  >
-                    Done
-                  </Button>
-                )}
-              </div>
-            </div>
+            <WizardFooter
+              step={step}
+              ingesting={ingesting}
+              ingestionFailed={ingestionFailed}
+              ingestionFinished={ingestionFinished}
+              onPrevStep={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
+              onNextStep={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
+              onRequestClose={requestClose}
+              onRetry={startIngestion}
+              onDone={handleClose}
+            />
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useParams, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import {
   Database,
@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Table,
   Cpu,
-  ChevronRight,
   GitBranch,
   ICON_SIZES,
 } from "../../lib/icons";
@@ -18,15 +17,19 @@ import {
   fetchDatasetById,
   fetchDatasetVersions,
   fetchDatasetLineage,
+  transitionDatasetLayer,
 } from "../../features/datasets/datasetApi";
 import type {
   Dataset,
+  DatasetLayer,
   DatasetVersion,
   LineageGraph,
 } from "../../features/datasets/types";
 import { DatasetProfilerTab } from "./components/DatasetProfilerTab";
 import { DatasetSchemaTab } from "./components/DatasetSchemaTab";
 import { DatasetVersionsTab } from "./components/DatasetVersionsTab";
+import { DatasetLineageTab } from "./components/DatasetLineageTab";
+import { DatasetSummaryMetrics } from "./components/DatasetSummaryMetrics";
 
 export const DatasetDetailPage: React.FC = () => {
   const { datasetId } = useParams({ strict: false }) as { datasetId: string };
@@ -57,6 +60,14 @@ export const DatasetDetailPage: React.FC = () => {
     enabled: !!datasetId,
   });
 
+  const transitionMutation = useMutation({
+    mutationFn: (newLayer: DatasetLayer) =>
+      transitionDatasetLayer(datasetId, newLayer),
+    onSuccess: () => {
+      void refetch();
+    },
+  });
+
   if (isDatasetLoading) {
     return (
       <div className="p-16 flex flex-col items-center justify-center gap-3 text-text-secondary">
@@ -69,9 +80,7 @@ export const DatasetDetailPage: React.FC = () => {
   if (!dataset) {
     return (
       <div className="p-12 text-center text-text-secondary">
-        <span className="text-lg font-semibold text-text">
-          Dataset Not Found
-        </span>
+        <span className="text-lg font-semibold text-text">Dataset Not Found</span>
         <p className="text-sm mt-1">
           The requested dataset does not exist or has been archived.
         </p>
@@ -96,9 +105,7 @@ export const DatasetDetailPage: React.FC = () => {
         ]}
         title={dataset.displayName || dataset.name}
         description={`Governed ${dataset.layer} dataset in project ${dataset.projectType} • Storage: ${dataset.storageFormat}`}
-        icon={
-          <Database size={ICON_SIZES.header} className="text-text-secondary" />
-        }
+        icon={<Database size={ICON_SIZES.header} className="text-text-secondary" />}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -136,47 +143,13 @@ export const DatasetDetailPage: React.FC = () => {
         }
       />
 
-      {/* Dataset Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Storage Layer</span>
-          <span className="text-lg font-bold text-primary">
-            {dataset.layer}
-          </span>
-          <span className="text-[11px] text-text-secondary">
-            Project: {dataset.projectType}
-          </span>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Current Version</span>
-          <span className="text-lg font-bold text-text">
-            v{dataset.currentVersion}
-          </span>
-          <span className="text-[11px] text-text-secondary font-mono">
-            {dataset.storageFormat}
-          </span>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Total Records</span>
-          <span className="text-lg font-bold text-text">
-            {(dataset.rowCount || 0).toLocaleString()}
-          </span>
-          <span className="text-[11px] text-text-secondary">
-            {schemaEntries.length} columns
-          </span>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">Quality Score</span>
-          <span className="text-lg font-bold text-emerald-400">
-            {dataset.qualityScore
-              ? `${Math.round(dataset.qualityScore)}%`
-              : "N/A"}
-          </span>
-          <span className="text-[11px] text-text-secondary">DAMA Verified</span>
-        </div>
-      </div>
+      <DatasetSummaryMetrics
+        dataset={dataset}
+        schemaEntriesLength={schemaEntries.length}
+        onTransitionLayer={(layer) => transitionMutation.mutate(layer)}
+        isTransitioning={transitionMutation.isPending}
+      />
 
-      {/* Navigation Tabs */}
       <div className="border-b border-border flex items-center gap-4 text-xs font-medium">
         <button
           onClick={() => setActiveTab("profiler")}
@@ -227,7 +200,6 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab Contents */}
       {activeTab === "profiler" && (
         <DatasetProfilerTab dataset={dataset} schemaEntries={schemaEntries} />
       )}
@@ -239,51 +211,11 @@ export const DatasetDetailPage: React.FC = () => {
       {activeTab === "versions" && <DatasetVersionsTab versions={versions} />}
 
       {activeTab === "lineage" && (
-        <div className="p-6 rounded-xl border border-border bg-surface flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-text">
-              Dataset Lineage Dependency Graph
-            </h3>
-            {lineage && (
-              <span className="text-xs text-text-secondary font-mono">
-                {lineage.nodes.length} nodes • {lineage.edges.length} edges
-              </span>
-            )}
-          </div>
-          <div className="p-8 border border-dashed border-border rounded-lg bg-surface-subtle/50 flex flex-col items-center justify-center gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg border border-border bg-surface text-center">
-                <span className="text-xs text-text-secondary block">
-                  Upstream
-                </span>
-                <span className="text-xs font-bold text-text">
-                  {lineage?.nodes.find((n) => n.id !== datasetId)?.label ||
-                    "Ingestion Source"}
-                </span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-text-secondary" />
-              <div className="p-3 rounded-lg border-2 border-primary bg-primary/10 text-center">
-                <span className="text-xs text-primary font-bold block">
-                  Current Dataset
-                </span>
-                <span className="text-xs font-bold text-text">
-                  {dataset.displayName}
-                </span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-text-secondary" />
-              <div className="p-3 rounded-lg border border-border bg-surface text-center">
-                <span className="text-xs text-text-secondary block">
-                  Downstream
-                </span>
-                <span className="text-xs font-bold text-text">
-                  {lineage?.edges.length
-                    ? `${lineage.edges.length} Dependencies`
-                    : "Analytics & ML Models"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DatasetLineageTab
+          dataset={dataset}
+          lineage={lineage}
+          datasetId={datasetId}
+        />
       )}
     </div>
   );

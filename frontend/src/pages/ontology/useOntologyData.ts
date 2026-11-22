@@ -3,6 +3,9 @@ import { apiFetch } from "../../lib/api";
 import type { EntityType } from "../../features/ontology/components/EntityTypeEditor";
 import type { RelationshipType } from "../../features/ontology/components/RelationshipTypeForm";
 
+export type { EntityType, RelationshipType };
+
+
 export type Tab = "entities" | "relationships" | "versions";
 
 export interface OntologyVersion {

@@ -1,14 +1,25 @@
 import { apiFetch } from "../../lib/api";
 import type {
   Dataset,
+  DatasetLayer,
   DatasetVersion,
   LineageGraph,
-  MlExperiment,
-  MlModelRegistryItem,
-  MlTrainOutcome,
   SavedQuery,
   SqlQueryResult,
+  CleaningRecipePayload,
+  CleaningExecutionResult,
+  PipelineExecutionPayload,
+  PipelineExecutionResult,
+  EdaReportResult,
 } from "./types";
+
+export {
+  trainModel,
+  listModels,
+  getModel,
+  promoteModel,
+  listExperiments,
+} from "../ml/mlApi";
 
 export async function fetchDatasets(params?: {
   layer?: string;
@@ -38,6 +49,30 @@ export async function fetchDatasetById(id: string): Promise<Dataset> {
   return res.json();
 }
 
+export async function transitionDatasetLayer(
+  id: string,
+  layer: DatasetLayer,
+): Promise<Dataset> {
+  const res = await apiFetch(`/api/v1/datasets/${id}/layer`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ layer }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to transition dataset layer: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function deleteDataset(id: string): Promise<void> {
+  const res = await apiFetch(`/api/v1/datasets/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to delete dataset: ${res.statusText}`);
+  }
+}
+
 export async function fetchDatasetVersions(
   id: string,
 ): Promise<DatasetVersion[]> {
@@ -52,6 +87,66 @@ export async function fetchDatasetLineage(id: string): Promise<LineageGraph> {
   const res = await apiFetch(`/api/v1/datasets/${id}/lineage`);
   if (!res.ok) {
     throw new Error(`Failed to load lineage for dataset ${id}`);
+  }
+  return res.json();
+}
+
+export async function generateEdaReport(
+  id: string,
+  records: Record<string, unknown>[] = [],
+): Promise<EdaReportResult> {
+  const res = await apiFetch(`/api/v1/datasets/${id}/eda`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ records }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to generate EDA report: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function previewCleaningRecipe(
+  payload: CleaningRecipePayload,
+): Promise<Record<string, unknown>> {
+  const res = await apiFetch("/api/v1/datasets/cleaning/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || err.detail || "Cleaning preview failed");
+  }
+  return res.json();
+}
+
+export async function executeCleaningRecipe(
+  payload: CleaningRecipePayload,
+): Promise<CleaningExecutionResult> {
+  const res = await apiFetch("/api/v1/datasets/cleaning/execute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || err.detail || "Cleaning execution failed");
+  }
+  return res.json();
+}
+
+export async function executeDatasetPipeline(
+  payload: PipelineExecutionPayload,
+): Promise<PipelineExecutionResult> {
+  const res = await apiFetch("/api/v1/datasets/pipelines/execute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || err.detail || "Pipeline execution failed");
   }
   return res.json();
 }
@@ -111,54 +206,18 @@ export async function trainMlModel(payload: {
   algorithm: string;
   task_type: "CLASSIFICATION" | "REGRESSION";
   test_size?: number;
-}): Promise<MlTrainOutcome> {
+}) {
   const res = await apiFetch("/analytics/ml/train", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Model training failed");
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData.detail || errorData.message || "Model training failed",
+    );
   }
   return res.json();
 }
 
-export async function fetchMlExperiments(
-  tenantId = "acme",
-): Promise<MlExperiment[]> {
-  const res = await apiFetch(`/analytics/ml/experiments?tenant_id=${tenantId}`);
-  if (!res.ok) {
-    throw new Error("Failed to load ML experiments");
-  }
-  return res.json();
-}
-
-export async function registerMlModel(payload: {
-  run_id: string;
-  name: string;
-  status: "CHAMPION" | "CHALLENGER";
-  description?: string;
-  tenant_id?: string;
-}): Promise<MlModelRegistryItem> {
-  const res = await apiFetch("/analytics/ml/models/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || "Failed to register model");
-  }
-  return res.json();
-}
-
-export async function fetchRegisteredModels(
-  tenantId = "acme",
-): Promise<MlModelRegistryItem[]> {
-  const res = await apiFetch(`/analytics/ml/models?tenant_id=${tenantId}`);
-  if (!res.ok) {
-    throw new Error("Failed to load registered models");
-  }
-  return res.json();
-}

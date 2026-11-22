@@ -1,22 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "../../../lib/icons";
-import { apiFetch, ApiError } from "../../../lib/api";
-import { queryClient } from "../../../lib/queryClient";
 import { PipelineJobCard, type PipelineJob } from "./PipelineJobCard";
-import {
-  usePipelineStream,
-  type PipelineProgressEvent,
-  type PipelineCompleteEvent,
-} from "../hooks/usePipelineStream";
 import type { FilterStatus } from "./pipeline-monitor/pipelineMonitorUtils";
-import {
-  normaliseJob,
-  formatNumber,
-} from "./pipeline-monitor/pipelineMonitorUtils";
 import { ConnectionDot } from "./pipeline-monitor/pipelineMonitorTypes";
-import { ThroughputGauge } from "./pipeline-monitor/ThroughputGauge";
 import { PipelineKpis } from "./pipeline-monitor/PipelineKpis";
 import {
   PipelineMonitorLoading,
@@ -26,6 +13,8 @@ import {
 import { PipelineFilterToolbar } from "./pipeline-monitor/PipelineFilterToolbar";
 import { RunDetailDrawer } from "./pipeline-analysis/RunDetailDrawer";
 import type { PipelineRunItem } from "./pipeline-analysis/pipelineAnalysisTypes";
+import { usePipelineMonitorData } from "./pipeline-monitor/usePipelineMonitorData";
+import { PipelineThroughputBanner } from "./pipeline-monitor/PipelineThroughputBanner";
 
 interface PipelineMonitorProps {
   initialJobs?: PipelineJob[];
@@ -42,16 +31,30 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   initialLoading,
   onStreamStatusChange,
 }) => {
-  const [jobs, setJobs] = useState<PipelineJob[]>(() => initialJobs ?? []);
   const [filter, setFilter] = useState<FilterStatus>("ALL");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [is404Error, setIs404Error] = useState(false);
   const [selectedRun, setSelectedRun] = useState<PipelineRunItem | null>(null);
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const {
+    jobs,
+    lastUpdated,
+    dataUpdatedAt,
+    isActuallyLoading,
+    effectiveError,
+    is404,
+    sseConnected,
+    polling,
+    sseErrors,
+    clearErrors,
+    reconnect,
+    refetch,
+    fetchOnce,
+  } = usePipelineMonitorData({
+    initialJobs,
+    initialLoading,
+    onStreamStatusChange,
+  });
 
   const handleOpenJobDetail = useCallback(
     (job: PipelineJob, triggerEl: HTMLElement | null) => {
@@ -75,171 +78,6 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     },
     [],
   );
-
-  const ingestPayload = useCallback((raw: unknown) => {
-    try {
-      const dataObj = raw as Record<string, unknown>;
-      const arr = Array.isArray(raw)
-        ? raw
-        : Array.isArray(dataObj?.content)
-          ? (dataObj.content as unknown[])
-          : [raw];
-      const normalised = (arr as Record<string, unknown>[]).map(normaliseJob);
-      setJobs(normalised);
-      setLastUpdated(new Date());
-      setFetchError(null);
-      setIs404Error(false);
-    } catch {
-      // keep existing jobs
-    }
-  }, []);
-
-  const {
-    data: queryData,
-    isLoading: isQueryLoading,
-    error: queryError,
-    refetch,
-    dataUpdatedAt,
-  } = useQuery(
-    {
-      queryKey: ["pipeline", "runs"],
-      queryFn: async () => {
-        const res = await apiFetch("/api/v1/pipelines/runs");
-        if (!res.ok) throw new ApiError(res);
-        return res.json();
-      },
-      staleTime: 30 * 1000,
-      retry: 1,
-      enabled: initialJobs === undefined,
-    },
-    queryClient,
-  );
-
-  useEffect(() => {
-    if (queryData) {
-      ingestPayload(queryData);
-    }
-  }, [queryData, ingestPayload]);
-
-  const isTestEnv =
-    typeof import.meta !== "undefined" &&
-    import.meta.env &&
-    import.meta.env.MODE === "test";
-
-  const isActuallyLoading =
-    initialLoading !== undefined
-      ? initialLoading
-      : isTestEnv
-        ? false
-        : isQueryLoading && jobs.length === 0;
-
-  const effectiveError = queryError
-    ? queryError instanceof Error
-      ? queryError.message
-      : "Failed to load pipeline runs"
-    : fetchError;
-
-  const is404 =
-    (queryError instanceof ApiError && queryError.status === 404) || is404Error;
-
-  const fetchOnce = useCallback(async () => {
-    try {
-      setFetchError(null);
-      setIs404Error(false);
-      const res = await apiFetch("/api/v1/pipelines/runs");
-      if (res.ok) {
-        const data = await res.json();
-        ingestPayload(data);
-      }
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        if (err.status === 401 && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-        }
-        if (err.status === 404) {
-          setIs404Error(true);
-        }
-      }
-      setFetchError(
-        err instanceof Error ? err.message : "Failed to load pipeline runs",
-      );
-    }
-  }, [ingestPayload]);
-
-  const handleProgress = useCallback((evt: PipelineProgressEvent) => {
-    setJobs((prev) => {
-      const idx = prev.findIndex((j) => j.id === evt.runId);
-      if (idx !== -1) {
-        const updated = [...prev];
-        updated[idx] = {
-          ...updated[idx],
-          progress: evt.progress,
-          status: evt.progress >= 100 ? "COMPLETED" : "RUNNING",
-        };
-        return updated;
-      }
-      return prev;
-    });
-    setLastUpdated(new Date());
-  }, []);
-
-  const handleComplete = useCallback((evt: PipelineCompleteEvent) => {
-    setJobs((prev) => {
-      const idx = prev.findIndex((j) => j.id === evt.runId);
-      if (idx !== -1) {
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], progress: 100, status: "COMPLETED" };
-        return updated;
-      }
-      return prev;
-    });
-    setLastUpdated(new Date());
-  }, []);
-
-  const {
-    isConnected: sseConnected,
-    isPolling: polling,
-    errors: sseErrors,
-    clearErrors,
-    reconnect,
-  } = usePipelineStream({
-    onProgress: handleProgress,
-    onComplete: handleComplete,
-  });
-
-  const activeJobsCount = jobs.filter((j) => j.status === "RUNNING").length;
-
-  useEffect(() => {
-    onStreamStatusChange?.({
-      isConnected: sseConnected,
-      activeStreams: activeJobsCount,
-      isPolling: polling,
-    });
-  }, [sseConnected, activeJobsCount, polling, onStreamStatusChange]);
-
-  useEffect(() => {
-    fetchOnce();
-  }, [fetchOnce]);
-
-  useEffect(() => {
-    const hasActive = jobs.some((j) => j.status === "RUNNING");
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-
-    if (hasActive) {
-      pollRef.current = setInterval(fetchOnce, 20000);
-    }
-
-    return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-    };
-  }, [jobs, fetchOnce]);
 
   if (isActuallyLoading) {
     return <PipelineMonitorLoading />;
@@ -353,24 +191,10 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       <PipelineKpis jobs={jobs} counts={counts} />
 
       {/* Aggregate Throughput Banner */}
-      <div className="bg-surface-subtle border border-border rounded-lg p-5 flex items-center justify-between">
-        <div>
-          <div className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">
-            Aggregate Engine Throughput
-          </div>
-          <div className="text-2xl font-bold text-text mt-1">
-            {formatNumber(totalThroughput)}
-            <span className="text-sm font-normal text-text-secondary ml-1.5">
-              records / sec
-            </span>
-          </div>
-          <div className="text-xs text-text-secondary mt-0.5">
-            Summed across {counts.RUNNING} active pipeline
-            {counts.RUNNING === 1 ? "" : "s"}
-          </div>
-        </div>
-        <ThroughputGauge value={totalThroughput} max={100_000} />
-      </div>
+      <PipelineThroughputBanner
+        totalThroughput={totalThroughput}
+        runningCount={counts.RUNNING}
+      />
 
       {/* Status Filter MultiSelect & Pills */}
       <PipelineFilterToolbar

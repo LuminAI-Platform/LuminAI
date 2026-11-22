@@ -1,20 +1,15 @@
-import React, { useState } from "react";
+import React from "react";
 import type { DBType } from "./dbConnectorTypes";
 import { Select } from "../../../../components/ui/dropdown";
-import {
-  Eye,
-  EyeOff,
-  CheckCircle2,
-  AlertCircle,
-  Copy,
-  Check,
-} from "../../../../lib/icons";
+import { CheckCircle2 } from "../../../../lib/icons";
 import {
   type DbFormErrors,
   type DbFormField,
   type ClassifiedConnectionError,
-  parseConnectionString,
 } from "./dbConnectorUtils";
+import { ConnectionStringHelper } from "./ConnectionStringHelper";
+import { ConnectionErrorAlert } from "./ConnectionErrorAlert";
+import { ConnectorAuthInputs } from "./ConnectorAuthInputs";
 
 const DB_TYPE_OPTIONS = [
   { value: "postgresql", label: "PostgreSQL" },
@@ -85,38 +80,6 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
   handleDbTypeChange,
   onApplyConnectionString,
 }) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConnString, setShowConnString] = useState(false);
-  const [connStringInput, setConnStringInput] = useState("");
-  const [connStringError, setConnStringError] = useState<string | null>(null);
-  const [copiedDetails, setCopiedDetails] = useState(false);
-
-  const handleParseConnString = () => {
-    const parsed = parseConnectionString(connStringInput);
-    if (!parsed) {
-      setConnStringError(
-        "Could not parse connection string. Use format like postgresql://user:pass@host:5432/db.",
-      );
-      return;
-    }
-    setConnStringError(null);
-    onApplyConnectionString(parsed);
-    // Clear immediately so sensitive credentials are not retained in an extra input
-    setConnStringInput("");
-    setShowConnString(false);
-  };
-
-  const handleCopyError = async () => {
-    if (!connectionError?.technicalDetails) return;
-    try {
-      await navigator.clipboard.writeText(connectionError.technicalDetails);
-      setCopiedDetails(true);
-      setTimeout(() => setCopiedDetails(false), 1800);
-    } catch {
-      // ignore clipboard errors
-    }
-  };
-
   const fieldError = (field: DbFormField) =>
     touched[field] ? errors[field] : undefined;
 
@@ -134,64 +97,10 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
       noValidate
       className="flex flex-col gap-4"
     >
-      {/* Client-side connection string paste helper */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-text-secondary">
-          Connection details
-        </span>
-        <button
-          type="button"
-          disabled={isVerifying}
-          onClick={() => {
-            setShowConnString((prev) => !prev);
-            setConnStringError(null);
-          }}
-          className="text-xs font-medium text-primary hover:text-primary-hover transition-colors cursor-pointer disabled:opacity-50"
-        >
-          {showConnString
-            ? "Hide connection string"
-            : "Paste connection string"}
-        </button>
-      </div>
-
-      {showConnString && (
-        <div className="p-3 rounded-lg bg-surface-subtle border border-border space-y-2">
-          <label
-            htmlFor="db-conn-string"
-            className="block text-xs font-medium text-text"
-          >
-            Connection URI (parsed locally in your browser)
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="db-conn-string"
-              type="text"
-              autoComplete="off"
-              disabled={isVerifying}
-              placeholder="postgresql://readonly_user:password@db.example.internal:5432/analytics"
-              value={connStringInput}
-              onChange={(e) => {
-                setConnStringInput(e.target.value);
-                if (connStringError) setConnStringError(null);
-              }}
-              className="flex-1 bg-surface border border-border rounded-lg py-1.5 px-2.5 text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-border-focus"
-            />
-            <button
-              type="button"
-              onClick={handleParseConnString}
-              disabled={!connStringInput.trim() || isVerifying}
-              className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover border border-border text-xs font-medium text-text transition-colors cursor-pointer disabled:opacity-50"
-            >
-              Fill fields
-            </button>
-          </div>
-          {connStringError && (
-            <p role="alert" className="text-xs text-error">
-              {connStringError}
-            </p>
-          )}
-        </div>
-      )}
+      <ConnectionStringHelper
+        isVerifying={isVerifying}
+        onApplyConnectionString={onApplyConnectionString}
+      />
 
       {/* Connector name */}
       <div className="flex flex-col gap-1">
@@ -270,161 +179,22 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
         </div>
       </div>
 
-      {/* Host + Database */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="db-connector-host"
-            className="text-xs font-medium text-text"
-          >
-            Host
-          </label>
-          <input
-            id="db-connector-host"
-            type="text"
-            required
-            disabled={isVerifying}
-            placeholder="db.replica.internal"
-            value={host}
-            onChange={(e) => setHost(e.target.value)}
-            onBlur={() => onBlurField("host")}
-            aria-invalid={!!fieldError("host")}
-            aria-describedby={fieldError("host") ? "db-host-error" : undefined}
-            className={inputClass("host")}
-          />
-          {fieldError("host") && (
-            <p id="db-host-error" role="alert" className="text-xs text-error">
-              {fieldError("host")}
-            </p>
-          )}
-        </div>
+      <ConnectorAuthInputs
+        host={host}
+        setHost={setHost}
+        databaseName={databaseName}
+        setDatabaseName={setDatabaseName}
+        username={username}
+        setUsername={setUsername}
+        password={password}
+        setPassword={setPassword}
+        errors={errors}
+        touched={touched}
+        onBlurField={onBlurField}
+        isVerifying={isVerifying}
+        inputClass={inputClass}
+      />
 
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="db-connector-database"
-            className="text-xs font-medium text-text"
-          >
-            Database
-          </label>
-          <input
-            id="db-connector-database"
-            type="text"
-            required
-            disabled={isVerifying}
-            placeholder="sales_db"
-            value={databaseName}
-            onChange={(e) => setDatabaseName(e.target.value)}
-            onBlur={() => onBlurField("databaseName")}
-            aria-invalid={!!fieldError("databaseName")}
-            aria-describedby={
-              fieldError("databaseName") ? "db-database-error" : undefined
-            }
-            className={inputClass("databaseName")}
-          />
-          {fieldError("databaseName") && (
-            <p
-              id="db-database-error"
-              role="alert"
-              className="text-xs text-error"
-            >
-              {fieldError("databaseName")}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Username + Password */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="db-connector-username"
-            className="text-xs font-medium text-text"
-          >
-            Username
-          </label>
-          <input
-            id="db-connector-username"
-            type="text"
-            required
-            autoComplete="off"
-            disabled={isVerifying}
-            placeholder="lumin_readonly"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onBlur={() => onBlurField("username")}
-            aria-invalid={!!fieldError("username")}
-            aria-describedby={
-              fieldError("username")
-                ? "db-username-error db-username-hint"
-                : "db-username-hint"
-            }
-            className={inputClass("username")}
-          />
-          <p id="db-username-hint" className="text-[11px] text-text-secondary">
-            Use a read-only database user.
-          </p>
-          {fieldError("username") && (
-            <p
-              id="db-username-error"
-              role="alert"
-              className="text-xs text-error"
-            >
-              {fieldError("username")}
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="db-connector-password"
-            className="text-xs font-medium text-text"
-          >
-            Password
-          </label>
-          <div className="relative">
-            <input
-              id="db-connector-password"
-              type={showPassword ? "text" : "password"}
-              required
-              autoComplete="new-password"
-              disabled={isVerifying}
-              placeholder="Enter password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => onBlurField("password")}
-              aria-invalid={!!fieldError("password")}
-              aria-describedby={
-                fieldError("password") ? "db-password-error" : undefined
-              }
-              className={`${inputClass("password")} pr-9`}
-            />
-            <button
-              type="button"
-              disabled={isVerifying}
-              onClick={() => setShowPassword((prev) => !prev)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text rounded transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {showPassword ? (
-                <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
-              ) : (
-                <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-              )}
-            </button>
-          </div>
-          {fieldError("password") && (
-            <p
-              id="db-password-error"
-              role="alert"
-              className="text-xs text-error"
-            >
-              {fieldError("password")}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Test success feedback */}
       {testResult && !connectionError && (
         <div
           role="status"
@@ -450,59 +220,8 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
         </div>
       )}
 
-      {/* Specific classified error with collapsed technical details + Copy */}
       {connectionError && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="p-3.5 bg-error-bg border border-error-border rounded-lg text-xs space-y-2"
-        >
-          <div className="flex items-start gap-2.5">
-            <AlertCircle
-              className="w-4 h-4 text-error shrink-0 mt-0.5"
-              aria-hidden="true"
-            />
-            <div className="space-y-0.5 min-w-0">
-              <p className="font-semibold text-error">
-                {connectionError.title}
-              </p>
-              <p className="text-text-secondary leading-relaxed">
-                {connectionError.suggestion}
-              </p>
-            </div>
-          </div>
-
-          <details className="text-[11px] text-text-secondary pl-6">
-            <summary className="cursor-pointer select-none hover:text-text transition-colors">
-              Technical details
-            </summary>
-            <div className="mt-2 p-2.5 rounded bg-surface border border-border flex items-start justify-between gap-2">
-              <code className="font-mono text-[11px] text-error break-all flex-1">
-                {connectionError.technicalDetails}
-              </code>
-              <button
-                type="button"
-                onClick={handleCopyError}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border bg-surface-subtle hover:bg-surface-hover text-text text-[11px] font-medium shrink-0 cursor-pointer"
-              >
-                {copiedDetails ? (
-                  <>
-                    <Check
-                      className="w-3 h-3 text-success"
-                      aria-hidden="true"
-                    />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3 h-3" aria-hidden="true" />
-                    Copy
-                  </>
-                )}
-              </button>
-            </div>
-          </details>
-        </div>
+        <ConnectionErrorAlert connectionError={connectionError} />
       )}
     </form>
   );

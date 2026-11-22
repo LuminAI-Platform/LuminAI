@@ -38,6 +38,15 @@ export interface SchemaMappingPayload {
   createdAt: string;
 }
 
+export interface ConnectorLine {
+  id?: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+
 export const DATA_TYPE_COLORS: Record<string, string> = {
   string: "text-success bg-success-bg border-success-border",
   integer: "text-primary bg-primary-tint border-primary-border",

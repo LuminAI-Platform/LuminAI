@@ -14,6 +14,7 @@ import { TargetPanel } from "./visual-schema/TargetPanel";
 import { FkModal } from "./visual-schema/FkModal";
 import { PayloadPreview } from "./visual-schema/PayloadPreview";
 import { MapperToolbar } from "./visual-schema/MapperToolbar";
+import { ConnectorLinesSvg } from "./visual-schema/ConnectorLinesSvg";
 
 export type {
   SourceColumn,
@@ -124,56 +125,12 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         />
       )}
 
-      {/* ── Main Canvas ── */}
+      {/* Main Canvas */}
       <div ref={containerRef} className="flex flex-1 min-h-0 relative">
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-10"
-          style={{ overflow: "visible" }}
-        >
-          <defs>
-            <marker
-              id="arrow-head"
-              markerWidth="6"
-              markerHeight="6"
-              refX="3"
-              refY="3"
-              orient="auto"
-            >
-              <path d="M0,0 L0,6 L6,3 z" fill="#3b82f6" opacity="0.7" />
-            </marker>
-          </defs>
-          {connectorLines.map((line) => {
-            const cx1 = line.x1 + (line.x2 - line.x1) * 0.4;
-            const cx2 = line.x1 + (line.x2 - line.x1) * 0.6;
-            return (
-              <path
-                key={line.id}
-                d={`M ${line.x1} ${line.y1} C ${cx1} ${line.y1}, ${cx2} ${line.y2}, ${line.x2} ${line.y2}`}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="1.5"
-                strokeOpacity="0.6"
-                markerEnd="url(#arrow-head)"
-              />
-            );
-          })}
-          {dragPreviewLine && (
-            <path
-              d={`M ${dragPreviewLine.x1} ${dragPreviewLine.y1} C ${
-                dragPreviewLine.x1 +
-                (dragPreviewLine.x2 - dragPreviewLine.x1) * 0.4
-              } ${dragPreviewLine.y1}, ${
-                dragPreviewLine.x1 +
-                (dragPreviewLine.x2 - dragPreviewLine.x1) * 0.6
-              } ${dragPreviewLine.y2}, ${dragPreviewLine.x2} ${dragPreviewLine.y2}`}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-              strokeOpacity="0.9"
-              strokeDasharray="5 3"
-            />
-          )}
-        </svg>
+        <ConnectorLinesSvg
+          connectorLines={connectorLines}
+          dragPreviewLine={dragPreviewLine}
+        />
 
         <SourcePanel
           sourceColumns={sourceColumns}
@@ -224,14 +181,14 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         />
       )}
 
-      {/* ── Footer summary ── */}
-      <div className="px-6 py-3 border-t border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+      {/* Footer summary */}
+      <div className="px-6 py-3 border-t border-border bg-surface-subtle flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-4 text-[10px] text-text-muted">
           <span>
             {mappings.length} of {sourceColumns.length} source columns mapped
           </span>
           <span>·</span>
-          <span className="text-purple-400">
+          <span className="text-primary font-medium">
             {fkCount} graph relationships defined
           </span>
           <span>·</span>
@@ -244,7 +201,7 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
             required properties unfilled
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-zinc-600">
+        <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
           <svg
             width="10"
             height="10"

@@ -1,15 +1,10 @@
 import React, { useState, useRef } from "react";
-import {
-  Search,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-} from "../../../../lib/icons";
+import { Search, CheckCircle2, XCircle } from "../../../../lib/icons";
 import type { PipelineRunItem } from "./pipelineAnalysisTypes";
 import { RunDetailDrawer } from "./RunDetailDrawer";
 import { Select } from "../../../../components/ui/dropdown";
+import { RunsTableHeader } from "./RunsTableHeader";
+import { RunsTablePagination } from "./RunsTablePagination";
 
 interface RunsTableProps {
   runs: PipelineRunItem[];
@@ -48,7 +43,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
   const [selectedRun, setSelectedRun] = useState<PipelineRunItem | null>(null);
   const activeRowRef = useRef<HTMLButtonElement | null>(null);
 
-  // Auto-select run if selectedRunId was passed (e.g. from TopIssuesPanel)
   React.useEffect(() => {
     if (selectedRunId) {
       const match = runs.find((r) => r.id === selectedRunId);
@@ -99,7 +93,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
 
   return (
     <div className="bg-surface border border-border rounded-xl shadow-xs transition-colors select-none">
-      {/* Table Header: Title, Search & Status Filters */}
       <div className="p-4 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold text-text">
@@ -112,7 +105,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          {/* Search Input */}
           <div className="flex items-center bg-surface-subtle border border-border rounded-lg px-2.5 py-1.5 w-full sm:w-64 gap-2 focus-within:border-border-focus">
             <Search className="w-3.5 h-3.5 text-text-secondary shrink-0" />
             <input
@@ -124,7 +116,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
             />
           </div>
 
-          {/* Status filter dropdown */}
           <div className="w-36">
             <Select
               value={statusFilter}
@@ -140,134 +131,13 @@ export const RunsTable: React.FC<RunsTableProps> = ({
         </div>
       </div>
 
-      {/* Table Container */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-border bg-surface-subtle/40 text-text-secondary font-semibold uppercase tracking-wider text-[10px]">
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("connectorName")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "connectorName" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Pipeline
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "connectorName" ? "text-primary" : ""}`}
-                  />
-                  {sortBy === "connectorName" && (
-                    <span className="text-[9px] font-mono lowercase">
-                      ({sortOrder})
-                    </span>
-                  )}
-                </div>
-              </th>
-              <th className="py-2.5 px-4">Source</th>
-              <th className="py-2.5 px-4">Status</th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("startedAt")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "startedAt" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Started
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "startedAt" ? "text-primary" : ""}`}
-                  />
-                  {sortBy === "startedAt" && (
-                    <span className="text-[9px] font-mono lowercase">
-                      ({sortOrder})
-                    </span>
-                  )}
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("durationSeconds")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "durationSeconds"
-                        ? "text-primary font-bold"
-                        : ""
-                    }
-                  >
-                    Duration
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "durationSeconds" ? "text-primary" : ""}`}
-                  />
-                  {sortBy === "durationSeconds" && (
-                    <span className="text-[9px] font-mono lowercase">
-                      ({sortOrder})
-                    </span>
-                  )}
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("recordsInput")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "recordsInput" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    In
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "recordsInput" ? "text-primary" : ""}`}
-                  />
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("recordsOutput")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "recordsOutput" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Out
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "recordsOutput" ? "text-primary" : ""}`}
-                  />
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-4 cursor-pointer hover:text-text"
-                onClick={() => onSortChange("recordsFailed")}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={
-                      sortBy === "recordsFailed" ? "text-primary font-bold" : ""
-                    }
-                  >
-                    Rejected
-                  </span>
-                  <ArrowUpDown
-                    className={`w-2.5 h-2.5 ${sortBy === "recordsFailed" ? "text-primary" : ""}`}
-                  />
-                </div>
-              </th>
-            </tr>
-          </thead>
+          <RunsTableHeader
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={onSortChange}
+          />
           <tbody className="divide-y divide-border">
             {runs.length === 0 ? (
               <tr>
@@ -345,39 +215,14 @@ export const RunsTable: React.FC<RunsTableProps> = ({
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      <div className="p-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
-        <div>
-          Showing {runs.length} of {totalElements} run
-          {totalElements === 1 ? "" : "s"}
-        </div>
+      <RunsTablePagination
+        runsCount={runs.length}
+        totalElements={totalElements}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
 
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            disabled={currentPage <= 0}
-            onClick={() => onPageChange(currentPage - 1)}
-            className="p-1.5 rounded-md hover:bg-surface-subtle text-text disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface-subtle border border-border">
-            Page {currentPage + 1} of {Math.max(1, totalPages)}
-          </span>
-          <button
-            type="button"
-            disabled={currentPage >= totalPages - 1}
-            onClick={() => onPageChange(currentPage + 1)}
-            className="p-1.5 rounded-md hover:bg-surface-subtle text-text disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            aria-label="Next page"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Slide-over Drawer for Run Detail */}
       {selectedRun && (
         <RunDetailDrawer
           run={selectedRun}

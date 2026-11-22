@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Check, Loader2 } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
-import { EntityIcon } from "./EntityTypeEditor";
 import { type ConnectionSummary, type InferredProp } from "./autoGenerateUtils";
+import { TargetEntityModelForm } from "./TargetEntityModelForm";
 
 interface AutoGenerateFromDatasetProps {
   connections: ConnectionSummary[];
@@ -23,9 +23,7 @@ interface AutoGenerateFromDatasetProps {
   onClose: () => void;
 }
 
-export const AutoGenerateFromDataset: React.FC<
-  AutoGenerateFromDatasetProps
-> = ({
+export const AutoGenerateFromDataset: React.FC<AutoGenerateFromDatasetProps> = ({
   connections,
   loadingConnections,
   selectedConn,
@@ -109,8 +107,7 @@ export const AutoGenerateFromDataset: React.FC<
           No active datasets or connections found in this tenant.
         </p>
         <p className="text-[11px] text-zinc-600 mt-1">
-          Upload a file in Data Connections first or use an Industry Template
-          tab.
+          Upload a file in Data Connections first or use an Industry Template tab.
         </p>
       </div>
     );
@@ -149,92 +146,16 @@ export const AutoGenerateFromDataset: React.FC<
         </div>
       </div>
 
-      <div className="p-4 bg-zinc-900/40 border border-zinc-800/80 rounded-xl flex flex-col gap-3">
-        <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-          2. Target Entity Model Definition
-        </span>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[11px] text-zinc-400 block mb-1">
-              Entity Identifier (PascalCase)
-            </label>
-            <input
-              type="text"
-              value={entityName}
-              onChange={(e) => setEntityName(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:border-blue-500 font-mono"
-              placeholder="e.g. CustomerRecord"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] text-zinc-400 block mb-1">
-              Display Label
-            </label>
-            <input
-              type="text"
-              value={entityLabel}
-              onChange={(e) => setEntityLabel(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:border-blue-500"
-              placeholder="e.g. Customer Record"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-6 pt-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-zinc-400">Color:</span>
-            <div className="flex items-center gap-1.5">
-              {[
-                "#3b82f6",
-                "#8b5cf6",
-                "#06b6d4",
-                "#10b981",
-                "#f59e0b",
-                "#ef4444",
-                "#ec4899",
-              ].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setEntityColor(c)}
-                  className={`w-5 h-5 rounded-md border transition-all cursor-pointer ${
-                    entityColor === c
-                      ? "scale-115 ring-2 ring-white border-transparent"
-                      : "border-transparent opacity-70 hover:opacity-100"
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-zinc-400">Icon:</span>
-            <div className="flex items-center gap-1.5">
-              {[
-                "database",
-                "building",
-                "user",
-                "package",
-                "chart",
-                "globe",
-              ].map((ic) => (
-                <button
-                  key={ic}
-                  type="button"
-                  onClick={() => setEntityIcon(ic)}
-                  className={`px-2 py-1 text-[10px] rounded-md border flex items-center gap-1 transition-all cursor-pointer ${
-                    entityIcon === ic
-                      ? "bg-zinc-800 border-blue-500 text-blue-400 font-semibold"
-                      : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  <EntityIcon iconKey={ic} size={12} />
-                  <span className="capitalize">{ic}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <TargetEntityModelForm
+        entityName={entityName}
+        setEntityName={setEntityName}
+        entityLabel={entityLabel}
+        setEntityLabel={setEntityLabel}
+        entityColor={entityColor}
+        setEntityColor={setEntityColor}
+        entityIcon={entityIcon}
+        setEntityIcon={setEntityIcon}
+      />
 
       <div>
         <div className="flex items-center justify-between mb-2">

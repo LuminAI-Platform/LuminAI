@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import {
   Icons,
   RefreshCw,
@@ -8,32 +7,19 @@ import {
   ICON_SIZES,
 } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
-import { FileUploadWizard } from "../../features/connections/components/FileUploadWizard";
-import { DatabaseConnectorForm } from "../../features/connections/components/DatabaseConnectorForm";
 import { SyncJobDetails } from "../../features/connections/components/SyncJobDetails";
 import { ExecutionLogs } from "../../features/connections/components/ExecutionLogs";
-import { RunDetailDrawer } from "../../features/connections/components/pipeline-analysis/RunDetailDrawer";
 import type { PipelineRunItem } from "../../features/connections/components/pipeline-analysis/pipelineAnalysisTypes";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useConnectionModalStore } from "../../stores/connectionModalStore";
 import { useConnectionsData } from "./connections/useConnectionsData";
-import { SourcesTable, SourcesTableSkeleton } from "./connections/SourcesTable";
+import { ConnectionsTabsBar } from "./connections/ConnectionsTabsBar";
+import { ConnectionsModals } from "./connections/ConnectionsModals";
+import { ConnectionsTabContent } from "./connections/ConnectionsTabContent";
 import {
-  AllSourcesEmptyState,
-  DatabaseEmptyState,
-  FilesEmptyState,
-} from "./connections/ConnectionsEmptyStates";
-import { EditConnectionModal } from "./connections/EditConnectionModal";
-import { CleanDataModal } from "./connections/CleanDataModal";
-import { RawPreviewModal } from "./connections/RawPreviewModal";
-import {
-  type ConnectionsTab,
   type UnifiedSource,
   formatRelativeTime,
 } from "./connections/connectionsTypes";
-
-const TAB_ORDER: ConnectionsTab[] = ["all", "connectors", "files"];
 
 export const ConnectionsPage: React.FC = () => {
   const openChooser = useConnectionModalStore((state) => state.openChooser);
@@ -42,11 +28,6 @@ export const ConnectionsPage: React.FC = () => {
     runId?: string | null;
   } | null>(null);
   const runDetailTriggerRef = useRef<HTMLElement | null>(null);
-  const tabRefs = useRef<Record<ConnectionsTab, HTMLButtonElement | null>>({
-    all: null,
-    connectors: null,
-    files: null,
-  });
 
   const handleOpenRunDetail = (
     runOrId: PipelineRunItem | string,
@@ -60,36 +41,15 @@ export const ConnectionsPage: React.FC = () => {
     }
   };
 
+  const connData = useConnectionsData();
   const {
-    isWizardOpen,
-    initialUploadFile,
     openWizardWithFile,
-    closeWizard,
-    isDbModalOpen,
-    setIsDbModalOpen,
-    initialDbType,
     openDbModalWithType,
-    previewingFile,
-    setPreviewingFile,
-    isRawPreviewLoading,
-    cleanPreviewFile,
-    setCleanPreviewFile,
-    cleanData,
-    isCleanDataLoading,
-    cleanSearchFilter,
-    setCleanSearchFilter,
-    ingestedFiles,
-    customConnectors,
     unifiedSources,
-    deleteTarget,
+    customConnectors,
+    ingestedFiles,
     setDeleteTarget,
-    editTarget,
     setEditTarget,
-    isDeleting,
-    isSavingEdit,
-    testingSourceId,
-    togglingSourceId,
-    isLoading,
     isRefreshing,
     isPollingPaused,
     lastRefreshedAt,
@@ -101,9 +61,10 @@ export const ConnectionsPage: React.FC = () => {
     handleInspectCleanData,
     handleTestConnection,
     handleTogglePause,
-    handleSaveEdit,
-    executeDelete,
-  } = useConnectionsData();
+    testingSourceId,
+    togglingSourceId,
+    isLoading,
+  } = connData;
 
   const visibleSources = useMemo(() => {
     if (activeTab === "connectors") {
@@ -114,30 +75,6 @@ export const ConnectionsPage: React.FC = () => {
     }
     return unifiedSources;
   }, [activeTab, unifiedSources]);
-
-  const handleTabKeyDown = (
-    e: React.KeyboardEvent<HTMLButtonElement>,
-    currentTab: ConnectionsTab,
-  ) => {
-    const idx = TAB_ORDER.indexOf(currentTab);
-    let nextIdx: number | null = null;
-    if (e.key === "ArrowRight") {
-      nextIdx = (idx + 1) % TAB_ORDER.length;
-    } else if (e.key === "ArrowLeft") {
-      nextIdx = (idx - 1 + TAB_ORDER.length) % TAB_ORDER.length;
-    } else if (e.key === "Home") {
-      nextIdx = 0;
-    } else if (e.key === "End") {
-      nextIdx = TAB_ORDER.length - 1;
-    }
-
-    if (nextIdx !== null) {
-      e.preventDefault();
-      const nextTab = TAB_ORDER[nextIdx];
-      setActiveTab(nextTab);
-      tabRefs.current[nextTab]?.focus();
-    }
-  };
 
   const primaryAction = (() => {
     if (activeTab === "files") {
@@ -169,22 +106,12 @@ export const ConnectionsPage: React.FC = () => {
     });
   };
 
-  const tabs: { id: ConnectionsTab; label: string }[] = [
-    { id: "all", label: `All sources (${unifiedSources.length})` },
-    {
-      id: "connectors",
-      label: `Database connectors (${customConnectors.length})`,
-    },
-    { id: "files", label: `Flat files & datasets (${ingestedFiles.length})` },
-  ];
-
   const statusSummaryText = `${
     isPollingPaused ? "Auto-refresh paused" : "Auto-refresh every 15s"
   } - Updated ${formatRelativeTime(lastRefreshedAt)}`;
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-1 pb-8">
-      {/* Page Header */}
       <PageHeader
         breadcrumbs={[
           { label: "Data Pipelines", to: "/connections" },
@@ -229,7 +156,6 @@ export const ConnectionsPage: React.FC = () => {
         }
       />
 
-      {/* Error state with Retry and collapsed details */}
       {error && (
         <div
           role="alert"
@@ -258,162 +184,40 @@ export const ConnectionsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tabs + Schema Studio link */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2">
-        <div
-          role="tablist"
-          aria-label="Data source categories"
-          className="flex flex-wrap items-center gap-5"
-        >
-          {tabs.map((tab) => {
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                ref={(el) => {
-                  tabRefs.current[tab.id] = el;
-                }}
-                id={`connections-tab-${tab.id}`}
-                role="tab"
-                type="button"
-                aria-selected={isSelected}
-                aria-controls="connections-tabpanel"
-                tabIndex={isSelected ? 0 : -1}
-                onClick={() => setActiveTab(tab.id)}
-                onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
-                className={`text-xs font-semibold pb-2 -mb-[9px] border-b-2 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                  isSelected
-                    ? "border-primary text-text"
-                    : "border-transparent text-text-secondary hover:text-text"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+      <ConnectionsTabsBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        unifiedSourcesCount={unifiedSources.length}
+        customConnectorsCount={customConnectors.length}
+        ingestedFilesCount={ingestedFiles.length}
+      />
 
-        <Link
-          to="/connections/schema-map"
-          className="text-xs text-primary hover:text-primary-hover font-medium inline-flex items-center gap-1.5 cursor-pointer"
-        >
-          <Icons.SchemaStudio size={ICON_SIZES.inline} aria-hidden="true" />
-          <span>Open Schema Studio</span>
-        </Link>
-      </div>
+      <ConnectionsTabContent
+        isLoading={isLoading}
+        visibleSources={visibleSources}
+        activeTab={activeTab}
+        testingSourceId={testingSourceId}
+        togglingSourceId={togglingSourceId}
+        onTestConnection={handleTestConnection}
+        onEditSource={setEditTarget}
+        onTogglePause={handleTogglePause}
+        onDeleteSource={handleRequestDelete}
+        onOpenRawPreview={handleOpenRawPreview}
+        onInspectCleanData={handleInspectCleanData}
+        onOpenDbModal={() => openDbModalWithType("postgresql")}
+        onOpenWizard={() => openWizardWithFile(null)}
+      />
 
-      {/* Active Tab Content */}
-      <div
-        id="connections-tabpanel"
-        role="tabpanel"
-        aria-labelledby={`connections-tab-${activeTab}`}
-      >
-        {isLoading ? (
-          <SourcesTableSkeleton />
-        ) : visibleSources.length > 0 ? (
-          <SourcesTable
-            sources={visibleSources}
-            isLoading={false}
-            showTypeFilter={activeTab === "all"}
-            testingSourceId={testingSourceId}
-            togglingSourceId={togglingSourceId}
-            onTestConnection={handleTestConnection}
-            onEditSource={setEditTarget}
-            onTogglePause={handleTogglePause}
-            onDeleteSource={handleRequestDelete}
-            onOpenRawPreview={handleOpenRawPreview}
-            onInspectCleanData={handleInspectCleanData}
-          />
-        ) : activeTab === "connectors" ? (
-          <DatabaseEmptyState onSelectConnector={openDbModalWithType} />
-        ) : activeTab === "files" ? (
-          <FilesEmptyState onSelectFile={openWizardWithFile} />
-        ) : (
-          <AllSourcesEmptyState
-            onSelectConnector={openDbModalWithType}
-            onSelectFile={openWizardWithFile}
-          />
-        )}
-      </div>
-
-      {/* Observability Section — stacks below 1100px */}
       <div className="grid grid-cols-1 min-[1100px]:grid-cols-2 gap-5 mt-2 items-start">
         <SyncJobDetails onOpenRunDetail={handleOpenRunDetail} />
         <ExecutionLogs onOpenRunDetail={handleOpenRunDetail} />
       </div>
 
-      {selectedRunDetail && (
-        <RunDetailDrawer
-          run={selectedRunDetail.run}
-          runId={selectedRunDetail.runId}
-          onClose={() => setSelectedRunDetail(null)}
-          triggerButtonRef={runDetailTriggerRef}
-        />
-      )}
-
-      {isWizardOpen && (
-        <FileUploadWizard
-          initialFile={initialUploadFile}
-          onClose={closeWizard}
-          onSuccess={() => {
-            closeWizard();
-            loadConnectors(false);
-          }}
-        />
-      )}
-
-      {isDbModalOpen && (
-        <DatabaseConnectorForm
-          initialDbType={initialDbType}
-          onClose={() => setIsDbModalOpen(false)}
-          onSuccess={() => {
-            setIsDbModalOpen(false);
-            loadConnectors(false);
-          }}
-        />
-      )}
-
-      <EditConnectionModal
-        source={editTarget}
-        isSaving={isSavingEdit}
-        onClose={() => setEditTarget(null)}
-        onSave={handleSaveEdit}
-      />
-
-      {cleanPreviewFile && (
-        <CleanDataModal
-          cleanPreviewFile={cleanPreviewFile}
-          cleanData={cleanData}
-          isCleanDataLoading={isCleanDataLoading}
-          cleanSearchFilter={cleanSearchFilter}
-          setCleanSearchFilter={setCleanSearchFilter}
-          onClose={() => setCleanPreviewFile(null)}
-        />
-      )}
-
-      {previewingFile && (
-        <RawPreviewModal
-          previewingFile={previewingFile}
-          isRawPreviewLoading={isRawPreviewLoading}
-          onClose={() => setPreviewingFile(null)}
-        />
-      )}
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
-        }}
-        title={
-          deleteTarget?.type === "connection"
-            ? `Delete "${deleteTarget.name}"?`
-            : `Delete "${deleteTarget?.name ?? "file"}"?`
-        }
-        description={`Are you sure you want to permanently delete "${deleteTarget?.name}"? Associated sync pipelines will be terminated.`}
-        confirmText={isDeleting ? "Deleting..." : "Delete"}
-        isDestructive={true}
-        isLoading={isDeleting}
-        onConfirm={executeDelete}
+      <ConnectionsModals
+        selectedRunDetail={selectedRunDetail}
+        onCloseRunDetail={() => setSelectedRunDetail(null)}
+        runDetailTriggerRef={runDetailTriggerRef}
+        connData={connData}
       />
     </div>
   );

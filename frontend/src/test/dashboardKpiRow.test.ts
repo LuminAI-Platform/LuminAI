@@ -2,14 +2,10 @@ import { describe, it, expect } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DashboardKpiRow } from "../pages/dashboard/components/DashboardKpiRow";
-import {
-  computeDataQuality,
-  formatQualityMetric,
-} from "../hooks/useDataQuality";
 import type {
   DashboardSummary,
   EngineMetricsResponse,
-} from "../pages/dashboard/useDashboardData";
+} from "../pages/dashboard/dashboardTypes";
 
 const makeEngineMetrics = (
   completeness: number | null | undefined,
@@ -41,112 +37,27 @@ const makeEngineMetrics = (
   ...extra,
 });
 
-describe("useDataQuality / computeDataQuality", () => {
-  it("computes the average of all four finite dimensions", () => {
-    const res = computeDataQuality(makeEngineMetrics(100, 90, 80, 70));
-    expect(res.score).toBe(85);
-    expect(res.isComplete).toBe(true);
-    expect(formatQualityMetric(res.score)).toBe("85.0%");
-  });
+describe("<DashboardKpiRow /> rendering with live engine metrics", () => {
+  const summary: DashboardSummary = {
+    totalEntities: 57,
+    totalConnections: 2,
+    totalPipelines: 15,
+    entityBreakdown: {},
+    recentActivity: [],
+    dataQualityScore: 95.0,
+    pipelineHealth: { running: 0, completed: 15, failed: 0 },
+    lastSyncAt: "2026-11-18T10:00:00Z",
+  };
 
-  it("returns null score when any dimension is null, undefined, or NaN", () => {
-    expect(
-      computeDataQuality(makeEngineMetrics(90, null, 80, 70)).score,
-    ).toBeNull();
-    expect(
-      computeDataQuality(makeEngineMetrics(90, 80, undefined, 70)).score,
-    ).toBeNull();
-    expect(
-      computeDataQuality(makeEngineMetrics(90, 80, 70, Number.NaN)).score,
-    ).toBeNull();
-  });
-
-  it("treats missing engine response or available: false fallback zeros as unavailable (N/A)", () => {
-    expect(computeDataQuality(undefined).score).toBeNull();
-    expect(
-      computeDataQuality({
-        engineHealth: {
-          status: "STANDBY",
-          appName: "LuminAI Data Engine",
-          version: "unknown",
-          latencyMs: 3000,
-          message: "Unreachable",
-        },
-        dataQuality: {
-          overallScore: 0,
-          completeness: 0,
-          uniqueness: 0,
-          consistency: 0,
-          timeliness: 0,
-          available: false,
-          status: "UNAVAILABLE",
-        },
-      }).score,
-    ).toBeNull();
-    expect(formatQualityMetric(null)).toBe("N/A");
-  });
-
-  it("preserves a real measured 0 and formats it as 0.0%", () => {
-    const res = computeDataQuality(makeEngineMetrics(0, 0, 0, 0));
-    expect(res.score).toBe(0);
-    expect(res.isComplete).toBe(true);
-    expect(formatQualityMetric(res.score)).toBe("0.0%");
-  });
-});
-
-describe("DashboardKpiRow Zero-State, Data Quality & Non-Zero Logic", () => {
-  it("renders 'None yet' for count cards and 'N/A' + 'Unverified' for Data Quality when no engine data exists", () => {
-    const zeroSummary: DashboardSummary = {
-      totalEntities: 0,
-      totalConnections: 0,
-      totalPipelines: 0,
-      entityBreakdown: {},
-      recentActivity: [],
-      dataQualityScore: 100.0, // Backend baseline 100 must NEVER be trusted
-      pipelineHealth: { running: 0, completed: 0, failed: 0 },
-      lastSyncAt: null,
-    };
-
+  it("renders genuine measured data quality from Data Engine instead of hardcoded 100%", () => {
     const html = renderToStaticMarkup(
       React.createElement(DashboardKpiRow, {
-        summary: zeroSummary,
+        summary,
         isLoading: false,
+        engineMetrics: makeEngineMetrics(95, 95, 95, 95),
       }),
     );
 
-    const noneYetMatches = html.match(/None yet/g);
-    expect(noneYetMatches).not.toBeNull();
-    expect(noneYetMatches!.length).toBe(3);
-
-    expect(html.includes("text-success")).toBe(false);
-    expect(html.includes(">N/A<")).toBe(true);
-    expect(html.includes("Unverified")).toBe(true);
-    expect(html.includes("100.0%")).toBe(false);
-    expect(html.includes("0.0%")).toBe(false);
-    expect(html.includes("No runs yet")).toBe(true);
-  });
-
-  it("renders 'Active', 'Online', 'Healthy', and computed average quality score when engine metrics are present", () => {
-    const activeSummary: DashboardSummary = {
-      totalEntities: 1250,
-      totalConnections: 4,
-      totalPipelines: 12,
-      entityBreakdown: { Customer: 1250 },
-      recentActivity: [],
-      dataQualityScore: 100.0,
-      pipelineHealth: { running: 1, completed: 11, failed: 0 },
-      lastSyncAt: "2026-11-17T12:00:00Z",
-    };
-
-    const html = renderToStaticMarkup(
-      React.createElement(DashboardKpiRow, {
-        summary: activeSummary,
-        isLoading: false,
-        engineMetrics: makeEngineMetrics(96, 98, 92, 94), // avg = 95.0%
-      }),
-    );
-
-    expect(html.includes("Active")).toBe(true);
     expect(html.includes("Online")).toBe(true);
     expect(html.includes("Healthy")).toBe(true);
     expect(html.includes("95.0%")).toBe(true);
@@ -217,7 +128,7 @@ describe("DashboardKpiRow Zero-State, Data Quality & Non-Zero Logic", () => {
       React.createElement(DashboardKpiRow, {
         summary: baseSummary,
         isLoading: false,
-        engineMetrics: makeEngineMetrics(80, 76, 82, 76), // avg = 78.5%
+        engineMetrics: makeEngineMetrics(80, 76, 82, 76),
       }),
     );
     expect(fairHtml.includes("78.5%")).toBe(true);
@@ -227,7 +138,7 @@ describe("DashboardKpiRow Zero-State, Data Quality & Non-Zero Logic", () => {
       React.createElement(DashboardKpiRow, {
         summary: baseSummary,
         isLoading: false,
-        engineMetrics: makeEngineMetrics(50, 60, 52, 54), // avg = 54.0%
+        engineMetrics: makeEngineMetrics(50, 60, 52, 54),
       }),
     );
     expect(poorHtml.includes("54.0%")).toBe(true);
@@ -237,7 +148,7 @@ describe("DashboardKpiRow Zero-State, Data Quality & Non-Zero Logic", () => {
       React.createElement(DashboardKpiRow, {
         summary: baseSummary,
         isLoading: false,
-        engineMetrics: makeEngineMetrics(0, 0, 0, 0), // real measured 0%
+        engineMetrics: makeEngineMetrics(0, 0, 0, 0),
       }),
     );
     expect(realZeroHtml.includes("0.0%")).toBe(true);

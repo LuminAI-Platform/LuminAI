@@ -8,17 +8,16 @@ import {
   Info,
   Sparkles,
 } from "../../../lib/icons";
-import { sanitizeHtml } from "../../../lib/sanitize";
 import type { EntityType } from "../../ontology/types";
 import { getEntityColor } from "../../../lib/entityColors";
 import { useThemeStore } from "../../../stores/themeStore";
 import type { SearchResultItem } from "../../../pages/explorer/types";
 import {
   isSensitiveField,
-  maskSensitiveValue,
   pickKeyCardFields,
 } from "../../../pages/explorer/utils";
-import { EntityTypeIcon } from "./EntityTypeIcon";
+import { EntityCardHeader } from "./EntityCardHeader";
+import { EntityCardFields } from "./EntityCardFields";
 
 interface EntityCardProps {
   entity: SearchResultItem;
@@ -63,7 +62,6 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   );
 
   const isMasked = maskSensitiveData && !localReveal;
-
   const nameHighlighted = entity.highlights?.["canonicalName"]?.[0];
 
   const hasConfidence =
@@ -99,7 +97,6 @@ export const EntityCard: React.FC<EntityCardProps> = ({
       data-id={entity.id}
       className="relative bg-surface border border-border hover:border-primary/50 rounded-xl p-4 shadow-xs hover:shadow-sm transition-all duration-150 motion-reduce:transition-none flex flex-col justify-between gap-4 group has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary has-[:focus-visible]:border-primary"
     >
-      {/* Full-card stretched button so the entire card is a single keyboard-focusable button */}
       <button
         type="button"
         onClick={(e) => onSelect(entity, e.currentTarget)}
@@ -107,55 +104,15 @@ export const EntityCard: React.FC<EntityCardProps> = ({
         className="absolute inset-0 z-0 rounded-xl cursor-pointer focus:outline-none"
       />
 
-      {/* Title Row */}
-      <div className="relative z-10 pointer-events-none flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center border shrink-0"
-            style={{
-              backgroundColor: `${typeColor}14`,
-              borderColor: `${typeColor}33`,
-              color: typeColor,
-            }}
-            aria-hidden="true"
-          >
-            <EntityTypeIcon entityType={entity.entityType} size={18} />
-          </div>
+      <EntityCardHeader
+        entityType={entity.entityType}
+        typeColor={typeColor}
+        typeLabel={typeLabel}
+        canonicalName={entity.canonicalName}
+        entityId={entity.id}
+        nameHighlighted={nameHighlighted}
+      />
 
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-text leading-snug truncate group-hover:text-primary transition-colors duration-150 motion-reduce:transition-none">
-              {nameHighlighted ? (
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeHtml(nameHighlighted),
-                  }}
-                  className="[&>em]:bg-primary-tint [&>em]:text-primary [&>em]:not-italic [&>em]:font-semibold [&>em]:px-0.5 [&>em]:rounded"
-                />
-              ) : (
-                entity.canonicalName || "Unnamed Entity"
-              )}
-            </h3>
-            <span className="text-[11px] font-mono text-text-muted truncate block">
-              {entity.id.slice(0, 8)}
-            </span>
-          </div>
-        </div>
-
-        {/* Entity Type Tag */}
-        <span
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md border shrink-0"
-          style={{
-            backgroundColor: `${typeColor}12`,
-            borderColor: `${typeColor}30`,
-            color: typeColor,
-          }}
-        >
-          <EntityTypeIcon entityType={entity.entityType} size={11} />
-          <span className="max-w-[120px] truncate">{typeLabel}</span>
-        </span>
-      </div>
-
-      {/* Possible duplicate banner — ONLY shown if API explicitly flags it */}
       {entity.possibleDuplicate && (
         <div className="relative z-20 flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-warning-bg border border-warning-border text-xs text-warning">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -176,51 +133,12 @@ export const EntityCard: React.FC<EntityCardProps> = ({
         </div>
       )}
 
-      {/* 3 to 4 Key Fields Grid */}
-      {keyFields.length > 0 && (
-        <dl className="relative z-10 pointer-events-none grid grid-cols-2 gap-x-4 gap-y-2.5 py-3 border-t border-b border-border-subtle">
-          {keyFields.map((field) => {
-            const sensitive =
-              !field.isSystemDate && isSensitiveField(field.key);
-            const rawHighlight =
-              !isMasked &&
-              (entity.highlights?.[field.key]?.[0] ||
-                entity.highlights?.[`properties.${field.key}`]?.[0]);
+      <EntityCardFields
+        keyFields={keyFields}
+        isMasked={isMasked}
+        highlights={entity.highlights}
+      />
 
-            const displayValue = field.isSystemDate
-              ? String(field.value)
-              : maskSensitiveValue(field.key, field.value, isMasked);
-
-            return (
-              <div key={field.key} className="min-w-0 flex flex-col gap-0.5">
-                <dt className="text-[11px] text-text-muted font-medium truncate">
-                  {field.label}
-                </dt>
-                <dd
-                  className={`text-xs text-text font-medium truncate ${
-                    sensitive && isMasked
-                      ? "font-mono tracking-wider text-text-secondary"
-                      : ""
-                  }`}
-                >
-                  {rawHighlight ? (
-                    <span
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeHtml(rawHighlight),
-                      }}
-                      className="[&>em]:bg-primary-tint [&>em]:text-primary [&>em]:not-italic [&>em]:font-semibold [&>em]:px-0.5 [&>em]:rounded"
-                    />
-                  ) : (
-                    displayValue
-                  )}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      )}
-
-      {/* Footer: Provenance, Confidence, Optional Reveal & Why Merged */}
       <div className="relative z-20 flex flex-wrap items-center justify-between gap-2 pt-0.5">
         <div className="flex flex-wrap items-center gap-2 min-w-0 pointer-events-none">
           {sourceSummary && (
@@ -243,7 +161,6 @@ export const EntityCard: React.FC<EntityCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Why merged? popover — ONLY rendered when API returns matchReasons */}
           {hasMatchReasons && (
             <div className="relative">
               <button
@@ -294,7 +211,6 @@ export const EntityCard: React.FC<EntityCardProps> = ({
             </div>
           )}
 
-          {/* Per-card Reveal / Hide button when masking is enabled and sensitive fields are present */}
           {maskSensitiveData && hasVisibleSensitiveField && (
             <button
               type="button"
