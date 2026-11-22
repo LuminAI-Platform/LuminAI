@@ -10,9 +10,8 @@ Implements Palantir Foundry-inspired dataset cleaning:
 from __future__ import annotations
 
 import time
-import uuid
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import polars as pl
 
 from app.processing.engine.cleaning_operations import (
@@ -22,7 +21,7 @@ from app.processing.engine.cleaning_operations import (
     apply_remove_missing,
     apply_standardize_text,
 )
-from app.processing.engine.profiler import DataProfiler, DatasetProfileReport
+from app.processing.engine.profiler import DataProfiler
 from app.processing.engine.quality_framework import DataQualityFramework
 
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
 import polars as pl
@@ -24,8 +23,8 @@ from app.processing.engine.golden_record_engine import GoldenRecordEngine, Golde
 from app.processing.engine.identifier_cleaner import IdentifierCleaner
 from app.processing.engine.lineage import LineageTracker
 from app.processing.engine.name_standardizer import NameStandardizer
-from app.processing.engine.profiler import DataProfiler, DatasetProfileReport, ProfilingDeltaReport
-from app.processing.engine.quality_framework import DataQualityFramework, DatasetQualityAssessment
+from app.processing.engine.profiler import DataProfiler
+from app.processing.engine.quality_framework import DataQualityFramework
 from app.processing.engine.text_cleaner import TextCleaner
 from app.processing.engine.type_inference import TypeInferenceEngine
 

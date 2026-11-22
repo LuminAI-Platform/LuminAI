@@ -1,6 +1,5 @@
 """Comprehensive tests for Configurable Cleaning Engine, Pipeline Builder, and Type Inference rules."""
 
-import pytest
 import polars as pl
 from fastapi.testclient import TestClient
 
@@ -9,7 +8,6 @@ from app.processing.engine.cleaning_engine import CleaningEngine, CleaningStepCo
 from app.processing.engine.cleaning_operations import (
     apply_deduplicate,
     apply_fill_missing,
-    apply_handle_outliers,
     apply_remove_missing,
     apply_standardize_text,
 )

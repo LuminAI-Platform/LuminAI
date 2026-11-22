@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 import time
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import polars as pl
 

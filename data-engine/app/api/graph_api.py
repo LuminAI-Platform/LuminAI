@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.processing.er.relational_decomposer import (
-    DecompositionResult,
     DecompositionRule,
     RelationalDecomposer,
 )

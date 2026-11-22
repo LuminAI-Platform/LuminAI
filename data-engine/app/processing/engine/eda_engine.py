@@ -11,8 +11,7 @@ Computes mathematically sound, type-appropriate analytical statistics:
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional
-import numpy as np
+from typing import Any, Dict
 import polars as pl
 
 

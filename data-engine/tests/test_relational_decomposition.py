@@ -1,6 +1,5 @@
 """Tests for Relational Entity Decomposition Engine."""
 
-import pytest
 from app.processing.er.relational_decomposer import (
     DecompositionRule,
     RelationalDecomposer,
