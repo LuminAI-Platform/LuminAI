@@ -101,7 +101,7 @@ public class MlModelService {
 
     String runId =
         outcome.containsKey("run_id")
-            ? String.valueOf(outcome.get("run_id"))
+            ? String.valueOf(outcome.get("run_id")).replaceAll("[^a-zA-Z0-9_\\-]", "")
             : UUID.randomUUID().toString();
     model.setModelArtifactPath("storage/ml_registry/" + runId);
 
@@ -145,15 +145,37 @@ public class MlModelService {
             .findByIdAndTenantId(id, tenantId)
             .orElseThrow(() -> new ResourceNotFoundException("MlModel", id));
 
-    // If promoting to CHAMPION, demote existing champion for the same dataset
-    if ("CHAMPION".equals(safeStatus) && model.getTrainingDatasetId() != null) {
+    // Strict Validation: Champion models MUST have non-empty artifact path and validation metrics
+    if ("CHAMPION".equals(safeStatus)) {
+      if (model.getModelArtifactPath() == null || model.getModelArtifactPath().isBlank()) {
+        throw new IllegalStateException(
+            "Cannot promote model to CHAMPION: missing model artifact path");
+      }
+      if (model.getMetrics() == null
+          || model.getMetrics().isBlank()
+          || "{}".equals(model.getMetrics())) {
+        throw new IllegalStateException(
+            "Cannot promote model to CHAMPION: model must possess evaluated validation metrics");
+      }
+
+      // Single-Champion Governance: demote existing champions within the same prediction scope
       List<MlModel> champions = mlModelRepository.findAllByTenantIdAndStatus(tenantId, "CHAMPION");
       for (MlModel c : champions) {
-        if (!c.getId().equals(model.getId())
-            && model.getTrainingDatasetId().equals(c.getTrainingDatasetId())) {
-          c.setStatus("CHALLENGER");
-          mlModelRepository.save(c);
-          log.info("Demoted previous champion model {} to CHALLENGER", c.getId());
+        if (!c.getId().equals(model.getId())) {
+          boolean sameScope =
+              Objects.equals(c.getTrainingDatasetId(), model.getTrainingDatasetId())
+                  && Objects.equals(c.getTargetColumn(), model.getTargetColumn())
+                  && Objects.equals(c.getTaskType(), model.getTaskType());
+          if (sameScope) {
+            c.setStatus("CHALLENGER");
+            mlModelRepository.save(c);
+            log.info(
+                "Demoted prior champion model {} (scope: dataset={}, target={}, task={}) to CHALLENGER",
+                c.getId(),
+                c.getTrainingDatasetId(),
+                c.getTargetColumn(),
+                c.getTaskType());
+          }
         }
       }
     }

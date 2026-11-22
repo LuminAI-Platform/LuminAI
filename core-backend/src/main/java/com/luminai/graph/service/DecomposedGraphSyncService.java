@@ -50,36 +50,66 @@ public class DecomposedGraphSyncService {
         tenant);
 
     int nodesSynced = 0;
+    final int BATCH_SIZE = 500;
     if (nodes != null) {
-      for (Map<String, Object> node : nodes) {
-        String id = String.valueOf(node.getOrDefault("id", ""));
-        String label =
-            String.valueOf(node.getOrDefault("label", node.getOrDefault("canonical_name", id)));
-        String entityType = String.valueOf(node.getOrDefault("entityType", "Entity"));
+      for (int i = 0; i < nodes.size(); i += BATCH_SIZE) {
+        int end = Math.min(i + BATCH_SIZE, nodes.size());
+        List<Map<String, Object>> batch = nodes.subList(i, end);
+        nodesSynced +=
+            executeWithRetry(
+                () -> {
+                  int count = 0;
+                  for (Map<String, Object> node : batch) {
+                    String label =
+                        String.valueOf(
+                            node.getOrDefault("label", node.getOrDefault("canonical_name", "")));
+                    String entityType = String.valueOf(node.getOrDefault("entityType", "Entity"));
+                    String rawId = String.valueOf(node.getOrDefault("id", ""));
+                    String id =
+                        !rawId.isBlank()
+                            ? rawId
+                            : generateDeterministicId(tenant, entityType, label);
 
-        if (!id.isBlank()) {
-          neo4jGraphRepository.ensureEntityTypeIndexes(entityType);
-          neo4jGraphRepository.mergeEntityNode(tenant, id, label, entityType);
-          nodesSynced++;
-        }
+                    if (!id.isBlank()) {
+                      neo4jGraphRepository.ensureEntityTypeIndexes(entityType);
+                      neo4jGraphRepository.mergeEntityNode(tenant, id, label, entityType);
+                      count++;
+                    }
+                  }
+                  return count;
+                },
+                3);
       }
     }
 
     int edgesSynced = 0;
     if (edges != null) {
-      for (Map<String, Object> edge : edges) {
-        String source = String.valueOf(edge.getOrDefault("source", ""));
-        String target = String.valueOf(edge.getOrDefault("target", ""));
-        String relType = String.valueOf(edge.getOrDefault("relationshipType", "RELATED_TO"));
-        String direction = String.valueOf(edge.getOrDefault("direction", "OUTGOING"));
+      for (int i = 0; i < edges.size(); i += BATCH_SIZE) {
+        int end = Math.min(i + BATCH_SIZE, edges.size());
+        List<Map<String, Object>> batch = edges.subList(i, end);
+        edgesSynced +=
+            executeWithRetry(
+                () -> {
+                  int count = 0;
+                  for (Map<String, Object> edge : batch) {
+                    String source = String.valueOf(edge.getOrDefault("source", ""));
+                    String target = String.valueOf(edge.getOrDefault("target", ""));
+                    String relType =
+                        String.valueOf(edge.getOrDefault("relationshipType", "RELATED_TO"));
+                    String direction = String.valueOf(edge.getOrDefault("direction", "OUTGOING"));
 
-        if (!source.isBlank() && !target.isBlank()) {
-          boolean merged =
-              neo4jGraphRepository.mergeRelationship(tenant, source, target, relType, direction);
-          if (merged) {
-            edgesSynced++;
-          }
-        }
+                    if (!source.isBlank() && !target.isBlank()) {
+                      boolean merged =
+                          neo4jGraphRepository.mergeRelationship(
+                              tenant, source, target, relType, direction);
+                      if (merged) {
+                        count++;
+                      }
+                    }
+                  }
+                  return count;
+                },
+                3);
       }
     }
 
@@ -118,5 +148,31 @@ public class DecomposedGraphSyncService {
     Map<String, Object> combined = new LinkedHashMap<>(engineRes);
     combined.put("neo4jSync", syncResult);
     return combined;
+  }
+
+  public String generateDeterministicId(String tenant, String entityType, String key) {
+    String raw = tenant + ":" + entityType + ":" + key;
+    return UUID.nameUUIDFromBytes(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+  }
+
+  private <T> T executeWithRetry(java.util.function.Supplier<T> action, int maxRetries) {
+    int attempts = 0;
+    while (true) {
+      try {
+        return action.get();
+      } catch (Exception e) {
+        attempts++;
+        if (attempts >= maxRetries) {
+          log.warn("Batch execution failed after {} attempts: {}", attempts, e.getMessage());
+          throw e;
+        }
+        try {
+          Thread.sleep(attempts * 50L);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException("Interrupted during retry backoff", ie);
+        }
+      }
+    }
   }
 }

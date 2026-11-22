@@ -78,24 +78,39 @@ public class MultiTenantConnectionProvider
 
   @Override
   public Connection getConnection(String tenantIdentifier) throws SQLException {
-
     Connection connection = dataSource.getConnection();
-
-    log.info("getConnection() -> {}", tenantIdentifier);
-
-    setSearchPath(connection, tenantIdentifier);
-
-    return connection;
+    try {
+      log.debug("getConnection() -> {}", tenantIdentifier);
+      setSearchPath(connection, tenantIdentifier);
+      return connection;
+    } catch (SQLException | RuntimeException e) {
+      try {
+        connection.close();
+      } catch (Exception ignored) {
+      }
+      throw e;
+    }
   }
 
   @Override
   public void releaseConnection(String tenantIdentifier, Connection connection)
       throws SQLException {
-
     try {
       resetSearchPath(connection);
+    } catch (Exception e) {
+      log.warn(
+          "Failed to reset search_path for tenant '{}'; aborting connection to prevent reuse: {}",
+          tenantIdentifier,
+          e.getMessage());
+      try {
+        connection.abort(Runnable::run);
+      } catch (Exception ignored) {
+      }
+      throw e;
     } finally {
-      connection.close();
+      if (!connection.isClosed()) {
+        connection.close();
+      }
     }
   }
 

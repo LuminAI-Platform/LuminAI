@@ -81,6 +81,9 @@ class DatasetServiceTest {
   @Test
   @DisplayName("registerRawDataset creates new RAW dataset and commits initial version")
   void testRegisterRawDatasetNew() {
+    UUID connId = UUID.randomUUID();
+    when(datasetRepository.findBySourceConnectionIdAndTenantId(connId, tenantId))
+        .thenReturn(Optional.empty());
     when(datasetRepository.findByNameAndTenantId("sales_raw", tenantId))
         .thenReturn(Optional.empty());
 
@@ -96,7 +99,7 @@ class DatasetServiceTest {
     DatasetDto dto =
         datasetService.registerRawDataset(
             tenantId,
-            UUID.randomUUID(),
+            connId,
             "sales_raw",
             "Sales Raw",
             "s3://bucket/sales.csv",

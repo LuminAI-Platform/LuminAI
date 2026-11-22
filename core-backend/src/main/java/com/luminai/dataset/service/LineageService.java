@@ -73,13 +73,27 @@ public class LineageService {
   @Transactional
   public DatasetLineage recordLineage(
       UUID sourceId, UUID targetId, UUID pipelineId, String transformType) {
-    UUID tenantId = requireTenant();
+    return recordLineage(null, sourceId, targetId, pipelineId, transformType, "[]");
+  }
+
+  @Transactional
+  public DatasetLineage recordLineage(
+      UUID tenantId,
+      UUID sourceId,
+      UUID targetId,
+      UUID pipelineId,
+      String transformType,
+      String columnLineage) {
+    UUID safeTenantId = (tenantId != null) ? tenantId : requireTenant();
     DatasetLineage lineage = new DatasetLineage();
-    lineage.setTenantId(tenantId);
+    lineage.setTenantId(safeTenantId);
     lineage.setSourceDatasetId(sourceId);
     lineage.setTargetDatasetId(targetId);
     lineage.setPipelineId(pipelineId);
     lineage.setTransformationType(transformType != null ? transformType : "TRANSFORM");
+    if (columnLineage != null) {
+      lineage.setColumnLineage(columnLineage);
+    }
     return lineageRepository.save(lineage);
   }
 }
