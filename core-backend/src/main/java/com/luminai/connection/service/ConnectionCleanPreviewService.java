@@ -169,7 +169,11 @@ public class ConnectionCleanPreviewService {
     Map<String, Object> remoteReq = new HashMap<>();
     remoteReq.put("tenant_id", currentTenant.toString());
     remoteReq.put("source_id", id.toString());
-    remoteReq.put("entity_type", configuredEntityType != null ? configuredEntityType : "Person");
+    remoteReq.put(
+        "entity_type",
+        (configuredEntityType != null && !configuredEntityType.isBlank())
+            ? configuredEntityType
+            : "Entity");
     remoteReq.put("rows", rawRows);
 
     Map<String, Object> engineRes;

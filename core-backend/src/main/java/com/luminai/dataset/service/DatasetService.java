@@ -9,10 +9,14 @@ import com.luminai.dataset.model.Dataset;
 import com.luminai.dataset.model.DatasetVersion;
 import com.luminai.dataset.repository.DatasetRepository;
 import com.luminai.dataset.repository.DatasetVersionRepository;
+import com.luminai.engine.service.DataEngineClient;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +28,21 @@ public class DatasetService {
 
   private final DatasetRepository datasetRepository;
   private final DatasetVersionRepository versionRepository;
+  private final DataEngineClient dataEngineClient;
 
   public DatasetService(
       DatasetRepository datasetRepository, DatasetVersionRepository versionRepository) {
+    this(datasetRepository, versionRepository, null);
+  }
+
+  @Autowired
+  public DatasetService(
+      DatasetRepository datasetRepository,
+      DatasetVersionRepository versionRepository,
+      @Autowired(required = false) DataEngineClient dataEngineClient) {
     this.datasetRepository = datasetRepository;
     this.versionRepository = versionRepository;
+    this.dataEngineClient = dataEngineClient;
   }
 
   private UUID requireTenant() {
@@ -160,5 +174,143 @@ public class DatasetService {
 
     Dataset saved = datasetRepository.save(dataset);
     return DatasetDto.fromEntity(saved);
+  }
+
+  @Transactional
+  public DatasetDto registerRawDataset(
+      UUID tenantId,
+      UUID connectionId,
+      String name,
+      String displayName,
+      String storageLocation,
+      long rowCount,
+      long byteSize,
+      String schemaJson) {
+    if (tenantId == null) {
+      tenantId = requireTenant();
+    }
+    log.info(
+        "Registering/updating RAW dataset '{}' for tenant {} from connection {}",
+        name,
+        tenantId,
+        connectionId);
+
+    Optional<Dataset> existingOpt = datasetRepository.findByNameAndTenantId(name, tenantId);
+    Dataset dataset;
+    boolean isNew = false;
+    if (existingOpt.isPresent()) {
+      dataset = existingOpt.get();
+      dataset.setRowCount(rowCount);
+      dataset.setByteSize(byteSize);
+      if (storageLocation != null) dataset.setStorageLocation(storageLocation);
+      if (schemaJson != null) dataset.setSchemaMetadata(schemaJson);
+      if (connectionId != null) dataset.setSourceConnectionId(connectionId);
+      int nextVersion = dataset.getCurrentVersion() + 1;
+      dataset.setCurrentVersion(nextVersion);
+    } else {
+      isNew = true;
+      dataset = new Dataset();
+      dataset.setTenantId(tenantId);
+      dataset.setName(name);
+      dataset.setDisplayName(displayName != null ? displayName : name);
+      dataset.setDescription("Ingested raw dataset from file connection " + connectionId);
+      dataset.setLayer(Dataset.Layer.RAW);
+      dataset.setProjectType(Dataset.ProjectType.SOURCE);
+      dataset.setSourceConnectionId(connectionId);
+      dataset.setStorageLocation(storageLocation);
+      dataset.setRowCount(rowCount);
+      dataset.setByteSize(byteSize);
+      if (schemaJson != null) dataset.setSchemaMetadata(schemaJson);
+      dataset.setCurrentVersion(1);
+    }
+
+    Dataset saved = datasetRepository.save(dataset);
+
+    DatasetVersion version = new DatasetVersion();
+    version.setTenantId(tenantId);
+    version.setDatasetId(saved.getId());
+    version.setVersion(saved.getCurrentVersion());
+    version.setStorageLocation(
+        storageLocation != null ? storageLocation : saved.getStorageLocation());
+    version.setRowCount(rowCount);
+    version.setSchemaSnapshot(schemaJson != null ? schemaJson : saved.getSchemaMetadata());
+    version.setCommitMessage(isNew ? "Initial RAW dataset ingestion" : "Updated RAW dataset sync");
+    versionRepository.save(version);
+
+    return DatasetDto.fromEntity(saved);
+  }
+
+  @Transactional
+  public DatasetDto transitionLayer(UUID datasetId, Dataset.Layer targetLayer) {
+    UUID tenantId = requireTenant();
+    Dataset dataset =
+        datasetRepository
+            .findByIdAndTenantId(datasetId, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
+
+    log.info(
+        "Transitioning dataset '{}' layer from {} to {}",
+        datasetId,
+        dataset.getLayer(),
+        targetLayer);
+    dataset.setLayer(targetLayer);
+    Dataset saved = datasetRepository.save(dataset);
+    return DatasetDto.fromEntity(saved);
+  }
+
+  @Transactional
+  public void deleteDataset(UUID datasetId) {
+    UUID tenantId = requireTenant();
+    Dataset dataset =
+        datasetRepository
+            .findByIdAndTenantId(datasetId, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
+    log.info("Deleting dataset '{}' for tenant {}", datasetId, tenantId);
+    datasetRepository.deleteByIdAndTenantId(datasetId, tenantId);
+  }
+
+  public Map<String, Object> generateEdaReport(
+      UUID datasetId, List<Map<String, Object>> sampleRecords) {
+    UUID tenantId = requireTenant();
+    String slug = TenantContext.getTenantSlug();
+    Dataset dataset =
+        datasetRepository
+            .findByIdAndTenantId(datasetId, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
+
+    if (dataEngineClient == null) {
+      return Map.of("status", "ERROR", "error", "Data Engine client is offline");
+    }
+
+    Map<String, Object> edaReq = new java.util.LinkedHashMap<>();
+    edaReq.put("tenant_id", slug != null ? slug : "acme");
+    edaReq.put("dataset_name", dataset.getName());
+    edaReq.put("records", sampleRecords != null ? sampleRecords : List.of());
+    return dataEngineClient.generateEdaReport(edaReq);
+  }
+
+  public Map<String, Object> previewCleaning(Map<String, Object> requestPayload) {
+    if (dataEngineClient == null) {
+      return Map.of("status", "ERROR", "error", "Data Engine client is offline");
+    }
+    return dataEngineClient.previewCleaning(requestPayload);
+  }
+
+  @Transactional
+  public Map<String, Object> executeCleaningRecipe(Map<String, Object> requestPayload) {
+    if (dataEngineClient == null) {
+      return Map.of("status", "ERROR", "error", "Data Engine client is offline");
+    }
+    Map<String, Object> outcome = dataEngineClient.executeCleaningRecipe(requestPayload);
+    return outcome;
+  }
+
+  @Transactional
+  public Map<String, Object> executePipeline(Map<String, Object> requestPayload) {
+    if (dataEngineClient == null) {
+      return Map.of("status", "ERROR", "error", "Data Engine client is offline");
+    }
+    Map<String, Object> outcome = dataEngineClient.executePipeline(requestPayload);
+    return outcome;
   }
 }

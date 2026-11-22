@@ -20,6 +20,8 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID> {
 
   Optional<Dataset> findByNameAndTenantId(String name, UUID tenantId);
 
+  Optional<Dataset> findBySourceConnectionIdAndTenantId(UUID sourceConnectionId, UUID tenantId);
+
   boolean existsByNameAndTenantId(String name, UUID tenantId);
 
   void deleteByIdAndTenantId(UUID id, UUID tenantId);

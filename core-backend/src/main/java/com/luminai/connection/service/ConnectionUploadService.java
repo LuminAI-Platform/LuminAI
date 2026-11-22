@@ -38,9 +38,15 @@ public class ConnectionUploadService {
   private final ConnectionRepository connectionRepository;
   private PipelineRunRepository pipelineRunRepository;
   private final ObjectMapper objectMapper;
+  private DatasetRegistrationHelper datasetRegistrationHelper;
 
   public void setPipelineRunRepository(PipelineRunRepository pipelineRunRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setDatasetRegistrationHelper(DatasetRegistrationHelper datasetRegistrationHelper) {
+    this.datasetRegistrationHelper = datasetRegistrationHelper;
   }
 
   public ConnectionUploadService(
@@ -157,6 +163,17 @@ public class ConnectionUploadService {
             } catch (Exception pe) {
               log.warn("Could not save initial PipelineRun: {}", pe.getMessage());
             }
+          }
+
+          if (datasetRegistrationHelper != null) {
+            datasetRegistrationHelper.registerRawFileDataset(
+                tenantId,
+                id,
+                file.getOriginalFilename(),
+                objectKey,
+                totalRows,
+                file.getSize(),
+                columns);
           }
         }
       } catch (Exception e) {
@@ -332,31 +349,7 @@ public class ConnectionUploadService {
           configMap.put("tables", tables);
 
           // Populate combined sample rows and columns across all extracted tables
-          List<Map<String, Object>> combinedSampleRows = new ArrayList<>();
-          java.util.LinkedHashSet<String> combinedColumns = new java.util.LinkedHashSet<>();
-          combinedColumns.add("_table");
-
-          for (Map<String, Object> tbl : tables) {
-            String tblName = (String) tbl.get("fileName");
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> tRows = (List<Map<String, Object>>) tbl.get("sampleRows");
-            if (tRows != null) {
-              for (Map<String, Object> r : tRows) {
-                Map<String, Object> rowWithTable = new LinkedHashMap<>();
-                rowWithTable.put("_table", tblName);
-                rowWithTable.putAll(r);
-                combinedSampleRows.add(rowWithTable);
-                combinedColumns.addAll(r.keySet());
-                if (combinedSampleRows.size() >= 150) break;
-              }
-            }
-            if (combinedSampleRows.size() >= 150) break;
-          }
-
-          if (!combinedSampleRows.isEmpty()) {
-            configMap.put("columns", new ArrayList<>(combinedColumns));
-            configMap.put("sampleRows", combinedSampleRows);
-          }
+          DatasetRegistrationHelper.populateArchiveCombinedSamples(configMap, tables);
 
           connection.setConfig(objectMapper.writeValueAsString(configMap));
           connection.setStatus(Connection.Status.ACTIVE);
@@ -392,6 +385,11 @@ public class ConnectionUploadService {
             } catch (Exception pe) {
               log.warn("Could not save initial PipelineRun for archive: {}", pe.getMessage());
             }
+          }
+
+          if (datasetRegistrationHelper != null) {
+            datasetRegistrationHelper.registerRawArchiveTables(
+                tenantId, connectionId, file.getOriginalFilename(), tables);
           }
         }
       } catch (Exception e) {

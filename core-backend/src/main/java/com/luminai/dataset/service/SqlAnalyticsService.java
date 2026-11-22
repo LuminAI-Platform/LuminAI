@@ -5,6 +5,10 @@ import com.luminai.dataset.dto.SqlQueryRequest;
 import com.luminai.dataset.dto.SqlQueryResultDto;
 import com.luminai.dataset.model.SavedQuery;
 import com.luminai.dataset.repository.SavedQueryRepository;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.util.*;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
@@ -60,13 +64,51 @@ public class SqlAnalyticsService {
       boundedQuery = query + " LIMIT " + limit;
     }
 
+    final String sqlToRun = boundedQuery;
+    String currentSchema = TenantContext.getCurrentSchema();
+    if (currentSchema == null || !currentSchema.matches("^[a-zA-Z0-9_\\-]+$")) {
+      currentSchema = TenantContext.DEFAULT_SCHEMA;
+    }
+    final String targetSchema = currentSchema;
+
     long start = System.currentTimeMillis();
     try {
-      List<Map<String, Object>> rows = jdbcTemplate.queryForList(boundedQuery);
-      long elapsed = System.currentTimeMillis() - start;
+      return jdbcTemplate.execute(
+          (Connection conn) -> {
+            // Set tenant-specific search_path for schema isolation
+            try (Statement setStmt = conn.createStatement()) {
+              setStmt.execute("SET search_path = \"" + targetSchema + "\", public");
+            }
 
-      List<String> columns = rows.isEmpty() ? List.of() : new ArrayList<>(rows.get(0).keySet());
-      return new SqlQueryResultDto(columns, rows, rows.size(), elapsed, "SUCCESS");
+            try (Statement queryStmt = conn.createStatement();
+                ResultSet rs = queryStmt.executeQuery(sqlToRun)) {
+              ResultSetMetaData meta = rs.getMetaData();
+              int colCount = meta.getColumnCount();
+              List<String> columns = new ArrayList<>(colCount);
+              for (int i = 1; i <= colCount; i++) {
+                columns.add(meta.getColumnLabel(i));
+              }
+
+              List<Map<String, Object>> rows = new ArrayList<>();
+              while (rs.next()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                for (int i = 1; i <= colCount; i++) {
+                  row.put(columns.get(i - 1), rs.getObject(i));
+                }
+                rows.add(row);
+              }
+
+              long elapsed = System.currentTimeMillis() - start;
+              return new SqlQueryResultDto(columns, rows, rows.size(), elapsed, "SUCCESS");
+            } finally {
+              // Always restore connection search_path before returning to pool
+              try (Statement resetStmt = conn.createStatement()) {
+                resetStmt.execute(
+                    "SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
+              } catch (Exception ignored) {
+              }
+            }
+          });
     } catch (Exception e) {
       long elapsed = System.currentTimeMillis() - start;
       log.warn("SQL execution error: {}", e.getMessage());

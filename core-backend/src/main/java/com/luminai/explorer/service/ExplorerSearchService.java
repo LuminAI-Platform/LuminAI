@@ -360,7 +360,7 @@ public class ExplorerSearchService {
     if (gr.getEntityType() != null && !gr.getEntityType().isBlank()) {
       return gr.getEntityType();
     }
-    return "Person";
+    return "Entity";
   }
 
   private String highlightMatch(String text, String query) {
