@@ -1,17 +1,18 @@
 package com.luminai.graph.controller;
 
 import com.luminai.graph.dto.GraphQueryResponseDto;
+import com.luminai.graph.service.DecomposedGraphSyncService;
 import com.luminai.graph.service.GraphQueryService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import java.util.List;
+import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /** REST API for bounded neighbourhood queries over the synchronized Entity graph. */
 @RestController
@@ -20,9 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class GraphController {
 
   private final GraphQueryService graphQueryService;
+  private final DecomposedGraphSyncService decomposedGraphSyncService;
 
-  public GraphController(GraphQueryService graphQueryService) {
+  public GraphController(
+      GraphQueryService graphQueryService,
+      @Autowired(required = false) DecomposedGraphSyncService decomposedGraphSyncService) {
     this.graphQueryService = graphQueryService;
+    this.decomposedGraphSyncService = decomposedGraphSyncService;
   }
 
   /** The default depth is one hop; traversal is never expanded beyond four hops. */
@@ -72,5 +77,31 @@ public class GraphController {
   public ResponseEntity<com.luminai.graph.dto.GraphStatsDto> getStats(
       @RequestParam @NotBlank(message = "entityId must not be blank") String entityId) {
     return ResponseEntity.ok(graphQueryService.getStats(entityId.trim()));
+  }
+
+  @PostMapping("/sync/decomposed")
+  public ResponseEntity<Map<String, Object>> syncDecomposedGraph(
+      @RequestParam(required = false) String tenantId,
+      @RequestBody Map<String, Object> request) {
+    if (decomposedGraphSyncService == null) {
+      return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
+          .body(Map.of("error", "DecomposedGraphSyncService unavailable"));
+    }
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> nodes = (List<Map<String, Object>>) request.get("nodes");
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> edges = (List<Map<String, Object>>) request.get("edges");
+    return ResponseEntity.ok(decomposedGraphSyncService.syncNodesAndEdges(tenantId, nodes, edges));
+  }
+
+  @PostMapping("/decompose-and-sync")
+  public ResponseEntity<Map<String, Object>> decomposeAndSync(
+      @RequestParam(required = false) String tenantId,
+      @RequestBody Map<String, Object> request) {
+    if (decomposedGraphSyncService == null) {
+      return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
+          .body(Map.of("error", "DecomposedGraphSyncService unavailable"));
+    }
+    return ResponseEntity.ok(decomposedGraphSyncService.decomposeAndSync(tenantId, request));
   }
 }

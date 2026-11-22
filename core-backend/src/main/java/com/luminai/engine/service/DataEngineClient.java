@@ -1,6 +1,7 @@
 package com.luminai.engine.service;
 
 import com.luminai.engine.dto.DataEngineHealthDto;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,8 @@ public class DataEngineClient {
 
   private static final Logger log = LoggerFactory.getLogger(DataEngineClient.class);
   private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+      new ParameterizedTypeReference<>() {};
+  private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_MAP_TYPE =
       new ParameterizedTypeReference<>() {};
 
   private final RestClient restClient;
@@ -295,6 +298,92 @@ public class DataEngineClient {
           "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").",
           "error",
           e.getMessage() != null ? e.getMessage() : "Connection failed");
+    }
+  }
+
+  public Map<String, Object> previewCleaning(Map<String, Object> payload) {
+    return postJson("/analytics/cleaning/preview", payload);
+  }
+
+  public Map<String, Object> executeCleaningRecipe(Map<String, Object> payload) {
+    return postJson("/analytics/cleaning/execute", payload);
+  }
+
+  public Map<String, Object> executePipeline(Map<String, Object> payload) {
+    return postJson("/analytics/pipelines/execute", payload);
+  }
+
+  public Map<String, Object> generateEdaReport(Map<String, Object> payload) {
+    return postJson("/analytics/eda/report", payload);
+  }
+
+  public Map<String, Object> decomposeGraph(Map<String, Object> payload) {
+    return postJson("/analytics/graph/decompose", payload);
+  }
+
+  public Map<String, Object> trainMlModel(Map<String, Object> payload) {
+    return postJson("/analytics/ml/train", payload);
+  }
+
+  public List<Map<String, Object>> listMlExperiments(String tenantId) {
+    try {
+      return restClient
+          .get()
+          .uri(
+              uriBuilder ->
+                  uriBuilder
+                      .path("/analytics/ml/experiments")
+                      .queryParam("tenant_id", tenantId != null ? tenantId : "acme")
+                      .build())
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(LIST_MAP_TYPE);
+    } catch (Exception e) {
+      log.warn("Failed to list ML experiments from Data Engine: {}", e.getMessage());
+      return List.of();
+    }
+  }
+
+  public Map<String, Object> registerMlModel(Map<String, Object> payload) {
+    return postJson("/analytics/ml/models/register", payload);
+  }
+
+  public List<Map<String, Object>> listMlModels(String tenantId) {
+    try {
+      return restClient
+          .get()
+          .uri(
+              uriBuilder ->
+                  uriBuilder
+                      .path("/analytics/ml/models")
+                      .queryParam("tenant_id", tenantId != null ? tenantId : "acme")
+                      .build())
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(LIST_MAP_TYPE);
+    } catch (Exception e) {
+      log.warn("Failed to list ML models from Data Engine: {}", e.getMessage());
+      return List.of();
+    }
+  }
+
+  private Map<String, Object> postJson(String uri, Object payload) {
+    try {
+      return restClient
+          .post()
+          .uri(uri)
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(payload)
+          .accept(MediaType.APPLICATION_JSON)
+          .retrieve()
+          .body(MAP_TYPE);
+    } catch (Exception e) {
+      log.warn("Data Engine POST {} failed: {}", uri, e.getMessage());
+      return Map.of(
+          "status",
+          "ERROR",
+          "error",
+          e.getMessage() != null ? e.getMessage() : "Request failed");
     }
   }
 }

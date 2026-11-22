@@ -20,6 +20,7 @@ public class Dataset {
 
   public enum Layer {
     RAW,
+    WORKING,
     PREPARED,
     CURATED,
     ANALYTICAL,
