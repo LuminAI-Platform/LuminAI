@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../../lib/api";
 import { deriveEngineStatus } from "../../../components/layout/engineStatusUtils";
@@ -14,6 +14,7 @@ export function useConnectionsData() {
 
   const modalState = useConnectionsModals();
   const tabState = useConnectionsTab();
+  const { adjustTabIfEmpty } = tabState;
 
   const [ingestedFiles, setIngestedFiles] = useState<IngestedFile[]>([]);
   const [customConnectors, setCustomConnectors] = useState<DatabaseConnector[]>(
@@ -100,7 +101,7 @@ export function useConnectionsData() {
           setCustomConnectors(dbItems);
           setIngestedFiles(mergedFiles);
 
-          tabState.adjustTabIfEmpty({
+          adjustTabIfEmpty({
             connectors: dbItems.length,
             files: mergedFiles.length,
           });
@@ -127,7 +128,7 @@ export function useConnectionsData() {
         setIsRefreshing(false);
       }
     },
-    [tabState],
+    [adjustTabIfEmpty],
   );
 
   const actionsState = useConnectionsActions({ loadConnectors });
@@ -171,9 +172,14 @@ export function useConnectionsData() {
     };
   }, [loadConnectors, isEngineOffline, isModalActive]);
 
+  const initialLoadDoneRef = useRef(false);
+
   // Initial load
   useEffect(() => {
-    loadConnectors(true);
+    if (!initialLoadDoneRef.current) {
+      initialLoadDoneRef.current = true;
+      loadConnectors(true);
+    }
   }, [loadConnectors]);
 
   // 15s polling (paused when hidden, offline, or modal open)

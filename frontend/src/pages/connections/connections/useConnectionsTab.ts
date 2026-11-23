@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import type { ConnectionsTab } from "./connectionsTypes";
 import {
   CONNECTIONS_TAB_STORAGE_KEY,
@@ -66,5 +66,8 @@ export function useConnectionsTab() {
     [],
   );
 
-  return { activeTab, setActiveTab, adjustTabIfEmpty };
+  return useMemo(
+    () => ({ activeTab, setActiveTab, adjustTabIfEmpty }),
+    [activeTab, setActiveTab, adjustTabIfEmpty],
+  );
 }
