@@ -1,0 +1,38 @@
+{
+  "dataset_name": "quoted_newlines_unicode.csv",
+  "row_count": 5,
+  "column_count": 3,
+  "exact_duplicates": 0,
+  "columns": {
+    "row_id": {
+      "name": "row_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 5
+    },
+    "title": {
+      "name": "title",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 5
+    },
+    "description": {
+      "name": "description",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 5
+    }
+  }
+}

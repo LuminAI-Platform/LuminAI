@@ -1,0 +1,134 @@
+{
+  "generator_version": "1.0.0",
+  "generated_by": "Independent Polars/DuckDB Analyzer",
+  "description": "Ground-truth baseline metrics for LuminAI synthetic datasets",
+  "datasets": {
+    "customers_small.csv": {
+      "relative_path": "datasets/small/customers_small.csv",
+      "file_size_bytes": 326429,
+      "row_count": 2010,
+      "column_count": 12,
+      "exact_duplicates": 10,
+      "profile_file": "ground-truth/profiling/customers_small.csv.json"
+    },
+    "transactions_small.csv": {
+      "relative_path": "datasets/small/transactions_small.csv",
+      "file_size_bytes": 488566,
+      "row_count": 5000,
+      "column_count": 9,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/transactions_small.csv.json"
+    },
+    "orders_small.tsv": {
+      "relative_path": "datasets/small/orders_small.tsv",
+      "file_size_bytes": 384937,
+      "row_count": 3000,
+      "column_count": 11,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/orders_small.tsv.json"
+    },
+    "products_small.json": {
+      "relative_path": "datasets/small/products_small.json",
+      "file_size_bytes": 3127,
+      "row_count": 15,
+      "column_count": 6,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/products_small.json.json"
+    },
+    "inventory_small.jsonl": {
+      "relative_path": "datasets/small/inventory_small.jsonl",
+      "file_size_bytes": 8030,
+      "row_count": 60,
+      "column_count": 5,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/inventory_small.jsonl.json"
+    },
+    "customers_medium.csv": {
+      "relative_path": "datasets/medium/customers_medium.csv",
+      "file_size_bytes": 4058834,
+      "row_count": 25010,
+      "column_count": 12,
+      "exact_duplicates": 10,
+      "profile_file": "ground-truth/profiling/customers_medium.csv.json"
+    },
+    "transactions_medium.parquet": {
+      "relative_path": "datasets/medium/transactions_medium.parquet",
+      "file_size_bytes": 1752917,
+      "row_count": 50000,
+      "column_count": 9,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/transactions_medium.parquet.json"
+    },
+    "orders_medium.csv": {
+      "relative_path": "datasets/medium/orders_medium.csv",
+      "file_size_bytes": 4480982,
+      "row_count": 35000,
+      "column_count": 11,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/orders_medium.csv.json"
+    },
+    "identifiers_leading_zeros.csv": {
+      "relative_path": "datasets/edge-cases/identifiers_leading_zeros.csv",
+      "file_size_bytes": 15548,
+      "row_count": 500,
+      "column_count": 4,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/identifiers_leading_zeros.csv.json"
+    },
+    "extreme_values_outliers.csv": {
+      "relative_path": "datasets/edge-cases/extreme_values_outliers.csv",
+      "file_size_bytes": 441,
+      "row_count": 8,
+      "column_count": 5,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/extreme_values_outliers.csv.json"
+    },
+    "quoted_newlines_unicode.csv": {
+      "relative_path": "datasets/edge-cases/quoted_newlines_unicode.csv",
+      "file_size_bytes": 398,
+      "row_count": 5,
+      "column_count": 3,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/quoted_newlines_unicode.csv.json"
+    },
+    "fuzzy_duplicates_er.csv": {
+      "relative_path": "datasets/edge-cases/fuzzy_duplicates_er.csv",
+      "file_size_bytes": 606,
+      "row_count": 10,
+      "column_count": 6,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/fuzzy_duplicates_er.csv.json"
+    },
+    "schema_evolution_v1.csv": {
+      "relative_path": "datasets/edge-cases/schema_evolution_v1.csv",
+      "file_size_bytes": 1856,
+      "row_count": 50,
+      "column_count": 3,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/schema_evolution_v1.csv.json"
+    },
+    "schema_evolution_v2.csv": {
+      "relative_path": "datasets/edge-cases/schema_evolution_v2.csv",
+      "file_size_bytes": 2731,
+      "row_count": 50,
+      "column_count": 5,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/schema_evolution_v2.csv.json"
+    },
+    "schema_evolution_v3.csv": {
+      "relative_path": "datasets/edge-cases/schema_evolution_v3.csv",
+      "file_size_bytes": 3297,
+      "row_count": 50,
+      "column_count": 6,
+      "exact_duplicates": 0,
+      "profile_file": "ground-truth/profiling/schema_evolution_v3.csv.json"
+    }
+  },
+  "relational_ground_truth": {
+    "customers_small_distinct_ids": 2000,
+    "transactions_small_total": 5000,
+    "transactions_small_orphan_customers": 86,
+    "orders_small_total": 3000,
+    "orders_small_matched_customers": 3000
+  }
+}

@@ -1,0 +1,8 @@
+row_id,title,description
+1,Standard Item,Single line item for testing.
+2,Multi-line Item,"Line 1 of description
+Line 2 with break
+Line 3 finalized."
+3,Quoted Content,"He said ""Urgent shipment from Tema"" immediately."
+4,Ghanaian Twi & Emojis,Akwaaba! Ɛyɛ fɛ papaapa! 🇬🇭📦🚚 Fast delivery.
+5,French African Route,Expédition de cacao vers Abidjan & San-Pédro en Côte d'Ivoire.

@@ -1,0 +1,90 @@
+{
+  "dataset_name": "products_small.json",
+  "row_count": 15,
+  "column_count": 6,
+  "exact_duplicates": 0,
+  "columns": {
+    "product_id": {
+      "name": "product_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15
+    },
+    "sku": {
+      "name": "sku",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15
+    },
+    "name": {
+      "name": "name",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15
+    },
+    "category": {
+      "name": "category",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 7
+    },
+    "cost_price": {
+      "name": "cost_price",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15,
+      "numeric_metrics": {
+        "min": 35.0,
+        "max": 18500.0,
+        "mean": 3233.6667,
+        "median": 650.0,
+        "std": 5831.468,
+        "q1": 150.0,
+        "q3": 1800.0,
+        "iqr": 1650.0,
+        "outlier_count_iqr": 3
+      }
+    },
+    "selling_price": {
+      "name": "selling_price",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15,
+      "numeric_metrics": {
+        "min": 60.0,
+        "max": 24000.0,
+        "mean": 4292.3333,
+        "median": 920.0,
+        "std": 7558.3806,
+        "q1": 230.0,
+        "q3": 2600.0,
+        "iqr": 2370.0,
+        "outlier_count_iqr": 3
+      }
+    }
+  }
+}

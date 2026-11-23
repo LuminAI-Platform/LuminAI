@@ -1,0 +1,758 @@
+{
+  "frontend": {
+    "routes": [
+      "/",
+      "/admin/tenants",
+      "/admin/users",
+      "/analytics/sql",
+      "/auth/callback",
+      "/callback",
+      "/connections",
+      "/connections/merge-review",
+      "/connections/pipeline",
+      "/connections/pipelines",
+      "/connections/schema-map",
+      "/datascience/models",
+      "/datasets",
+      "/datasets/$datasetId",
+      "/explorer",
+      "/explorer/$entityId",
+      "/graph",
+      "/login",
+      "/ontology",
+      "/projects",
+      "/sandbox-login",
+      "/settings"
+    ],
+    "sidebar_items": [],
+    "pages": [
+      "pages\\analytics\\SqlStudioPage.tsx",
+      "pages\\common\\NotFoundPage.tsx",
+      "pages\\connections\\ConnectionsPage.tsx",
+      "pages\\connections\\MergeReviewPage.tsx",
+      "pages\\connections\\PipelinePage.tsx",
+      "pages\\connections\\SchemaMapPage.tsx",
+      "pages\\dashboard\\DashboardPage.tsx",
+      "pages\\datascience\\ModelWorkbenchPage.tsx",
+      "pages\\datasets\\DatasetDetailPage.tsx",
+      "pages\\datasets\\DatasetsPage.tsx",
+      "pages\\explorer\\EntityDetailPage.tsx",
+      "pages\\explorer\\ExplorerPage.tsx",
+      "pages\\graph\\GraphPage.tsx",
+      "pages\\ontology\\OntologyPage.tsx",
+      "pages\\projects\\ProjectsLineagePage.tsx",
+      "pages\\settings\\SettingsPage.tsx"
+    ]
+  },
+  "backend_controllers": [
+    {
+      "controller": "AuditController.java",
+      "file": "src\\main\\java\\com\\luminai\\audit\\controller\\AuditController.java",
+      "base_path": "/api/v1/audit",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/audit"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/audit"
+        }
+      ]
+    },
+    {
+      "controller": "ApiKeyController.java",
+      "file": "src\\main\\java\\com\\luminai\\auth\\controller\\ApiKeyController.java",
+      "base_path": "/api/v1/settings/api-keys",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/settings/api-keys"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/settings/api-keys/rotate"
+        }
+      ]
+    },
+    {
+      "controller": "AuthController.java",
+      "file": "src\\main\\java\\com\\luminai\\auth\\controller\\AuthController.java",
+      "base_path": "/api/v1/auth",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me"
+        }
+      ]
+    },
+    {
+      "controller": "UserAdminController.java",
+      "file": "src\\main\\java\\com\\luminai\\auth\\controller\\UserAdminController.java",
+      "base_path": "/api/v1/internal/users",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/internal/users"
+        }
+      ]
+    },
+    {
+      "controller": "TenantAdminController.java",
+      "file": "src\\main\\java\\com\\luminai\\common\\tenant\\TenantAdminController.java",
+      "base_path": "/api/v1/admin/tenants",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/admin/tenants"
+        }
+      ]
+    },
+    {
+      "controller": "CleaningRuleController.java",
+      "file": "src\\main\\java\\com\\luminai\\connection\\controller\\CleaningRuleController.java",
+      "base_path": "/api/v1/connections/{connectionId}/cleaning-rules",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/connections/{connectionId}/cleaning-rules"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/connections/{connectionId}/cleaning-rules"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/connections/{connectionId}/cleaning-rules/{ruleId}"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/connections/{connectionId}/cleaning-rules/{ruleId}"
+        }
+      ]
+    },
+    {
+      "controller": "ConnectionController.java",
+      "file": "src\\main\\java\\com\\luminai\\connection\\controller\\ConnectionController.java",
+      "base_path": "/api/v1/connections",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/connections"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/connections"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/connections/{id}"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/connections/{id}"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/connections/{id}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/connections/{id}/preview/file"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/connections/{id}/preview/table"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/connections"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/connections/{id}/export/clean-csv"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/connections/{id}/upload"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/connections/discover"
+        }
+      ]
+    },
+    {
+      "controller": "MergeReviewController.java",
+      "file": "src\\main\\java\\com\\luminai\\connection\\controller\\MergeReviewController.java",
+      "base_path": "/api/v1/er",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/er/candidates"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/er/candidates/scan"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/er/candidates/{id}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/er/candidates/{id}/accept"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/er/candidates/{id}/reject"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/er/golden-records/{id}/split"
+        }
+      ]
+    },
+    {
+      "controller": "PipelineMonitoringController.java",
+      "file": "src\\main\\java\\com\\luminai\\connection\\controller\\PipelineMonitoringController.java",
+      "base_path": "/api/v1/pipelines",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/pipelines"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/pipelines/runs/{id}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/pipelines/metrics"
+        }
+      ]
+    },
+    {
+      "controller": "PipelineSseController.java",
+      "file": "src\\main\\java\\com\\luminai\\connection\\controller\\PipelineSseController.java",
+      "base_path": "/api/v1/pipelines",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/pipelines/stream"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/pipelines/stream/{runId}"
+        }
+      ]
+    },
+    {
+      "controller": "SchemaMappingController.java",
+      "file": "src\\main\\java\\com\\luminai\\connection\\controller\\SchemaMappingController.java",
+      "base_path": "/api/v1/schema-mappings",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/schema-mappings"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/schema-mappings"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/schema-mappings/{id}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/schema-mappings/connector/{connectorId}"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/schema-mappings/{id}"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/schema-mappings/{id}"
+        }
+      ]
+    },
+    {
+      "controller": "DashboardController.java",
+      "file": "src\\main\\java\\com\\luminai\\dashboard\\controller\\DashboardController.java",
+      "base_path": "/api/v1/dashboard",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/dashboard/summary"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/dashboard/activity"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/dashboard/stats/timeseries"
+        }
+      ]
+    },
+    {
+      "controller": "DatasetController.java",
+      "file": "src\\main\\java\\com\\luminai\\dataset\\controller\\DatasetController.java",
+      "base_path": "/api/v1/datasets",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/datasets"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/datasets/{id}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datasets"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/datasets/{id}/versions"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/datasets/lineage"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/datasets/{id}/lineage"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datasets/sql"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/datasets/queries"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/datasets/{id}/layer"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/datasets/{id}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datasets/{id}/eda"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datasets/cleaning/preview"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datasets/cleaning/execute"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datasets/pipelines/execute"
+        }
+      ]
+    },
+    {
+      "controller": "MlModelController.java",
+      "file": "src\\main\\java\\com\\luminai\\dataset\\controller\\MlModelController.java",
+      "base_path": "/api/v1/ml",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/ml/train"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ml/models"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ml/models/{id}"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/ml/models/{id}/status"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ml/experiments"
+        }
+      ]
+    },
+    {
+      "controller": "DataEngineController.java",
+      "file": "src\\main\\java\\com\\luminai\\engine\\controller\\DataEngineController.java",
+      "base_path": "/api/v1/engine",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/engine/health"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/engine/metrics"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/engine/process/clean"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/engine/process/resolve"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/engine/process/jobs/{jobId}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/engine/process/retry/{jobId}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/engine/insights"
+        }
+      ]
+    },
+    {
+      "controller": "ExplorerController.java",
+      "file": "src\\main\\java\\com\\luminai\\explorer\\controller\\ExplorerController.java",
+      "base_path": "/api/v1/explorer",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/explorer/search"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/explorer/entities/{id}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/explorer/entities/{id}/provenance"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/explorer/export/csv"
+        }
+      ]
+    },
+    {
+      "controller": "GraphController.java",
+      "file": "src\\main\\java\\com\\luminai\\graph\\controller\\GraphController.java",
+      "base_path": "/api/v1/graph",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/graph"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/graph/overview"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/graph/shortest-path"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/graph/stats"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/graph/sync/decomposed"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/graph/decompose-and-sync"
+        }
+      ]
+    },
+    {
+      "controller": "OntologyController.java",
+      "file": "src\\main\\java\\com\\luminai\\ontology\\controller\\OntologyController.java",
+      "base_path": "/api/v1/ontology",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/ontology/entity-types"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ontology/entity-types/{id}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/ontology/entity-types"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/ontology/entity-types/{id}"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/ontology/entity-types/{id}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ontology/relationship-types"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ontology/relationship-types/{id}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/ontology/relationship-types"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/ontology/relationship-types/{id}"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/ontology/relationship-types/{id}"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ontology/versions"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ontology/versions/{id}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/ontology/versions"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/ontology/versions/{id}/diff"
+        }
+      ]
+    }
+  ],
+  "data_engine_endpoints": [
+    {
+      "file": "app\\api\\analytics.py",
+      "method": "POST",
+      "path": "/query"
+    },
+    {
+      "file": "app\\api\\analytics.py",
+      "method": "POST",
+      "path": "/timeseries"
+    },
+    {
+      "file": "app\\api\\analytics.py",
+      "method": "GET",
+      "path": "/reconciliation"
+    },
+    {
+      "file": "app\\api\\analytics.py",
+      "method": "POST",
+      "path": "/export"
+    },
+    {
+      "file": "app\\api\\analytics.py",
+      "method": "POST",
+      "path": "/insights"
+    },
+    {
+      "file": "app\\api\\cleaning_api.py",
+      "method": "POST",
+      "path": "/preview"
+    },
+    {
+      "file": "app\\api\\cleaning_api.py",
+      "method": "POST",
+      "path": "/execute"
+    },
+    {
+      "file": "app\\api\\dashboard.py",
+      "method": "GET",
+      "path": "/pipeline-stats"
+    },
+    {
+      "file": "app\\api\\dashboard.py",
+      "method": "GET",
+      "path": "/data-quality"
+    },
+    {
+      "file": "app\\api\\dashboard.py",
+      "method": "GET",
+      "path": "/entity-stats"
+    },
+    {
+      "file": "app\\api\\datasets_api.py",
+      "method": "POST",
+      "path": "/profile"
+    },
+    {
+      "file": "app\\api\\datasets_api.py",
+      "method": "POST",
+      "path": "/preview"
+    },
+    {
+      "file": "app\\api\\eda_api.py",
+      "method": "POST",
+      "path": "/report"
+    },
+    {
+      "file": "app\\api\\graph_api.py",
+      "method": "POST",
+      "path": "/decompose"
+    },
+    {
+      "file": "app\\api\\metrics.py",
+      "method": "GET",
+      "path": "/metrics"
+    },
+    {
+      "file": "app\\api\\ml_studio_api.py",
+      "method": "POST",
+      "path": "/train"
+    },
+    {
+      "file": "app\\api\\ml_studio_api.py",
+      "method": "GET",
+      "path": "/experiments"
+    },
+    {
+      "file": "app\\api\\ml_studio_api.py",
+      "method": "POST",
+      "path": "/models/register"
+    },
+    {
+      "file": "app\\api\\ml_studio_api.py",
+      "method": "GET",
+      "path": "/models"
+    },
+    {
+      "file": "app\\api\\pipelines_builder_api.py",
+      "method": "POST",
+      "path": "/execute"
+    },
+    {
+      "file": "app\\api\\sql_studio_api.py",
+      "method": "POST",
+      "path": "/execute"
+    },
+    {
+      "file": "app\\api\\processing\\golden_records.py",
+      "method": "GET",
+      "path": "/golden-records/{golden_id}"
+    },
+    {
+      "file": "app\\api\\processing\\golden_records.py",
+      "method": "GET",
+      "path": "/golden-records/{golden_id}/history"
+    },
+    {
+      "file": "app\\api\\processing\\golden_records.py",
+      "method": "POST",
+      "path": "/golden-records/{golden_id}/rollback"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "POST",
+      "path": "/dataset/clean"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "POST",
+      "path": "/trigger"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "POST",
+      "path": "/clean"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "POST",
+      "path": "/er/trigger"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "POST",
+      "path": "/resolve"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "GET",
+      "path": "/status/{run_id}"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "GET",
+      "path": "/jobs/{run_id}"
+    },
+    {
+      "file": "app\\api\\processing\\pipelines.py",
+      "method": "POST",
+      "path": "/retry/{run_id}"
+    },
+    {
+      "file": "app\\api\\processing\\quarantine.py",
+      "method": "POST",
+      "path": "/quarantine"
+    },
+    {
+      "file": "app\\api\\processing\\quarantine.py",
+      "method": "GET",
+      "path": "/quarantine"
+    },
+    {
+      "file": "app\\api\\processing\\quarantine.py",
+      "method": "POST",
+      "path": "/quarantine/replay"
+    },
+    {
+      "file": "app\\api\\processing\\quarantine.py",
+      "method": "POST",
+      "path": "/quarantine/discard"
+    },
+    {
+      "file": "app\\api\\processing\\reconciliation.py",
+      "method": "POST",
+      "path": "/reconciliation"
+    },
+    {
+      "file": "app\\api\\processing\\reconciliation.py",
+      "method": "POST",
+      "path": "/edges/generate"
+    },
+    {
+      "file": "app\\api\\processing\\schemas.py",
+      "method": "POST",
+      "path": "/validate-schema"
+    },
+    {
+      "file": "app\\api\\processing\\schemas.py",
+      "method": "POST",
+      "path": "/validate-schema/upload"
+    }
+  ],
+  "processing_capabilities": {
+    "cleaning_operations": [
+      "apply_remove_missing",
+      "apply_fill_missing",
+      "apply_standardize_text",
+      "apply_deduplicate",
+      "apply_handle_outliers"
+    ],
+    "transformations": [],
+    "validations": [],
+    "ml_tasks": [],
+    "graph_operations": []
+  }
+}

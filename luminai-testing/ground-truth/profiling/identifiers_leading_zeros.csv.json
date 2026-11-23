@@ -1,0 +1,48 @@
+{
+  "dataset_name": "identifiers_leading_zeros.csv",
+  "row_count": 500,
+  "column_count": 4,
+  "exact_duplicates": 0,
+  "columns": {
+    "record_id": {
+      "name": "record_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 500
+    },
+    "national_tin": {
+      "name": "national_tin",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 500
+    },
+    "branch_code": {
+      "name": "branch_code",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 90
+    },
+    "account_ref": {
+      "name": "account_ref",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 386
+    }
+  }
+}

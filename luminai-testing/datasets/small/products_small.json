@@ -1,0 +1,122 @@
+[
+  {
+    "product_id": "PRD-001",
+    "sku": "PRD-001",
+    "name": "20ft Shipping Container Freight",
+    "category": "Freight Forwarding",
+    "cost_price": 8500.0,
+    "selling_price": 11200.0
+  },
+  {
+    "product_id": "PRD-002",
+    "sku": "PRD-002",
+    "name": "40ft High Cube Container Freight",
+    "category": "Freight Forwarding",
+    "cost_price": 14500.0,
+    "selling_price": 18900.0
+  },
+  {
+    "product_id": "PRD-003",
+    "sku": "PRD-003",
+    "name": "Refrigerated Perishable Storage (per m3/mo)",
+    "category": "Cold Chain Logistics",
+    "cost_price": 350.0,
+    "selling_price": 520.0
+  },
+  {
+    "product_id": "PRD-004",
+    "sku": "PRD-004",
+    "name": "Pharma Temperature Controlled Transport",
+    "category": "Cold Chain Logistics",
+    "cost_price": 1200.0,
+    "selling_price": 1750.0
+  },
+  {
+    "product_id": "PRD-005",
+    "sku": "PRD-005",
+    "name": "Standard Bonded Warehousing Pallet/Day",
+    "category": "Warehousing",
+    "cost_price": 45.0,
+    "selling_price": 75.0
+  },
+  {
+    "product_id": "PRD-006",
+    "sku": "PRD-006",
+    "name": "Cross-Dock Handling Fee",
+    "category": "Warehousing",
+    "cost_price": 120.0,
+    "selling_price": 180.0
+  },
+  {
+    "product_id": "PRD-007",
+    "sku": "PRD-007",
+    "name": "Intra-City Express Parcel (Accra/Tema)",
+    "category": "Express Courier",
+    "cost_price": 35.0,
+    "selling_price": 60.0
+  },
+  {
+    "product_id": "PRD-008",
+    "sku": "PRD-008",
+    "name": "Inter-City Express Courier (Accra-Kumasi)",
+    "category": "Express Courier",
+    "cost_price": 85.0,
+    "selling_price": 140.0
+  },
+  {
+    "product_id": "PRD-009",
+    "sku": "PRD-009",
+    "name": "Heavy Duty Corrugated Carton (Pack of 50)",
+    "category": "Packaging Materials",
+    "cost_price": 220.0,
+    "selling_price": 310.0
+  },
+  {
+    "product_id": "PRD-010",
+    "sku": "PRD-010",
+    "name": "Industrial Wooden Heat-Treated Pallet",
+    "category": "Packaging Materials",
+    "cost_price": 150.0,
+    "selling_price": 230.0
+  },
+  {
+    "product_id": "PRD-011",
+    "sku": "PRD-011",
+    "name": "Bulk Cocoa Bean Transport (per Ton)",
+    "category": "Bulk Cargo",
+    "cost_price": 650.0,
+    "selling_price": 920.0
+  },
+  {
+    "product_id": "PRD-012",
+    "sku": "PRD-012",
+    "name": "Mining Equipment Heavy Haulage",
+    "category": "Bulk Cargo",
+    "cost_price": 18500.0,
+    "selling_price": 24000.0
+  },
+  {
+    "product_id": "PRD-013",
+    "sku": "PRD-013",
+    "name": "Tema Port Single Window Customs Filing",
+    "category": "Customs Clearance",
+    "cost_price": 950.0,
+    "selling_price": 1400.0
+  },
+  {
+    "product_id": "PRD-014",
+    "sku": "PRD-014",
+    "name": "Transit Bond Guarantee Service",
+    "category": "Customs Clearance",
+    "cost_price": 1800.0,
+    "selling_price": 2600.0
+  },
+  {
+    "product_id": "PRD-015",
+    "sku": "PRD-015",
+    "name": "Last-Mile Delivery Vehicle Charter (Day)",
+    "category": "Express Courier",
+    "cost_price": 1400.0,
+    "selling_price": 2100.0
+  }
+]
