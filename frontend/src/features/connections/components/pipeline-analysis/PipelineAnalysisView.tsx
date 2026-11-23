@@ -109,9 +109,7 @@ export const PipelineAnalysisView: React.FC = () => {
 
         {showErrorDetails && (
           <div className="w-full max-w-md p-3 rounded-lg bg-surface border border-border text-left font-mono text-[11px] text-text-secondary overflow-x-auto">
-            <div>Target: Data Engine API (/api/v1/engine/metrics)</div>
             <div>Error: {errorMessage}</div>
-            <div>Status: STANDBY / TIMEOUT</div>
           </div>
         )}
       </div>

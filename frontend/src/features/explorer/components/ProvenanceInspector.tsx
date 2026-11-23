@@ -44,29 +44,30 @@ export const ProvenanceInspector: React.FC<ProvenanceInspectorProps> = ({
           if (isMounted) {
             const mapped: ProvenanceLine[] = (
               Array.isArray(raw) ? raw : []
-            ).map((item: Record<string, unknown>) => ({
-              propertyKey: String(item.propertyKey ?? item.fieldName ?? ""),
-              sourceDataset: String(
-                item.sourceDataset ?? item.sourceName ?? "Primary System",
-              ),
-              sourceField: String(
-                item.sourceField ??
-                  (item.sourceRecordId
-                    ? `ID: ${item.sourceRecordId}`
-                    : (item.fieldName ?? "")),
-              ),
-              ingestedAt: String(
-                item.ingestedAt ?? item.occurredAt ?? new Date().toISOString(),
-              ),
-              confidence:
-                (item.confidence as ProvenanceLine["confidence"]) ?? "high",
-              fieldName: item.fieldName as string | undefined,
-              sourceName: item.sourceName as string | undefined,
-              sourceRecordId: item.sourceRecordId as string | undefined,
-              contributedValue: item.contributedValue,
-              action: item.action as string | undefined,
-              occurredAt: item.occurredAt as string | undefined,
-            }));
+            ).map((item: Record<string, unknown>) => {
+              const sourceDatasetValue =
+                item.sourceDataset ?? item.sourceName ?? "Unknown Source";
+              return {
+                propertyKey: String(item.propertyKey ?? item.fieldName ?? ""),
+                sourceDataset: String(sourceDatasetValue),
+                sourceField: String(
+                  item.sourceField ??
+                    (item.sourceRecordId
+                      ? `ID: ${item.sourceRecordId}`
+                      : (item.fieldName ?? "")),
+                ),
+                ingestedAt: String(item.ingestedAt ?? item.occurredAt ?? ""),
+                confidence: item.confidence as
+                  | ProvenanceLine["confidence"]
+                  | undefined,
+                fieldName: item.fieldName as string | undefined,
+                sourceName: item.sourceName as string | undefined,
+                sourceRecordId: item.sourceRecordId as string | undefined,
+                contributedValue: item.contributedValue,
+                action: item.action as string | undefined,
+                occurredAt: item.occurredAt as string | undefined,
+              };
+            });
             setProvenanceLines(mapped);
           }
         } else if (isMounted) setProvenanceLines([]);

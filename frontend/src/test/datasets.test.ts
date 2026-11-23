@@ -97,7 +97,7 @@ describe("Dataset & Analytics API Client", () => {
       task_type: "CLASSIFICATION",
     });
 
-    expect(spy).toHaveBeenCalledWith("/analytics/ml/train", expect.anything());
+    expect(spy).toHaveBeenCalledWith("/api/v1/ml/train", expect.anything());
     expect(result.run_id).toBe("run-xyz-123");
     expect(result.metrics.accuracy).toBe(0.95);
   });

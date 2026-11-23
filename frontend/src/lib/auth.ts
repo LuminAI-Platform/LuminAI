@@ -1,19 +1,12 @@
 import { UserManager } from "oidc-client-ts";
 import type { UserManagerSettings } from "oidc-client-ts";
+import { AUTH_URL, CLIENT_ID } from "../stores/authTypes";
 
-const authUrl =
-  (import.meta.env.VITE_AUTH_URL as string | undefined) ??
-  "http://localhost:8180/realms/luminai";
-const clientId =
-  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ?? "luminai-spa";
-const appOrigin =
-  typeof window !== "undefined"
-    ? window.location.origin
-    : "http://localhost:3000";
+const appOrigin = typeof window !== "undefined" ? window.location.origin : "";
 
 const oidcConfig: UserManagerSettings = {
-  authority: authUrl,
-  client_id: clientId,
+  authority: AUTH_URL,
+  client_id: CLIENT_ID,
   redirect_uri: `${appOrigin}/callback`,
   response_type: "code",
   scope: "openid profile email offline_access",

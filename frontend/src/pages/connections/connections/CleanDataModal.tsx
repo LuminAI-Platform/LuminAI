@@ -236,17 +236,23 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
               Showing {Math.min(filteredRows.length, 200)} of{" "}
               {cleanData?.rows?.length || 0} records
             </span>
-            {rejectedCount > 0 || needsReviewCount > 0 ? (
+            {!cleanData || cleanData.status === "FAILED" ? (
+              <span className="flex items-center gap-1.5 text-text-secondary font-medium">
+                Audit data unavailable
+              </span>
+            ) : rejectedCount > 0 || needsReviewCount > 0 ? (
               <span className="flex items-center gap-1.5 text-warning font-medium">
                 <AlertTriangle className="w-3.5 h-3.5 text-warning" />
                 DAMA/ISO 25012 Audited · {rejectedCount} Quarantined ·{" "}
                 {needsReviewCount} Require Review
               </span>
-            ) : (
+            ) : (cleanData.rows?.length ?? 0) > 0 ? (
               <span className="flex items-center gap-1.5 text-success font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5" /> DAMA/ISO 25012 Audited
                 · All Records Verified
               </span>
+            ) : (
+              <span className="text-text-secondary">No audited records</span>
             )}
           </div>
         </div>

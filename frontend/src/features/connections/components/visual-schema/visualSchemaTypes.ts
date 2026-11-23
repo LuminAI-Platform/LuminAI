@@ -55,56 +55,25 @@ export const DATA_TYPE_COLORS: Record<string, string> = {
   json: "text-warning bg-warning-bg border-warning-border",
 };
 
-export const DEFAULT_TARGET_ENTITIES = [
-  "Customer",
-  "User",
-  "Order",
-  "Product",
-  "Account",
-  "Organization",
-  "Transaction",
-  "Person",
-  "Location",
-  "Device",
-  "Supplier",
-];
+export const DEFAULT_TARGET_ENTITIES: string[] = [];
 
-export const DEFAULT_RELATION_TYPES = [
-  "CUSTOMER_OF",
-  "PLACED_BY",
-  "CONTAINS_PRODUCT",
-  "CREATED_BY",
-  "ACCOUNT_OF",
-  "PART_OF_ORDER",
-  "ORGANIZATION_OF",
-  "SOLD_BY",
-  "BOUGHT_BY",
-  "SUPPLIED_BY",
-  "ASSOCIATED_WITH",
-  "LINKED_TO",
-];
+export const DEFAULT_RELATION_TYPES: string[] = [];
 
-export function inferDefaultRelationship(colName: string): {
+export function inferDefaultRelationship(
+  colName: string,
+  availableEntities: string[] = [],
+  availableRelationshipTypes: string[] = [],
+): {
   target: string;
   rel: string;
 } {
   const lower = colName.toLowerCase().trim();
-  if (lower.includes("customer"))
-    return { target: "Customer", rel: "CUSTOMER_OF" };
-  if (lower.includes("user")) return { target: "User", rel: "CREATED_BY" };
-  if (lower.includes("order")) return { target: "Order", rel: "PART_OF_ORDER" };
-  if (lower.includes("product") || lower.includes("item"))
-    return { target: "Product", rel: "CONTAINS_PRODUCT" };
-  if (lower.includes("account"))
-    return { target: "Account", rel: "ACCOUNT_OF" };
-  if (lower.includes("org"))
-    return { target: "Organization", rel: "ORGANIZATION_OF" };
-  if (
-    lower.includes("supplier") ||
-    lower.includes("seller") ||
-    lower.includes("vendor")
-  ) {
-    return { target: "Supplier", rel: "SUPPLIED_BY" };
-  }
-  return { target: "Customer", rel: "LINKED_TO" };
+  const matchedEntity = availableEntities.find((entity) =>
+    lower.includes(entity.toLowerCase()),
+  );
+  const target = matchedEntity ?? availableEntities[0] ?? "";
+  const rel =
+    availableRelationshipTypes[0] ??
+    (target ? `RELATED_TO_${target.toUpperCase()}` : "LINKED_TO");
+  return { target, rel };
 }

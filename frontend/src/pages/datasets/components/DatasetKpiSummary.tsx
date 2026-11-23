@@ -10,13 +10,19 @@ export const DatasetKpiSummary: React.FC<DatasetKpiSummaryProps> = ({
   datasets,
 }) => {
   const totalRows = datasets.reduce((sum, d) => sum + (d.rowCount || 0), 0);
+  const scoredDatasets = datasets.filter(
+    (d) =>
+      typeof d.qualityScore === "number" && Number.isFinite(d.qualityScore),
+  );
   const avgQuality =
-    datasets.length > 0
+    scoredDatasets.length > 0
       ? Math.round(
-          datasets.reduce((sum, d) => sum + (d.qualityScore || 0), 0) /
-            datasets.length,
+          scoredDatasets.reduce((sum, d) => sum + (d.qualityScore ?? 0), 0) /
+            scoredDatasets.length,
         )
-      : 100;
+      : null;
+  const activeTierCount = new Set(datasets.map((d) => d.layer).filter(Boolean))
+    .size;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -50,7 +56,7 @@ export const DatasetKpiSummary: React.FC<DatasetKpiSummaryProps> = ({
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
         </div>
         <span className="text-2xl font-bold text-emerald-400">
-          {avgQuality}%
+          {avgQuality !== null ? `${avgQuality}%` : "N/A"}
         </span>
         <span className="text-xs text-text-secondary">
           DAMA-aligned 6-dimension evaluation
@@ -62,7 +68,9 @@ export const DatasetKpiSummary: React.FC<DatasetKpiSummaryProps> = ({
           <span>Active Tiers</span>
           <Icons.PipelineMonitor className="w-4 h-4 text-blue-400" />
         </div>
-        <span className="text-2xl font-bold text-text">6 Tiers</span>
+        <span className="text-2xl font-bold text-text">
+          {activeTierCount} {activeTierCount === 1 ? "Tier" : "Tiers"}
+        </span>
         <span className="text-xs text-text-secondary">
           Raw → Working → Curated → Model-Ready
         </span>

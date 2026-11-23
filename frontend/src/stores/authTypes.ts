@@ -18,11 +18,15 @@ export interface AuthState {
 }
 
 export const AUTH_URL =
-  (import.meta.env.VITE_AUTH_URL as string | undefined) ??
-  "http://localhost:8180/realms/luminai";
+  (import.meta.env.VITE_AUTH_URL as string | undefined) ||
+  (import.meta.env.PROD
+    ? typeof window !== "undefined"
+      ? `${window.location.origin}/realms/luminai`
+      : ""
+    : "http://localhost:8180/realms/luminai");
 
 export const CLIENT_ID =
-  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) ?? "luminai-spa";
+  (import.meta.env.VITE_AUTH_CLIENT_ID as string | undefined) || "luminai-spa";
 
 export const OIDC_SESSION_KEY = `oidc.user:${AUTH_URL}:${CLIENT_ID}`;
 

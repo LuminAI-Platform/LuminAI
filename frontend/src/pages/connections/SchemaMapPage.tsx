@@ -163,6 +163,7 @@ export const SchemaMapPage: React.FC = () => {
             sourceTable={sourceData.table}
             sourceColumns={sourceData.columns}
             ontologyProperties={ontologyProps}
+            availableEntities={Object.keys(dynamicOntologyMap)}
             initialMappings={initialMapperLinks}
             onSave={handleSave}
           />

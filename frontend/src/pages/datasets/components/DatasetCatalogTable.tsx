@@ -123,7 +123,7 @@ export const DatasetCatalogTable: React.FC<DatasetCatalogTableProps> = ({
                   </span>
                 </td>
                 <td className="py-3.5 px-4 font-mono text-text">
-                  v{d.currentVersion || 1}
+                  {d.currentVersion != null ? `v${d.currentVersion}` : "—"}
                 </td>
                 <td className="py-3.5 px-4 font-mono text-text">
                   {(d.rowCount || 0).toLocaleString()}
@@ -146,7 +146,7 @@ export const DatasetCatalogTable: React.FC<DatasetCatalogTableProps> = ({
                   </div>
                 </td>
                 <td className="py-3.5 px-4 font-mono text-text-secondary uppercase">
-                  {d.storageFormat || "PARQUET"}
+                  {d.storageFormat || "—"}
                 </td>
                 <td className="py-3.5 px-4 text-right">
                   <Link

@@ -108,12 +108,21 @@ export function useOntologyData() {
   const publishVersion = async () => {
     setPublishing(true);
     try {
-      const nextVer = `v${versions.length + 1}.0.0`;
+      let existingVersions = versions;
+      if (existingVersions.length === 0) {
+        const listRes = await apiFetch("/api/v1/ontology/versions");
+        if (listRes.ok) {
+          const data = await listRes.json();
+          existingVersions = Array.isArray(data) ? data : [];
+          setVersions(existingVersions);
+        }
+      }
+      const nextVer = `v${existingVersions.length + 1}.0.0`;
       const res = await apiFetch("/api/v1/ontology/versions", {
         method: "POST",
         body: JSON.stringify({
           version: nextVer,
-          changelog: `Published ontology schema release ${nextVer}`,
+          changelog: `Ontology schema release ${nextVer}`,
         }),
       });
       const v = (await res.json()) as OntologyVersion;

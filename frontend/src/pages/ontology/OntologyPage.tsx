@@ -60,10 +60,11 @@ export const OntologyPage: React.FC = () => {
               aria-hidden="true"
             />
           }
-          badge={{
-            label: "Active Schema",
-            variant: "purple",
-          }}
+          badge={
+            entities.length > 0 || versions.length > 0
+              ? { label: "Active Schema", variant: "purple" }
+              : { label: "Empty Schema", variant: "zinc" }
+          }
           actions={
             <button
               id="publish-ontology-btn"

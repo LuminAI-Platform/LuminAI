@@ -6,17 +6,36 @@ interface RunStagesTimelineProps {
   failedStep: string | null;
 }
 
-const STAGES_LIST = [
-  { key: "ingest", name: "Data Ingest" },
-  { key: "clean", name: "Data Cleaning" },
-  { key: "dedupe", name: "Deduplication" },
-  { key: "resolve", name: "Entity Resolution" },
+interface StageDefinition {
+  key: string;
+  aliases: string[];
+  name: string;
+}
+
+const STAGES_LIST: StageDefinition[] = [
+  { key: "ingest", aliases: ["ingest", "data_ingest"], name: "Data Ingest" },
+  { key: "clean", aliases: ["clean", "data_cleaning"], name: "Data Cleaning" },
+  {
+    key: "dedupe",
+    aliases: ["dedupe", "deduplication"],
+    name: "Deduplication",
+  },
+  {
+    key: "resolve",
+    aliases: ["resolve", "entity_resolution"],
+    name: "Entity Resolution",
+  },
 ];
 
 export const RunStagesTimeline: React.FC<RunStagesTimelineProps> = ({
   isFailed,
   failedStep,
 }) => {
+  const normalizedFailed = failedStep?.toLowerCase() ?? null;
+  const failedIdx = normalizedFailed
+    ? STAGES_LIST.findIndex((s) => s.aliases.includes(normalizedFailed))
+    : -1;
+
   return (
     <div className="bg-surface-subtle border border-border rounded-xl p-4">
       <h4 className="text-xs font-bold text-text mb-3 flex items-center gap-1.5">
@@ -25,13 +44,16 @@ export const RunStagesTimeline: React.FC<RunStagesTimelineProps> = ({
       </h4>
       <div className="space-y-2">
         {STAGES_LIST.map((st, idx) => {
-          const isStepFailed =
-            isFailed &&
-            (failedStep === st.key ||
-              (!failedStep && idx === STAGES_LIST.length - 1));
+          const isStepFailed = isFailed && failedIdx === idx;
           const isCompleted =
-            !isFailed ||
-            STAGES_LIST.findIndex((s) => s.key === failedStep) > idx;
+            !isFailed || (failedIdx !== -1 && idx < failedIdx);
+          const statusLabel = isStepFailed
+            ? "Failed"
+            : isCompleted
+              ? "Completed"
+              : isFailed && failedIdx === -1
+                ? "Unknown"
+                : "Not Run";
 
           return (
             <div
@@ -60,7 +82,7 @@ export const RunStagesTimeline: React.FC<RunStagesTimelineProps> = ({
                       : "bg-surface-subtle text-text-secondary border-border"
                 }`}
               >
-                {isStepFailed ? "Failed" : isCompleted ? "Completed" : "Queued"}
+                {statusLabel}
               </span>
             </div>
           );

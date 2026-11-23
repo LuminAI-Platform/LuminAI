@@ -11,7 +11,7 @@ interface RunExecutionQualityAndLogsProps {
 
 export const RunExecutionQualityAndLogs: React.FC<
   RunExecutionQualityAndLogsProps
-> = ({ run, jobDetail, isFailed, errorMessage }) => {
+> = ({ jobDetail }) => {
   return (
     <>
       {/* Quality Scores */}
@@ -26,9 +26,7 @@ export const RunExecutionQualityAndLogs: React.FC<
             <span className="font-bold text-text">
               {jobDetail?.quality_scores?.completeness !== undefined
                 ? `${jobDetail.quality_scores.completeness.toFixed(1)}%`
-                : run.recordsInput > 0
-                  ? `${(((run.recordsInput - run.recordsFailed) / run.recordsInput) * 100).toFixed(1)}%`
-                  : "–"}
+                : "–"}
             </span>
           </div>
           <div className="p-2 rounded bg-surface border border-border flex justify-between">
@@ -52,9 +50,7 @@ export const RunExecutionQualityAndLogs: React.FC<
             <span className="font-bold text-text">
               {jobDetail?.quality_scores?.timeliness !== undefined
                 ? `${jobDetail.quality_scores.timeliness.toFixed(1)}%`
-                : run.durationSeconds > 0
-                  ? `${run.durationSeconds}s`
-                  : "–"}
+                : "–"}
             </span>
           </div>
         </div>
@@ -70,28 +66,9 @@ export const RunExecutionQualityAndLogs: React.FC<
           {jobDetail?.logs && jobDetail.logs.length > 0 ? (
             jobDetail.logs.map((logLine, idx) => <div key={idx}>{logLine}</div>)
           ) : (
-            <>
-              <div>
-                [{new Date(run.startedAt).toISOString()}] Pipeline run initiated
-                for source: {run.connectorName}
-              </div>
-              <div>
-                [{new Date(run.startedAt).toISOString()}] Total input records:{" "}
-                {run.recordsInput.toLocaleString()}
-              </div>
-              {isFailed ? (
-                <div className="text-error">
-                  [{new Date(run.completedAt || run.startedAt).toISOString()}]
-                  ERROR: {errorMessage}
-                </div>
-              ) : (
-                <div className="text-success">
-                  [{new Date(run.completedAt || run.startedAt).toISOString()}]
-                  Completed: {run.recordsOutput.toLocaleString()} records
-                  processed
-                </div>
-              )}
-            </>
+            <div className="text-text-tertiary">
+              No execution logs available for this run.
+            </div>
           )}
         </div>
       </div>

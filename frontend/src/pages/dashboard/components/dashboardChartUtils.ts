@@ -11,7 +11,7 @@ export function formatDateLabel(dateStr: string): string {
       const month = parseInt(parts[1], 10) - 1;
       const day = parseInt(parts[2], 10);
       const date = new Date(year, month, day);
-      return new Intl.DateTimeFormat("en-US", {
+      return new Intl.DateTimeFormat(undefined, {
         month: "short",
         day: "numeric",
       }).format(date);
@@ -21,14 +21,14 @@ export function formatDateLabel(dateStr: string): string {
       const month = parseInt(parts[0], 10) - 1;
       const day = parseInt(parts[1], 10);
       const date = new Date(currentYear, month, day);
-      return new Intl.DateTimeFormat("en-US", {
+      return new Intl.DateTimeFormat(undefined, {
         month: "short",
         day: "numeric",
       }).format(date);
     }
     const date = new Date(dateStr);
     if (!isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat("en-US", {
+      return new Intl.DateTimeFormat(undefined, {
         month: "short",
         day: "numeric",
       }).format(date);

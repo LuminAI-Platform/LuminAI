@@ -42,7 +42,7 @@ export const DatasetsPage: React.FC = () => {
       <PageHeader
         breadcrumbs={[{ label: "Datasets" }]}
         title="Dataset Management & Catalog"
-        description="Palantir Foundry-grade governed dataset catalog spanning Raw, Working, Prepared, Curated, and Model-Ready tiers."
+        description="Governed dataset catalog spanning Raw, Working, Prepared, Curated, and Model-Ready tiers."
         icon={
           <Database
             size={ICON_SIZES.header}

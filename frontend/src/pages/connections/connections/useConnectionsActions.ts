@@ -86,36 +86,10 @@ export function useConnectionsActions({
         const data = await res.json();
         setCleanData(data);
       } else {
-        const rawRows = file.sampleRows || [];
-        const rawCols =
-          file.columns || (rawRows.length > 0 ? Object.keys(rawRows[0]) : []);
-        setCleanData({
-          connectionId: file.id,
-          totalRawRecords: file.recordsCount || rawRows.length,
-          totalCleanRecords: file.recordsCount || rawRows.length,
-          duplicatesMerged: 0,
-          compressionRatio: "1.0x",
-          dataQualityScore: 0.0,
-          status: "FAILED",
-          columns: rawCols,
-          rows: rawRows,
-        });
+        setCleanData(null);
       }
     } catch {
-      const rawRows = file.sampleRows || [];
-      const rawCols =
-        file.columns || (rawRows.length > 0 ? Object.keys(rawRows[0]) : []);
-      setCleanData({
-        connectionId: file.id,
-        totalRawRecords: file.recordsCount || rawRows.length,
-        totalCleanRecords: file.recordsCount || rawRows.length,
-        duplicatesMerged: 0,
-        compressionRatio: "1.0x",
-        dataQualityScore: 0.0,
-        status: "FAILED",
-        columns: rawCols,
-        rows: rawRows,
-      });
+      setCleanData(null);
     } finally {
       setIsCleanDataLoading(false);
     }

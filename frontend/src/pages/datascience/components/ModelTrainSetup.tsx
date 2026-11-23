@@ -35,6 +35,13 @@ export const ModelTrainSetup: React.FC<ModelTrainSetupProps> = ({
   onTrain,
   isTraining,
 }) => {
+  const selectedDataset = datasets.find((d) => d.id === selectedDatasetId);
+  const schemaColumns = Object.keys(selectedDataset?.schemaMetadata ?? {});
+  const canTrain =
+    Boolean(selectedDatasetId) &&
+    Boolean(modelName.trim()) &&
+    Boolean(targetColumn.trim());
+
   return (
     <div className="p-5 rounded-xl border border-border bg-surface flex flex-col gap-4">
       <h3 className="text-sm font-semibold text-text">Experiment Setup</h3>
@@ -45,6 +52,7 @@ export const ModelTrainSetup: React.FC<ModelTrainSetupProps> = ({
           type="text"
           value={modelName}
           onChange={(e) => setModelName(e.target.value)}
+          placeholder="Enter a model name"
           className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
         />
       </div>
@@ -56,7 +64,7 @@ export const ModelTrainSetup: React.FC<ModelTrainSetupProps> = ({
           onChange={(e) => setSelectedDatasetId(e.target.value)}
           className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
         >
-          <option value="">Default: Synthetic Customer Profiles</option>
+          <option value="">Select a dataset...</option>
           {datasets.map((d) => (
             <option key={d.id} value={d.id}>
               {d.displayName || d.name} ({d.layer} • v{d.currentVersion})
@@ -106,10 +114,19 @@ export const ModelTrainSetup: React.FC<ModelTrainSetupProps> = ({
         <label className="text-xs text-text-secondary">Target Column</label>
         <input
           type="text"
+          list="ml-target-columns"
           value={targetColumn}
           onChange={(e) => setTargetColumn(e.target.value)}
+          placeholder="Select or enter target column"
           className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
         />
+        {schemaColumns.length > 0 && (
+          <datalist id="ml-target-columns">
+            {schemaColumns.map((col) => (
+              <option key={col} value={col} />
+            ))}
+          </datalist>
+        )}
       </div>
 
       <Button
@@ -117,6 +134,7 @@ export const ModelTrainSetup: React.FC<ModelTrainSetupProps> = ({
         size="md"
         onClick={onTrain}
         isLoading={isTraining}
+        disabled={!canTrain}
         leftIcon={<Play className="w-4 h-4" />}
       >
         Train Model

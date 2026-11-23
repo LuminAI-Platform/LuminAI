@@ -20,24 +20,8 @@ import { SaveQueryModal } from "./components/SaveQueryModal";
 import { SqlResultsTable } from "./components/SqlResultsTable";
 import { SavedQueriesPanel } from "./components/SavedQueriesPanel";
 
-const SAMPLE_QUERY = `-- Analytical query over in-memory datasets
-SELECT 
-    tier, 
-    COUNT(*) AS total_customers,
-    ROUND(AVG(score), 2) AS avg_engagement_score
-FROM (
-    VALUES 
-        ('Enterprise', 94.5),
-        ('Enterprise', 88.0),
-        ('Mid-Market', 76.5),
-        ('SMB', 62.0),
-        ('Enterprise', 91.2)
-) AS customers(tier, score)
-GROUP BY tier
-ORDER BY avg_engagement_score DESC;`;
-
 export const SqlStudioPage: React.FC = () => {
-  const [queryText, setQueryText] = useState<string>(SAMPLE_QUERY);
+  const [queryText, setQueryText] = useState<string>("");
   const [saveQueryName, setSaveQueryName] = useState<string>("");
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
 

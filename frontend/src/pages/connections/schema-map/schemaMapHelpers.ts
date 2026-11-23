@@ -66,24 +66,7 @@ export function parseEntityProperties(t: {
     }
   }
 
-  return [
-    {
-      id: "id",
-      name: "id",
-      entityClass: t.name,
-      expectedType: "string",
-      required: true,
-      description: "ID",
-    },
-    {
-      id: "name",
-      name: "name",
-      entityClass: t.name,
-      expectedType: "string",
-      required: true,
-      description: "Name",
-    },
-  ];
+  return [];
 }
 
 export function sanitizeEntityName(rawName: string): string {

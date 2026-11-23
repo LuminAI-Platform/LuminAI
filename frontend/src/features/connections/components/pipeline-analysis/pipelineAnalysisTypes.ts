@@ -90,7 +90,7 @@ export interface PageResponse<T> {
 }
 
 export interface StageMetric {
-  stage: "ingest" | "clean" | "dedupe" | "resolve";
+  stage: "pipeline" | "ingest" | "clean" | "dedupe" | "resolve";
   label: string;
   recordsIn: number;
   recordsOut: number;

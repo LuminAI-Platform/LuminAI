@@ -11,20 +11,12 @@ export interface OntologyFetchResult {
   >;
 }
 
-const DEFAULT_ENTITY_TYPES = ["User", "Product", "Transaction", "Organization"];
-const DEFAULT_PROPERTIES: Record<string, string[]> = {
-  User: ["id", "name", "email", "created_at", "role", "status"],
-  Product: ["id", "sku", "name", "price", "stock_quantity", "category"],
-  Transaction: ["id", "amount", "timestamp", "user_id", "status"],
-  Organization: ["id", "name", "industry", "employee_count", "country"],
-};
-
 export function useOntologyFetcher(): OntologyFetchResult {
-  const [ontologyEntityTypes, setOntologyEntityTypes] =
-    useState<string[]>(DEFAULT_ENTITY_TYPES);
+  const [ontologyEntityTypes, setOntologyEntityTypes] = useState<string[]>([]);
   const [backendEntityTypes, setBackendEntityTypes] = useState<string[]>([]);
-  const [ontologyProperties, setOntologyProperties] =
-    useState<Record<string, string[]>>(DEFAULT_PROPERTIES);
+  const [ontologyProperties, setOntologyProperties] = useState<
+    Record<string, string[]>
+  >({});
 
   useEffect(() => {
     const fetchOntology = async () => {
@@ -46,19 +38,19 @@ export function useOntologyFetcher(): OntologyFetchResult {
                   types.push(name);
                   propsMap[name] = Array.isArray(item.properties)
                     ? item.properties.map((p) => p.name)
-                    : ["id", "name", "created_at"];
+                    : [];
                 }
               },
             );
             if (types.length > 0) {
               setBackendEntityTypes(types);
               setOntologyEntityTypes(types);
-              setOntologyProperties((prev) => ({ ...prev, ...propsMap }));
+              setOntologyProperties(propsMap);
             }
           }
         }
       } catch {
-        // Retain defaults
+        // Leave empty when ontology service is unreachable
       }
     };
     fetchOntology();

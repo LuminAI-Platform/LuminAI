@@ -6,18 +6,36 @@ interface DatasetProfilerTabProps {
   schemaEntries: [string, string][];
 }
 
-const QUALITY_DIMENSIONS = [
-  { label: "Completeness", value: "98.4%", color: "text-emerald-400" },
-  { label: "Validity", value: "96.2%", color: "text-emerald-400" },
-  { label: "Uniqueness", value: "99.8%", color: "text-blue-400" },
-  { label: "Consistency", value: "95.0%", color: "text-purple-400" },
-  { label: "Timeliness", value: "100.0%", color: "text-emerald-400" },
-];
+const DIMENSION_KEYS = [
+  { key: "completeness", label: "Completeness", color: "text-emerald-400" },
+  { key: "validity", label: "Validity", color: "text-emerald-400" },
+  { key: "uniqueness", label: "Uniqueness", color: "text-blue-400" },
+  { key: "consistency", label: "Consistency", color: "text-purple-400" },
+  { key: "timeliness", label: "Timeliness", color: "text-emerald-400" },
+] as const;
+
+function readNumericMetric(
+  source: Record<string, unknown> | undefined,
+  key: string,
+): number | null {
+  if (!source) return null;
+  const direct = source[key];
+  if (typeof direct === "number" && Number.isFinite(direct)) return direct;
+  const nested =
+    (source.dimensions as Record<string, unknown> | undefined)?.[key] ??
+    (source.dama as Record<string, unknown> | undefined)?.[key];
+  return typeof nested === "number" && Number.isFinite(nested) ? nested : null;
+}
 
 export const DatasetProfilerTab: React.FC<DatasetProfilerTabProps> = ({
   dataset,
   schemaEntries,
 }) => {
+  const summary = dataset.profilingSummary;
+  const columnProfiles = (summary?.columns ??
+    summary?.column_profiles ??
+    {}) as Record<string, Record<string, unknown>>;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-3">
@@ -25,19 +43,26 @@ export const DatasetProfilerTab: React.FC<DatasetProfilerTabProps> = ({
           DAMA Data Quality Dimensions
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {QUALITY_DIMENSIONS.map((dim) => (
-            <div
-              key={dim.label}
-              className="p-3 rounded-lg bg-surface-subtle border border-border"
-            >
-              <span className="text-[11px] text-text-secondary block">
-                {dim.label}
-              </span>
-              <span className={`text-base font-bold ${dim.color}`}>
-                {dim.value}
-              </span>
-            </div>
-          ))}
+          {DIMENSION_KEYS.map((dim) => {
+            const rawVal = readNumericMetric(summary, dim.key);
+            const pct =
+              rawVal === null ? null : rawVal <= 1 ? rawVal * 100 : rawVal;
+            return (
+              <div
+                key={dim.label}
+                className="p-3 rounded-lg bg-surface-subtle border border-border"
+              >
+                <span className="text-[11px] text-text-secondary block">
+                  {dim.label}
+                </span>
+                <span
+                  className={`text-base font-bold ${pct !== null ? dim.color : "text-text-secondary"}`}
+                >
+                  {pct !== null ? `${pct.toFixed(1)}%` : "—"}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -58,25 +83,50 @@ export const DatasetProfilerTab: React.FC<DatasetProfilerTabProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {schemaEntries.map(([col, type]) => (
-              <tr key={col} className="hover:bg-surface-subtle/40">
-                <td className="py-2.5 px-4 font-mono font-medium text-text">
-                  {col}
-                </td>
-                <td className="py-2.5 px-4 font-mono text-purple-400">
-                  {type}
-                </td>
-                <td className="py-2.5 px-4 text-text">0.0%</td>
-                <td className="py-2.5 px-4 text-text-secondary">
-                  {(dataset.rowCount || 0).toLocaleString()}
-                </td>
-                <td className="py-2.5 px-4">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    HEALTHY
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {schemaEntries.map(([col, type]) => {
+              const colStats = columnProfiles[col];
+              const nullPct =
+                typeof colStats?.nullPercentage === "number"
+                  ? colStats.nullPercentage
+                  : typeof colStats?.null_pct === "number"
+                    ? colStats.null_pct
+                    : null;
+              const distinctCount =
+                typeof colStats?.distinctCount === "number"
+                  ? colStats.distinctCount
+                  : typeof colStats?.distinct_count === "number"
+                    ? colStats.distinct_count
+                    : null;
+              const health =
+                typeof colStats?.health === "string" ? colStats.health : null;
+              return (
+                <tr key={col} className="hover:bg-surface-subtle/40">
+                  <td className="py-2.5 px-4 font-mono font-medium text-text">
+                    {col}
+                  </td>
+                  <td className="py-2.5 px-4 font-mono text-purple-400">
+                    {type}
+                  </td>
+                  <td className="py-2.5 px-4 text-text">
+                    {nullPct !== null ? `${nullPct.toFixed(1)}%` : "—"}
+                  </td>
+                  <td className="py-2.5 px-4 text-text-secondary">
+                    {distinctCount !== null
+                      ? distinctCount.toLocaleString()
+                      : "—"}
+                  </td>
+                  <td className="py-2.5 px-4">
+                    {health ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {health}
+                      </span>
+                    ) : (
+                      <span className="text-text-secondary">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

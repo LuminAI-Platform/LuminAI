@@ -60,7 +60,7 @@ export function useDashboardData() {
         ? new Date(summary.lastSyncAt).getTime()
         : fallbackTime;
 
-  const cachedAtTime = new Intl.DateTimeFormat("en-US", {
+  const cachedAtTime = new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,

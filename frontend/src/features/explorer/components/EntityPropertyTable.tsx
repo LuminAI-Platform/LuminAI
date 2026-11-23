@@ -6,7 +6,7 @@ export interface ProvenanceLine {
   sourceDataset: string;
   sourceField: string;
   ingestedAt: string;
-  confidence: "high" | "medium" | "low";
+  confidence?: "high" | "medium" | "low";
   fieldName?: string;
   sourceName?: string;
   sourceRecordId?: string;
@@ -23,7 +23,7 @@ interface EntityPropertyTableProps {
 }
 
 const CONFIDENCE_STYLES: Record<
-  ProvenanceLine["confidence"],
+  NonNullable<ProvenanceLine["confidence"]>,
   { label: string; cls: string }
 > = {
   high: {
@@ -88,9 +88,9 @@ export const EntityPropertyTable: React.FC<EntityPropertyTableProps> = ({
               (p) => (p.propertyKey || p.fieldName) === key,
             );
             const isActive = activeKey === key;
-            const confidence = prov?.confidence ?? "high";
-            const confStyle = prov
-              ? (CONFIDENCE_STYLES[confidence] ?? CONFIDENCE_STYLES.high)
+            const confidence = prov?.confidence;
+            const confStyle = confidence
+              ? (CONFIDENCE_STYLES[confidence] ?? null)
               : null;
 
             return (

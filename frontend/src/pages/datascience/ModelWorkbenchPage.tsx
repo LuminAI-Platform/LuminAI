@@ -23,12 +23,10 @@ import { ModelExperimentTable } from "./components/ModelExperimentTable";
 import { ModelRegistryGrid } from "./components/ModelRegistryGrid";
 
 export const ModelWorkbenchPage: React.FC = () => {
-  const [modelName, setModelName] = useState<string>(
-    "Customer Churn Predictor",
-  );
+  const [modelName, setModelName] = useState<string>("");
   const [algorithm, setAlgorithm] = useState<string>("Random Forest");
   const [taskType, setTaskType] = useState<MlTaskType>("CLASSIFICATION");
-  const [targetColumn, setTargetColumn] = useState<string>("churn");
+  const [targetColumn, setTargetColumn] = useState<string>("");
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<
     "train" | "experiments" | "registry"
@@ -57,27 +55,22 @@ export const ModelWorkbenchPage: React.FC = () => {
 
   const trainMutation = useMutation({
     mutationFn: async () => {
-      const records: Record<string, unknown>[] = [];
-      for (let i = 0; i < 60; i++) {
-        records.push({
-          age: 22 + (i % 25),
-          income: 30000 + i * 800,
-          tenure_months: 1 + (i % 36),
-          churn: i % 3 === 0 ? 1 : 0,
-        });
+      const selectedDataset = datasets.find((d) => d.id === selectedDatasetId);
+      if (!selectedDataset) {
+        throw new Error("Please select a catalog dataset before training.");
+      }
+      if (!modelName.trim() || !targetColumn.trim()) {
+        throw new Error("Model name and target column are required.");
       }
 
       return trainModel({
-        modelName,
-        datasetId: selectedDatasetId || undefined,
-        datasetName: selectedDatasetId
-          ? datasets.find((d) => d.id === selectedDatasetId)?.name
-          : "customer_profiles",
-        targetColumn,
-        records,
+        modelName: modelName.trim(),
+        datasetId: selectedDataset.id,
+        datasetName: selectedDataset.name,
+        datasetVersion: selectedDataset.currentVersion,
+        targetColumn: targetColumn.trim(),
         algorithm,
         taskType,
-        testSize: 0.25,
       });
     },
     onSuccess: (data) => {
@@ -113,7 +106,7 @@ export const ModelWorkbenchPage: React.FC = () => {
       <PageHeader
         breadcrumbs={[{ label: "Data Science" }, { label: "Model Workbench" }]}
         title="Data Science Studio & Model Registry"
-        description="End-to-end machine learning experimentation, Scikit-learn model evaluation, and Palantir Foundry-style Model Registry."
+        description="End-to-end machine learning experimentation, model evaluation, and governed Model Registry."
         icon={<Cpu size={ICON_SIZES.header} className="text-text-secondary" />}
       />
 
