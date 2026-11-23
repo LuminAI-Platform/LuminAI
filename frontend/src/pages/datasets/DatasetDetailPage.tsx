@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useParams, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import {
   Database,
@@ -17,17 +17,19 @@ import {
   fetchDatasetById,
   fetchDatasetVersions,
   fetchDatasetLineage,
+  transitionDatasetLayer,
 } from "../../features/datasets/datasetApi";
 import type {
   Dataset,
+  DatasetLayer,
   DatasetVersion,
   LineageGraph,
 } from "../../features/datasets/types";
 import { DatasetProfilerTab } from "./components/DatasetProfilerTab";
 import { DatasetSchemaTab } from "./components/DatasetSchemaTab";
 import { DatasetVersionsTab } from "./components/DatasetVersionsTab";
-import { DatasetSummaryCards } from "./components/DatasetSummaryCards";
 import { DatasetLineageTab } from "./components/DatasetLineageTab";
+import { DatasetSummaryMetrics } from "./components/DatasetSummaryMetrics";
 
 export const DatasetDetailPage: React.FC = () => {
   const { datasetId } = useParams({ strict: false }) as { datasetId: string };
@@ -56,6 +58,14 @@ export const DatasetDetailPage: React.FC = () => {
     queryKey: ["dataset-lineage", datasetId],
     queryFn: () => fetchDatasetLineage(datasetId),
     enabled: !!datasetId,
+  });
+
+  const transitionMutation = useMutation({
+    mutationFn: (newLayer: DatasetLayer) =>
+      transitionDatasetLayer(datasetId, newLayer),
+    onSuccess: () => {
+      void refetch();
+    },
   });
 
   if (isDatasetLoading) {
@@ -137,15 +147,15 @@ export const DatasetDetailPage: React.FC = () => {
         }
       />
 
-      <DatasetSummaryCards
+      <DatasetSummaryMetrics
         dataset={dataset}
-        columnCount={schemaEntries.length}
+        schemaEntriesLength={schemaEntries.length}
+        onTransitionLayer={(layer) => transitionMutation.mutate(layer)}
+        isTransitioning={transitionMutation.isPending}
       />
 
-      {/* Navigation Tabs */}
       <div className="border-b border-border flex items-center gap-4 text-xs font-medium">
         <button
-          type="button"
           onClick={() => setActiveTab("profiler")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "profiler"
@@ -158,7 +168,6 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
 
         <button
-          type="button"
           onClick={() => setActiveTab("schema")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "schema"
@@ -171,7 +180,6 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
 
         <button
-          type="button"
           onClick={() => setActiveTab("versions")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "versions"
@@ -184,7 +192,6 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
 
         <button
-          type="button"
           onClick={() => setActiveTab("lineage")}
           className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
             activeTab === "lineage"
@@ -197,7 +204,6 @@ export const DatasetDetailPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab Contents */}
       {activeTab === "profiler" && (
         <DatasetProfilerTab dataset={dataset} schemaEntries={schemaEntries} />
       )}
@@ -211,8 +217,8 @@ export const DatasetDetailPage: React.FC = () => {
       {activeTab === "lineage" && (
         <DatasetLineageTab
           dataset={dataset}
-          datasetId={datasetId}
           lineage={lineage}
+          datasetId={datasetId}
         />
       )}
     </div>

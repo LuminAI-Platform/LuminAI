@@ -8,12 +8,9 @@ import type {
   TimeSeriesPoint,
   PipelineRunItem,
   PageResponse,
-  StageMetric,
 } from "./pipelineAnalysisTypes";
 import {
-  mapTimeRangeToParam,
   filterAndSortRuns,
-  extractUniquePipelines,
   computeStageBreakdown,
   computeTopIssues,
 } from "./pipelineAnalysisComputations";
@@ -28,7 +25,6 @@ export function usePipelineAnalysis() {
   const [sortBy, setSortBy] = useState<keyof PipelineRunItem>("startedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // 1. Fetch Engine Metrics (health, pipelineStats, dataQuality, entityStats)
   const {
     data: engineMetrics,
     isLoading: isEngineMetricsLoading,
@@ -48,7 +44,6 @@ export function usePipelineAnalysis() {
     retry: 1,
   });
 
-  // 2. Fetch Pipeline Summary Metrics from platform
   const {
     data: pipelineMetrics,
     isLoading: isPipelineMetricsLoading,
@@ -66,7 +61,6 @@ export function usePipelineAnalysis() {
     retry: 1,
   });
 
-  // 3. Fetch Runs Table (paginated)
   const {
     data: runsPage,
     isLoading: isRunsLoading,
@@ -89,14 +83,23 @@ export function usePipelineAnalysis() {
     retry: 1,
   });
 
-  // Determine if any run is currently active
   const hasActiveRun = useMemo(() => {
     if ((pipelineMetrics?.activeJobsCount ?? 0) > 0) return true;
     return runsPage?.content?.some((r) => r.status === "RUNNING") ?? false;
   }, [pipelineMetrics, runsPage]);
 
-  // 4. Fetch Time Series (mapped to selected time range)
-  const rangeParam = useMemo(() => mapTimeRangeToParam(timeRange), [timeRange]);
+  const rangeParam = useMemo(() => {
+    switch (timeRange) {
+      case "24H":
+        return "1d";
+      case "7D":
+        return "7d";
+      case "30D":
+        return "30d";
+      default:
+        return "7d";
+    }
+  }, [timeRange]);
 
   const {
     data: timeSeries = [],
@@ -114,13 +117,11 @@ export function usePipelineAnalysis() {
       );
       return res.json();
     },
-    // Poll every 20 seconds only while a run is active
     refetchInterval: hasActiveRun ? 20000 : false,
     refetchOnWindowFocus: false,
     retry: 1,
   });
 
-  // Manual refresh all analysis data
   const handleRefresh = useCallback(() => {
     refetchEngineMetrics();
     refetchPipelineMetrics();
@@ -145,12 +146,16 @@ export function usePipelineAnalysis() {
     [runsPage, pipelineFilter, searchTerm, sortBy, sortOrder],
   );
 
-  const uniquePipelines = useMemo(
-    () => extractUniquePipelines(runsPage?.content ?? []),
-    [runsPage],
-  );
+  const uniquePipelines = useMemo(() => {
+    const list = runsPage?.content ?? [];
+    const names = new Set<string>();
+    list.forEach((r) => {
+      if (r.connectorName) names.add(r.connectorName);
+    });
+    return Array.from(names);
+  }, [runsPage]);
 
-  const stageBreakdown: StageMetric[] = useMemo(
+  const stageBreakdown = useMemo(
     () => computeStageBreakdown(runsPage?.content ?? []),
     [runsPage],
   );
@@ -160,7 +165,6 @@ export function usePipelineAnalysis() {
     [runsPage],
   );
 
-  // Unified Error State
   const anyError =
     engineMetricsError || pipelineMetricsError || runsError || timeSeriesError;
   const isEngineReachable =

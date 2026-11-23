@@ -1,5 +1,3 @@
-export { formatCellValue, renderCleanCellValue } from "./cellValueFormatters";
-
 export type ConnectionsTab = "all" | "connectors" | "files";
 
 export type SourceStatus = "Connected" | "Syncing" | "Failed" | "Paused";
@@ -67,100 +65,12 @@ export interface UnifiedSource {
   connectorRef?: DatabaseConnector;
 }
 
-export function formatRelativeTime(dateInput?: string | Date | null): string {
-  if (!dateInput) return "never";
-  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  if (isNaN(date.getTime())) return "recently";
-  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diffSec < 15) return "just now";
-  if (diffSec < 60) return `${diffSec}s ago`;
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${Math.floor(diffHours / 24)}d ago`;
-}
-
-export function formatExactTimestamp(dateInput?: string | Date | null): string {
-  if (!dateInput) return "No sync recorded yet";
-  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  if (isNaN(date.getTime())) return String(dateInput);
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-export function formatTimeAgo(dateStr: string): string {
-  return formatRelativeTime(dateStr);
-}
-
-/**
- * Health Status Badge definition
- *
- * Rules:
- * - One color per meaning (Active/Online/Connected/Healthy -> success)
- * - Never use color alone; pair with label text
- * - Delete neon dots, glows, and pings
- */
-export function getHealthStatusBadge(status: string) {
-  const s = status.toLowerCase();
-  if (
-    s.includes("connect") ||
-    s.includes("active") ||
-    s.includes("healthy") ||
-    s.includes("online") ||
-    (s.includes("sync") && !s.includes("syncing") && !s.includes("fail"))
-  ) {
-    return {
-      dotColor: "bg-success",
-      pingColor: "",
-      badgeStyle:
-        "bg-success-bg border-success-border text-success font-medium",
-      isSyncing: false,
-    };
-  }
-  if (s.includes("syncing") || s.includes("pending") || s.includes("running")) {
-    return {
-      dotColor: "bg-warning",
-      pingColor: "",
-      badgeStyle:
-        "bg-warning-bg border-warning-border text-warning font-medium",
-      isSyncing: true,
-    };
-  }
-  if (s.includes("fail") || s.includes("error")) {
-    return {
-      dotColor: "bg-error",
-      pingColor: "",
-      badgeStyle: "bg-error-bg border-error-border text-error font-medium",
-      isSyncing: false,
-    };
-  }
-  return {
-    dotColor: "bg-nodata",
-    pingColor: "",
-    badgeStyle: "bg-nodata-bg border-nodata-border text-nodata font-medium",
-    isSyncing: false,
-  };
-}
-
-export function formatColumnHeader(col: string): string {
-  if (!col) return "";
-  const lower = col.toLowerCase();
-  if (lower === "id") return "ID";
-  if (lower === "canonicalname") return "Canonical Name";
-  if (lower === "entitytype") return "Entity Type";
-  if (lower === "confidencescore") return "Confidence Score";
-  if (lower === "sourcecount") return "Source Count";
-  if (lower === "createdat" || lower === "created_at") return "Created At";
-  if (lower === "updatedat" || lower === "updated_at") return "Updated At";
-  if (lower === "records_count" || lower === "recordscount")
-    return "Records Count";
-
-  return col.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[-_]+/g, " ");
-}
+export {
+  formatRelativeTime,
+  formatExactTimestamp,
+  formatTimeAgo,
+  getHealthStatusBadge,
+  formatColumnHeader,
+  formatCellValue,
+  renderCleanCellValue,
+} from "./connectionsFormatters";

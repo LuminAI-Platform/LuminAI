@@ -13,14 +13,9 @@ import type { PipelineRunItem } from "../../features/connections/components/pipe
 import { PageHeader } from "../../components/layout/PageHeader";
 import { useConnectionModalStore } from "../../stores/connectionModalStore";
 import { useConnectionsData } from "./connections/useConnectionsData";
-import { SourcesTable, SourcesTableSkeleton } from "./connections/SourcesTable";
-import {
-  AllSourcesEmptyState,
-  DatabaseEmptyState,
-  FilesEmptyState,
-} from "./connections/ConnectionsEmptyStates";
-import { ConnectionsTabBar } from "./connections/ConnectionsTabBar";
+import { ConnectionsTabsBar } from "./connections/ConnectionsTabsBar";
 import { ConnectionsModals } from "./connections/ConnectionsModals";
+import { ConnectionsTabContent } from "./connections/ConnectionsTabContent";
 import {
   type UnifiedSource,
   formatRelativeTime,
@@ -46,31 +41,54 @@ export const ConnectionsPage: React.FC = () => {
     }
   };
 
-  const data = useConnectionsData();
+  const connData = useConnectionsData();
+  const {
+    openWizardWithFile,
+    openDbModalWithType,
+    unifiedSources,
+    customConnectors,
+    ingestedFiles,
+    setDeleteTarget,
+    setEditTarget,
+    isRefreshing,
+    isPollingPaused,
+    lastRefreshedAt,
+    error,
+    activeTab,
+    setActiveTab,
+    loadConnectors,
+    handleOpenRawPreview,
+    handleInspectCleanData,
+    handleTestConnection,
+    handleTogglePause,
+    testingSourceId,
+    togglingSourceId,
+    isLoading,
+  } = connData;
 
   const visibleSources = useMemo(() => {
-    if (data.activeTab === "connectors") {
-      return data.unifiedSources.filter((s) => s.category === "database");
+    if (activeTab === "connectors") {
+      return unifiedSources.filter((s) => s.category === "database");
     }
-    if (data.activeTab === "files") {
-      return data.unifiedSources.filter((s) => s.category === "file");
+    if (activeTab === "files") {
+      return unifiedSources.filter((s) => s.category === "file");
     }
-    return data.unifiedSources;
-  }, [data.activeTab, data.unifiedSources]);
+    return unifiedSources;
+  }, [activeTab, unifiedSources]);
 
   const primaryAction = (() => {
-    if (data.activeTab === "files") {
+    if (activeTab === "files") {
       return {
         id: "btn-upload-file",
         label: "Upload file",
-        onClick: () => data.openWizardWithFile(null),
+        onClick: () => openWizardWithFile(null),
       };
     }
-    if (data.activeTab === "connectors") {
+    if (activeTab === "connectors") {
       return {
         id: "btn-add-connection",
         label: "Connect database",
-        onClick: () => data.openDbModalWithType("postgresql"),
+        onClick: () => openDbModalWithType("postgresql"),
       };
     }
     return {
@@ -81,7 +99,7 @@ export const ConnectionsPage: React.FC = () => {
   })();
 
   const handleRequestDelete = (source: UnifiedSource) => {
-    data.setDeleteTarget({
+    setDeleteTarget({
       id: source.id,
       name: source.name,
       type: source.category === "database" ? "connection" : "file",
@@ -89,8 +107,8 @@ export const ConnectionsPage: React.FC = () => {
   };
 
   const statusSummaryText = `${
-    data.isPollingPaused ? "Auto-refresh paused" : "Auto-refresh every 15s"
-  } - Updated ${formatRelativeTime(data.lastRefreshedAt)}`;
+    isPollingPaused ? "Auto-refresh paused" : "Auto-refresh every 15s"
+  } - Updated ${formatRelativeTime(lastRefreshedAt)}`;
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-1 pb-8">
@@ -116,9 +134,9 @@ export const ConnectionsPage: React.FC = () => {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => data.loadConnectors(false)}
-              isLoading={data.isRefreshing}
-              disabled={data.isRefreshing}
+              onClick={() => loadConnectors(false)}
+              isLoading={isRefreshing}
+              disabled={isRefreshing}
               leftIcon={
                 <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
               }
@@ -138,7 +156,7 @@ export const ConnectionsPage: React.FC = () => {
         }
       />
 
-      {data.error && (
+      {error && (
         <div
           role="alert"
           className="p-4 bg-error-bg border border-error-border rounded-lg flex flex-col gap-2"
@@ -151,8 +169,8 @@ export const ConnectionsPage: React.FC = () => {
             <Button
               variant="secondary"
               size="xs"
-              onClick={() => data.loadConnectors(false)}
-              isLoading={data.isRefreshing}
+              onClick={() => loadConnectors(false)}
+              isLoading={isRefreshing}
             >
               Retry
             </Button>
@@ -161,53 +179,35 @@ export const ConnectionsPage: React.FC = () => {
             <summary className="cursor-pointer select-none hover:text-text transition-colors">
               Show details
             </summary>
-            <p className="mt-1.5 text-error break-words">{data.error}</p>
+            <p className="mt-1.5 text-error break-words">{error}</p>
           </details>
         </div>
       )}
 
-      <ConnectionsTabBar
-        activeTab={data.activeTab}
-        onSelectTab={data.setActiveTab}
-        totalCount={data.unifiedSources.length}
-        connectorsCount={data.customConnectors.length}
-        filesCount={data.ingestedFiles.length}
+      <ConnectionsTabsBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        unifiedSourcesCount={unifiedSources.length}
+        customConnectorsCount={customConnectors.length}
+        ingestedFilesCount={ingestedFiles.length}
       />
 
-      <div
-        id="connections-tabpanel"
-        role="tabpanel"
-        aria-labelledby={`connections-tab-${data.activeTab}`}
-      >
-        {data.isLoading ? (
-          <SourcesTableSkeleton />
-        ) : visibleSources.length > 0 ? (
-          <SourcesTable
-            sources={visibleSources}
-            isLoading={false}
-            showTypeFilter={data.activeTab === "all"}
-            testingSourceId={data.testingSourceId}
-            togglingSourceId={data.togglingSourceId}
-            onTestConnection={data.handleTestConnection}
-            onEditSource={data.setEditTarget}
-            onTogglePause={data.handleTogglePause}
-            onDeleteSource={handleRequestDelete}
-            onOpenRawPreview={data.handleOpenRawPreview}
-            onInspectCleanData={data.handleInspectCleanData}
-          />
-        ) : data.activeTab === "connectors" ? (
-          <DatabaseEmptyState onSelectConnector={data.openDbModalWithType} />
-        ) : data.activeTab === "files" ? (
-          <FilesEmptyState onSelectFile={data.openWizardWithFile} />
-        ) : (
-          <AllSourcesEmptyState
-            onSelectConnector={data.openDbModalWithType}
-            onSelectFile={data.openWizardWithFile}
-          />
-        )}
-      </div>
+      <ConnectionsTabContent
+        isLoading={isLoading}
+        visibleSources={visibleSources}
+        activeTab={activeTab}
+        testingSourceId={testingSourceId}
+        togglingSourceId={togglingSourceId}
+        onTestConnection={handleTestConnection}
+        onEditSource={setEditTarget}
+        onTogglePause={handleTogglePause}
+        onDeleteSource={handleRequestDelete}
+        onOpenRawPreview={handleOpenRawPreview}
+        onInspectCleanData={handleInspectCleanData}
+        onOpenDbModal={() => openDbModalWithType("postgresql")}
+        onOpenWizard={() => openWizardWithFile(null)}
+      />
 
-      {/* Observability Section — stacks below 1100px */}
       <div className="grid grid-cols-1 min-[1100px]:grid-cols-2 gap-5 mt-2 items-start">
         <SyncJobDetails onOpenRunDetail={handleOpenRunDetail} />
         <ExecutionLogs onOpenRunDetail={handleOpenRunDetail} />
@@ -217,30 +217,7 @@ export const ConnectionsPage: React.FC = () => {
         selectedRunDetail={selectedRunDetail}
         onCloseRunDetail={() => setSelectedRunDetail(null)}
         runDetailTriggerRef={runDetailTriggerRef}
-        isWizardOpen={data.isWizardOpen}
-        initialUploadFile={data.initialUploadFile}
-        closeWizard={data.closeWizard}
-        isDbModalOpen={data.isDbModalOpen}
-        setIsDbModalOpen={data.setIsDbModalOpen}
-        initialDbType={data.initialDbType}
-        editTarget={data.editTarget}
-        isSavingEdit={data.isSavingEdit}
-        setEditTarget={data.setEditTarget}
-        handleSaveEdit={data.handleSaveEdit}
-        cleanPreviewFile={data.cleanPreviewFile}
-        setCleanPreviewFile={data.setCleanPreviewFile}
-        cleanData={data.cleanData}
-        isCleanDataLoading={data.isCleanDataLoading}
-        cleanSearchFilter={data.cleanSearchFilter}
-        setCleanSearchFilter={data.setCleanSearchFilter}
-        previewingFile={data.previewingFile}
-        setPreviewingFile={data.setPreviewingFile}
-        isRawPreviewLoading={data.isRawPreviewLoading}
-        deleteTarget={data.deleteTarget}
-        setDeleteTarget={data.setDeleteTarget}
-        isDeleting={data.isDeleting}
-        executeDelete={data.executeDelete}
-        onRefresh={() => data.loadConnectors(false)}
+        connData={connData}
       />
     </div>
   );

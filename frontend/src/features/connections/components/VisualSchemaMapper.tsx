@@ -14,7 +14,7 @@ import { TargetPanel } from "./visual-schema/TargetPanel";
 import { FkModal } from "./visual-schema/FkModal";
 import { PayloadPreview } from "./visual-schema/PayloadPreview";
 import { MapperToolbar } from "./visual-schema/MapperToolbar";
-import { SchemaConnectorOverlay } from "./visual-schema/SchemaConnectorOverlay";
+import { ConnectorLinesSvg } from "./visual-schema/ConnectorLinesSvg";
 
 export type {
   SourceColumn,
@@ -101,9 +101,6 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
   const unmappedCount = sourceColumns.length - mappings.length;
   const fkCount = Object.keys(foreignKeys).length;
   const activeCol = sourceColumns.find((c) => c.id === activeFkColId);
-  const unfilledRequiredCount = ontologyProperties.filter(
-    (p) => p.required && !getMappedColId(p.id),
-  ).length;
 
   return (
     <div className="flex flex-col h-full gap-0 select-none">
@@ -128,9 +125,9 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         />
       )}
 
-      {/* ── Main Canvas ── */}
+      {/* Main Canvas */}
       <div ref={containerRef} className="flex flex-1 min-h-0 relative">
-        <SchemaConnectorOverlay
+        <ConnectorLinesSvg
           connectorLines={connectorLines}
           dragPreviewLine={dragPreviewLine}
         />
@@ -184,20 +181,27 @@ export const VisualSchemaMapper: React.FC<VisualSchemaMapperProps> = ({
         />
       )}
 
-      {/* ── Footer summary ── */}
-      <div className="px-6 py-3 border-t border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+      {/* Footer summary */}
+      <div className="px-6 py-3 border-t border-border bg-surface-subtle flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-4 text-[10px] text-text-muted">
           <span>
             {mappings.length} of {sourceColumns.length} source columns mapped
           </span>
           <span>·</span>
-          <span className="text-purple-400">
+          <span className="text-primary font-medium">
             {fkCount} graph relationships defined
           </span>
           <span>·</span>
-          <span>{unfilledRequiredCount} required properties unfilled</span>
+          <span>
+            {
+              ontologyProperties.filter(
+                (p) => p.required && !getMappedColId(p.id),
+              ).length
+            }{" "}
+            required properties unfilled
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-zinc-600">
+        <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
           <svg
             width="10"
             height="10"

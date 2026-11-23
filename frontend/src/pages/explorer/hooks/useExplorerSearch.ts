@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { apiFetch } from "../../../lib/api";
 import type { EntityType } from "../../../features/ontology/types";
 import type {
   ParsedQueryFilter,
@@ -8,24 +9,20 @@ import type {
   UseExplorerSearchResult,
 } from "../types";
 import { DEFAULT_PAGE_SIZE, DEFAULT_DEBOUNCE_MS } from "../constants";
-import { parseSearchQuery, removeFilterFromQuery } from "../utils";
 import {
-  deriveActiveTypeCount,
-  deriveHasConfidenceData,
-  deriveMostRecentUpdate,
-  deriveSuggestions,
-  exportExplorerCsv,
-  fetchExplorerSearch,
-  fetchOntologyEntityTypes,
-  getInitialUrlParam,
-  syncSearchParamsToUrl,
+  normalizeSearchResponse,
+  parseSearchQuery,
+  removeFilterFromQuery,
+} from "../utils";
+import {
+  mapSortToApiParams,
+  buildApiFilterParams,
+  exportEntitiesCsv,
 } from "./explorerSearchHelpers";
+import { useExplorerDerivedStats } from "./useExplorerDerivedStats";
 
-/**
- * Custom React hook grouping search query state, field:value filter parsing,
- * sorting, pagination, facet filtering, input debouncing, abortable network
- * requests, and CSV export side effects.
- */
+export { mapSortToApiParams, buildApiFilterParams, exportEntitiesCsv };
+
 export function useExplorerSearch(
   options: UseExplorerSearchOptions = {},
 ): UseExplorerSearchResult {
@@ -34,8 +31,16 @@ export function useExplorerSearch(
     debounceMs = DEFAULT_DEBOUNCE_MS,
   } = options;
 
-  const initialQuery = getInitialUrlParam("query") || "";
-  const initialPage = Number(getInitialUrlParam("page") || 0);
+  const getInitialParam = (key: string) => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      return sp.get(key);
+    }
+    return null;
+  };
+
+  const initialQuery = getInitialParam("query") || "";
+  const initialPage = Number(getInitialParam("page") || 0);
 
   const [inputValue, setInputValue] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
@@ -52,34 +57,39 @@ export function useExplorerSearch(
   const [isExporting, setIsExporting] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const parsedInput = useMemo(() => parseSearchQuery(inputValue), [inputValue]);
 
-  // 1. Fetch Ontology Entity Types on mount
+  const parsedInput = useMemo(() => parseSearchQuery(inputValue), [inputValue]);
+  const parsedFilters = parsedInput.filters;
+
   useEffect(() => {
     let isMounted = true;
-    fetchOntologyEntityTypes()
-      .then((types) => {
-        if (isMounted) setOntologyTypes(types);
-      })
-      .catch((err) => {
+    const fetchOntology = async () => {
+      try {
+        const res = await apiFetch("/api/v1/ontology/entity-types", {
+          headers: { "X-Suppress-Toast": "true" },
+        });
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          setOntologyTypes(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
         console.warn("Ontology fetch failed:", err);
-      });
+      }
+    };
+    void fetchOntology();
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // 2. Debounce input query changes
   useEffect(() => {
-    if (inputValue === query) return;
     const timer = setTimeout(() => {
       setQuery(inputValue);
       setPage(0);
     }, debounceMs);
     return () => clearTimeout(timer);
-  }, [inputValue, query, debounceMs]);
+  }, [inputValue, debounceMs]);
 
-  // 3. Search fetch execution with in-flight abort
   const executeSearch = useCallback(
     async (
       searchQuery: string,
@@ -88,27 +98,65 @@ export function useExplorerSearch(
       size: number,
       sort: SortOption,
     ) => {
-      abortControllerRef.current?.abort();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
       setLoading(true);
       setError(null);
       setErrorDetails(null);
-      syncSearchParamsToUrl(searchQuery, pageNum);
+
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (searchQuery) url.searchParams.set("query", searchQuery);
+        else url.searchParams.delete("query");
+        if (pageNum > 0) url.searchParams.set("page", pageNum.toString());
+        else url.searchParams.delete("page");
+        window.history.replaceState(null, "", url.toString());
+      }
 
       try {
-        const normalized = await fetchExplorerSearch(
+        const { apiQuery, effectiveTypes } = buildApiFilterParams(
           searchQuery,
           types,
-          pageNum,
-          size,
-          sort,
-          controller.signal,
         );
+        const { sortBy, sortDirection } = mapSortToApiParams(sort);
+
+        const params = new URLSearchParams();
+        params.set("query", apiQuery);
+        params.set("page", pageNum.toString());
+        params.set("size", size.toString());
+        params.set("sortBy", sortBy);
+        params.set("sortDirection", sortDirection);
+
+        effectiveTypes.forEach((t) => params.append("entityType", t));
+
+        const res = await apiFetch(
+          `/api/v1/explorer/search?${params.toString()}`,
+          {
+            signal: controller.signal,
+            headers: { "X-Suppress-Toast": "true" },
+          },
+        );
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        }
+        const raw = (await res.json()) as Record<string, unknown>;
+        const normalized = normalizeSearchResponse(raw, size, pageNum);
+
+        if (sort === "confidence_desc") {
+          normalized.content = [...normalized.content].sort(
+            (a, b) => (b.confidenceScore ?? -1) - (a.confidenceScore ?? -1),
+          );
+        }
+
         setSearchData(normalized);
       } catch (err: unknown) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
         const detail =
           err instanceof Error ? err.message : "Unknown network error";
         console.error("Search error:", err);
@@ -123,41 +171,28 @@ export function useExplorerSearch(
     [],
   );
 
-  // 4. Auto-trigger search when query, selectedTypes, page, pageSize, or sort changes
   useEffect(() => {
     void executeSearch(query, selectedTypes, page, pageSize, sortOption);
     return () => {
-      abortControllerRef.current?.abort();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [query, selectedTypes, page, pageSize, sortOption, executeSearch]);
 
-  const suggestions = useMemo(
-    () => deriveSuggestions(parsedInput.text, searchData),
-    [parsedInput.text, searchData],
-  );
-  const mostRecentUpdate = useMemo(
-    () => deriveMostRecentUpdate(searchData),
-    [searchData],
-  );
-  const activeTypeCount = useMemo(
-    () => deriveActiveTypeCount(searchData),
-    [searchData],
-  );
-  const hasConfidenceData = useMemo(
-    () => deriveHasConfidenceData(searchData),
-    [searchData],
-  );
+  const { suggestions, mostRecentUpdate, activeTypeCount, hasConfidenceData } =
+    useExplorerDerivedStats(searchData, parsedInput.text);
 
-  const handleExportCsv = useCallback(async () => {
+  const handleExportCsv = async () => {
     setIsExporting(true);
     try {
-      await exportExplorerCsv(query, selectedTypes);
+      await exportEntitiesCsv(query, selectedTypes);
     } catch (err) {
       console.error("Export clean CSV error:", err);
     } finally {
       setIsExporting(false);
     }
-  }, [query, selectedTypes]);
+  };
 
   const retrySearch = useCallback(() => {
     void executeSearch(query, selectedTypes, page, pageSize, sortOption);
@@ -171,21 +206,6 @@ export function useExplorerSearch(
   const handleSelectSuggestion = useCallback((val: string) => {
     setInputValue(val);
     setQuery(val);
-    setPage(0);
-  }, []);
-
-  const handleSelectedTypesChange = useCallback((types: string[]) => {
-    setSelectedTypes(types);
-    setPage(0);
-  }, []);
-
-  const handleSortChange = useCallback((sort: SortOption) => {
-    setSortOptionState(sort);
-    setPage(0);
-  }, []);
-
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSizeState(size);
     setPage(0);
   }, []);
 
@@ -209,16 +229,25 @@ export function useExplorerSearch(
     inputValue,
     setInputValue,
     query,
-    parsedFilters: parsedInput.filters,
+    parsedFilters,
     removeFilterChip,
     selectedTypes,
-    setSelectedTypes: handleSelectedTypesChange,
+    setSelectedTypes: (types: string[]) => {
+      setSelectedTypes(types);
+      setPage(0);
+    },
     sortOption,
-    setSortOption: handleSortChange,
+    setSortOption: (sort: SortOption) => {
+      setSortOptionState(sort);
+      setPage(0);
+    },
     page,
     setPage,
     pageSize,
-    setPageSize: handlePageSizeChange,
+    setPageSize: (size: number) => {
+      setPageSizeState(size);
+      setPage(0);
+    },
     ontologyTypes,
     searchData,
     facets: searchData?.facets || {},

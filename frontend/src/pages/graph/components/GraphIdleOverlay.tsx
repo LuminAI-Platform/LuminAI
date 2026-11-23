@@ -3,9 +3,9 @@ import { Icons } from "../../../lib/icons";
 import { Button } from "../../../components/ui/Button";
 import { useThemeStore } from "../../../stores/themeStore";
 import { getEntityColor } from "../../../lib/entityColors";
-import type { SuggestedEntity } from "../useGraphData";
+import type { SuggestedEntity } from "../graphDataUtils";
 
-export interface GraphIdleOverlayProps {
+interface GraphIdleOverlayProps {
   suggestedEntities: SuggestedEntity[];
   onSelectEntity: (id: string, label?: string) => void;
   onFocusSearch?: () => void;

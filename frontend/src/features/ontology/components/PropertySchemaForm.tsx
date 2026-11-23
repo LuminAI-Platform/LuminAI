@@ -3,7 +3,7 @@ import {
   type PropertySchema,
   emptyProperty,
 } from "./property-schema/propertySchemaTypes";
-import { PropertySchemaRow } from "./property-schema/PropertySchemaRow";
+import { PropertySchemaItemRow } from "./property-schema/PropertySchemaItemRow";
 
 export type {
   PropertyType,
@@ -86,7 +86,7 @@ export const PropertySchemaForm: React.FC<PropertySchemaFormProps> = ({
       ) : (
         <div className="flex flex-col gap-1.5">
           {properties.map((prop) => (
-            <PropertySchemaRow
+            <PropertySchemaItemRow
               key={prop.id}
               prop={prop}
               isExpanded={expandedId === prop.id}

@@ -165,7 +165,6 @@ export function usePipelineMonitorData({
   });
 
   const activeJobsCount = jobs.filter((j) => j.status === "RUNNING").length;
-  const hasActive = activeJobsCount > 0;
 
   useEffect(() => {
     onStreamStatusChange?.({
@@ -180,6 +179,7 @@ export function usePipelineMonitorData({
   }, [fetchOnce]);
 
   useEffect(() => {
+    const hasActive = jobs.some((j) => j.status === "RUNNING");
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -195,10 +195,11 @@ export function usePipelineMonitorData({
         pollRef.current = null;
       }
     };
-  }, [hasActive, fetchOnce]);
+  }, [jobs, fetchOnce]);
 
   return {
     jobs,
+    setJobs,
     lastUpdated,
     dataUpdatedAt,
     isActuallyLoading,

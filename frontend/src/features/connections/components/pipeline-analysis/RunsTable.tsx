@@ -1,10 +1,10 @@
 import React, { useState, useRef } from "react";
-import { Search, ChevronLeft, ChevronRight } from "../../../../lib/icons";
+import { Search, CheckCircle2, XCircle } from "../../../../lib/icons";
 import type { PipelineRunItem } from "./pipelineAnalysisTypes";
 import { RunDetailDrawer } from "./RunDetailDrawer";
 import { Select } from "../../../../components/ui/dropdown";
-import { RunStatusBadge } from "./RunStatusBadge";
 import { RunsTableHeader } from "./RunsTableHeader";
+import { RunsTablePagination } from "./RunsTablePagination";
 
 interface RunsTableProps {
   runs: PipelineRunItem[];
@@ -22,14 +22,6 @@ interface RunsTableProps {
   onSortChange: (field: keyof PipelineRunItem) => void;
   selectedRunId?: string | null;
   onClearSelectedRunId?: () => void;
-}
-
-const STATUS_OPTIONS = ["ALL", "RUNNING", "COMPLETED", "FAILED"];
-
-function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
 }
 
 export const RunsTable: React.FC<RunsTableProps> = ({
@@ -51,7 +43,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
   const [selectedRun, setSelectedRun] = useState<PipelineRunItem | null>(null);
   const activeRowRef = useRef<HTMLButtonElement | null>(null);
 
-  // Auto-select run if selectedRunId was passed (e.g. from TopIssuesPanel)
   React.useEffect(() => {
     if (selectedRunId) {
       const match = runs.find((r) => r.id === selectedRunId);
@@ -60,9 +51,48 @@ export const RunsTable: React.FC<RunsTableProps> = ({
     }
   }, [selectedRunId, runs, onClearSelectedRunId]);
 
+  const statusOptions = ["ALL", "RUNNING", "COMPLETED", "FAILED"];
+
+  const formatNum = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return n.toLocaleString();
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toUpperCase()) {
+      case "RUNNING":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warning-bg border border-warning-border text-warning">
+            <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
+            <span>RUNNING</span>
+          </span>
+        );
+      case "COMPLETED":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success-bg border border-success-border text-success">
+            <CheckCircle2 className="w-3 h-3 text-success" />
+            <span>COMPLETED</span>
+          </span>
+        );
+      case "FAILED":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-error-bg border border-error-border text-error">
+            <XCircle className="w-3 h-3 text-error" />
+            <span>FAILED</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-subtle border border-border text-text-secondary">
+            <span>{status}</span>
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="bg-surface border border-border rounded-xl shadow-xs transition-colors select-none">
-      {/* Table Header: Title, Search & Status Filters */}
       <div className="p-4 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold text-text">
@@ -75,7 +105,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          {/* Search Input */}
           <div className="flex items-center bg-surface-subtle border border-border rounded-lg px-2.5 py-1.5 w-full sm:w-64 gap-2 focus-within:border-border-focus">
             <Search className="w-3.5 h-3.5 text-text-secondary shrink-0" />
             <input
@@ -87,12 +116,11 @@ export const RunsTable: React.FC<RunsTableProps> = ({
             />
           </div>
 
-          {/* Status filter dropdown */}
           <div className="w-36">
             <Select
               value={statusFilter}
               onChange={onStatusFilterChange}
-              options={STATUS_OPTIONS.map((st) => ({
+              options={statusOptions.map((st) => ({
                 value: st,
                 label: st === "ALL" ? "All Statuses" : st,
               }))}
@@ -103,7 +131,6 @@ export const RunsTable: React.FC<RunsTableProps> = ({
         </div>
       </div>
 
-      {/* Table Container */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <RunsTableHeader
@@ -150,9 +177,7 @@ export const RunsTable: React.FC<RunsTableProps> = ({
                   <td className="py-3 px-4 text-text-secondary font-mono text-[11px]">
                     {run.connectorType}
                   </td>
-                  <td className="py-3 px-4">
-                    <RunStatusBadge status={run.status} />
-                  </td>
+                  <td className="py-3 px-4">{getStatusBadge(run.status)}</td>
                   <td className="py-3 px-4 text-text-secondary font-mono text-[11px]">
                     {new Date(run.startedAt).toLocaleDateString([], {
                       month: "short",
@@ -190,39 +215,14 @@ export const RunsTable: React.FC<RunsTableProps> = ({
         </table>
       </div>
 
-      {/* Pagination Footer */}
-      <div className="p-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
-        <div>
-          Showing {runs.length} of {totalElements} run
-          {totalElements === 1 ? "" : "s"}
-        </div>
+      <RunsTablePagination
+        runsCount={runs.length}
+        totalElements={totalElements}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
 
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            disabled={currentPage <= 0}
-            onClick={() => onPageChange(currentPage - 1)}
-            className="p-1.5 rounded-md hover:bg-surface-subtle text-text disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface-subtle border border-border">
-            Page {currentPage + 1} of {Math.max(1, totalPages)}
-          </span>
-          <button
-            type="button"
-            disabled={currentPage >= totalPages - 1}
-            onClick={() => onPageChange(currentPage + 1)}
-            className="p-1.5 rounded-md hover:bg-surface-subtle text-text disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            aria-label="Next page"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Slide-over Drawer for Run Detail */}
       {selectedRun && (
         <RunDetailDrawer
           run={selectedRun}

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback } from "react";
-import type { PipelineJob } from "./PipelineJobCard";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight } from "../../../lib/icons";
+import { PipelineJobCard, type PipelineJob } from "./PipelineJobCard";
 import type { FilterStatus } from "./pipeline-monitor/pipelineMonitorUtils";
-import { formatNumber } from "./pipeline-monitor/pipelineMonitorUtils";
 import { ConnectionDot } from "./pipeline-monitor/pipelineMonitorTypes";
-import { ThroughputGauge } from "./pipeline-monitor/ThroughputGauge";
 import { PipelineKpis } from "./pipeline-monitor/PipelineKpis";
 import {
   PipelineMonitorLoading,
@@ -11,11 +11,10 @@ import {
   PipelineMonitorEmpty,
 } from "./pipeline-monitor/PipelineEmptyStates";
 import { PipelineFilterToolbar } from "./pipeline-monitor/PipelineFilterToolbar";
-import { PipelineSseAlerts } from "./pipeline-monitor/PipelineSseAlerts";
-import { PipelineJobsList } from "./pipeline-monitor/PipelineJobsList";
-import { usePipelineMonitorData } from "./pipeline-monitor/usePipelineMonitorData";
 import { RunDetailDrawer } from "./pipeline-analysis/RunDetailDrawer";
 import type { PipelineRunItem } from "./pipeline-analysis/pipelineAnalysisTypes";
+import { usePipelineMonitorData } from "./pipeline-monitor/usePipelineMonitorData";
+import { PipelineThroughputBanner } from "./pipeline-monitor/PipelineThroughputBanner";
 
 interface PipelineMonitorProps {
   initialJobs?: PipelineJob[];
@@ -154,30 +153,48 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       </div>
 
       {/* SSE Inline Error Alerts */}
-      <PipelineSseAlerts errors={sseErrors} onClearErrors={clearErrors} />
+      {sseErrors.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {sseErrors.slice(0, 3).map((err, idx) => (
+            <div
+              key={`${err.runId}-${idx}`}
+              className={`p-3 rounded-lg border text-xs flex items-center justify-between font-medium ${
+                err.severity === "error"
+                  ? "bg-error-bg border-error-border text-error"
+                  : "bg-warning-bg border-warning-border text-warning"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-black/40 border border-current opacity-80 uppercase">
+                  {err.step}
+                </span>
+                <span>{err.error}</span>
+                {err.timestamp && (
+                  <span className="text-[10px] opacity-60">
+                    · {err.timestamp}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={clearErrors}
+                className="opacity-70 hover:opacity-100 text-[11px] underline cursor-pointer ml-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <PipelineKpis jobs={jobs} counts={counts} />
 
       {/* Aggregate Throughput Banner */}
-      <div className="bg-surface-subtle border border-border rounded-lg p-5 flex items-center justify-between">
-        <div>
-          <div className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">
-            Aggregate Engine Throughput
-          </div>
-          <div className="text-2xl font-bold text-text mt-1">
-            {formatNumber(totalThroughput)}
-            <span className="text-sm font-normal text-text-secondary ml-1.5">
-              records / sec
-            </span>
-          </div>
-          <div className="text-xs text-text-secondary mt-0.5">
-            Summed across {counts.RUNNING} active pipeline
-            {counts.RUNNING === 1 ? "" : "s"}
-          </div>
-        </div>
-        <ThroughputGauge value={totalThroughput} max={100_000} />
-      </div>
+      <PipelineThroughputBanner
+        totalThroughput={totalThroughput}
+        runningCount={counts.RUNNING}
+      />
 
       {/* Status Filter MultiSelect & Pills */}
       <PipelineFilterToolbar
@@ -189,11 +206,40 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
       />
 
       {/* Jobs list */}
-      <PipelineJobsList
-        jobs={filtered}
-        filter={filter}
-        onSelectRun={handleOpenJobDetail}
-      />
+      {filtered.length === 0 ? (
+        <div className="bg-surface border border-border rounded-lg p-12 text-center text-xs text-text-secondary">
+          {filter === "ALL" ? (
+            <div className="flex flex-col items-center gap-3">
+              <span className="font-semibold text-text">
+                No pipeline runs yet
+              </span>
+              <p className="text-text-secondary">
+                Connect a data source to begin running pipelines and observing
+                live execution telemetry.
+              </p>
+              <Link
+                to="/connections"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover border border-primary text-primary-text font-semibold text-xs shadow-xs"
+              >
+                <span>Create a connection</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          ) : (
+            `No runs matching "${filter}"`
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {filtered.map((job) => (
+            <PipelineJobCard
+              key={job.id}
+              job={job}
+              onSelectRun={handleOpenJobDetail}
+            />
+          ))}
+        </div>
+      )}
 
       {selectedRun && (
         <RunDetailDrawer

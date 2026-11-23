@@ -10,11 +10,15 @@ import { EntityDetailDrawer } from "../../features/explorer/components/EntityDet
 import { FacetFilterSidebar } from "../../features/explorer/components/FacetFilterSidebar";
 import { Icons, ICON_SIZES } from "../../lib/icons";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { ExplorerToolbar } from "./components";
+import {
+  ExplorerToolbar,
+  ExplorerLoadingState,
+  ExplorerErrorState,
+} from "./components";
 import { ExplorerHeaderActions } from "./components/ExplorerHeaderActions";
-import { ExplorerInsightStrip } from "./components/ExplorerInsightStrip";
-import { ExplorerMobileFiltersDrawer } from "./components/ExplorerMobileFiltersDrawer";
-import { ExplorerResultsContent } from "./components/ExplorerResultsContent";
+import { ExplorerInsightsStrip } from "./components/ExplorerInsightsStrip";
+import { ExplorerMobileDrawer } from "./components/ExplorerMobileDrawer";
+import { ExplorerResultsPane } from "./components/ExplorerResultsPane";
 import { useExplorerSearch } from "./hooks";
 import { DEFAULT_PAGE_SIZE, PRIVACY_STORAGE_KEY } from "./constants";
 import type { SearchResultItem, ViewMode } from "./types";
@@ -23,14 +27,46 @@ import { formatRelativeTime } from "./utils";
 function readInitialPrivacyMask(): boolean {
   if (typeof window === "undefined") return true;
   try {
-    return window.localStorage.getItem(PRIVACY_STORAGE_KEY) !== "false";
+    const stored = window.localStorage.getItem(PRIVACY_STORAGE_KEY);
+    if (stored === "false") return false;
+    return true;
   } catch {
     return true;
   }
 }
 
 export const ExplorerPage: React.FC = () => {
-  const search = useExplorerSearch({
+  const {
+    inputValue,
+    setInputValue,
+    parsedFilters,
+    removeFilterChip,
+    selectedTypes,
+    setSelectedTypes,
+    sortOption,
+    setSortOption,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    ontologyTypes,
+    searchData,
+    facets,
+    facetGroups,
+    loading,
+    error,
+    errorDetails,
+    suggestions,
+    isExporting,
+    mostRecentUpdate,
+    activeTypeCount,
+    hasConfidenceData,
+    handleExportCsv,
+    retrySearch,
+    handleSearchSubmit,
+    handleSelectSuggestion,
+    clearAllFilters,
+  } = useExplorerSearch({
     initialPageSize: DEFAULT_PAGE_SIZE,
     debounceMs: 250,
   });
@@ -74,14 +110,14 @@ export const ExplorerPage: React.FC = () => {
     }
   }, []);
 
-  const { searchData, activeTypeCount, mostRecentUpdate } = search;
-
   const headerSummaryBadge = useMemo(() => {
     if (!searchData) return undefined;
     const parts: string[] = [];
     if (typeof searchData.totalElements === "number") {
       parts.push(
-        `${searchData.totalElements.toLocaleString()} ${searchData.totalElements === 1 ? "entity" : "entities"}`,
+        `${searchData.totalElements.toLocaleString()} ${
+          searchData.totalElements === 1 ? "entity" : "entities"
+        }`,
       );
     }
     if (activeTypeCount > 0) {
@@ -90,18 +126,16 @@ export const ExplorerPage: React.FC = () => {
       );
     }
     const relTime = formatRelativeTime(mostRecentUpdate);
-    if (relTime) {
-      parts.push(`updated ${relTime}`);
-    }
+    if (relTime) parts.push(`updated ${relTime}`);
     if (parts.length === 0) return undefined;
     return { label: parts.join(" · "), variant: "zinc" as const };
   }, [searchData, activeTypeCount, mostRecentUpdate]);
 
   const filteredRecordCount = searchData?.totalElements ?? 0;
   const hasActiveFilters =
-    search.selectedTypes.length > 0 ||
-    search.parsedFilters.length > 0 ||
-    search.inputValue.trim().length > 0;
+    selectedTypes.length > 0 ||
+    parsedFilters.length > 0 ||
+    inputValue.trim().length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -123,87 +157,98 @@ export const ExplorerPage: React.FC = () => {
         actions={
           <ExplorerHeaderActions
             maskSensitiveData={maskSensitiveData}
-            onTogglePrivacyMask={() => setMaskSensitiveData((prev) => !prev)}
+            onToggleMask={() => setMaskSensitiveData((prev) => !prev)}
+            isExporting={isExporting}
             filteredRecordCount={filteredRecordCount}
-            isExporting={search.isExporting}
-            onExportCsv={() => void search.handleExportCsv()}
+            onExportCsv={() => void handleExportCsv()}
           />
         }
       />
 
       <SearchBar
-        query={search.inputValue}
-        onChange={search.setInputValue}
-        onSearch={search.handleSearchSubmit}
-        parsedFilters={search.parsedFilters}
-        onRemoveFilter={search.removeFilterChip}
-        suggestions={search.suggestions}
-        onSelectSuggestion={search.handleSelectSuggestion}
+        query={inputValue}
+        onChange={setInputValue}
+        onSearch={handleSearchSubmit}
+        parsedFilters={parsedFilters}
+        onRemoveFilter={removeFilterChip}
+        suggestions={suggestions}
+        onSelectSuggestion={handleSelectSuggestion}
       />
 
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         <div className="hidden lg:block shrink-0">
           <FacetFilterSidebar
-            selectedTypes={search.selectedTypes}
-            onChange={search.setSelectedTypes}
-            facets={search.facets}
-            facetGroups={search.facetGroups}
-            ontologyTypes={search.ontologyTypes}
+            selectedTypes={selectedTypes}
+            onChange={setSelectedTypes}
+            facets={facets}
+            facetGroups={facetGroups}
+            ontologyTypes={ontologyTypes}
           />
         </div>
 
-        <ExplorerMobileFiltersDrawer
-          open={mobileFiltersOpen}
+        <ExplorerMobileDrawer
+          isOpen={mobileFiltersOpen}
           onClose={() => setMobileFiltersOpen(false)}
-          selectedTypes={search.selectedTypes}
-          onChangeTypes={search.setSelectedTypes}
-          facets={search.facets}
-          facetGroups={search.facetGroups}
-          ontologyTypes={search.ontologyTypes}
+          selectedTypes={selectedTypes}
+          onSelectedTypesChange={setSelectedTypes}
+          facets={facets}
+          facetGroups={facetGroups}
+          ontologyTypes={ontologyTypes}
         />
 
         <div className="flex-1 min-w-0 w-full flex flex-col gap-4">
-          <ExplorerInsightStrip
+          <ExplorerInsightsStrip
             insights={searchData?.insights}
-            onSelectInsight={search.setInputValue}
+            onSelectInsight={(term) => setInputValue(term)}
           />
 
           <ExplorerToolbar
             totalElements={filteredRecordCount}
-            currentPage={search.page}
-            pageSize={search.pageSize}
-            onPageSizeChange={search.setPageSize}
-            sortOption={search.sortOption}
-            onSortChange={search.setSortOption}
-            hasConfidenceData={search.hasConfidenceData}
+            currentPage={page}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            sortOption={sortOption}
+            onSortChange={setSortOption}
+            hasConfidenceData={hasConfidenceData}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
-            activeFilterCount={search.selectedTypes.length}
+            activeFilterCount={selectedTypes.length}
             onOpenMobileFilters={() => setMobileFiltersOpen(true)}
           />
 
-          <ExplorerResultsContent
-            loading={search.loading}
-            error={search.error}
-            errorDetails={search.errorDetails}
-            searchData={searchData}
-            viewMode={viewMode}
-            inputValue={search.inputValue}
-            hasActiveFilters={hasActiveFilters}
-            ontologyTypes={search.ontologyTypes}
-            maskSensitiveData={maskSensitiveData}
-            page={search.page}
-            onRetry={search.retrySearch}
-            onClearFilters={search.clearAllFilters}
-            onSelectEntity={handleOpenEntity}
-            onPageChange={search.setPage}
-          />
+          {loading && !searchData && (
+            <ExplorerLoadingState viewMode={viewMode} count={6} />
+          )}
+
+          {error && (
+            <ExplorerErrorState
+              error={error}
+              details={errorDetails}
+              onRetry={retrySearch}
+            />
+          )}
+
+          {!error && searchData && (
+            <ExplorerResultsPane
+              searchData={searchData}
+              loading={loading}
+              viewMode={viewMode}
+              query={inputValue}
+              hasActiveFilters={hasActiveFilters}
+              page={page}
+              ontologyTypes={ontologyTypes}
+              maskSensitiveData={maskSensitiveData}
+              onClearFilters={clearAllFilters}
+              onOpenEntity={handleOpenEntity}
+              onPageChange={setPage}
+            />
+          )}
         </div>
       </div>
 
       <EntityDetailDrawer
         entity={selectedEntity}
-        ontologyTypes={search.ontologyTypes}
+        ontologyTypes={ontologyTypes}
         maskSensitiveData={maskSensitiveData}
         onClose={handleCloseEntity}
       />

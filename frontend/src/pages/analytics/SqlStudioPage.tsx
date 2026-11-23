@@ -16,9 +16,9 @@ import {
   createSavedQuery,
 } from "../../features/datasets/datasetApi";
 import type { SqlQueryResult, SavedQuery } from "../../features/datasets/types";
-import { SqlResultsTable } from "./components/SqlResultsTable";
-import { SqlSidePanel } from "./components/SqlSidePanel";
 import { SaveQueryModal } from "./components/SaveQueryModal";
+import { SqlResultsTable } from "./components/SqlResultsTable";
+import { SavedQueriesPanel } from "./components/SavedQueriesPanel";
 
 const SAMPLE_QUERY = `-- Analytical query over in-memory datasets
 SELECT 
@@ -74,8 +74,6 @@ export const SqlStudioPage: React.FC = () => {
     }
   };
 
-  const queryResult = sqlMutation.data;
-
   return (
     <div className="flex flex-col gap-6 pb-8">
       <PageHeader
@@ -108,9 +106,7 @@ export const SqlStudioPage: React.FC = () => {
         }
       />
 
-      {/* Editor & Side Panel Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* SQL Editor Area */}
         <div className="lg:col-span-3 flex flex-col gap-4">
           <div className="rounded-xl border border-border bg-surface overflow-hidden flex flex-col shadow-xs">
             <div className="p-3 bg-surface-subtle border-b border-border flex items-center justify-between">
@@ -142,29 +138,28 @@ export const SqlStudioPage: React.FC = () => {
             </div>
           )}
 
-          {queryResult && <SqlResultsTable queryResult={queryResult} />}
+          <SqlResultsTable queryResult={sqlMutation.data ?? null} />
         </div>
 
-        <SqlSidePanel
+        <SavedQueriesPanel
           savedQueries={savedQueries}
-          onSelectQuery={setQueryText}
+          onSelectQuery={(sql) => setQueryText(sql)}
         />
       </div>
 
-      {showSaveModal && (
-        <SaveQueryModal
-          queryName={saveQueryName}
-          onQueryNameChange={setSaveQueryName}
-          isSaving={saveMutation.isPending}
-          onCancel={() => setShowSaveModal(false)}
-          onSave={() =>
-            saveMutation.mutate({
-              name: saveQueryName,
-              sqlText: queryText,
-            })
-          }
-        />
-      )}
+      <SaveQueryModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        queryName={saveQueryName}
+        setQueryName={setSaveQueryName}
+        onSave={() =>
+          saveMutation.mutate({
+            name: saveQueryName,
+            sqlText: queryText,
+          })
+        }
+        isSaving={saveMutation.isPending}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BodyPortal } from "../../../components/ui/BodyPortal";
 import { Link } from "@tanstack/react-router";
 import {
@@ -8,15 +8,18 @@ import {
   Clock,
   AlertCircle,
 } from "../../../lib/icons";
+import { apiFetch } from "../../../lib/api";
 import type { EntityType } from "../../ontology/types";
 import { getEntityColor } from "../../../lib/entityColors";
 import { useThemeStore } from "../../../stores/themeStore";
-import type { SearchResultItem } from "../../../pages/explorer/types";
+import type {
+  EntityDetail,
+  SearchResultItem,
+} from "../../../pages/explorer/types";
 import { formatShortDate } from "../../../pages/explorer/utils";
 import { EntityPropertiesSection } from "./EntityPropertiesSection";
 import { EntityProvenanceSection } from "./EntityProvenanceSection";
 import { EntityDrawerHeader } from "./EntityDrawerHeader";
-import { useEntityDetailDrawer } from "./useEntityDetailDrawer";
 
 interface EntityDetailDrawerProps {
   entity: SearchResultItem | null;
@@ -31,15 +34,80 @@ export const EntityDetailDrawer: React.FC<EntityDetailDrawerProps> = ({
   maskSensitiveData,
   onClose,
 }) => {
+  const isOpen = entity !== null;
   const isDark = useThemeStore((s) => s.isDark);
-  const {
-    closeBtnRef,
-    detail,
-    loading,
-    loadError,
-    localReveal,
-    toggleLocalReveal,
-  } = useEntityDetailDrawer(entity?.id, onClose);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  const [detail, setDetail] = useState<EntityDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [localReveal, setLocalReveal] = useState(false);
+
+  useEffect(() => {
+    setLocalReveal(false);
+  }, [entity?.id]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const id = window.requestAnimationFrame(() => {
+        closeBtnRef.current?.focus();
+      });
+      return () => window.cancelAnimationFrame(id);
+    }
+  }, [isOpen, entity?.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!entity?.id) {
+      setDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchDetail = async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const res = await apiFetch(`/api/v1/explorer/entities/${entity.id}`, {
+          headers: { "X-Suppress-Toast": "true" },
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as EntityDetail;
+        if (!cancelled) {
+          setDetail(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(
+            err instanceof Error ? err.message : "Failed to load details",
+          );
+          setDetail(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void fetchDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [entity?.id]);
 
   if (!entity) return null;
 
@@ -93,14 +161,14 @@ export const EntityDetailDrawer: React.FC<EntityDetailDrawerProps> = ({
         className="fixed top-0 right-0 z-[9991] h-full w-full max-w-lg bg-surface border-l border-border shadow-2xl flex flex-col"
       >
         <EntityDrawerHeader
-          title={detail?.canonicalName || entity.canonicalName}
           activeEntityType={activeEntityType}
-          typeLabel={typeLabel}
           typeColor={typeColor}
+          typeLabel={typeLabel}
+          canonicalName={detail?.canonicalName || entity.canonicalName}
           confidencePct={confidencePct}
           sourceCount={sourceCount}
-          closeBtnRef={closeBtnRef}
           onClose={onClose}
+          closeBtnRef={closeBtnRef}
         />
 
         {/* Scrollable Body */}
@@ -145,7 +213,7 @@ export const EntityDetailDrawer: React.FC<EntityDetailDrawerProps> = ({
             properties={properties}
             maskSensitiveData={maskSensitiveData}
             localReveal={localReveal}
-            onToggleReveal={toggleLocalReveal}
+            onToggleReveal={() => setLocalReveal((v) => !v)}
           />
 
           <EntityProvenanceSection

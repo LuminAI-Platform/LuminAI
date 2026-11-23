@@ -1,12 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import cytoscape, { type Core, type EventObject } from "cytoscape";
 import { useThemeStore } from "../../../stores/themeStore";
-import {
-  buildCytoscapeElements,
-  buildCytoscapeStyles,
-  fitGraphNicely,
-  runCytoscapeLayout,
-} from "./graphCanvasUtils";
+import { getEntityColor } from "../../../lib/entityColors";
+import { buildCytoscapeStyles } from "./graphCanvasStyles";
 
 export interface GraphNodeData {
   id: string;
@@ -41,10 +37,16 @@ interface GraphCanvasProps {
   onInitCy?: (cy: Core | null) => void;
 }
 
-/**
- * Cytoscape.js graph canvas with ResizeObserver-backed sizing, theme token styling,
- * isolated-node support, and automatic fit-to-view after layout completion.
- */
+function fitGraphNicely(cy: Core) {
+  if (cy.nodes().length === 0) return;
+  cy.resize();
+  cy.fit(undefined, 56);
+  if (cy.nodes().length <= 2 && cy.zoom() > 1.25) {
+    cy.zoom(1.25);
+    cy.center();
+  }
+}
+
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   elements,
   layoutType = "cose",
@@ -72,7 +74,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     onInitCyRef.current = onInitCy;
   }, [onSelectNode, onExpandNode, onInitCy]);
 
-  // Track container dimensions via ResizeObserver so layout never runs on a 0x0 canvas
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -114,7 +115,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const hasValidSize = containerSize.width > 0 && containerSize.height > 0;
   const hasNodes = elements.nodes.length > 0;
 
-  // Initialize Cytoscape and run layout only after BOTH data and container size are known
   useEffect(() => {
     if (!containerRef.current || !hasValidSize || !hasNodes) {
       if (cyRef.current) {
@@ -125,7 +125,32 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       return;
     }
 
-    const cyElements = buildCytoscapeElements(elements, isDark);
+    const visibleNodeIds = new Set(elements.nodes.map((n) => n.data.id));
+
+    const cyElements = [
+      ...elements.nodes.map((n) => ({
+        group: "nodes" as const,
+        data: {
+          ...n.data,
+          label: n.data.label || n.data.id,
+          color: n.data.color || getEntityColor(n.data.entityType, isDark),
+        },
+      })),
+      ...elements.edges
+        .filter(
+          (e) =>
+            visibleNodeIds.has(e.data.source) &&
+            visibleNodeIds.has(e.data.target),
+        )
+        .map((e) => ({
+          group: "edges" as const,
+          data: {
+            ...e.data,
+            label: e.data.label || e.data.relationshipType || "",
+          },
+        })),
+    ];
+
     const effectiveLayout = elements.nodes.length === 1 ? "preset" : layoutType;
 
     const cy = cytoscape({
@@ -136,20 +161,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       minZoom: 0.2,
       maxZoom: 3,
       style: buildCytoscapeStyles(isDark),
-      layout: { name: "preset" },
+      layout: {
+        name: effectiveLayout,
+        animate: false,
+        padding: 56,
+      } as cytoscape.LayoutOptions,
     });
 
     cyRef.current = cy;
     if (onInitCyRef.current) onInitCyRef.current(cy);
 
-    runCytoscapeLayout(cy, effectiveLayout);
-
     cy.on("tap", "node", (evt: EventObject) => {
-      onSelectNodeRef.current(evt.target.data());
-    });
-
-    cy.on("dbltap", "node", (evt: EventObject) => {
-      onExpandNodeRef.current(evt.target.id());
+      const nodeData = evt.target.data() as GraphNodeData;
+      onSelectNodeRef.current(nodeData);
     });
 
     cy.on("tap", (evt: EventObject) => {
@@ -158,6 +182,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       }
     });
 
+    cy.on("dbltap", "node", (evt: EventObject) => {
+      const nodeData = evt.target.data() as GraphNodeData;
+      onExpandNodeRef.current(nodeData.id);
+    });
+
+    fitGraphNicely(cy);
+
     return () => {
       cy.destroy();
       cyRef.current = null;
@@ -165,37 +196,23 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     };
   }, [elements, layoutType, isDark, hasValidSize, hasNodes]);
 
-  // Update selection dynamically without rebuilding the entire graph
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-
     cy.nodes().unselect();
     if (selectedNodeId) {
-      const node = cy.$id(selectedNodeId);
-      if (node.length > 0) {
-        node.select();
+      const selected = cy.$id(selectedNodeId);
+      if (selected.length > 0) {
+        selected.select();
       }
     }
   }, [selectedNodeId]);
 
   return (
-    <div className="relative w-full h-full min-h-[520px] bg-surface rounded-lg overflow-hidden border border-border">
-      {/* Subtle background dot grid */}
-      <div
-        className="absolute inset-0 bg-grid-dots opacity-30 pointer-events-none"
-        aria-hidden="true"
-      />
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={
-          hasNodes
-            ? `Knowledge graph canvas showing ${elements.nodes.length} nodes and ${elements.edges.length} edges`
-            : "Knowledge graph canvas"
-        }
-        className="w-full h-full min-h-[520px] cursor-grab active:cursor-grabbing"
-      />
-    </div>
+    <div
+      ref={containerRef}
+      className="w-full h-full relative overflow-hidden bg-surface"
+      style={{ minHeight: "100%" }}
+    />
   );
 };

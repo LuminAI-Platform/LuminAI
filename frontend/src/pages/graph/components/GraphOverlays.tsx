@@ -1,21 +1,14 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Icons,
-  AlertCircle,
-  Loader2,
-  RefreshCw,
-  Database,
-  Info,
-} from "../../../lib/icons";
+import { Icons, Loader2, Database, Info } from "../../../lib/icons";
 import { Button } from "../../../components/ui/Button";
 import type {
   GraphErrorInfo,
   GraphViewState,
   SuggestedEntity,
-} from "../useGraphData";
+} from "../graphDataUtils";
+import { GraphErrorOverlay } from "./GraphErrorOverlay";
 import { GraphIdleOverlay } from "./GraphIdleOverlay";
-export { GraphNodeListPanel } from "./GraphNodeListPanel";
 
 export interface GraphOverlaysProps {
   viewState: GraphViewState;
@@ -29,10 +22,6 @@ export interface GraphOverlaysProps {
   onFocusSearch?: () => void;
 }
 
-/**
- * Renders every explicit graph canvas state so the canvas is never silently blank.
- * Uses theme tokens exclusively so both light and dark modes meet contrast standards.
- */
 export const GraphOverlays: React.FC<GraphOverlaysProps> = ({
   viewState,
   activeEntityId,
@@ -64,56 +53,12 @@ export const GraphOverlays: React.FC<GraphOverlaysProps> = ({
 
   if (viewState === "error") {
     return (
-      <div
-        role="alert"
-        className="absolute inset-0 z-15 flex flex-col items-center justify-center rounded-lg overflow-y-auto bg-surface/90 backdrop-blur-xs text-center px-6 pt-16 pb-6"
-      >
-        <div className="w-12 h-12 rounded-lg bg-error-bg border border-error-border flex items-center justify-center text-error mb-3 shrink-0">
-          <AlertCircle className="w-6 h-6" aria-hidden="true" />
-        </div>
-        <h3 className="text-sm font-semibold text-text">
-          Couldn&apos;t load the graph
-        </h3>
-        <p className="text-xs text-text-secondary max-w-md mt-1 mb-4 leading-relaxed">
-          The graph service did not return a valid response. Check your
-          connection or try again.
-        </p>
-
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={onRetry}
-            leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
-          >
-            Retry
-          </Button>
-          {activeEntityId && (
-            <Button size="sm" variant="secondary" onClick={onClearEntity}>
-              Choose another entity
-            </Button>
-          )}
-        </div>
-
-        <details className="w-full max-w-md text-left bg-surface-subtle border border-border rounded-lg px-3 py-2 text-xs text-text-secondary">
-          <summary className="cursor-pointer font-medium text-text select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
-            Technical details
-          </summary>
-          <div className="mt-2 pt-2 border-t border-border-subtle space-y-1 font-mono text-[11px]">
-            <div>
-              Status:{" "}
-              <span className="text-text font-semibold">
-                {errorInfo?.statusCode ?? "Network error"}
-              </span>
-            </div>
-            {errorInfo?.message && (
-              <div className="break-words text-text-secondary">
-                {errorInfo.message}
-              </div>
-            )}
-          </div>
-        </details>
-      </div>
+      <GraphErrorOverlay
+        errorInfo={errorInfo}
+        activeEntityId={activeEntityId}
+        onRetry={onRetry}
+        onClearEntity={onClearEntity}
+      />
     );
   }
 
@@ -190,11 +135,10 @@ export const GraphOverlays: React.FC<GraphOverlaysProps> = ({
             ingestion.
           </span>
         </div>
-        <Link
-          to="/connections"
-          className="text-xs font-semibold text-primary hover:underline shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-        >
-          Data Connections
+        <Link to="/connections">
+          <Button size="sm" variant="secondary">
+            Data Connections
+          </Button>
         </Link>
       </div>
     );
@@ -202,3 +146,5 @@ export const GraphOverlays: React.FC<GraphOverlaysProps> = ({
 
   return null;
 };
+
+export { GraphNodeListPanel } from "./GraphNodeListPanel";

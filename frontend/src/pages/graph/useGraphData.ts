@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Core } from "cytoscape";
+import { apiFetch } from "../../lib/api";
 import type {
   GraphElements,
   GraphNodeData,
@@ -19,8 +20,7 @@ import {
   deriveGraphViewState,
   getSearchParamEntityId,
 } from "./graphDataUtils";
-import { fetchCatalogSummary, fetchGraphNeighbourhood } from "./graphApi";
-import { useGraphViewportControls } from "./useGraphViewportControls";
+import { useGraphViewport } from "./useGraphViewport";
 
 export {
   type GraphResponse,
@@ -61,7 +61,48 @@ export function useGraphData() {
     refetch: refetchCatalog,
   } = useQuery<CatalogSummary>({
     queryKey: ["graph", "catalogSuggestions"],
-    queryFn: fetchCatalogSummary,
+    queryFn: async () => {
+      const res = await apiFetch("/api/v1/explorer/search?size=5", {
+        headers: { "X-Suppress-Toast": "true" },
+      });
+      const data = await res.json();
+      const rawItems = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.content)
+          ? data.content
+          : Array.isArray(data?.results)
+            ? data.results
+            : [];
+
+      const items: SuggestedEntity[] = rawItems
+        .slice(0, 5)
+        .filter((item: Record<string, unknown>) => Boolean(item?.id))
+        .map((item: Record<string, unknown>) => ({
+          id: String(item.id),
+          canonicalName: String(
+            item.canonicalName || item.label || item.name || item.id,
+          ),
+          entityType: String(item.entityType || "Entity"),
+        }));
+
+      const total =
+        typeof data?.total === "number"
+          ? data.total
+          : typeof data?.totalResults === "number"
+            ? data.totalResults
+            : items.length;
+
+      const facetTypes =
+        data?.facets?.entityType && typeof data.facets.entityType === "object"
+          ? Object.keys(data.facets.entityType)
+          : data?.facets && typeof data.facets === "object"
+            ? Object.keys(data.facets).filter(
+                (k) => typeof data.facets[k] === "number",
+              )
+            : [];
+
+      return { items, total, entityTypes: facetTypes };
+    },
     staleTime: 60000,
     retry: false,
   });
@@ -76,8 +117,37 @@ export function useGraphData() {
     refetch: refetchGraph,
   } = useQuery<GraphResponse>({
     queryKey: ["graph", "data", activeEntityId, depth, selectedRelFilter],
-    queryFn: () =>
-      fetchGraphNeighbourhood(activeEntityId, depth, selectedRelFilter),
+    queryFn: async () => {
+      let url = activeEntityId
+        ? `/api/v1/graph/neighbourhood?entityId=${encodeURIComponent(activeEntityId)}&depth=${depth}`
+        : `/api/v1/graph/overview`;
+      if (selectedRelFilter) {
+        url +=
+          (url.includes("?") ? "&" : "?") +
+          `relationshipType=${encodeURIComponent(selectedRelFilter)}`;
+      }
+      const res = await apiFetch(url, {
+        headers: { "X-Suppress-Toast": "true" },
+      });
+      const payload = await res.json();
+      return {
+        nodes: Array.isArray(payload?.nodes) ? payload.nodes : [],
+        edges: Array.isArray(payload?.edges) ? payload.edges : [],
+        centerNodeId: payload?.centerNodeId,
+        totalNodes:
+          typeof payload?.totalNodes === "number"
+            ? payload.totalNodes
+            : Array.isArray(payload?.nodes)
+              ? payload.nodes.length
+              : 0,
+        totalEdges:
+          typeof payload?.totalEdges === "number"
+            ? payload.totalEdges
+            : Array.isArray(payload?.edges)
+              ? payload.edges.length
+              : 0,
+      };
+    },
     enabled: Boolean(activeEntityId),
     retry: false,
   });
@@ -162,11 +232,7 @@ export function useGraphData() {
     return refetchCatalog();
   }, [activeEntityId, refetchGraph, refetchCatalog]);
 
-  const viewportControls = useGraphViewportControls(
-    cyRef,
-    layoutType,
-    setSelectedNode,
-  );
+  const viewportHandlers = useGraphViewport(cyRef, layoutType, setSelectedNode);
 
   return {
     selectedEntityId,
@@ -198,6 +264,6 @@ export function useGraphData() {
     filteredElements,
     availableEntityTypes,
     availableRelTypes,
-    ...viewportControls,
+    ...viewportHandlers,
   };
 }

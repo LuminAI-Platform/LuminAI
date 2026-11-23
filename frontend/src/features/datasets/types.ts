@@ -1,5 +1,6 @@
 export type DatasetLayer =
   | "RAW"
+  | "WORKING"
   | "PREPARED"
   | "CURATED"
   | "ANALYTICAL"
@@ -7,11 +8,14 @@ export type DatasetLayer =
 
 export type ProjectType =
   | "SOURCE"
-  | "DATA_PREP"
-  | "TRANSFORM"
+  | "PREPARATION"
+  | "TRANSFORMATION"
   | "SEMANTIC"
   | "ANALYTICS"
   | "DATA_SCIENCE"
+  | "WORKFLOW"
+  | "DATA_PREP"
+  | "TRANSFORM"
   | "OPERATIONAL";
 
 export type DatasetStatus = "ACTIVE" | "ARCHIVED" | "DEPRECATED";
@@ -86,14 +90,6 @@ export interface SqlColumnInfo {
   data_type?: string;
 }
 
-export interface MlTrainOutcome {
-  run_id: string;
-  model_name: string;
-  metrics: Record<string, number>;
-  feature_importances?: Array<{ feature: string; importance: number }>;
-  status?: string;
-}
-
 export interface SqlQueryResult {
   columns: SqlColumnInfo[];
   rows: Record<string, unknown>[];
@@ -103,6 +99,64 @@ export interface SqlQueryResult {
   query: string;
 }
 
+export interface CleaningStepConfig {
+  operation: string;
+  targetColumns: string[];
+  parameters?: Record<string, unknown>;
+}
+
+export interface CleaningRecipePayload {
+  datasetId: string;
+  recipeName?: string;
+  steps: CleaningStepConfig[];
+  targetLayer?: DatasetLayer;
+}
+
+export interface CleaningExecutionResult {
+  status: string;
+  datasetId: string;
+  datasetName: string;
+  layer: DatasetLayer;
+  version: number;
+  rowsProcessed: number;
+  stepsApplied: number;
+}
+
+export interface PipelineExecutionPayload {
+  pipelineId?: string;
+  sourceDatasetId: string;
+  steps: Array<{
+    stepId: string;
+    stepType: string;
+    config?: Record<string, unknown>;
+  }>;
+}
+
+export interface PipelineExecutionResult {
+  pipelineRunId: string;
+  status: string;
+  sourceDatasetId: string;
+  targetDatasetId?: string;
+  recordsTransformed?: number;
+}
+
+export interface EdaReportResult {
+  datasetId: string;
+  totalRows: number;
+  columnCount: number;
+  columns?: Record<string, unknown>;
+  qualityScore?: number;
+  issues?: Array<Record<string, unknown>>;
+}
+
+export interface MlTrainOutcome {
+  run_id: string;
+  model_name: string;
+  metrics: Record<string, number>;
+  feature_importances?: Array<{ feature: string; importance: number }>;
+  status?: string;
+}
+
 export interface MlExperiment {
   runId: string;
   modelName: string;
@@ -110,17 +164,7 @@ export interface MlExperiment {
   taskType: "CLASSIFICATION" | "REGRESSION";
   datasetName: string;
   datasetVersion: number;
-  metrics: {
-    accuracy?: number;
-    precision?: number;
-    recall?: number;
-    f1_score?: number;
-    roc_auc?: number;
-    r2_score?: number;
-    rmse?: number;
-    mae?: number;
-    mse?: number;
-  };
+  metrics: Record<string, number | undefined>;
   featureImportances?: Array<{ feature: string; importance: number }>;
   createdAt: string;
 }
@@ -129,7 +173,7 @@ export interface MlModelRegistryItem {
   modelId: string;
   name: string;
   version: number;
-  status: "CHAMPION" | "CHALLENGER" | "ARCHIVED";
+  status: "CHAMPION" | "CHALLENGER" | "ARCHIVED" | "RETIRED";
   algorithm: string;
   taskType: string;
   description?: string;

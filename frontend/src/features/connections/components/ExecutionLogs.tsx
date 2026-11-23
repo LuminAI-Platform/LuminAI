@@ -13,11 +13,7 @@ import {
 import { ErrorBlock } from "./execution-logs/ErrorBlock";
 import { LogFilterToolbar } from "./execution-logs/LogFilterToolbar";
 import { LogConsole } from "./execution-logs/LogConsole";
-import {
-  computeLevelCounts,
-  filterLogEntries,
-} from "./execution-logs/executionLogParser";
-import { useExecutionLogsData } from "./execution-logs/useExecutionLogsData";
+import { useExecutionLogStream } from "./execution-logs/useExecutionLogStream";
 import { ExecutionLogsHeader } from "./execution-logs/ExecutionLogsHeader";
 
 export type { LogLevel, LogEntry, ExecutionError };
@@ -44,49 +40,75 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
   hasActiveRun: controlledHasActiveRun,
   onOpenRunDetail,
 }) => {
+  const [internalErrors, setErrors] = useState<ExecutionError[]>([]);
   const [filter, setFilter] = useState<LogLevel | "ALL">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [isFollowing, setIsFollowing] = useState(true);
   const [paused, setPaused] = useState(false);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const isControlled = controlledEntries !== undefined;
+
   const {
-    logs,
-    errors,
-    isConnected,
-    hasActiveRun,
-    liveAnnouncement,
-    clearLogs,
-    handleReconnect,
-    dismissError,
-    getCachedRun,
-  } = useExecutionLogsData({
-    controlledEntries,
-    controlledErrors,
-    controlledConnected,
-    controlledHasActiveRun,
+    internalLogs,
+    internalHasActiveRun,
+    sseConnected,
+    sseReconnect,
+    runsByIdRef,
+    fetchBackendLogs,
+    clearInternalLogs,
+  } = useExecutionLogStream({
     maxLines,
+    isControlled,
     paused,
+    onLiveAnnouncement: setLiveAnnouncement,
   });
 
-  // Always sort by full timestamp ascending (newest at bottom)
+  const logs = controlledEntries ?? internalLogs;
+  const errors = controlledErrors ?? internalErrors;
+  const isConnected = controlledConnected ?? sseConnected;
+  const hasActiveRun = controlledHasActiveRun ?? internalHasActiveRun;
+
   const sortedLogs = useMemo(
     () => [...logs].sort((a, b) => a.ts.getTime() - b.ts.getTime()),
     [logs],
   );
 
-  const levelCounts = useMemo(
-    () => computeLevelCounts(sortedLogs),
-    [sortedLogs],
-  );
+  const levelCounts = useMemo<Record<LogLevel | "ALL", number>>(() => {
+    const counts: Record<LogLevel | "ALL", number> = {
+      ALL: sortedLogs.length,
+      INFO: 0,
+      SUCCESS: 0,
+      WARN: 0,
+      ERROR: 0,
+      DEBUG: 0,
+    };
+    sortedLogs.forEach((l) => {
+      counts[l.level] = (counts[l.level] ?? 0) + 1;
+    });
+    return counts;
+  }, [sortedLogs]);
 
-  const displayedLogs = useMemo(
-    () => filterLogEntries(sortedLogs, filter, searchTerm),
-    [sortedLogs, filter, searchTerm],
-  );
+  const displayedLogs = useMemo(() => {
+    let result = sortedLogs;
+    if (filter !== "ALL") {
+      result = result.filter((l) => l.level === filter);
+    }
+    if (searchTerm.trim()) {
+      const lower = searchTerm.trim().toLowerCase();
+      result = result.filter(
+        (l) =>
+          l.message.toLowerCase().includes(lower) ||
+          l.source.toLowerCase().includes(lower) ||
+          (l.runId ? l.runId.toLowerCase().includes(lower) : false),
+      );
+    }
+    return result;
+  }, [sortedLogs, filter, searchTerm]);
 
   useEffect(() => {
     if (isFollowing && !paused && scrollRef.current) {
@@ -121,15 +143,23 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
   };
 
   const handleConfirmClear = () => {
-    clearLogs();
+    clearInternalLogs(logs);
     setConfirmClearOpen(false);
   };
 
   const handleOpenRunId = (runId: string, triggerEl: HTMLElement | null) => {
     if (!onOpenRunDetail) return;
-    const cached = getCachedRun(runId);
+    const cached = runsByIdRef.current[runId];
     onOpenRunDetail(cached ?? runId, triggerEl);
   };
+
+  const handleReconnect = () => {
+    sseReconnect();
+    fetchBackendLogs();
+  };
+
+  const dismissError = (id: string) =>
+    setErrors((prev) => prev.filter((e) => e.id !== id));
 
   const streamState = resolveStreamStatus({
     isConnected,
@@ -143,7 +173,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
       className="flex flex-col bg-surface border border-border rounded-lg overflow-hidden shadow-sm"
       data-testid="execution-logs"
     >
-      {/* ARIA live region for run completion announcements */}
       <div
         role="status"
         aria-live="polite"
@@ -153,7 +182,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         {liveAnnouncement}
       </div>
 
-      {/* Panel header */}
       <ExecutionLogsHeader
         title={title}
         entryCount={sortedLogs.length}
@@ -165,7 +193,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         canClear={logs.length > 0}
       />
 
-      {/* Filter toolbar */}
       <LogFilterToolbar
         filter={filter}
         setFilter={setFilter}
@@ -177,7 +204,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         onCopyVisible={handleCopyVisible}
       />
 
-      {/* Error callouts section */}
       {errors.length > 0 && (
         <div className="flex flex-col gap-2 p-3 bg-error-bg border-b border-error-border">
           <div className="text-xs font-semibold text-error flex items-center gap-1.5">
@@ -192,7 +218,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         </div>
       )}
 
-      {/* Main log console */}
       <LogConsole
         logs={displayedLogs}
         scrollRef={scrollRef}
@@ -202,7 +227,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         onOpenRunDetail={handleOpenRunId}
       />
 
-      {/* Clear view confirmation dialog */}
       <ConfirmDialog
         open={confirmClearOpen}
         onOpenChange={setConfirmClearOpen}

@@ -68,9 +68,7 @@
   }
 }
 
-/* ========================================================
-   BrandLoader Animations (Ring, Shine, Inline)
-   ======================================================== */
+/* BrandLoader Animations */
 @keyframes brand-ring-spin {
   from {
     transform: rotate(0deg);

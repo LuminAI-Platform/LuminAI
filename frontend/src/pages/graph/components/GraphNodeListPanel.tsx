@@ -4,17 +4,13 @@ import { useThemeStore } from "../../../stores/themeStore";
 import { getEntityColor } from "../../../lib/entityColors";
 import type { GraphNodeData } from "./GraphCanvas";
 
-export interface GraphNodeListPanelProps {
+interface GraphNodeListPanelProps {
   nodes: Array<{ data: GraphNodeData }>;
   selectedNodeId: string | null;
   onSelectNode: (node: GraphNodeData) => void;
   onClose: () => void;
 }
 
-/**
- * Keyboard-accessible list alternative to the HTML5 Canvas graph so users can
- * tab through, focus, and inspect every loaded node without a pointer device.
- */
 export const GraphNodeListPanel: React.FC<GraphNodeListPanelProps> = ({
   nodes,
   selectedNodeId,

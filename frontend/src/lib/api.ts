@@ -16,11 +16,8 @@
  *   const projects = await api.listProjects();
  */
 
+import { useAuthStore } from "../stores/authStore";
 import { showToastNotification } from "../components/ui/ToastProvider";
-import { ApiError, ApiTimeoutError } from "./apiErrors";
-import { getAccessToken, handleUnauthorizedResponse } from "./apiAuth";
-
-export { ApiError, ApiTimeoutError, getAccessToken };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -39,7 +36,49 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 9000;
 /** Default timeout for multipart / large file uploads (15 minutes = 900,000 ms) */
 export const UPLOAD_REQUEST_TIMEOUT_MS = 900_000;
 
+export class ApiTimeoutError extends Error {
+  public readonly status: number = 504;
+  public readonly timeoutMs: number;
+  public readonly url: string;
+
+  constructor(timeoutMs: number, url: string) {
+    super(
+      `Request timed out after ${timeoutMs}ms: Data Engine service did not respond within ${Math.round(timeoutMs / 1000)}s`,
+    );
+    this.name = "ApiTimeoutError";
+    this.timeoutMs = timeoutMs;
+    this.url = url;
+  }
+
+  get isTimeout(): boolean {
+    return true;
+  }
+}
+
+// ─── Token resolver ───────────────────────────────────────────────────────────
+
+/**
+ * Reads the current JWT access token from the Zustand auth store.
+ * Returns `null` when the user is not authenticated.
+ */
+export function getAccessToken(): string | null {
+  const { user } = useAuthStore.getState();
+  if (user?.access_token) {
+    return user.access_token;
+  }
+  if (typeof localStorage !== "undefined") {
+    return (
+      localStorage.getItem("lumin_access_token") ||
+      localStorage.getItem("token") ||
+      null
+    );
+  }
+  return null;
+}
+
 // ─── apiFetch ─────────────────────────────────────────────────────────────────
+
+let isHandlingUnauthorized = false;
 
 /**
  * Drop-in replacement for `fetch` that:
@@ -61,11 +100,13 @@ export async function apiFetch(
 ): Promise<Response> {
   const resolvedInit: ApiRequestInit = init ?? {};
 
+  // Resolve full URL
   const url =
     typeof input === "string" && input.startsWith("/")
       ? `${API_BASE_URL}${input}`
       : input;
 
+  // Build headers
   const headers = new Headers(resolvedInit.headers);
 
   if (
@@ -102,17 +143,15 @@ export async function apiFetch(
     }, timeoutMs);
   }
 
-  const externalSignal = resolvedInit.signal;
-  const onExternalAbort = () => {
-    if (timeoutId) clearTimeout(timeoutId);
-    controller.abort(externalSignal?.reason);
-  };
-
-  if (externalSignal) {
-    if (externalSignal.aborted) {
-      onExternalAbort();
+  if (resolvedInit.signal) {
+    if (resolvedInit.signal.aborted) {
+      if (timeoutId) clearTimeout(timeoutId);
+      controller.abort(resolvedInit.signal.reason);
     } else {
-      externalSignal.addEventListener("abort", onExternalAbort, { once: true });
+      resolvedInit.signal.addEventListener("abort", () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        controller.abort(resolvedInit.signal?.reason);
+      });
     }
   }
 
@@ -140,18 +179,64 @@ export async function apiFetch(
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    if (externalSignal) {
-      externalSignal.removeEventListener("abort", onExternalAbort);
-    }
   }
 
   if (!response.ok) {
     const isRetry = Boolean((resolvedInit as { _isRetry?: boolean })._isRetry);
 
     if (response.status === 401 && !isRetry) {
-      const retryResponse = await handleUnauthorizedResponse(url, resolvedInit);
-      if (retryResponse) {
-        return retryResponse;
+      try {
+        const { refreshToken, isAuthenticated } = useAuthStore.getState();
+        if (isAuthenticated) {
+          console.info(
+            "[API] 401 encountered. Attempting silent token renewal and request retry...",
+          );
+          const newToken = await refreshToken();
+          if (newToken) {
+            const retryHeaders = new Headers(resolvedInit.headers);
+            if (
+              !retryHeaders.has("Content-Type") &&
+              !(resolvedInit.body instanceof FormData)
+            ) {
+              retryHeaders.set("Content-Type", "application/json");
+            }
+            retryHeaders.set("Authorization", `Bearer ${newToken}`);
+
+            const retryResponse = await fetch(url, {
+              ...resolvedInit,
+              headers: retryHeaders,
+              _isRetry: true,
+            } as RequestInit);
+
+            if (retryResponse.ok) {
+              return retryResponse;
+            }
+          }
+        }
+      } catch (retryErr) {
+        console.warn("[API] Token refresh during 401 retry failed:", retryErr);
+      }
+
+      if (!isHandlingUnauthorized) {
+        isHandlingUnauthorized = true;
+        try {
+          const { isAuthenticated, clearAuthSession } = useAuthStore.getState();
+          if (isAuthenticated) {
+            console.warn(
+              "401 Unauthorized encountered and renewal failed. Clearing local session without window redirect.",
+            );
+            clearAuthSession();
+            showToastNotification(
+              "warning",
+              "Session Expired",
+              "Your session has ended. Please sign in again.",
+            );
+          }
+        } catch (err) {
+          console.error("Failed to reset auth store state on 401:", err);
+        } finally {
+          isHandlingUnauthorized = false;
+        }
       }
     }
 
@@ -176,6 +261,33 @@ export async function apiFetch(
   }
 
   return response;
+}
+
+// ─── ApiError ─────────────────────────────────────────────────────────────────
+
+/**
+ * Thrown when the server responds with a non-2xx status code.
+ * Carries the original `Response` so callers can inspect status / body.
+ */
+export class ApiError extends Error {
+  public readonly status: number;
+  public readonly response: Response;
+
+  constructor(response: Response) {
+    super(`API error: ${response.status} ${response.statusText}`);
+    this.name = "ApiError";
+    this.status = response.status;
+    this.response = response;
+  }
+
+  /** Convenience: returns true when the request was rejected due to auth */
+  get isUnauthorized(): boolean {
+    return this.status === 401;
+  }
+
+  get isForbidden(): boolean {
+    return this.status === 403;
+  }
 }
 
 // ─── createApiConfig ──────────────────────────────────────────────────────────

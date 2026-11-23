@@ -1,34 +1,20 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
-import type { TimeSeriesPoint } from "./components/PipelineTimelineChart";
-import type { ActivityItem } from "./components/ActivityFeed";
-import {
-  type DashboardSummary,
-  type EngineHealth,
-  type PipelineStats,
-  type DataQuality,
-  type EntityStats,
-  type EngineMetricsResponse,
-  type SyncDiscrepancy,
-  computeSyncDiscrepancy,
-} from "./dashboardTypes";
-
-export type {
+import type {
   DashboardSummary,
-  EngineHealth,
-  PipelineStats,
-  DataQuality,
-  EntityStats,
   EngineMetricsResponse,
   SyncDiscrepancy,
-};
+  TimeSeriesPoint,
+  ActivityItem,
+} from "./dashboardTypes";
+
+export * from "./dashboardTypes";
 
 export function useDashboardData() {
   const [timeRange, setTimeRange] = useState<"7d" | "14d" | "30d">("7d");
   const [fallbackTime] = useState(() => Date.now());
 
-  // 1. Fetch dashboard summary with adaptive interval and tab-visibility pause
   const {
     data: summary,
     isLoading: isSummaryLoading,
@@ -61,7 +47,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // Log raw technical errors to console rather than exposing them in production UI
   useEffect(() => {
     if (summaryError) {
       console.error("[Dashboard] Failed to fetch live metrics:", summaryError);
@@ -81,7 +66,6 @@ export function useDashboardData() {
     hour12: true,
   }).format(new Date(timestamp));
 
-  // 2. Fetch time-series telemetry for charts
   const {
     data: timeSeries = [],
     isLoading: isTimeSeriesLoading,
@@ -91,7 +75,9 @@ export function useDashboardData() {
     queryFn: async () => {
       const res = await apiFetch(
         `/api/v1/dashboard/stats/timeseries?range=${timeRange}`,
-        { headers: { "X-Suppress-Toast": "true" } },
+        {
+          headers: { "X-Suppress-Toast": "true" },
+        },
       );
       return res.json();
     },
@@ -101,7 +87,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // 3. Fetch recent platform activity with adaptive interval & background pause
   const {
     data: activity = [],
     isLoading: isActivityLoading,
@@ -130,7 +115,6 @@ export function useDashboardData() {
     retry: 1,
   });
 
-  // 4. Fetch engine telemetry metrics using the same polling cadence
   const {
     data: engineMetrics,
     isLoading: isEngineMetricsLoading,
@@ -163,31 +147,46 @@ export function useDashboardData() {
     return activityRunning || summaryRunning;
   }, [activity, summary]);
 
-  const syncDiscrepancy = useMemo<SyncDiscrepancy>(
-    () => computeSyncDiscrepancy(summary, engineMetrics),
-    [summary, engineMetrics],
-  );
+  const syncDiscrepancy = useMemo<SyncDiscrepancy>(() => {
+    const summaryPipelines = summary?.totalPipelines;
+    const engineRuns = engineMetrics?.pipelineStats?.totalRuns;
+    const runsMismatch =
+      summaryPipelines !== undefined &&
+      engineRuns !== undefined &&
+      summaryPipelines !== engineRuns;
 
-  useEffect(() => {
-    if (
-      import.meta.env.DEV &&
-      (syncDiscrepancy.runsMismatch || syncDiscrepancy.entitiesMismatch)
-    ) {
+    const summaryEntities = summary?.totalEntities;
+    const engineEntities =
+      engineMetrics?.entityStats?.totalEntities ??
+      engineMetrics?.entityStats?.totalGoldenRecords;
+    const entitiesMismatch =
+      summaryEntities !== undefined &&
+      engineEntities !== undefined &&
+      summaryEntities !== engineEntities;
+
+    let message: string | undefined;
+    if (runsMismatch && entitiesMismatch) {
+      message = `Runs (${summaryPipelines} platform vs ${engineRuns} engine) and entities (${summaryEntities} vs ${engineEntities}) are out of sync.`;
+    } else if (runsMismatch) {
+      message = `Platform history reports ${summaryPipelines} runs, while engine live telemetry reports ${engineRuns} runs.`;
+    } else if (entitiesMismatch) {
+      message = `Platform reports ${summaryEntities} entities, while engine reports ${engineEntities} entities.`;
+    }
+
+    if (import.meta.env.DEV && (runsMismatch || entitiesMismatch)) {
       console.warn(
-        "[Dashboard Sync Discrepancy] Figures may be out of sync between core backend and engine:",
-        {
-          summaryPipelines: summary?.totalPipelines,
-          engineRuns: engineMetrics?.pipelineStats?.totalRuns,
-          summaryEntities: summary?.totalEntities,
-          engineEntities:
-            engineMetrics?.entityStats?.totalEntities ??
-            engineMetrics?.entityStats?.totalGoldenRecords,
-        },
+        `[Dashboard Sync Discrepancy] Figures may be out of sync between core backend and engine:`,
+        { summaryPipelines, engineRuns, summaryEntities, engineEntities },
       );
     }
-  }, [syncDiscrepancy, summary, engineMetrics]);
 
-  // When tab transitions back from hidden to visible, immediately refresh
+    return {
+      runsMismatch,
+      entitiesMismatch,
+      message,
+    };
+  }, [summary, engineMetrics]);
+
   useEffect(() => {
     if (typeof document === "undefined") return;
 

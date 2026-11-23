@@ -6,17 +6,18 @@ import { Search, RefreshCw, Plus, Database, ICON_SIZES } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { fetchDatasets } from "../../features/datasets/datasetApi";
 import type { Dataset } from "../../features/datasets/types";
-import { DatasetsKpiGrid } from "./components/DatasetsKpiGrid";
-import { DatasetsCatalogTable } from "./components/DatasetsCatalogTable";
+import { DatasetKpiSummary } from "./components/DatasetKpiSummary";
+import { DatasetCatalogTable } from "./components/DatasetCatalogTable";
 
-const LAYER_FILTERS = [
+const TIER_FILTERS = [
   "ALL",
   "RAW",
+  "WORKING",
   "PREPARED",
   "CURATED",
   "ANALYTICAL",
   "MODEL_READY",
-] as const;
+];
 
 export const DatasetsPage: React.FC = () => {
   const [selectedLayer, setSelectedLayer] = useState<string>("ALL");
@@ -36,21 +37,12 @@ export const DatasetsPage: React.FC = () => {
       }),
   });
 
-  const totalRows = datasets.reduce((sum, d) => sum + (d.rowCount || 0), 0);
-  const avgQuality =
-    datasets.length > 0
-      ? Math.round(
-          datasets.reduce((sum, d) => sum + (d.qualityScore || 0), 0) /
-            datasets.length,
-        )
-      : 100;
-
   return (
     <div className="flex flex-col gap-6 pb-8">
       <PageHeader
         breadcrumbs={[{ label: "Datasets" }]}
         title="Dataset Management & Catalog"
-        description="Palantir Foundry-grade governed dataset catalog spanning Raw, Prepared, Curated, and Model-Ready tiers."
+        description="Palantir Foundry-grade governed dataset catalog spanning Raw, Working, Prepared, Curated, and Model-Ready tiers."
         icon={
           <Database
             size={ICON_SIZES.header}
@@ -86,19 +78,13 @@ export const DatasetsPage: React.FC = () => {
         }
       />
 
-      <DatasetsKpiGrid
-        datasetCount={datasets.length}
-        totalRows={totalRows}
-        avgQuality={avgQuality}
-      />
+      <DatasetKpiSummary datasets={datasets} />
 
-      {/* Layer Filter Tabs & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-1 rounded-xl bg-surface border border-border">
         <div className="flex items-center gap-1 overflow-x-auto p-1">
-          {LAYER_FILTERS.map((layer) => (
+          {TIER_FILTERS.map((layer) => (
             <button
               key={layer}
-              type="button"
               onClick={() => setSelectedLayer(layer)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
                 selectedLayer === layer
@@ -123,11 +109,13 @@ export const DatasetsPage: React.FC = () => {
         </div>
       </div>
 
-      <DatasetsCatalogTable
-        datasets={datasets}
-        isLoading={isLoading}
-        selectedLayer={selectedLayer}
-      />
+      <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <DatasetCatalogTable
+          datasets={datasets}
+          isLoading={isLoading}
+          selectedLayer={selectedLayer}
+        />
+      </div>
     </div>
   );
 };

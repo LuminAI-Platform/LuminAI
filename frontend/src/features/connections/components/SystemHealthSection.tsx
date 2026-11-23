@@ -10,8 +10,8 @@ import {
   deriveEngineStatus,
   formatLastChecked,
 } from "../../../components/layout/engineStatusUtils";
+import { DataQualityBreakdown } from "./DataQualityBreakdown";
 import type { EngineMetricsResponse } from "../../../pages/dashboard/useDashboardData";
-import { DataQualityBreakdown } from "./system-health/DataQualityBreakdown";
 
 export interface SystemHealthSectionContentProps {
   engineMetrics?: EngineMetricsResponse | null;
@@ -61,6 +61,33 @@ export const SystemHealthSectionContent: React.FC<
       ? `${health.latencyMs} ms`
       : "—";
 
+  const dimensions = [
+    {
+      id: "completeness",
+      label: "Completeness",
+      description: "Non-null essential attributes",
+      value: quality.dimensions.completeness,
+    },
+    {
+      id: "uniqueness",
+      label: "Uniqueness",
+      description: "Deduplicated canonical records",
+      value: quality.dimensions.uniqueness,
+    },
+    {
+      id: "consistency",
+      label: "Consistency",
+      description: "Conforming to ontology schemas",
+      value: quality.dimensions.consistency,
+    },
+    {
+      id: "timeliness",
+      label: "Timeliness",
+      description: "Recency within SLA thresholds",
+      value: quality.dimensions.timeliness,
+    },
+  ];
+
   let statusNotice: string | null = null;
   if (statusKind === "offline") {
     statusNotice = "Engine unreachable — unable to load live quality metrics.";
@@ -77,7 +104,6 @@ export const SystemHealthSectionContent: React.FC<
       className="bg-surface border border-border rounded-lg p-5 shadow-xs transition-colors"
       data-testid="system-health-section"
     >
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-surface-subtle border border-border text-text-secondary flex items-center justify-center shrink-0">
@@ -129,7 +155,6 @@ export const SystemHealthSectionContent: React.FC<
         </div>
       </div>
 
-      {/* Contextual Notice (only when offline, degraded, or stale) */}
       {statusNotice && (
         <div
           role="status"
@@ -159,11 +184,7 @@ export const SystemHealthSectionContent: React.FC<
         </div>
       )}
 
-      {/* Data Quality Breakdown */}
-      <DataQualityBreakdown
-        score={quality.score}
-        dimensions={quality.dimensions}
-      />
+      <DataQualityBreakdown score={quality.score} dimensions={dimensions} />
     </section>
   );
 };

@@ -17,6 +17,7 @@ export function hydrateInitialEntity(initial?: EntityType): EntityType {
       propertiesSchema?: string | Record<string, unknown>;
     }
   ).propertiesSchema;
+
   if ((!props || props.length === 0) && rawSchema) {
     try {
       const parsed =

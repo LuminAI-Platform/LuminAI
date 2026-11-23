@@ -6,8 +6,8 @@ import { Button } from "../../../../components/ui/Button";
 import type { PipelineRunItem } from "./pipelineAnalysisTypes";
 import { RunStagesTimeline } from "./RunStagesTimeline";
 import { RunExecutionQualityAndLogs } from "./RunExecutionQualityAndLogs";
-import { resolveRunStatusDisplay } from "./runDetailHelpers";
-import { RunFailureDiagnosis } from "./RunFailureDiagnosis";
+import { RunMetricsStrip } from "./RunMetricsStrip";
+import { RunFailedDiagnosisBox } from "./RunFailedDiagnosisBox";
 import { useRunDetailData } from "./useRunDetailData";
 
 interface RunDetailDrawerProps {
@@ -26,14 +26,27 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
-  const { run, activeRunId, jobDetail, isRetrying, retryMessage, handleRetry } =
-    useRunDetailData(propRun, runId);
+  const {
+    run,
+    activeRunId,
+    jobDetail,
+    isFailed,
+    hasIssues,
+    statusDisplayLabel,
+    failedStep,
+    errorMessage,
+    getSuggestedFix,
+    isRetrying,
+    retryMessage,
+    handleRetry,
+  } = useRunDetailData(propRun, runId);
 
   useEffect(() => {
     if (!activeRunId) return;
 
     const returnFocusElement = triggerButtonRef?.current;
-    const focusTimer = setTimeout(() => {
+
+    setTimeout(() => {
       closeBtnRef.current?.focus();
     }, 50);
 
@@ -46,16 +59,12 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      clearTimeout(focusTimer);
       window.removeEventListener("keydown", handleKeyDown);
       returnFocusElement?.focus();
     };
   }, [activeRunId, onClose, triggerButtonRef]);
 
   if (!run) return null;
-
-  const { isFailed, hasIssues, statusDisplayLabel, failedStep, errorMessage } =
-    resolveRunStatusDisplay(run, jobDetail);
 
   return (
     <BodyPortal>
@@ -120,48 +129,13 @@ export const RunDetailDrawer: React.FC<RunDetailDrawerProps> = ({
 
           {/* Drawer Content */}
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            {/* Metrics Strip */}
-            <div className="grid grid-cols-4 gap-2 bg-surface-subtle border border-border rounded-lg p-3 text-center">
-              <div>
-                <span className="text-[10px] text-text-secondary uppercase">
-                  Records In
-                </span>
-                <div className="text-sm font-bold text-text mt-0.5">
-                  {run.recordsInput.toLocaleString()}
-                </div>
-              </div>
-              <div>
-                <span className="text-[10px] text-text-secondary uppercase">
-                  Output
-                </span>
-                <div className="text-sm font-bold text-success mt-0.5">
-                  {run.recordsOutput.toLocaleString()}
-                </div>
-              </div>
-              <div>
-                <span className="text-[10px] text-text-secondary uppercase">
-                  Rejected
-                </span>
-                <div
-                  className={`text-sm font-bold mt-0.5 ${run.recordsFailed > 0 ? "text-error" : "text-text"}`}
-                >
-                  {run.recordsFailed.toLocaleString()}
-                </div>
-              </div>
-              <div>
-                <span className="text-[10px] text-text-secondary uppercase">
-                  Duration
-                </span>
-                <div className="text-sm font-bold text-text mt-0.5">
-                  {run.durationSeconds}s
-                </div>
-              </div>
-            </div>
+            <RunMetricsStrip run={run} />
 
             {isFailed && (
-              <RunFailureDiagnosis
+              <RunFailedDiagnosisBox
                 failedStep={failedStep}
                 errorMessage={errorMessage}
+                suggestedFix={getSuggestedFix()}
                 retryMessage={retryMessage}
               />
             )}

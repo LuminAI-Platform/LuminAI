@@ -9,7 +9,7 @@ import { StepMapping } from "./file-upload/StepMapping";
 import { StepPreview } from "./file-upload/StepPreview";
 import { StepIngesting } from "./file-upload/StepIngesting";
 import { WizardStepper } from "./file-upload/WizardStepper";
-import { FileUploadWizardFooter } from "./file-upload/FileUploadWizardFooter";
+import { WizardFooter } from "./file-upload/WizardFooter";
 
 export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
   onClose,
@@ -65,17 +65,6 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
     }
   };
 
-  const guardDismiss = (e: Event) => {
-    if (ingesting) {
-      e.preventDefault();
-      return;
-    }
-    if (hasUnsavedWork) {
-      e.preventDefault();
-      setShowDiscardConfirm(true);
-    }
-  };
-
   return (
     <>
       <Dialog.Root
@@ -88,8 +77,26 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
           <Dialog.Overlay className="fixed inset-0 z-[99990] bg-black/70 backdrop-blur-xs" />
           <Dialog.Content
             aria-modal="true"
-            onEscapeKeyDown={guardDismiss}
-            onPointerDownOutside={guardDismiss}
+            onEscapeKeyDown={(e) => {
+              if (ingesting) {
+                e.preventDefault();
+                return;
+              }
+              if (hasUnsavedWork) {
+                e.preventDefault();
+                setShowDiscardConfirm(true);
+              }
+            }}
+            onPointerDownOutside={(e) => {
+              if (ingesting) {
+                e.preventDefault();
+                return;
+              }
+              if (hasUnsavedWork) {
+                e.preventDefault();
+                setShowDiscardConfirm(true);
+              }
+            }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99991] w-[min(960px,calc(100vw-48px))] max-h-[calc(100vh-48px)] bg-surface border border-border rounded-lg shadow-lg flex flex-col overflow-hidden focus:outline-none"
           >
             {/* Fixed Top Header */}
@@ -183,14 +190,14 @@ export const FileUploadWizard: React.FC<FileUploadWizardProps> = ({
               )}
             </div>
 
-            <FileUploadWizardFooter
+            <WizardFooter
               step={step}
               ingesting={ingesting}
               ingestionFailed={ingestionFailed}
               ingestionFinished={ingestionFinished}
-              onPreviousStep={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
+              onPrevStep={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
               onNextStep={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
-              onCancel={requestClose}
+              onRequestClose={requestClose}
               onRetry={startIngestion}
               onDone={handleClose}
             />

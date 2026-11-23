@@ -1,27 +1,27 @@
 import React from "react";
-import { X, GitMerge, Sparkles } from "../../../lib/icons";
+import { X, Sparkles, GitMerge } from "../../../lib/icons";
 import { EntityTypeIcon } from "./EntityTypeIcon";
 
 interface EntityDrawerHeaderProps {
-  title: string;
   activeEntityType: string;
-  typeLabel: string;
   typeColor: string;
+  typeLabel: string;
+  canonicalName: string;
   confidencePct: number | null;
   sourceCount?: number;
-  closeBtnRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
+  closeBtnRef: React.RefObject<HTMLButtonElement | null>;
 }
 
 export const EntityDrawerHeader: React.FC<EntityDrawerHeaderProps> = ({
-  title,
   activeEntityType,
-  typeLabel,
   typeColor,
+  typeLabel,
+  canonicalName,
   confidencePct,
   sourceCount,
-  closeBtnRef,
   onClose,
+  closeBtnRef,
 }) => {
   return (
     <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-border shrink-0">
@@ -42,7 +42,7 @@ export const EntityDrawerHeader: React.FC<EntityDrawerHeaderProps> = ({
             id="entity-drawer-title"
             className="text-base font-bold text-text leading-snug break-words"
           >
-            {title}
+            {canonicalName}
           </h2>
           <div className="flex flex-wrap items-center gap-2 mt-1.5">
             <span

@@ -2,12 +2,17 @@ import React from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { EntityTypeEditor } from "../../features/ontology/components/EntityTypeEditor";
 import { RelationshipTypeForm } from "../../features/ontology/components/RelationshipTypeForm";
-import { useOntologyData, type Tab } from "./useOntologyData";
+import {
+  useOntologyData,
+  type Tab,
+  type EntityType,
+  type RelationshipType,
+} from "./useOntologyData";
 import { EntityTypesTab } from "./EntityTypesTab";
 import { RelationshipsTab } from "./RelationshipsTab";
 import { VersionsTab } from "./VersionsTab";
-import { OntologyStatsBar } from "./OntologyStatsBar";
 import { Icons, Loader2, PenLine, ICON_SIZES } from "../../lib/icons";
+import { OntologyStatsBar } from "./OntologyStatsBar";
 
 export const OntologyPage: React.FC = () => {
   const {
@@ -38,14 +43,8 @@ export const OntologyPage: React.FC = () => {
   const entityName = (id: string) =>
     entities.find((e) => e.id === id)?.name ?? id;
 
-  const totalProperties = entities.reduce(
-    (sum, e) => sum + (e.properties?.length ?? 0),
-    0,
-  );
-
   return (
     <div className="flex flex-col gap-0 h-full overflow-hidden">
-      {/* Page Header */}
       <div className="pb-4 shrink-0">
         <PageHeader
           breadcrumbs={[
@@ -67,7 +66,6 @@ export const OntologyPage: React.FC = () => {
           }}
           actions={
             <button
-              type="button"
               id="publish-ontology-btn"
               onClick={publishVersion}
               disabled={publishing}
@@ -88,100 +86,107 @@ export const OntologyPage: React.FC = () => {
         />
       </div>
 
-      <OntologyStatsBar
-        entityCount={entities.length}
-        relationshipCount={relationships.length}
-        propertyCount={totalProperties}
-      />
+      <OntologyStatsBar entities={entities} relationships={relationships} />
 
-      {/* Tabs */}
       <div className="flex border-b border-zinc-800/80 shrink-0 mb-5">
         {(["entities", "relationships", "versions"] as Tab[]).map((t) => (
           <button
             key={t}
-            id={`ontology-tab-${t}`}
-            type="button"
             onClick={() => handleTabChange(t)}
-            className={`py-2.5 px-5 text-xs font-semibold border-b-2 transition-all cursor-pointer capitalize ${
+            className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
               tab === t
-                ? "border-blue-500 text-zinc-100"
-                : "border-transparent text-zinc-500 hover:text-zinc-300"
+                ? "border-primary text-primary"
+                : "border-transparent text-zinc-400 hover:text-zinc-200"
             }`}
           >
             {t === "entities"
-              ? "Entity Types"
+              ? `Entity Types (${entities.length})`
               : t === "relationships"
-                ? "Relationship Types"
-                : "Published Versions"}
+                ? `Relationship Types (${relationships.length})`
+                : `Versions (${versions.length})`}
           </button>
         ))}
       </div>
 
-      {/* Error banner */}
       {error && (
-        <div className="mb-4 px-4 py-3 bg-red-950/30 border border-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-between shrink-0">
+        <div className="flex items-center justify-between p-3 mb-4 bg-error-bg border border-error-border rounded-lg text-xs text-error shrink-0">
           <span>{error}</span>
           <button
-            type="button"
             onClick={() => setError(null)}
-            className="underline hover:text-red-300 cursor-pointer"
+            className="text-error hover:text-error/80 cursor-pointer font-bold"
           >
-            Dismiss
+            ✕
           </button>
         </div>
       )}
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto pr-1 pb-6">
-        {tab === "entities" && (
-          <EntityTypesTab
-            entities={entities}
-            loading={loading}
-            onNewEntity={() => {
-              setEditingEntity(undefined);
-              setEntityEditorOpen(true);
-            }}
-            onEditEntity={(entity) => {
-              setEditingEntity(entity);
-              setEntityEditorOpen(true);
-            }}
-            onDeleteEntity={deleteEntity}
-          />
-        )}
+      <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+        {loading ? (
+          <div className="flex items-center justify-center h-48 text-zinc-500 text-xs">
+            <Loader2
+              size={ICON_SIZES.header}
+              className="animate-spin text-primary mr-2"
+            />
+            Loading schema…
+          </div>
+        ) : (
+          <>
+            {tab === "entities" && (
+              <EntityTypesTab
+                entities={entities}
+                loading={loading}
+                onNewEntity={() => {
+                  setEditingEntity(undefined);
+                  setEntityEditorOpen(true);
+                }}
+                onEditEntity={(e: EntityType) => {
+                  setEditingEntity(e);
+                  setEntityEditorOpen(true);
+                }}
+                onDeleteEntity={deleteEntity}
+              />
+            )}
 
-        {tab === "relationships" && (
-          <RelationshipsTab
-            relationships={relationships}
-            loading={loading}
-            entityName={entityName}
-            onNewRelationship={() => {
-              setEditingRel(undefined);
-              setRelFormOpen(true);
-            }}
-            onEditRelationship={(rel) => {
-              setEditingRel(rel);
-              setRelFormOpen(true);
-            }}
-            onDeleteRelationship={deleteRelationship}
-          />
-        )}
+            {tab === "relationships" && (
+              <RelationshipsTab
+                relationships={relationships}
+                loading={loading}
+                entityName={entityName}
+                onNewRelationship={() => {
+                  setEditingRel(undefined);
+                  setRelFormOpen(true);
+                }}
+                onEditRelationship={(r: RelationshipType) => {
+                  setEditingRel(r);
+                  setRelFormOpen(true);
+                }}
+                onDeleteRelationship={deleteRelationship}
+              />
+            )}
 
-        {tab === "versions" && <VersionsTab versions={versions} />}
+            {tab === "versions" && <VersionsTab versions={versions} />}
+          </>
+        )}
       </div>
 
-      {/* Modals */}
       {entityEditorOpen && (
         <EntityTypeEditor
-          initial={editingEntity}
-          onClose={() => setEntityEditorOpen(false)}
-          onSaved={(saved) => {
+          isOpen={entityEditorOpen}
+          onClose={() => {
             setEntityEditorOpen(false);
-            setEntities((prev) => {
-              const idx = prev.findIndex((e) => e.id === saved.id);
-              return idx >= 0
-                ? prev.map((e) => (e.id === saved.id ? saved : e))
-                : [saved, ...prev];
-            });
+            setEditingEntity(undefined);
+          }}
+          initialEntity={editingEntity}
+          onSave={(entity) => {
+            if (editingEntity) {
+              setEntities((prev) =>
+                prev.map((e) => (e.id === entity.id ? entity : e)),
+              );
+            } else {
+              setEntities((prev) => [...prev, entity]);
+            }
+            setEntityEditorOpen(false);
+            setEditingEntity(undefined);
           }}
         />
       )}
@@ -189,18 +194,25 @@ export const OntologyPage: React.FC = () => {
       {relFormOpen && (
         <RelationshipTypeForm
           initial={editingRel}
-          onClose={() => setRelFormOpen(false)}
-          onSaved={(saved) => {
+          onClose={() => {
             setRelFormOpen(false);
-            setRelationships((prev) => {
-              const idx = prev.findIndex((r) => r.id === saved.id);
-              return idx >= 0
-                ? prev.map((r) => (r.id === saved.id ? saved : r))
-                : [saved, ...prev];
-            });
+            setEditingRel(undefined);
+          }}
+          onSaved={(rel: RelationshipType) => {
+            if (editingRel) {
+              setRelationships((prev) =>
+                prev.map((r) => (r.id === rel.id ? rel : r)),
+              );
+            } else {
+              setRelationships((prev) => [...prev, rel]);
+            }
+            setRelFormOpen(false);
+            setEditingRel(undefined);
           }}
         />
       )}
     </div>
   );
 };
+
+export default OntologyPage;

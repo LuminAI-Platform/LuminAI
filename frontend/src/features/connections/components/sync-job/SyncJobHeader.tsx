@@ -1,13 +1,15 @@
 import React from "react";
 import { Database, FileText, Plug } from "../../../../lib/icons";
-import type { SyncDataset, SyncJobStatus } from "./syncJobTypes";
+import type { SyncJobStatus, SyncDataset } from "./syncJobTypes";
 import { STATUS_CONFIG } from "./syncJobTypes";
 
 interface SyncJobHeaderProps {
-  datasetsCount: number;
+  headerTitle: string;
+  scopeCaption: string;
   isAllScope: boolean;
   selectedDataset: SyncDataset | null;
   scopeStatus: SyncJobStatus;
+  datasetsCount: number;
   onToggleScope: () => void;
   onPause?: (jobId: string) => void;
   onResume?: (jobId: string) => void;
@@ -15,21 +17,17 @@ interface SyncJobHeaderProps {
 }
 
 export const SyncJobHeader: React.FC<SyncJobHeaderProps> = ({
-  datasetsCount,
+  headerTitle,
+  scopeCaption,
   isAllScope,
   selectedDataset,
   scopeStatus,
+  datasetsCount,
   onToggleScope,
   onPause,
   onResume,
   onCancel,
 }) => {
-  const headerTitle = isAllScope
-    ? "All sync activity"
-    : `Sync: ${selectedDataset?.name ?? "Dataset"}`;
-  const scopeCaption = isAllScope
-    ? `${datasetsCount} ${datasetsCount === 1 ? "dataset" : "datasets"}`
-    : "1 dataset";
   const cfg = STATUS_CONFIG[scopeStatus];
 
   const SourceIcon =

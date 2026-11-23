@@ -1,23 +1,9 @@
 import type {
-  TimeRangeOption,
   PipelineRunItem,
   StageMetric,
   RejectionReasonItem,
   FailingPipelineItem,
 } from "./pipelineAnalysisTypes";
-
-export function mapTimeRangeToParam(timeRange: TimeRangeOption): string {
-  switch (timeRange) {
-    case "24H":
-      return "1d";
-    case "7D":
-      return "7d";
-    case "30D":
-      return "30d";
-    default:
-      return "7d";
-  }
-}
 
 export function filterAndSortRuns(
   runs: PipelineRunItem[],
@@ -60,14 +46,6 @@ export function filterAndSortRuns(
   return result;
 }
 
-export function extractUniquePipelines(runs: PipelineRunItem[]): string[] {
-  const names = new Set<string>();
-  runs.forEach((r) => {
-    if (r.connectorName) names.add(r.connectorName);
-  });
-  return Array.from(names);
-}
-
 export function computeStageBreakdown(runs: PipelineRunItem[]): StageMetric[] {
   if (runs.length === 0) return [];
 
@@ -81,7 +59,6 @@ export function computeStageBreakdown(runs: PipelineRunItem[]): StageMetric[] {
 
   if (totalIn === 0 && totalOut === 0) return [];
 
-  // Stages: Ingest -> Clean -> Dedupe -> Resolve based on real run telemetry
   const stages: StageMetric[] = [
     {
       stage: "ingest",
@@ -117,7 +94,6 @@ export function computeStageBreakdown(runs: PipelineRunItem[]): StageMetric[] {
     },
   ];
 
-  // Find slowest stage & highest drop
   let maxDuration = -1;
   let maxDurationIdx = 0;
   let maxDropped = -1;

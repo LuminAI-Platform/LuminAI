@@ -1,13 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { X, FilterX } from "../../../lib/icons";
+import { ChevronDown, ChevronRight, X, FilterX } from "../../../lib/icons";
 import type { EntityType } from "../../ontology/types";
 import { getEntityColor } from "../../../lib/entityColors";
 import { useThemeStore } from "../../../stores/themeStore";
-import {
-  EntityTypesFacetSection,
-  type MergedTypeRow,
-} from "./EntityTypesFacetSection";
-import { ExtraFacetGroup } from "./ExtraFacetGroup";
+import type { MergedTypeRow } from "./FacetTypeItem";
+import { FacetExtraGroup } from "./FacetExtraGroup";
+import { FacetTypesList } from "./FacetTypesList";
 
 interface FacetFilterSidebarProps {
   selectedTypes: string[];
@@ -15,7 +13,6 @@ interface FacetFilterSidebarProps {
   facets: Record<string, number>;
   facetGroups?: Record<string, Record<string, number>>;
   ontologyTypes: EntityType[];
-  /** When true, renders without outer sticky/aside width constraints (used inside mobile/tablet drawer) */
   inDrawer?: boolean;
   onCloseDrawer?: () => void;
 }
@@ -37,7 +34,6 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
     Record<string, boolean>
   >({});
 
-  // Merge ontology types with any facet keys returned by the API, sort by count descending
   const allTypeRows = useMemo<MergedTypeRow[]>(() => {
     const byName = new Map<string, MergedTypeRow>();
 
@@ -128,7 +124,6 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
           : "w-full lg:w-64 xl:w-72 shrink-0 bg-surface border border-border rounded-xl p-4 flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-7rem)] overflow-y-auto"
       }
     >
-      {/* Panel Header */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-border-subtle">
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-bold text-text uppercase tracking-wider">
@@ -165,38 +160,57 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
         </div>
       </div>
 
-      {/* Collapsible Entity Types Group */}
-      <EntityTypesFacetSection
-        expanded={typesExpanded}
-        onToggleExpanded={() => setTypesExpanded((v) => !v)}
-        typeSearch={typeSearch}
-        onTypeSearchChange={setTypeSearch}
-        nonEmptyRows={nonEmptyRows}
-        emptyRows={emptyRows}
-        selectedTypes={selectedTypes}
-        onToggleType={handleToggle}
-        showEmptyTypes={showEmptyTypes}
-        onToggleShowEmpty={() => setShowEmptyTypes((v) => !v)}
-      />
+      <div className="flex flex-col gap-2.5">
+        <button
+          type="button"
+          onClick={() => setTypesExpanded((v) => !v)}
+          aria-expanded={typesExpanded}
+          className="flex items-center justify-between w-full text-left py-1 text-xs font-semibold text-text hover:text-primary transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
+        >
+          <span>Entity Types</span>
+          {typesExpanded ? (
+            <ChevronDown
+              size={14}
+              className="text-text-muted"
+              aria-hidden="true"
+            />
+          ) : (
+            <ChevronRight
+              size={14}
+              className="text-text-muted"
+              aria-hidden="true"
+            />
+          )}
+        </button>
 
-      {/* Additional dynamic facet groups (rendered only if API supplies them) */}
-      {extraFacetGroups.map(([groupKey, entries]) => {
-        const isOpen = expandedExtraGroups[groupKey] ?? true;
-        return (
-          <ExtraFacetGroup
-            key={groupKey}
-            groupKey={groupKey}
-            entries={entries}
-            isOpen={isOpen}
-            onToggle={() =>
-              setExpandedExtraGroups((prev) => ({
-                ...prev,
-                [groupKey]: !isOpen,
-              }))
-            }
+        {typesExpanded && (
+          <FacetTypesList
+            typeSearch={typeSearch}
+            onTypeSearchChange={setTypeSearch}
+            nonEmptyRows={nonEmptyRows}
+            emptyRows={emptyRows}
+            selectedTypes={selectedTypes}
+            showEmptyTypes={showEmptyTypes}
+            onToggleShowEmptyTypes={() => setShowEmptyTypes((v) => !v)}
+            onToggleType={handleToggle}
           />
-        );
-      })}
+        )}
+      </div>
+
+      {extraFacetGroups.map(([groupKey, entries]) => (
+        <FacetExtraGroup
+          key={groupKey}
+          groupKey={groupKey}
+          entries={entries}
+          isOpen={expandedExtraGroups[groupKey] ?? true}
+          onToggleOpen={() =>
+            setExpandedExtraGroups((prev) => ({
+              ...prev,
+              [groupKey]: !(prev[groupKey] ?? true),
+            }))
+          }
+        />
+      ))}
     </aside>
   );
 };

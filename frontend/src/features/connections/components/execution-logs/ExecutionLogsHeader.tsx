@@ -1,7 +1,32 @@
 import React from "react";
 import { RefreshCw, Trash2, Play, ICON_SIZES } from "../../../../lib/icons";
 import type { StreamConnectionState } from "./executionLogTypes";
-import { STREAM_BADGE } from "./executionLogParser";
+
+const STREAM_BADGE: Record<
+  StreamConnectionState,
+  { label: string; dot: string; cls: string }
+> = {
+  live: {
+    label: "Live",
+    dot: "bg-success animate-pulse motion-reduce:animate-none",
+    cls: "bg-success-bg text-success border-success-border",
+  },
+  idle: {
+    label: "Idle",
+    dot: "bg-nodata",
+    cls: "bg-nodata-bg text-nodata border-nodata-border",
+  },
+  paused: {
+    label: "Paused",
+    dot: "bg-warning",
+    cls: "bg-warning-bg text-warning border-warning-border",
+  },
+  disconnected: {
+    label: "Disconnected",
+    dot: "bg-error",
+    cls: "bg-error-bg text-error border-error-border",
+  },
+};
 
 interface ExecutionLogsHeaderProps {
   title: string;

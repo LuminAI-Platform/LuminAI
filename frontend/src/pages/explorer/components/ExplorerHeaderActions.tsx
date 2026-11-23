@@ -4,29 +4,30 @@ import { Tooltip } from "../../../components/ui/Tooltip";
 
 interface ExplorerHeaderActionsProps {
   maskSensitiveData: boolean;
-  onTogglePrivacyMask: () => void;
-  filteredRecordCount: number;
+  onToggleMask: () => void;
   isExporting: boolean;
+  filteredRecordCount: number;
   onExportCsv: () => void;
 }
 
 export const ExplorerHeaderActions: React.FC<ExplorerHeaderActionsProps> = ({
   maskSensitiveData,
-  onTogglePrivacyMask,
-  filteredRecordCount,
+  onToggleMask,
   isExporting,
+  filteredRecordCount,
   onExportCsv,
 }) => {
-  const exportTooltip = `Export ${filteredRecordCount.toLocaleString()} filtered ${filteredRecordCount === 1 ? "record" : "records"}`;
+  const exportTooltip = `Export ${filteredRecordCount.toLocaleString()} filtered ${
+    filteredRecordCount === 1 ? "record" : "records"
+  }`;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* Global Privacy Mask Toggle */}
       <button
         type="button"
         role="switch"
         aria-checked={maskSensitiveData}
-        onClick={onTogglePrivacyMask}
+        onClick={onToggleMask}
         className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none cursor-pointer ${
           maskSensitiveData
             ? "bg-primary-tint border-primary-border text-primary"
@@ -41,7 +42,6 @@ export const ExplorerHeaderActions: React.FC<ExplorerHeaderActionsProps> = ({
         <span>Mask sensitive data</span>
       </button>
 
-      {/* Export Clean CSV with filtered record scope */}
       <Tooltip label={exportTooltip} side="bottom">
         <button
           type="button"
@@ -52,7 +52,9 @@ export const ExplorerHeaderActions: React.FC<ExplorerHeaderActionsProps> = ({
         >
           <Download
             size={14}
-            className={`text-primary ${isExporting ? "animate-bounce motion-reduce:animate-none" : ""}`}
+            className={`text-primary ${
+              isExporting ? "animate-bounce motion-reduce:animate-none" : ""
+            }`}
             aria-hidden="true"
           />
           <span>

@@ -5,10 +5,10 @@ import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import { TableSelector } from "./TableSelector";
 import type { DBType } from "./db-connector/dbConnectorTypes";
 import { ConnectorCredentials } from "./db-connector/ConnectorCredentials";
-import { ConnectedDetailsCard } from "./db-connector/ConnectedDetailsCard";
-import { ConnectorGuidePanel } from "./db-connector/ConnectorGuidePanel";
-import { ConnectorDialogFooter } from "./db-connector/ConnectorDialogFooter";
-import { useDatabaseConnectorForm } from "./db-connector/useDatabaseConnectorForm";
+import { useDbConnectorForm } from "./db-connector/useDbConnectorForm";
+import { DbSetupGuidePanel } from "./db-connector/DbSetupGuidePanel";
+import { ConnectedSummaryCard } from "./db-connector/ConnectedSummaryCard";
+import { DbConnectorModalFooter } from "./db-connector/DbConnectorModalFooter";
 
 interface DatabaseConnectorFormProps {
   onClose: () => void;
@@ -21,14 +21,62 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
   onSuccess,
   initialDbType = "postgresql",
 }) => {
-  const form = useDatabaseConnectorForm({ initialDbType, onClose, onSuccess });
+  const {
+    name,
+    setName,
+    dbType,
+    host,
+    setHost,
+    port,
+    databaseName,
+    setDatabaseName,
+    username,
+    setUsername,
+    password,
+    setPassword,
+    touched,
+    isTesting,
+    isDiscovering,
+    isConnected,
+    setIsConnected,
+    connectionError,
+    setConnectionError,
+    testResult,
+    setTestResult,
+    discoveredData,
+    selectedTables,
+    setSelectedTables,
+    isSaving,
+    showDiscardConfirm,
+    setShowDiscardConfirm,
+    errors,
+    formValid,
+    isBusy,
+    hasUnsavedChanges,
+    abortRef,
+    clearSecretsAndClose,
+    requestClose,
+    handleDbTypeChange,
+    handlePortChange,
+    handleBlurField,
+    handleApplyConnectionString,
+    handleTestConnection,
+    handleConnectAndDiscover,
+    handleRegister,
+  } = useDbConnectorForm({
+    initialDbType,
+    onSuccess,
+    onClose,
+  });
+
+  const currentGuideStep = isConnected ? 3 : isBusy || testResult ? 2 : 1;
 
   return (
     <>
       <Dialog.Root
         open={true}
         onOpenChange={(open) => {
-          if (!open) form.requestClose();
+          if (!open) requestClose();
         }}
       >
         <Dialog.Portal>
@@ -36,15 +84,15 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
           <Dialog.Content
             aria-modal="true"
             onEscapeKeyDown={(e) => {
-              if (form.hasUnsavedChanges) {
+              if (hasUnsavedChanges) {
                 e.preventDefault();
-                form.setShowDiscardConfirm(true);
+                setShowDiscardConfirm(true);
               }
             }}
             onPointerDownOutside={(e) => {
-              if (form.hasUnsavedChanges) {
+              if (hasUnsavedChanges) {
                 e.preventDefault();
-                form.setShowDiscardConfirm(true);
+                setShowDiscardConfirm(true);
               }
             }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99991] w-[min(960px,calc(100vw-48px))] max-h-[calc(100vh-48px)] bg-surface border border-border rounded-lg shadow-lg flex flex-col overflow-hidden focus:outline-none"
@@ -66,7 +114,7 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
               </div>
               <button
                 type="button"
-                onClick={form.requestClose}
+                onClick={requestClose}
                 aria-label="Close dialog"
                 className="p-1.5 text-text-secondary hover:text-text hover:bg-surface-hover rounded-lg transition-colors cursor-pointer shrink-0"
               >
@@ -74,102 +122,120 @@ export const DatabaseConnectorForm: React.FC<DatabaseConnectorFormProps> = ({
               </button>
             </div>
 
-            {/* Scrollable Body — stacks below 900px */}
+            {/* Scrollable Body */}
             <div className="flex-1 min-h-0 overflow-y-auto p-6">
               <div className="grid grid-cols-1 min-[900px]:grid-cols-12 gap-6 items-start">
-                {/* Left Column: Credentials or Connected Summary */}
                 <div className="min-[900px]:col-span-6 flex flex-col gap-4">
-                  {!form.isConnected ? (
+                  {!isConnected ? (
                     <ConnectorCredentials
-                      name={form.name}
-                      setName={form.setName}
-                      dbType={form.dbType}
-                      host={form.host}
-                      setHost={form.setHost}
-                      port={form.port}
-                      onPortChange={form.handlePortChange}
-                      databaseName={form.databaseName}
-                      setDatabaseName={form.setDatabaseName}
-                      username={form.username}
-                      setUsername={form.setUsername}
-                      password={form.password}
-                      setPassword={form.setPassword}
-                      errors={form.errors}
-                      touched={form.touched}
-                      onBlurField={form.handleBlurField}
-                      isVerifying={form.isBusy}
-                      connectionError={form.connectionError}
-                      testResult={form.testResult}
-                      onSubmitForm={form.handleConnectAndDiscover}
-                      handleDbTypeChange={form.handleDbTypeChange}
-                      onApplyConnectionString={form.handleApplyConnectionString}
+                      name={name}
+                      setName={(v) => {
+                        setName(v);
+                        setTestResult(null);
+                      }}
+                      dbType={dbType}
+                      host={host}
+                      setHost={(v) => {
+                        setHost(v);
+                        setTestResult(null);
+                        setConnectionError(null);
+                      }}
+                      port={port}
+                      onPortChange={handlePortChange}
+                      databaseName={databaseName}
+                      setDatabaseName={(v) => {
+                        setDatabaseName(v);
+                        setTestResult(null);
+                        setConnectionError(null);
+                      }}
+                      username={username}
+                      setUsername={(v) => {
+                        setUsername(v);
+                        setTestResult(null);
+                        setConnectionError(null);
+                      }}
+                      password={password}
+                      setPassword={(v) => {
+                        setPassword(v);
+                        setTestResult(null);
+                        setConnectionError(null);
+                      }}
+                      errors={errors}
+                      touched={touched}
+                      onBlurField={handleBlurField}
+                      isVerifying={isBusy}
+                      connectionError={connectionError}
+                      testResult={testResult}
+                      onSubmitForm={handleConnectAndDiscover}
+                      handleDbTypeChange={handleDbTypeChange}
+                      onApplyConnectionString={handleApplyConnectionString}
                     />
                   ) : (
-                    <ConnectedDetailsCard
-                      name={form.name}
-                      dbType={form.dbType}
-                      host={form.host}
-                      port={form.port}
-                      databaseName={form.databaseName}
-                      testResult={form.testResult}
-                      connectionError={form.connectionError}
+                    <ConnectedSummaryCard
+                      name={name}
+                      dbType={dbType}
+                      host={host}
+                      port={port}
+                      databaseName={databaseName}
+                      testResult={testResult}
+                      connectionError={connectionError}
                     />
                   )}
                 </div>
 
-                {/* Right Column: Three-Step Guide or Table Picker */}
                 <div className="min-[900px]:col-span-6 flex flex-col min-h-0">
-                  {form.isConnected ? (
+                  {isConnected ? (
                     <div className="min-h-[340px] max-h-[460px] flex flex-col">
                       <TableSelector
-                        discovered={form.discoveredData}
-                        selectedTables={form.selectedTables}
-                        onChange={form.setSelectedTables}
+                        discovered={discoveredData}
+                        selectedTables={selectedTables}
+                        onChange={setSelectedTables}
                       />
                     </div>
                   ) : (
-                    <ConnectorGuidePanel
-                      currentGuideStep={form.currentGuideStep}
-                      isBusy={form.isBusy}
-                      host={form.host}
+                    <DbSetupGuidePanel
+                      isBusy={isBusy}
+                      host={host}
+                      currentGuideStep={currentGuideStep}
                     />
                   )}
                 </div>
               </div>
             </div>
 
-            <ConnectorDialogFooter
-              isConnected={form.isConnected}
-              isBusy={form.isBusy}
-              isTesting={form.isTesting}
-              isDiscovering={form.isDiscovering}
-              isSaving={form.isSaving}
-              formValid={form.formValid}
-              host={form.host}
-              selectedTablesCount={form.selectedTables.length}
-              onCancel={form.handleCancelClick}
-              onTestConnection={form.handleTestConnection}
+            <DbConnectorModalFooter
+              isConnected={isConnected}
+              isBusy={isBusy}
+              isSaving={isSaving}
+              isTesting={isTesting}
+              isDiscovering={isDiscovering}
+              formValid={formValid}
+              host={host}
+              selectedTablesCount={selectedTables.length}
+              abortCurrentRequest={() => abortRef.current?.abort()}
+              onRequestClose={requestClose}
+              onTestConnection={handleTestConnection}
               onEditCredentials={() => {
-                form.setIsConnected(false);
-                form.setSelectedTables([]);
+                setIsConnected(false);
+                setSelectedTables([]);
               }}
-              onRegister={form.handleRegister}
+              onRegister={handleRegister}
             />
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
 
       <ConfirmDialog
-        open={form.showDiscardConfirm}
-        onOpenChange={form.setShowDiscardConfirm}
+        open={showDiscardConfirm}
+        onOpenChange={setShowDiscardConfirm}
         title="Discard unsaved changes?"
         description="Your entered database details will be cleared."
         confirmText="Discard"
         cancelText="Keep editing"
         isDestructive={true}
         onConfirm={() => {
-          form.setShowDiscardConfirm(false);
-          form.clearSecretsAndClose();
+          setShowDiscardConfirm(false);
+          clearSecretsAndClose();
         }}
       />
     </>

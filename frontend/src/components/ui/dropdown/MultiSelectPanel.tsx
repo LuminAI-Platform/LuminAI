@@ -11,7 +11,7 @@ import {
   MinusSquare,
 } from "../../../lib/icons";
 import type { MultiSelectOption } from "./MultiSelect";
-import { MultiSelectOptionItem } from "./MultiSelectOptionItem";
+import { MultiSelectOptionRow } from "./MultiSelectOptionRow";
 
 interface MultiSelectPanelProps {
   filteredOptions: MultiSelectOption[];
@@ -112,7 +112,6 @@ export const MultiSelectPanel: React.FC<MultiSelectPanelProps> = ({
               panelClassName,
             ].join(" ")}
           >
-            {/* Search input field */}
             {showSearch && (
               <div className="relative px-1 pt-1 pb-1.5 shrink-0">
                 <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-subtle border border-border focus-within:border-border-focus transition-colors">
@@ -140,7 +139,6 @@ export const MultiSelectPanel: React.FC<MultiSelectPanelProps> = ({
               </div>
             )}
 
-            {/* Select All action row */}
             {showSelectAll && filteredOptions.length > 0 && !searchQuery && (
               <div className="px-1 py-0.5 shrink-0">
                 <button
@@ -167,7 +165,6 @@ export const MultiSelectPanel: React.FC<MultiSelectPanelProps> = ({
               </div>
             )}
 
-            {/* Options list with internal scroll */}
             <div className="overflow-y-auto max-h-[220px] flex flex-col gap-0.5 px-0.5">
               {filteredOptions.length === 0 ? (
                 <div className="py-6 text-center flex flex-col items-center justify-center gap-1.5 text-xs text-text-muted">
@@ -184,9 +181,9 @@ export const MultiSelectPanel: React.FC<MultiSelectPanelProps> = ({
                 </div>
               ) : (
                 filteredOptions.map((opt) => (
-                  <MultiSelectOptionItem
+                  <MultiSelectOptionRow
                     key={opt.value}
-                    option={opt}
+                    opt={opt}
                     isSelected={values.includes(opt.value)}
                     onToggle={onToggle}
                   />

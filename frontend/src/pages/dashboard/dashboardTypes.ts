@@ -1,4 +1,7 @@
+import type { TimeSeriesPoint } from "./components/PipelineTimelineChart";
 import type { ActivityItem } from "./components/ActivityFeed";
+
+export type { TimeSeriesPoint, ActivityItem };
 
 export interface DashboardSummary {
   totalEntities: number;
@@ -67,40 +70,4 @@ export interface SyncDiscrepancy {
   runsMismatch: boolean;
   entitiesMismatch: boolean;
   message?: string;
-}
-
-export function computeSyncDiscrepancy(
-  summary: DashboardSummary | undefined,
-  engineMetrics: EngineMetricsResponse | undefined,
-): SyncDiscrepancy {
-  const summaryPipelines = summary?.totalPipelines;
-  const engineRuns = engineMetrics?.pipelineStats?.totalRuns;
-  const runsMismatch =
-    summaryPipelines !== undefined &&
-    engineRuns !== undefined &&
-    summaryPipelines !== engineRuns;
-
-  const summaryEntities = summary?.totalEntities;
-  const engineEntities =
-    engineMetrics?.entityStats?.totalEntities ??
-    engineMetrics?.entityStats?.totalGoldenRecords;
-  const entitiesMismatch =
-    summaryEntities !== undefined &&
-    engineEntities !== undefined &&
-    summaryEntities !== engineEntities;
-
-  let message: string | undefined;
-  if (runsMismatch && entitiesMismatch) {
-    message = `Runs (${summaryPipelines} platform vs ${engineRuns} engine) and entities (${summaryEntities} vs ${engineEntities}) are out of sync.`;
-  } else if (runsMismatch) {
-    message = `Platform history reports ${summaryPipelines} runs, while engine live telemetry reports ${engineRuns} runs.`;
-  } else if (entitiesMismatch) {
-    message = `Platform reports ${summaryEntities} entities, while engine reports ${engineEntities} entities.`;
-  }
-
-  return {
-    runsMismatch,
-    entitiesMismatch,
-    message,
-  };
 }

@@ -9,7 +9,7 @@ import {
 import { Button } from "../../components/ui/Button";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { CandidateInspector } from "./merge-review/CandidateInspector";
-import { CandidatesListPanel } from "./merge-review/CandidatesListPanel";
+import { CandidatesSidebar } from "./merge-review/CandidatesSidebar";
 import { useMergeReviewData } from "./merge-review/useMergeReviewData";
 
 export type {
@@ -32,11 +32,11 @@ export const MergeReviewPage: React.FC = () => {
     refetch,
     filteredCandidates,
     activeCandidate,
-    allPropertyKeys,
-    loadErrorMessage,
     acceptMutation,
     rejectMutation,
     scanMutation,
+    allPropertyKeys,
+    loadErrorMessage,
   } = useMergeReviewData();
 
   return (
@@ -85,6 +85,7 @@ export const MergeReviewPage: React.FC = () => {
         }
       />
 
+      {/* Load or Scan Error Banner */}
       {(isError || scanError) && (
         <div
           role="alert"
@@ -130,21 +131,23 @@ export const MergeReviewPage: React.FC = () => {
         </div>
       )}
 
+      {/* Main Grid View */}
       <div className="flex-1 flex flex-col md:flex-row gap-5 min-h-0 overflow-hidden">
-        <CandidatesListPanel
+        <CandidatesSidebar
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          setSearchTerm={setSearchTerm}
           statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
+          setStatusFilter={setStatusFilter}
           isLoading={isLoading}
           isError={isError}
           filteredCandidates={filteredCandidates}
-          activeCandidateId={activeCandidate?.candidateId ?? null}
+          activeCandidate={activeCandidate}
           onSelectCandidate={setSelectedCandidateId}
           onScan={() => scanMutation.mutate()}
           isScanPending={scanMutation.isPending}
         />
 
+        {/* Right: Side-by-Side Comparison & Action Console */}
         <div className="flex-1 flex flex-col bg-surface border border-border rounded-lg overflow-hidden min-h-0">
           <CandidateInspector
             activeCandidate={activeCandidate}

@@ -8,14 +8,14 @@ import {
 
 interface EntityCardFieldsProps {
   keyFields: KeyCardField[];
-  highlights?: Record<string, string[]>;
   isMasked: boolean;
+  highlights?: Record<string, string[]>;
 }
 
 export const EntityCardFields: React.FC<EntityCardFieldsProps> = ({
   keyFields,
-  highlights,
   isMasked,
+  highlights,
 }) => {
   if (keyFields.length === 0) return null;
 

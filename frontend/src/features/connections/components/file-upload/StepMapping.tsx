@@ -3,7 +3,9 @@ import type { ColumnConfig } from "../DataPreviewTable";
 import type { ColumnMappingConfig } from "./fileUploadTypes";
 import { sanitizePropertyName } from "./fileUploadTypes";
 import { StepMappingRow } from "./StepMappingRow";
-import { StepMappingTargetBanner } from "./StepMappingTargetBanner";
+import { TargetEntityBanner } from "./TargetEntityBanner";
+import { getEntityColor } from "../../../../lib/entityColors";
+import { useThemeStore } from "../../../../stores/themeStore";
 
 interface StepMappingProps {
   file: File | null;
@@ -46,6 +48,8 @@ export const StepMapping: React.FC<StepMappingProps> = ({
   handleApplyCustomEntity,
   updateMapping,
 }) => {
+  const isDark = useThemeStore((s) => s.isDark);
+
   const activeColumns = columnsConfig.filter((c) => c.active);
   const entityGroupMap = activeColumns.reduce<Record<string, string[]>>(
     (acc, col) => {
@@ -57,6 +61,9 @@ export const StepMapping: React.FC<StepMappingProps> = ({
     },
     {},
   );
+
+  const configuredEntities = Object.keys(entityGroupMap);
+  const totalTypesCount = configuredEntities.length;
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -81,18 +88,67 @@ export const StepMapping: React.FC<StepMappingProps> = ({
         </div>
       </div>
 
-      <StepMappingTargetBanner
-        ontologyEntityTypes={ontologyEntityTypes}
+      <TargetEntityBanner
         primaryTargetEntity={primaryTargetEntity}
         inferredEntityName={inferredEntityName}
+        ontologyEntityTypes={ontologyEntityTypes}
         isCreatingCustomEntity={isCreatingCustomEntity}
         customEntityInput={customEntityInput}
-        entityGroupMap={entityGroupMap}
         setIsCreatingCustomEntity={setIsCreatingCustomEntity}
         setCustomEntityInput={setCustomEntityInput}
         handlePrimaryEntityChange={handlePrimaryEntityChange}
         handleApplyCustomEntity={handleApplyCustomEntity}
       />
+
+      {/* Entity Preview & Generation Summary Bar */}
+      <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-lg p-3.5 flex flex-col gap-2.5 text-xs">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-zinc-300">
+              Configured Target Entities:
+            </span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                totalTypesCount === 1
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+              }`}
+            >
+              {totalTypesCount === 1
+                ? "1 type will be created"
+                : `${totalTypesCount} types will be created`}
+            </span>
+          </div>
+          {totalTypesCount === 1 && (
+            <span className="text-zinc-500 text-[11px]">
+              Tip: Assign columns to different entity types below to generate
+              multiple classes.
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {configuredEntities.map((entity) => {
+            const count = entityGroupMap[entity].length;
+            const color = getEntityColor(entity, isDark);
+            return (
+              <div
+                key={entity}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="font-semibold text-zinc-200">{entity}</span>
+                <span className="text-[10px] text-zinc-400 font-mono">
+                  ({count} {count === 1 ? "column" : "columns"})
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Mappings Grid */}
       <div className="flex-1 border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950 shadow-inner flex flex-col min-h-0">
@@ -136,9 +192,9 @@ export const StepMapping: React.FC<StepMappingProps> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
             Showing{" "}
             <strong className="text-zinc-200">
-              {activeColumns.length}
-            </strong> of{" "}
-            <strong className="text-zinc-200">{columnsConfig.length}</strong>{" "}
+              {columnsConfig.filter((c) => c.active).length}
+            </strong>{" "}
+            of <strong className="text-zinc-200">{columnsConfig.length}</strong>{" "}
             columns detected
           </span>
           <span className="text-zinc-400 text-xs flex items-center gap-1.5 font-medium">

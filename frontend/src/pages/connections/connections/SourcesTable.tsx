@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { ArrowUpDown } from "../../../lib/icons";
-import { Skeleton } from "../../../components/ui/Skeleton";
-import type {
-  UnifiedSource,
-  SourceStatus,
-  IngestedFile,
+import { Search, ArrowUpDown } from "../../../lib/icons";
+import { Select } from "../../../components/ui/dropdown";
+import {
+  type UnifiedSource,
+  type SourceStatus,
+  type IngestedFile,
 } from "./connectionsTypes";
-import { SourcesTableToolbar } from "./SourcesTableToolbar";
-import { SourceTableRow } from "./SourceTableRow";
+import { SourcesTableRow } from "./SourcesTableRow";
+import { SourcesTableSkeleton } from "./SourcesTableSkeleton";
+
+export { SourcesTableSkeleton };
 
 export type SortField = "name" | "lastSync";
 export type SortDirection = "asc" | "desc";
@@ -27,39 +28,26 @@ interface SourcesTableProps {
   onInspectCleanData: (file: IngestedFile) => void;
 }
 
-export const SourcesTableSkeleton: React.FC = () => (
-  <div
-    className="border border-border rounded-lg overflow-hidden bg-surface"
-    aria-label="Loading data sources"
-  >
-    <div className="p-3 border-b border-border flex flex-wrap items-center gap-3">
-      <Skeleton className="h-8 flex-1 min-w-[200px] rounded-lg" />
-      <Skeleton className="h-8 w-36 rounded-lg" />
-      <Skeleton className="h-8 w-40 rounded-lg" />
-    </div>
-    <div className="divide-y divide-border">
-      {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className="px-4 py-3.5 flex items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
-            <div className="space-y-1.5 flex-1 max-w-xs">
-              <Skeleton className="h-3.5 w-40" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-          </div>
-          <Skeleton className="h-5 w-20 rounded-md" />
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-3.5 w-16" />
-          <Skeleton className="h-3.5 w-14" />
-          <Skeleton className="h-7 w-7 rounded-md" />
-        </div>
-      ))}
-    </div>
-  </div>
-);
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All statuses" },
+  { value: "Connected", label: "Connected" },
+  { value: "Syncing", label: "Syncing" },
+  { value: "Failed", label: "Failed" },
+  { value: "Paused", label: "Paused" },
+];
+
+const TYPE_FILTER_OPTIONS = [
+  { value: "all", label: "All types" },
+  { value: "database", label: "Databases" },
+  { value: "file", label: "Flat files" },
+];
+
+const SORT_OPTIONS = [
+  { value: "lastSync:desc", label: "Last sync (newest)" },
+  { value: "lastSync:asc", label: "Last sync (oldest)" },
+  { value: "name:asc", label: "Name (A–Z)" },
+  { value: "name:desc", label: "Name (Z–A)" },
+];
 
 export const SourcesTable: React.FC<SourcesTableProps> = ({
   sources,
@@ -74,7 +62,6 @@ export const SourcesTable: React.FC<SourcesTableProps> = ({
   onOpenRawPreview,
   onInspectCleanData,
 }) => {
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -138,24 +125,64 @@ export const SourcesTable: React.FC<SourcesTableProps> = ({
     }
   };
 
+  const sortValue = `${sortField}:${sortDirection}`;
+
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-surface">
-      <SourcesTableToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        showTypeFilter={showTypeFilter}
-        typeFilter={typeFilter}
-        onTypeFilterChange={setTypeFilter}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        sortField={sortField}
-        sortDirection={sortDirection}
-        onSortChange={(f, d) => {
-          setSortField(f);
-          setSortDirection(d);
-        }}
-      />
+      {/* Search, filter & sort toolbar */}
+      <div className="p-3 border-b border-border bg-surface flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2 bg-surface-subtle border border-border rounded-lg px-3 py-1.5 flex-1 min-w-[200px] focus-within:border-border-focus transition-colors">
+          <Search
+            className="w-3.5 h-3.5 text-text-secondary shrink-0"
+            aria-hidden="true"
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search sources by name or type..."
+            aria-label="Search sources"
+            className="bg-transparent border-none outline-none text-xs text-text placeholder:text-text-secondary w-full"
+          />
+        </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          {showTypeFilter && (
+            <div className="w-36">
+              <Select
+                value={typeFilter}
+                onChange={setTypeFilter}
+                options={TYPE_FILTER_OPTIONS}
+                ariaLabel="Filter by source type"
+              />
+            </div>
+          )}
+
+          <div className="w-36">
+            <Select
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={STATUS_FILTER_OPTIONS}
+              ariaLabel="Filter by status"
+            />
+          </div>
+
+          <div className="w-44">
+            <Select
+              value={sortValue}
+              onChange={(val) => {
+                const [f, d] = val.split(":") as [SortField, SortDirection];
+                setSortField(f);
+                setSortDirection(d);
+              }}
+              options={SORT_OPTIONS}
+              ariaLabel="Sort sources"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
@@ -198,7 +225,7 @@ export const SourcesTable: React.FC<SourcesTableProps> = ({
               </tr>
             ) : (
               filteredSources.map((source) => (
-                <SourceTableRow
+                <SourcesTableRow
                   key={source.id}
                   source={source}
                   testingSourceId={testingSourceId}
@@ -209,9 +236,6 @@ export const SourcesTable: React.FC<SourcesTableProps> = ({
                   onDeleteSource={onDeleteSource}
                   onOpenRawPreview={onOpenRawPreview}
                   onInspectCleanData={onInspectCleanData}
-                  onOpenSchemaStudio={() =>
-                    navigate({ to: "/connections/schema-map" })
-                  }
                 />
               ))
             )}

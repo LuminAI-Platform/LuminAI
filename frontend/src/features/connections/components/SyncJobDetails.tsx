@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useEffect, useCallback, useMemo } from "react";
 import { Database, ICON_SIZES } from "../../../lib/icons";
 import type { PipelineRunItem } from "./pipeline-analysis/pipelineAnalysisTypes";
 import type {
@@ -8,9 +8,8 @@ import type {
 } from "./sync-job/syncJobTypes";
 import { SyncJobKpiCards } from "./sync-job/SyncJobKpiCards";
 import { SyncDatasetRow } from "./sync-job/SyncDatasetRow";
+import { useSyncJobsData } from "./sync-job/useSyncJobsData";
 import { SyncJobHeader } from "./sync-job/SyncJobHeader";
-import { useSyncJobPolling } from "./sync-job/useSyncJobPolling";
-import { computeSyncScopeMetrics } from "./sync-job/computeSyncScopeMetrics";
 
 export type { SyncJobStatus, SyncDataset, SyncJob };
 
@@ -32,14 +31,16 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
   onResume,
   onCancel,
 }) => {
-  // "all" shows totals across all datasets; otherwise holds the selected dataset/run ID
-  const [selectedScope, setSelectedScope] = useState<string | null>(null);
-  const [liveNow, setLiveNow] = useState<number>(() => Date.now());
+  const {
+    datasets,
+    selectedScope,
+    setSelectedScope,
+    speedHistory,
+    liveNow,
+    setLiveNow,
+    liveAnnouncement,
+  } = useSyncJobsData(controlledDatasets);
 
-  const { datasets, speedHistory, liveAnnouncement } =
-    useSyncJobPolling(controlledDatasets);
-
-  // Default to the most recent dataset (index 0)
   const effectiveScope = useMemo(() => {
     if (datasets.length === 0) return null;
     if (selectedScope === "all") return "all";
@@ -68,7 +69,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
     if (!hasActiveInScope) return;
     const id = setInterval(() => setLiveNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [hasActiveInScope]);
+  }, [hasActiveInScope, setLiveNow]);
 
   const handleSelectRow = useCallback(
     (ds: SyncDataset, triggerEl: HTMLButtonElement | null) => {
@@ -77,7 +78,7 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
         onOpenRunDetail(ds.rawRun, triggerEl);
       }
     },
-    [onOpenRunDetail],
+    [onOpenRunDetail, setSelectedScope],
   );
 
   if (datasets.length === 0) {
@@ -100,20 +101,85 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
     );
   }
 
-  const metrics = computeSyncScopeMetrics(
-    datasets,
-    selectedDataset,
-    isAllScope,
-    hasActiveInScope,
-    liveNow,
-  );
+  const scopeDatasets = isAllScope
+    ? datasets
+    : selectedDataset
+      ? [selectedDataset]
+      : [];
+
+  const scopeStatus: SyncJobStatus = (() => {
+    if (!isAllScope && selectedDataset) return selectedDataset.status;
+    if (scopeDatasets.some((d) => d.status === "running")) return "running";
+    if (scopeDatasets.some((d) => d.status === "failed")) return "failed";
+    if (scopeDatasets.some((d) => d.status === "completed_with_issues")) {
+      return "completed_with_issues";
+    }
+    if (scopeDatasets.some((d) => d.status === "paused")) return "paused";
+    return "completed";
+  })();
+
+  const totalRecords = scopeDatasets.some(
+    (d) => typeof d.totalRecords === "number",
+  )
+    ? scopeDatasets.reduce((sum, d) => sum + (d.totalRecords ?? 0), 0)
+    : undefined;
+  const totalSynced = scopeDatasets.some(
+    (d) => typeof d.syncedRecords === "number",
+  )
+    ? scopeDatasets.reduce((sum, d) => sum + (d.syncedRecords ?? 0), 0)
+    : undefined;
+  const rejectedCount = scopeDatasets.some(
+    (d) => typeof d.rejectedRecords === "number",
+  )
+    ? scopeDatasets.reduce((sum, d) => sum + (d.rejectedRecords ?? 0), 0)
+    : undefined;
+  const quarantinedCount = scopeDatasets.some(
+    (d) => typeof d.quarantinedRecords === "number",
+  )
+    ? scopeDatasets.reduce((sum, d) => sum + (d.quarantinedRecords ?? 0), 0)
+    : undefined;
+
+  const durationSec: number | undefined = (() => {
+    if (!isAllScope && selectedDataset) {
+      if (selectedDataset.status === "running" && selectedDataset.startedAt) {
+        return Math.max(
+          0,
+          Math.floor((liveNow - selectedDataset.startedAt.getTime()) / 1000),
+        );
+      }
+      return selectedDataset.durationSeconds;
+    }
+    const withDur = scopeDatasets.filter(
+      (d) => typeof d.durationSeconds === "number",
+    );
+    if (withDur.length === 0) return undefined;
+    return withDur.reduce((sum, d) => sum + (d.durationSeconds ?? 0), 0);
+  })();
+
+  const throughputValues = scopeDatasets
+    .map((d) => d.throughput)
+    .filter((v): v is number => typeof v === "number" && v > 0);
+  const avgSpeed =
+    throughputValues.length > 0
+      ? throughputValues.reduce((a, b) => a + b, 0) / throughputValues.length
+      : undefined;
+  const currentSpeed = hasActiveInScope
+    ? (scopeDatasets.find((d) => d.status === "running")?.throughput ??
+      avgSpeed)
+    : undefined;
+
+  const headerTitle = isAllScope
+    ? "All sync activity"
+    : `Sync: ${selectedDataset?.name ?? "Dataset"}`;
+  const scopeCaption = isAllScope
+    ? `${datasets.length} ${datasets.length === 1 ? "dataset" : "datasets"}`
+    : "1 dataset";
 
   return (
     <section
       aria-label="Sync progress"
       className="bg-surface border border-border rounded-lg overflow-hidden flex flex-col gap-4 py-4 shadow-sm"
     >
-      {/* ARIA live region for run completion announcements */}
       <div
         role="status"
         aria-live="polite"
@@ -124,10 +190,12 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
       </div>
 
       <SyncJobHeader
-        datasetsCount={datasets.length}
+        headerTitle={headerTitle}
+        scopeCaption={scopeCaption}
         isAllScope={isAllScope}
         selectedDataset={selectedDataset}
-        scopeStatus={metrics.scopeStatus}
+        scopeStatus={scopeStatus}
+        datasetsCount={datasets.length}
         onToggleScope={() =>
           setSelectedScope(isAllScope ? datasets[0].id : "all")
         }
@@ -137,21 +205,20 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
       />
 
       <SyncJobKpiCards
-        status={metrics.scopeStatus}
+        status={scopeStatus}
         isAllScope={isAllScope}
         datasetCount={datasets.length}
-        totalSynced={metrics.totalSynced}
-        totalRecords={metrics.totalRecords}
+        totalSynced={totalSynced}
+        totalRecords={totalRecords}
         isActive={hasActiveInScope}
-        currentSpeed={metrics.currentSpeed}
+        currentSpeed={currentSpeed}
         speedHistory={speedHistory}
-        avgSpeed={metrics.avgSpeed}
-        rejectedCount={metrics.rejectedCount}
-        quarantinedCount={metrics.quarantinedCount}
-        durationSec={metrics.durationSec}
+        avgSpeed={avgSpeed}
+        rejectedCount={rejectedCount}
+        quarantinedCount={quarantinedCount}
+        durationSec={durationSec}
       />
 
-      {/* Dataset Breakdown */}
       <div className="px-4 sm:px-5 flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs font-medium text-text-secondary">
           <span>Datasets ({datasets.length})</span>

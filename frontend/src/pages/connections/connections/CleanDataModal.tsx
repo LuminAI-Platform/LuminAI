@@ -14,12 +14,8 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "../../../lib/icons";
-import {
-  computeQualityCounts,
-  exportCleanDataToCsv,
-  filterCleanDataRows,
-} from "./cleanDataUtils";
-import { CleanDataToolbar } from "./CleanDataToolbar";
+import { CleanDataTelemetryStrip } from "./CleanDataTelemetryStrip";
+import { CleanDataFilterBar } from "./CleanDataFilterBar";
 
 interface CleanDataModalProps {
   cleanPreviewFile: IngestedFile;
@@ -51,34 +47,84 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
     return Array.from(set);
   }, [cleanData]);
 
-  const filteredRows = React.useMemo(
-    () =>
-      filterCleanDataRows(
-        cleanData?.rows || [],
-        selectedTableFilter,
-        selectedStateFilter,
-        cleanSearchFilter,
-      ),
-    [cleanData, selectedTableFilter, selectedStateFilter, cleanSearchFilter],
-  );
+  const filteredRows = (cleanData?.rows || []).filter((r) => {
+    if (selectedTableFilter !== "ALL" && r._table !== selectedTableFilter) {
+      return false;
+    }
+    if (selectedStateFilter !== "ALL") {
+      const stateStr = String(
+        r.quality_state || r.record_state || r.qualityState || r.status || "",
+      ).toUpperCase();
+      if (!stateStr.includes(selectedStateFilter)) {
+        return false;
+      }
+    }
+    if (!cleanSearchFilter) return true;
+    const q = cleanSearchFilter.toLowerCase();
+    return Object.values(r).some((val) =>
+      String(val).toLowerCase().includes(q),
+    );
+  });
 
-  const { verifiedCount, needsReviewCount, rejectedCount } =
-    computeQualityCounts(cleanData);
+  const exportCleanCsv = () => {
+    if (!cleanData || !cleanData.rows || cleanData.rows.length === 0) return;
+    const cols = cleanData.columns;
+    const headerRow = cols.join(",");
+    const bodyRows = cleanData.rows.map((row) =>
+      cols
+        .map((c) => {
+          const v = row[c] ?? "";
+          const s = String(v).replace(/"/g, '""');
+          return `"${s}"`;
+        })
+        .join(","),
+    );
+    const csvContent =
+      "data:text/csv;charset=utf-8," + [headerRow, ...bodyRows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `clean_${cleanPreviewFile.name.replace(/\.[^/.]+$/, "")}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const verifiedCount =
+    cleanData?.verifiedRecords ??
+    (cleanData?.rows || []).filter(
+      (r) =>
+        String(r.quality_state || r.record_state || "").toUpperCase() ===
+        "VERIFIED",
+    ).length;
+
+  const needsReviewCount =
+    cleanData?.needsReviewRecords ??
+    (cleanData?.rows || []).filter((r) =>
+      String(r.quality_state || r.record_state || "")
+        .toUpperCase()
+        .includes("REVIEW"),
+    ).length;
+
+  const rejectedCount =
+    cleanData?.rejectedRecords ??
+    (cleanData?.rows || []).filter((r) =>
+      String(r.quality_state || r.record_state || "")
+        .toUpperCase()
+        .includes("REJECT"),
+    ).length;
 
   return (
     <BodyPortal>
       <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Semantic Clean Data View"
-          className="bg-surface border border-border rounded-lg w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-sm animate-in fade-in zoom-in-95 duration-150"
-        >
-          {/* Header */}
+        <div className="bg-surface border border-border rounded-lg w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-sm animate-in fade-in zoom-in-95 duration-150">
           <div className="px-5 py-3.5 border-b border-border bg-surface flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-success-bg border border-success-border flex items-center justify-center text-success">
-                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-text flex items-center gap-2">
@@ -95,40 +141,42 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <button
-                type="button"
-                onClick={() =>
-                  exportCleanDataToCsv(cleanData, cleanPreviewFile.name)
-                }
+                onClick={exportCleanCsv}
                 disabled={!cleanData || cleanData.rows.length === 0}
                 className="px-2.5 py-1 rounded-lg bg-surface-subtle hover:bg-surface-hover text-text border border-border text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-40"
               >
-                <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export
-                CSV
+                <Download className="w-3.5 h-3.5" /> Export CSV
               </button>
               <button
-                type="button"
                 onClick={onClose}
-                aria-label="Close clean data view"
                 className="p-1 rounded-lg text-text-secondary hover:text-text hover:bg-surface-hover transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" aria-hidden="true" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          <CleanDataToolbar
-            cleanPreviewFile={cleanPreviewFile}
+          <CleanDataTelemetryStrip
             cleanData={cleanData}
+            recordsCount={cleanPreviewFile.recordsCount}
             verifiedCount={verifiedCount}
             needsReviewCount={needsReviewCount}
             rejectedCount={rejectedCount}
             cleanSearchFilter={cleanSearchFilter}
-            setCleanSearchFilter={setCleanSearchFilter}
+            onSearchChange={setCleanSearchFilter}
+          />
+
+          <CleanDataFilterBar
             selectedStateFilter={selectedStateFilter}
-            setSelectedStateFilter={setSelectedStateFilter}
-            selectedTableFilter={selectedTableFilter}
-            setSelectedTableFilter={setSelectedTableFilter}
+            onSelectStateFilter={setSelectedStateFilter}
+            verifiedCount={verifiedCount}
+            needsReviewCount={needsReviewCount}
+            rejectedCount={rejectedCount}
             availableTables={availableTables}
+            selectedTableFilter={selectedTableFilter}
+            onSelectTableFilter={setSelectedTableFilter}
+            totalRowsCount={(cleanData?.rows || []).length}
+            rows={cleanData?.rows || []}
           />
 
           {/* Content Table */}

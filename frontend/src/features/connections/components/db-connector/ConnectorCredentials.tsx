@@ -1,15 +1,15 @@
 import React from "react";
 import type { DBType } from "./dbConnectorTypes";
 import { Select } from "../../../../components/ui/dropdown";
-import type {
-  DbFormErrors,
-  DbFormField,
-  ClassifiedConnectionError,
-  ParsedConnectionString,
+import { CheckCircle2 } from "../../../../lib/icons";
+import {
+  type DbFormErrors,
+  type DbFormField,
+  type ClassifiedConnectionError,
 } from "./dbConnectorUtils";
-import { ConnectionStringPaste } from "./ConnectionStringPaste";
-import { ConnectionFeedbackBanner } from "./ConnectionFeedbackBanner";
-import { CredentialField, PasswordField } from "./CredentialField";
+import { ConnectionStringHelper } from "./ConnectionStringHelper";
+import { ConnectionErrorAlert } from "./ConnectionErrorAlert";
+import { ConnectorAuthInputs } from "./ConnectorAuthInputs";
 
 const DB_TYPE_OPTIONS = [
   { value: "postgresql", label: "PostgreSQL" },
@@ -46,7 +46,14 @@ interface ConnectorCredentialsProps {
   testResult: TestConnectionResult | null;
   onSubmitForm: (e: React.FormEvent) => void;
   handleDbTypeChange: (t: DBType) => void;
-  onApplyConnectionString: (parsed: ParsedConnectionString) => void;
+  onApplyConnectionString: (parsed: {
+    dbType?: DBType;
+    host?: string;
+    port?: number;
+    databaseName?: string;
+    username?: string;
+    password?: string;
+  }) => void;
 }
 
 export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
@@ -76,6 +83,13 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
   const fieldError = (field: DbFormField) =>
     touched[field] ? errors[field] : undefined;
 
+  const inputClass = (field: DbFormField) =>
+    `w-full bg-surface border rounded-lg py-2 px-3 text-xs text-text focus:outline-none placeholder:text-text-muted disabled:opacity-50 transition-colors ${
+      fieldError(field)
+        ? "border-error focus:border-error"
+        : "border-border focus:border-border-focus"
+    }`;
+
   return (
     <form
       id="db-connector-credentials-form"
@@ -83,22 +97,38 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
       noValidate
       className="flex flex-col gap-4"
     >
-      <ConnectionStringPaste
-        disabled={isVerifying}
-        onApply={onApplyConnectionString}
+      <ConnectionStringHelper
+        isVerifying={isVerifying}
+        onApplyConnectionString={onApplyConnectionString}
       />
 
-      <CredentialField
-        id="db-connector-name"
-        label="Connector name"
-        errorId="db-name-error"
-        error={fieldError("name")}
-        disabled={isVerifying}
-        placeholder="Production PostgreSQL"
-        value={name}
-        onChange={setName}
-        onBlur={() => onBlurField("name")}
-      />
+      {/* Connector name */}
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor="db-connector-name"
+          className="text-xs font-medium text-text"
+        >
+          Connector name
+        </label>
+        <input
+          id="db-connector-name"
+          type="text"
+          required
+          disabled={isVerifying}
+          placeholder="Production PostgreSQL"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => onBlurField("name")}
+          aria-invalid={!!fieldError("name")}
+          aria-describedby={fieldError("name") ? "db-name-error" : undefined}
+          className={inputClass("name")}
+        />
+        {fieldError("name") && (
+          <p id="db-name-error" role="alert" className="text-xs text-error">
+            {fieldError("name")}
+          </p>
+        )}
+      </div>
 
       {/* Database type + Port */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -119,79 +149,80 @@ export const ConnectorCredentials: React.FC<ConnectorCredentialsProps> = ({
           />
         </div>
 
-        <CredentialField
-          id="db-connector-port"
-          label="Port"
-          errorId="db-port-error"
-          error={fieldError("port")}
-          type="number"
-          min={1}
-          max={65535}
-          disabled={isVerifying}
-          placeholder="5432"
-          value={port}
-          onChange={onPortChange}
-          onBlur={() => onBlurField("port")}
-        />
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="db-connector-port"
+            className="text-xs font-medium text-text"
+          >
+            Port
+          </label>
+          <input
+            id="db-connector-port"
+            type="number"
+            min={1}
+            max={65535}
+            required
+            disabled={isVerifying}
+            placeholder="5432"
+            value={port}
+            onChange={(e) => onPortChange(e.target.value)}
+            onBlur={() => onBlurField("port")}
+            aria-invalid={!!fieldError("port")}
+            aria-describedby={fieldError("port") ? "db-port-error" : undefined}
+            className={inputClass("port")}
+          />
+          {fieldError("port") && (
+            <p id="db-port-error" role="alert" className="text-xs text-error">
+              {fieldError("port")}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Host + Database */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <CredentialField
-          id="db-connector-host"
-          label="Host"
-          errorId="db-host-error"
-          error={fieldError("host")}
-          disabled={isVerifying}
-          placeholder="db.replica.internal"
-          value={host}
-          onChange={setHost}
-          onBlur={() => onBlurField("host")}
-        />
-
-        <CredentialField
-          id="db-connector-database"
-          label="Database"
-          errorId="db-database-error"
-          error={fieldError("databaseName")}
-          disabled={isVerifying}
-          placeholder="sales_db"
-          value={databaseName}
-          onChange={setDatabaseName}
-          onBlur={() => onBlurField("databaseName")}
-        />
-      </div>
-
-      {/* Username + Password */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <CredentialField
-          id="db-connector-username"
-          label="Username"
-          errorId="db-username-error"
-          error={fieldError("username")}
-          hintId="db-username-hint"
-          hint="Use a read-only database user."
-          autoComplete="off"
-          disabled={isVerifying}
-          placeholder="lumin_readonly"
-          value={username}
-          onChange={setUsername}
-          onBlur={() => onBlurField("username")}
-        />
-
-        <PasswordField
-          value={password}
-          error={fieldError("password")}
-          disabled={isVerifying}
-          onChange={setPassword}
-          onBlur={() => onBlurField("password")}
-        />
-      </div>
-
-      <ConnectionFeedbackBanner
-        testResult={testResult}
-        connectionError={connectionError}
+      <ConnectorAuthInputs
+        host={host}
+        setHost={setHost}
+        databaseName={databaseName}
+        setDatabaseName={setDatabaseName}
+        username={username}
+        setUsername={setUsername}
+        password={password}
+        setPassword={setPassword}
+        errors={errors}
+        touched={touched}
+        onBlurField={onBlurField}
+        isVerifying={isVerifying}
+        inputClass={inputClass}
       />
+
+      {testResult && !connectionError && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="p-3 rounded-lg bg-success-bg border border-success-border text-success text-xs flex items-start gap-2.5"
+        >
+          <CheckCircle2
+            className="w-4 h-4 shrink-0 mt-0.5"
+            aria-hidden="true"
+          />
+          <div>
+            <p className="font-semibold">
+              Connection verified ({testResult.latencyMs} ms)
+            </p>
+            <p className="text-text-secondary mt-0.5">
+              Found {testResult.schemaCount} schema
+              {testResult.schemaCount === 1 ? "" : "s"} and{" "}
+              {testResult.tableCount} table
+              {testResult.tableCount === 1 ? "" : "s"}. Continue to choose
+              tables.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {connectionError && (
+        <ConnectionErrorAlert connectionError={connectionError} />
+      )}
     </form>
   );
 };

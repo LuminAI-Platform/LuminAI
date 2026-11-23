@@ -1,16 +1,16 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../../lib/api";
 import { useToast } from "../../../components/ui/ToastProvider";
 import type { CandidateResponse, PageData } from "./mergeTypes";
 
-interface ScanResponse {
+export interface ScanResponse {
   status?: string;
   message?: string;
   candidatesFound?: number;
 }
 
-async function parseErrorMessage(
+export async function parseErrorMessage(
   res: Response,
   fallback: string,
 ): Promise<string> {
@@ -213,6 +213,7 @@ export function useMergeReviewData() {
     setStatusFilter,
     searchTerm,
     setSearchTerm,
+    selectedCandidateId,
     setSelectedCandidateId,
     scanError,
     setScanError,
@@ -222,10 +223,10 @@ export function useMergeReviewData() {
     refetch,
     filteredCandidates,
     activeCandidate,
-    allPropertyKeys,
-    loadErrorMessage,
     acceptMutation,
     rejectMutation,
     scanMutation,
+    allPropertyKeys,
+    loadErrorMessage,
   };
 }

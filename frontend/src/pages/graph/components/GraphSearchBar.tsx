@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useId } from "react";
 import { Search, Loader2 } from "../../../lib/icons";
+import { apiFetch } from "../../../lib/api";
 import { useThemeStore } from "../../../stores/themeStore";
 import { getEntityColor } from "../../../lib/entityColors";
 import type { SuggestedEntity } from "../useGraphData";
-import { searchGraphEntities } from "../graphApi";
 
 interface GraphSearchBarProps {
   onSearch: (entityId: string, label?: string) => void;
@@ -32,7 +32,6 @@ export const GraphSearchBar: React.FC<GraphSearchBarProps> = ({
     if (trimmed.length < 2) {
       setSuggestions([]);
       setIsOpen(false);
-      setIsSearching(false);
       setActiveIndex(-1);
       return;
     }
@@ -41,7 +40,33 @@ export const GraphSearchBar: React.FC<GraphSearchBarProps> = ({
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const mapped = await searchGraphEntities(trimmed, controller.signal);
+        const res = await apiFetch(
+          `/api/v1/explorer/search?query=${encodeURIComponent(trimmed)}&size=6`,
+          {
+            headers: { "X-Suppress-Toast": "true" },
+            signal: controller.signal,
+          },
+        );
+        const data = await res.json();
+        const rawItems = Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.content)
+            ? data.content
+            : Array.isArray(data?.results)
+              ? data.results
+              : [];
+
+        const mapped: SuggestedEntity[] = rawItems
+          .filter((item: Record<string, unknown>) => Boolean(item?.id))
+          .slice(0, 6)
+          .map((item: Record<string, unknown>) => ({
+            id: String(item.id),
+            canonicalName: String(
+              item.canonicalName || item.label || item.name || item.id,
+            ),
+            entityType: String(item.entityType || "Entity"),
+          }));
+
         setSuggestions(mapped);
         setIsOpen(mapped.length > 0);
         setActiveIndex(-1);

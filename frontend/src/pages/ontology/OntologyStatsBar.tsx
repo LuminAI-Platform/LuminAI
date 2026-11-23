@@ -1,20 +1,19 @@
 import React from "react";
+import type { EntityType, RelationshipType } from "./useOntologyData";
 
 interface OntologyStatsBarProps {
-  entityCount: number;
-  relationshipCount: number;
-  propertyCount: number;
+  entities: EntityType[];
+  relationships: RelationshipType[];
 }
 
 export const OntologyStatsBar: React.FC<OntologyStatsBarProps> = ({
-  entityCount,
-  relationshipCount,
-  propertyCount,
+  entities,
+  relationships,
 }) => {
   const stats = [
     {
       label: "Entity Types",
-      value: entityCount,
+      value: entities.length,
       color: "#3b82f6",
       icon: (
         <svg
@@ -32,7 +31,7 @@ export const OntologyStatsBar: React.FC<OntologyStatsBarProps> = ({
     },
     {
       label: "Relationship Types",
-      value: relationshipCount,
+      value: relationships.length,
       color: "#a855f7",
       icon: (
         <svg
@@ -51,7 +50,7 @@ export const OntologyStatsBar: React.FC<OntologyStatsBarProps> = ({
     },
     {
       label: "Total Properties",
-      value: propertyCount,
+      value: entities.reduce((s, e) => s + (e.properties?.length ?? 0), 0),
       color: "#10b981",
       icon: (
         <svg

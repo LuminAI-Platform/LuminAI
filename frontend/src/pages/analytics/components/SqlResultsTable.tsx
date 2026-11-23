@@ -3,12 +3,14 @@ import { Clock } from "../../../lib/icons";
 import type { SqlQueryResult } from "../../../features/datasets/types";
 
 interface SqlResultsTableProps {
-  queryResult: SqlQueryResult;
+  queryResult: SqlQueryResult | null;
 }
 
 export const SqlResultsTable: React.FC<SqlResultsTableProps> = ({
   queryResult,
 }) => {
+  if (!queryResult) return null;
+
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden flex flex-col">
       <div className="p-3 bg-surface-subtle border-b border-border flex items-center justify-between text-xs">

@@ -4,14 +4,14 @@ import type { Dataset, LineageGraph } from "../../../features/datasets/types";
 
 interface DatasetLineageTabProps {
   dataset: Dataset;
-  datasetId: string;
   lineage?: LineageGraph;
+  datasetId: string;
 }
 
 export const DatasetLineageTab: React.FC<DatasetLineageTabProps> = ({
   dataset,
-  datasetId,
   lineage,
+  datasetId,
 }) => {
   return (
     <div className="p-6 rounded-xl border border-border bg-surface flex flex-col gap-4">
@@ -40,7 +40,7 @@ export const DatasetLineageTab: React.FC<DatasetLineageTabProps> = ({
               Current Dataset
             </span>
             <span className="text-xs font-bold text-text">
-              {dataset.displayName || dataset.name}
+              {dataset.displayName}
             </span>
           </div>
           <ChevronRight className="w-5 h-5 text-text-secondary" />
