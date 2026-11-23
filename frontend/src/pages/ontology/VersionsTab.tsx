@@ -3,9 +3,13 @@ import type { OntologyVersion } from "./useOntologyData";
 
 interface VersionsTabProps {
   versions: OntologyVersion[];
+  onViewDiff?: (version: OntologyVersion) => void;
 }
 
-export const VersionsTab: React.FC<VersionsTabProps> = ({ versions }) => {
+export const VersionsTab: React.FC<VersionsTabProps> = ({
+  versions,
+  onViewDiff,
+}) => {
   return (
     <div className="flex flex-col gap-4">
       {versions.length === 0 ? (
@@ -35,10 +39,11 @@ export const VersionsTab: React.FC<VersionsTabProps> = ({ versions }) => {
           <div className="overflow-x-auto min-w-0">
             <div className="min-w-[680px]">
               <div className="grid grid-cols-12 bg-zinc-900/60 px-5 py-3 border-b border-zinc-800/80 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                <div className="col-span-3">Version</div>
-                <div className="col-span-4">Published At</div>
+                <div className="col-span-2">Version</div>
+                <div className="col-span-3">Published At</div>
                 <div className="col-span-3">Published By</div>
                 <div className="col-span-2">Status</div>
+                <div className="col-span-2 text-right">Diff</div>
               </div>
               <div className="divide-y divide-zinc-900">
                 {versions.map((v) => (
@@ -46,10 +51,10 @@ export const VersionsTab: React.FC<VersionsTabProps> = ({ versions }) => {
                     key={v.id}
                     className="grid grid-cols-12 px-5 py-3.5 items-center text-xs hover:bg-zinc-900/30 transition-all"
                   >
-                    <div className="col-span-3 font-bold font-mono text-zinc-200">
+                    <div className="col-span-2 font-bold font-mono text-zinc-200">
                       {v.version}
                     </div>
-                    <div className="col-span-4 text-zinc-500">
+                    <div className="col-span-3 text-zinc-500">
                       {v.publishedAt}
                     </div>
                     <div className="col-span-3 text-zinc-400">
@@ -67,6 +72,17 @@ export const VersionsTab: React.FC<VersionsTabProps> = ({ versions }) => {
                       >
                         {v.status}
                       </span>
+                    </div>
+                    <div className="col-span-2 text-right">
+                      {onViewDiff && (
+                        <button
+                          type="button"
+                          onClick={() => onViewDiff(v)}
+                          className="text-xs text-primary hover:underline cursor-pointer font-medium"
+                        >
+                          View Diff
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

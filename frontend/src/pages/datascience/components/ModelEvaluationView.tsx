@@ -41,7 +41,9 @@ export const ModelEvaluationView: React.FC<ModelEvaluationViewProps> = ({
         <Button
           variant="primary"
           size="sm"
-          onClick={() => onPromote(lastTrainedResult.run_id)}
+          onClick={() =>
+            onPromote(lastTrainedResult.model_id || lastTrainedResult.run_id)
+          }
           isLoading={isPromoting}
           leftIcon={<Award className="w-3.5 h-3.5" />}
         >

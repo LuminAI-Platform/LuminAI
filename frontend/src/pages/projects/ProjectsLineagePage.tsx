@@ -137,6 +137,7 @@ export const ProjectsLineagePage: React.FC = () => {
     const byLayer = (layer: string) =>
       datasets ? datasets.filter((d) => d.layer === layer).length : null;
     const rawCount = byLayer("RAW");
+    const workingCount = byLayer("WORKING");
     const prepCount = byLayer("PREPARED");
     const curatedCount = byLayer("CURATED");
     const analyticalCount = byLayer("ANALYTICAL");
@@ -147,7 +148,10 @@ export const ProjectsLineagePage: React.FC = () => {
         connections !== undefined || rawCount !== null
           ? (connections?.length ?? 0) + (rawCount ?? 0)
           : null,
-      DATA_PREP: prepCount,
+      DATA_PREP:
+        workingCount !== null || prepCount !== null
+          ? (workingCount ?? 0) + (prepCount ?? 0)
+          : null,
       TRANSFORM: curatedCount,
       SEMANTIC: entityTypes !== undefined ? entityTypes.length : null,
       ANALYTICS:

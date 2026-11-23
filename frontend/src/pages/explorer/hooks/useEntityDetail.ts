@@ -50,6 +50,8 @@ export function useEntityDetail(entityId?: string): UseEntityDetailResult {
   useEffect(() => {
     if (entityId) {
       void fetchEntityAndProvenance();
+    } else {
+      setLoading(false);
     }
   }, [entityId, fetchEntityAndProvenance]);
 

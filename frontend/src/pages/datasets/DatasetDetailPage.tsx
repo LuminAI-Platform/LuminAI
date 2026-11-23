@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams, Link } from "@tanstack/react-router";
+import { useParams, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import {
@@ -10,14 +10,19 @@ import {
   Table,
   Cpu,
   GitBranch,
+  Trash2,
+  BarChart3,
   ICON_SIZES,
 } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import {
   fetchDatasetById,
   fetchDatasetVersions,
   fetchDatasetLineage,
   transitionDatasetLayer,
+  deleteDataset,
+  generateEdaReport,
 } from "../../features/datasets/datasetApi";
 import type {
   Dataset,
@@ -33,6 +38,8 @@ import { DatasetSummaryMetrics } from "./components/DatasetSummaryMetrics";
 
 export const DatasetDetailPage: React.FC = () => {
   const { datasetId } = useParams({ strict: false }) as { datasetId: string };
+  const navigate = useNavigate();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "profiler" | "schema" | "versions" | "lineage"
   >("profiler");
@@ -63,10 +70,21 @@ export const DatasetDetailPage: React.FC = () => {
   const transitionMutation = useMutation({
     mutationFn: (newLayer: DatasetLayer) =>
       transitionDatasetLayer(datasetId, newLayer),
-    onSuccess: () => {
-      void refetch();
-    },
+    onSuccess: () => void refetch(),
   });
+
+  const edaMutation = useMutation({
+    mutationFn: () => generateEdaReport(datasetId),
+    onSuccess: () => void refetch(),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteDataset(datasetId),
+    onSuccess: () => void navigate({ to: "/datasets" }),
+  });
+
+  const actionError =
+    transitionMutation.error || edaMutation.error || deleteMutation.error;
 
   if (isDatasetLoading) {
     return (
@@ -125,7 +143,16 @@ export const DatasetDetailPage: React.FC = () => {
             >
               Sync
             </Button>
-            <Link to="/analytics/sql">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => edaMutation.mutate()}
+              isLoading={edaMutation.isPending}
+              leftIcon={<BarChart3 className="w-3.5 h-3.5" />}
+            >
+              Run EDA
+            </Button>
+            <Link to="/analytics/sql" search={{ datasetId: dataset.id }}>
               <Button
                 variant="secondary"
                 size="sm"
@@ -134,7 +161,7 @@ export const DatasetDetailPage: React.FC = () => {
                 Query SQL
               </Button>
             </Link>
-            <Link to="/datascience/models">
+            <Link to="/datascience/models" search={{ datasetId: dataset.id }}>
               <Button
                 variant="primary"
                 size="sm"
@@ -143,8 +170,35 @@ export const DatasetDetailPage: React.FC = () => {
                 Train ML
               </Button>
             </Link>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setConfirmDeleteOpen(true)}
+              leftIcon={<Trash2 className="w-3.5 h-3.5 text-error" />}
+            >
+              Delete
+            </Button>
           </div>
         }
+      />
+
+      {actionError && (
+        <div className="p-3 rounded-lg border border-error/30 bg-error/10 text-error text-xs">
+          {actionError instanceof Error
+            ? actionError.message
+            : "Dataset operation failed."}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete Dataset"
+        description={`Permanently delete "${dataset.displayName || dataset.name}" and its catalog metadata?`}
+        confirmText="Delete Dataset"
+        isDestructive={true}
+        onConfirm={() => deleteMutation.mutate()}
+        isLoading={deleteMutation.isPending}
       />
 
       <DatasetSummaryMetrics
@@ -155,53 +209,35 @@ export const DatasetDetailPage: React.FC = () => {
       />
 
       <div className="border-b border-border flex items-center gap-4 text-xs font-medium">
-        <button
-          onClick={() => setActiveTab("profiler")}
-          className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
-            activeTab === "profiler"
-              ? "border-primary text-primary font-semibold"
-              : "border-transparent text-text-secondary hover:text-text"
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          <span>Data Profiler & Quality</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("schema")}
-          className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
-            activeTab === "schema"
-              ? "border-primary text-primary font-semibold"
-              : "border-transparent text-text-secondary hover:text-text"
-          }`}
-        >
-          <Table className="w-4 h-4" />
-          <span>Schema & Contract</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("versions")}
-          className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
-            activeTab === "versions"
-              ? "border-primary text-primary font-semibold"
-              : "border-transparent text-text-secondary hover:text-text"
-          }`}
-        >
-          <GitCommit className="w-4 h-4" />
-          <span>Version Commits ({versions.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("lineage")}
-          className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
-            activeTab === "lineage"
-              ? "border-primary text-primary font-semibold"
-              : "border-transparent text-text-secondary hover:text-text"
-          }`}
-        >
-          <GitBranch className="w-4 h-4" />
-          <span>Lineage Graph</span>
-        </button>
+        {(
+          [
+            {
+              key: "profiler",
+              label: "Data Profiler & Quality",
+              Icon: ShieldCheck,
+            },
+            { key: "schema", label: "Schema & Contract", Icon: Table },
+            {
+              key: "versions",
+              label: `Version Commits (${versions.length})`,
+              Icon: GitCommit,
+            },
+            { key: "lineage", label: "Lineage Graph", Icon: GitBranch },
+          ] as const
+        ).map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+              activeTab === key
+                ? "border-primary text-primary font-semibold"
+                : "border-transparent text-text-secondary hover:text-text"
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
       {activeTab === "profiler" && (

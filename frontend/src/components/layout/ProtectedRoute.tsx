@@ -13,9 +13,12 @@ interface ProtectedRouteProps {
  */
 function saveRedirectPath() {
   if (typeof window !== "undefined" && typeof sessionStorage !== "undefined") {
-    const path = window.location.pathname;
-    if (path !== "/login") {
-      sessionStorage.setItem("post_login_redirect", path);
+    const { pathname, search, hash } = window.location;
+    if (pathname !== "/login") {
+      sessionStorage.setItem(
+        "post_login_redirect",
+        `${pathname}${search}${hash}`,
+      );
     }
   }
 }

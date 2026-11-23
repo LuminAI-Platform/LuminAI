@@ -67,10 +67,14 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
   });
 
   const exportCleanCsv = () => {
-    if (!cleanData || !cleanData.rows || cleanData.rows.length === 0) return;
+    const rowsToExport =
+      filteredRows.length > 0 ? filteredRows : (cleanData?.rows ?? []);
+    if (!cleanData || rowsToExport.length === 0) return;
     const cols = cleanData.columns;
-    const headerRow = cols.join(",");
-    const bodyRows = cleanData.rows.map((row) =>
+    const headerRow = cols
+      .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+      .join(",");
+    const bodyRows = rowsToExport.map((row) =>
       cols
         .map((c) => {
           const v = row[c] ?? "";
@@ -79,18 +83,17 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
         })
         .join(","),
     );
-    const csvContent =
-      "data:text/csv;charset=utf-8," + [headerRow, ...bodyRows].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([[headerRow, ...bodyRows].join("\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `clean_${cleanPreviewFile.name.replace(/\.[^/.]+$/, "")}.csv`,
-    );
+    link.href = url;
+    link.download = `clean_${cleanPreviewFile.name.replace(/\.[^/.]+$/, "")}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const verifiedCount =

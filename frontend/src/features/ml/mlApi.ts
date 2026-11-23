@@ -14,7 +14,8 @@ export async function trainModel(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+    timeoutMs: 120_000,
+  } as RequestInit);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || err.message || "Model training failed");

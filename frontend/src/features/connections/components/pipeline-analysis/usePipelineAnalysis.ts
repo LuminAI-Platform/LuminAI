@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "../../../../lib/api";
 import type {
@@ -82,6 +82,10 @@ export function usePipelineAnalysis() {
     refetchOnWindowFocus: false,
     retry: 1,
   });
+
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter]);
 
   const hasActiveRun = useMemo(() => {
     if ((pipelineMetrics?.activeJobsCount ?? 0) > 0) return true;

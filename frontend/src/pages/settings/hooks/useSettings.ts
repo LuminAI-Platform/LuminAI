@@ -61,23 +61,32 @@ export function useSettings(): UseSettingsResult {
   const tenantSlug = authMe?.tenantSlug || DEFAULT_TENANT_SLUG;
   const tenantId = authMe?.tenantId || DEFAULT_TENANT_ID;
 
-  const roles: string[] =
-    authMe?.roles?.roles ||
-    (Array.isArray(user?.profile?.roles)
-      ? (user?.profile?.roles as string[])
-      : DEFAULT_ROLES);
+  const rawRoles = authMe?.roles as { roles?: string[] } | string[] | undefined;
+  const roles: string[] = Array.isArray(rawRoles)
+    ? rawRoles
+    : rawRoles?.roles ||
+      (Array.isArray(user?.profile?.roles)
+        ? (user?.profile?.roles as string[])
+        : DEFAULT_ROLES);
 
   const displayedKey = getDisplayedKey(apiKey, apiKeyData);
 
-  const handleCopyKey = () => {
+  const handleCopyKey = async () => {
     if (apiKey) {
-      navigator.clipboard.writeText(apiKey);
-      setCopiedKey(true);
-      toast.success(
-        "API Key Copied",
-        "The full secret token has been copied to your clipboard.",
-      );
-      setTimeout(() => setCopiedKey(false), 2500);
+      try {
+        await navigator.clipboard.writeText(apiKey);
+        setCopiedKey(true);
+        toast.success(
+          "API Key Copied",
+          "The full secret token has been copied to your clipboard.",
+        );
+        setTimeout(() => setCopiedKey(false), 2500);
+      } catch {
+        toast.error(
+          "Copy Failed",
+          "Clipboard access was denied. Select and copy the key manually.",
+        );
+      }
     } else if (apiKeyData?.hasKey) {
       toast.warning(
         "Full Key Masked",

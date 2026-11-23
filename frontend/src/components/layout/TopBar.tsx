@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/authStore";
 import { useConnectionModalStore } from "../../stores/connectionModalStore";
 import {
@@ -17,6 +18,15 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { user } = useAuthStore();
   const openChooser = useConnectionModalStore((state) => state.openChooser);
+  const navigate = useNavigate();
+  const [searchValue, setSearchValue] = useState("");
+
+  const handleGlobalSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchValue.trim();
+    if (!q) return;
+    void navigate({ to: "/explorer", search: { query: q } });
+  };
 
   return (
     <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 md:px-8 z-30 transition-colors">
@@ -33,7 +43,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
       </Tooltip>
 
       {/* Search Bar Container */}
-      <div className="flex items-center bg-surface-subtle border border-border rounded-lg px-3 py-1.5 w-48 sm:w-64 md:w-96 gap-2 transition-colors focus-within:border-border-focus">
+      <form
+        onSubmit={handleGlobalSearch}
+        className="flex items-center bg-surface-subtle border border-border rounded-lg px-3 py-1.5 w-48 sm:w-64 md:w-96 gap-2 transition-colors focus-within:border-border-focus"
+      >
         <Search
           size={ICON_SIZES.dropdown}
           className="text-text-secondary shrink-0"
@@ -41,10 +54,13 @@ export const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         />
         <input
           type="text"
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          aria-label="Global entity search"
           className="bg-transparent border-none outline-none text-text placeholder:text-text-secondary text-xs w-full"
-          placeholder="Search entities, connections, or pipelines..."
+          placeholder="Search entities across the platform..."
         />
-      </div>
+      </form>
 
       {/* Right Action Buttons */}
       <div className="flex items-center gap-2 sm:gap-3">

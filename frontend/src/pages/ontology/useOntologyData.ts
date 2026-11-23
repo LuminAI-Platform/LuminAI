@@ -29,6 +29,16 @@ export function useOntologyData() {
   const [editingRel, setEditingRel] = useState<RelationshipType | undefined>();
   const [publishing, setPublishing] = useState(false);
 
+  const normalizeVersion = (raw: Record<string, unknown>): OntologyVersion => ({
+    id: String(raw.id ?? ""),
+    version: String(raw.version ?? ""),
+    publishedAt: raw.publishedAt
+      ? new Date(String(raw.publishedAt)).toLocaleString()
+      : "—",
+    publishedBy: String(raw.publishedBy || raw.createdBy || "—"),
+    status: (raw.status as OntologyVersion["status"]) || "PUBLISHED",
+  });
+
   const loadEntities = useCallback(async () => {
     try {
       const res = await apiFetch("/api/v1/ontology/entity-types");
@@ -36,8 +46,6 @@ export function useOntologyData() {
       setEntities(Array.isArray(data) ? (data as EntityType[]) : []);
     } catch {
       setError("Failed to load entity types.");
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -48,8 +56,6 @@ export function useOntologyData() {
       setRelationships(Array.isArray(data) ? (data as RelationshipType[]) : []);
     } catch {
       setError("Failed to load relationship types.");
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -57,29 +63,32 @@ export function useOntologyData() {
     try {
       const res = await apiFetch("/api/v1/ontology/versions");
       const data = (await res.json()) as unknown;
-      setVersions(Array.isArray(data) ? (data as OntologyVersion[]) : []);
+      setVersions(
+        Array.isArray(data)
+          ? (data as Record<string, unknown>[]).map(normalizeVersion)
+          : [],
+      );
     } catch {
       setError("Failed to load ontology versions.");
-    } finally {
-      setLoading(false);
     }
   }, []);
+
+  const reloadAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    await Promise.all([loadEntities(), loadRelationships(), loadVersions()]);
+    setLoading(false);
+  }, [loadEntities, loadRelationships, loadVersions]);
 
   const handleTabChange = (newTab: Tab) => {
     if (newTab === tab) return;
     setTab(newTab);
-    setLoading(true);
     setError(null);
   };
 
   useEffect(() => {
-    const init = async () => {
-      if (tab === "entities") await loadEntities();
-      else if (tab === "relationships") await loadRelationships();
-      else if (tab === "versions") await loadVersions();
-    };
-    init();
-  }, [tab, loadEntities, loadRelationships, loadVersions]);
+    void reloadAll();
+  }, [reloadAll]);
 
   const deleteEntity = async (id: string) => {
     if (!confirm("Delete this entity type? This cannot be undone.")) return;
@@ -145,6 +154,8 @@ export function useOntologyData() {
     relationships,
     setRelationships,
     versions,
+    setVersions,
+    reloadAll,
     loading,
     error,
     setError,

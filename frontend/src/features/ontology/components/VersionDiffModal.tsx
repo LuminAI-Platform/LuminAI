@@ -57,6 +57,7 @@ export const VersionDiffModal: React.FC<VersionDiffModalProps> = ({
   const hasChanges =
     diff &&
     ((diff.addedEntityTypes && diff.addedEntityTypes.length > 0) ||
+      (diff.modifiedEntityTypes && diff.modifiedEntityTypes.length > 0) ||
       (diff.removedEntityTypes && diff.removedEntityTypes.length > 0) ||
       (diff.addedRelationshipTypes && diff.addedRelationshipTypes.length > 0) ||
       (diff.removedRelationshipTypes &&

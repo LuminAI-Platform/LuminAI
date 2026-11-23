@@ -1,20 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { EntityTypeEditor } from "../../features/ontology/components/EntityTypeEditor";
 import { RelationshipTypeForm } from "../../features/ontology/components/RelationshipTypeForm";
+import { AutoGenerateModal } from "../../features/ontology/components/AutoGenerateModal";
+import { PublishVersionModal } from "../../features/ontology/components/PublishVersionModal";
+import { VersionDiffModal } from "../../features/ontology/components/VersionDiffModal";
 import {
   useOntologyData,
   type Tab,
   type EntityType,
   type RelationshipType,
+  type OntologyVersion,
 } from "./useOntologyData";
 import { EntityTypesTab } from "./EntityTypesTab";
 import { RelationshipsTab } from "./RelationshipsTab";
 import { VersionsTab } from "./VersionsTab";
-import { Icons, Loader2, PenLine, ICON_SIZES } from "../../lib/icons";
+import { Icons, Loader2, PenLine, Wand2, ICON_SIZES } from "../../lib/icons";
 import { OntologyStatsBar } from "./OntologyStatsBar";
 
 export const OntologyPage: React.FC = () => {
+  const [autoGenOpen, setAutoGenOpen] = useState(false);
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [diffVersion, setDiffVersion] = useState<OntologyVersion | null>(null);
+
   const {
     tab,
     handleTabChange,
@@ -23,6 +31,8 @@ export const OntologyPage: React.FC = () => {
     relationships,
     setRelationships,
     versions,
+    setVersions,
+    reloadAll,
     loading,
     error,
     setError,
@@ -34,10 +44,8 @@ export const OntologyPage: React.FC = () => {
     setRelFormOpen,
     editingRel,
     setEditingRel,
-    publishing,
     deleteEntity,
     deleteRelationship,
-    publishVersion,
   } = useOntologyData();
 
   const entityName = (id: string) =>
@@ -66,23 +74,25 @@ export const OntologyPage: React.FC = () => {
               : { label: "Empty Schema", variant: "zinc" }
           }
           actions={
-            <button
-              id="publish-ontology-btn"
-              onClick={publishVersion}
-              disabled={publishing}
-              className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {publishing ? (
-                <Loader2
-                  size={ICON_SIZES.inline}
-                  className="animate-spin motion-reduce:animate-none"
-                  aria-hidden="true"
-                />
-              ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAutoGenOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-text bg-surface-subtle hover:bg-surface-hover border border-border rounded-lg transition-colors cursor-pointer"
+              >
+                <Wand2 size={ICON_SIZES.inline} aria-hidden="true" />
+                Auto-Generate
+              </button>
+              <button
+                id="publish-ontology-btn"
+                type="button"
+                onClick={() => setPublishModalOpen(true)}
+                className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-colors cursor-pointer"
+              >
                 <PenLine size={ICON_SIZES.inline} aria-hidden="true" />
-              )}
-              {publishing ? "Publishing…" : "Publish Version"}
-            </button>
+                Publish Version
+              </button>
+            </div>
           }
         />
       </div>
@@ -165,10 +175,43 @@ export const OntologyPage: React.FC = () => {
               />
             )}
 
-            {tab === "versions" && <VersionsTab versions={versions} />}
+            {tab === "versions" && (
+              <VersionsTab
+                versions={versions}
+                onViewDiff={(v) => setDiffVersion(v)}
+              />
+            )}
           </>
         )}
       </div>
+
+      <AutoGenerateModal
+        open={autoGenOpen}
+        onClose={() => setAutoGenOpen(false)}
+        onGenerated={() => {
+          setAutoGenOpen(false);
+          void reloadAll();
+        }}
+      />
+
+      <PublishVersionModal
+        open={publishModalOpen}
+        defaultVersion={`v${versions.length + 1}.0.0`}
+        onClose={() => setPublishModalOpen(false)}
+        onPublished={(v) => {
+          setVersions((prev) => [v, ...prev]);
+          handleTabChange("versions");
+        }}
+      />
+
+      {diffVersion && (
+        <VersionDiffModal
+          open={Boolean(diffVersion)}
+          versionId={diffVersion.id}
+          versionTag={diffVersion.version}
+          onClose={() => setDiffVersion(null)}
+        />
+      )}
 
       {entityEditorOpen && (
         <EntityTypeEditor

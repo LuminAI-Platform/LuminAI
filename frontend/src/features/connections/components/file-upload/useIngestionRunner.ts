@@ -82,7 +82,7 @@ export function useIngestionRunner(opts: IngestionRunnerOptions) {
             : `${Math.round(file.size / 1024)} KB`,
         recordsCount: totalCount,
         status: "Synced",
-        createdAt: new Date().toLocaleString(),
+        createdAt: new Date().toISOString(),
         columns: isZip ? [] : parsedData.columns,
         sampleRows: isZip ? [] : parsedData.rows.slice(0, 50),
       };

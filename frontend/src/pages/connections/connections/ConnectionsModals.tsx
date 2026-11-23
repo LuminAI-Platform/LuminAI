@@ -41,7 +41,6 @@ export const ConnectionsModals: React.FC<ConnectionsModalsProps> = ({
           initialFile={connData.initialUploadFile}
           onClose={connData.closeWizard}
           onSuccess={() => {
-            connData.closeWizard();
             connData.loadConnectors(false);
           }}
         />
