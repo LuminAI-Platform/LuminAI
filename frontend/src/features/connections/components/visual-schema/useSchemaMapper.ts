@@ -26,8 +26,8 @@ interface UseSchemaMapperProps {
 }
 
 export function useSchemaMapper({
-  connectionId = "conn_default",
-  sourceTable = "raw_source",
+  connectionId = "",
+  sourceTable = "",
   sourceColumns,
   ontologyProperties,
   availableEntities = DEFAULT_TARGET_ENTITIES,

@@ -37,32 +37,6 @@ export const SavedQueriesPanel: React.FC<SavedQueriesPanelProps> = ({
           </div>
         )}
       </div>
-
-      <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
-          Query Templates
-        </h3>
-        <button
-          onClick={() =>
-            onSelectQuery(
-              "SELECT * FROM customers WHERE tier = 'Enterprise' LIMIT 50;",
-            )
-          }
-          className="text-left text-xs text-primary hover:underline"
-        >
-          • Filter by Customer Tier
-        </button>
-        <button
-          onClick={() =>
-            onSelectQuery(
-              "SELECT entity_type, COUNT(*) AS count FROM golden_records GROUP BY entity_type;",
-            )
-          }
-          className="text-left text-xs text-primary hover:underline"
-        >
-          • Golden Records Entity Breakdown
-        </button>
-      </div>
     </div>
   );
 };

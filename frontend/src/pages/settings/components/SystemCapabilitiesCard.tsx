@@ -16,13 +16,12 @@ export const SystemCapabilitiesCard: React.FC = () => {
             System Architecture & Preferences
           </h3>
           <p className="text-xs text-text-secondary">
-            Current runtime engine capabilities, color theme palette, and
-            telemetry switches
+            Interface appearance and workspace preferences
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
         {/* Theme Selection Setting */}
         <div className="bg-surface-subtle p-4 rounded-lg border border-border">
           <div className="flex items-center justify-between mb-2">
@@ -73,22 +72,6 @@ export const SystemCapabilitiesCard: React.FC = () => {
               <span>System</span>
             </button>
           </div>
-        </div>
-
-        <div className="bg-surface-subtle p-4 rounded-lg border border-border">
-          <span className="text-text-secondary font-medium block mb-1">
-            Cache Layer
-          </span>
-          <span className="text-text font-semibold">
-            Distributed In-Memory Cache
-          </span>
-        </div>
-
-        <div className="bg-surface-subtle p-4 rounded-lg border border-border">
-          <span className="text-text-secondary font-medium block mb-1">
-            Event Bus
-          </span>
-          <span className="text-text font-semibold">Stream Processing Bus</span>
         </div>
       </div>
     </div>

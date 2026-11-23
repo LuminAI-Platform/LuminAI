@@ -17,7 +17,7 @@ export const SidebarUserProfile: React.FC<SidebarUserProfileProps> = ({
   if (collapsed) {
     return (
       <SidebarTooltip
-        label={`Sign out — ${user?.profile?.name || "Admin User"}`}
+        label={`Sign out — ${user?.profile?.name || "Signed-in User"}`}
         enabled
       >
         <button
@@ -38,11 +38,13 @@ export const SidebarUserProfile: React.FC<SidebarUserProfileProps> = ({
       </div>
       <div className="flex flex-col overflow-hidden flex-1">
         <span className="text-[12px] font-semibold text-text truncate leading-tight">
-          {user?.profile?.name || "Admin User"}
+          {user?.profile?.name || "Signed-in User"}
         </span>
-        <span className="text-[10px] text-text-secondary truncate leading-none mt-0.5">
-          {user?.profile?.email || "Global Tenant"}
-        </span>
+        {user?.profile?.email && (
+          <span className="text-[10px] text-text-secondary truncate leading-none mt-0.5">
+            {user.profile.email}
+          </span>
+        )}
       </div>
       <button
         type="button"

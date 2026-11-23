@@ -66,8 +66,7 @@ export const DataQualityPanel: React.FC<DataQualityPanelProps> = ({
           <div>
             <h3 className="text-sm font-bold text-text">Data quality</h3>
             <p className="text-xs text-text-secondary mt-0.5">
-              Automated quality checks evaluated by Polars & DuckDB analytics
-              engine
+              Automated quality checks evaluated by the analytics engine
             </p>
           </div>
         </div>

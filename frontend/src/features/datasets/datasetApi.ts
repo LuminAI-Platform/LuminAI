@@ -207,7 +207,7 @@ export async function trainMlModel(payload: {
   task_type: "CLASSIFICATION" | "REGRESSION";
   test_size?: number;
 }) {
-  const res = await apiFetch("/analytics/ml/train", {
+  const res = await apiFetch("/api/v1/ml/train", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

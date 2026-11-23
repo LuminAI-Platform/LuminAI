@@ -68,8 +68,8 @@ export const PublishVersionModal: React.FC<PublishVersionModalProps> = ({
         version: data.version,
         publishedAt: data.publishedAt
           ? new Date(data.publishedAt).toLocaleString()
-          : new Date().toLocaleString(),
-        publishedBy: data.createdBy || "System Admin",
+          : "—",
+        publishedBy: data.createdBy || "—",
         status: data.status || "PUBLISHED",
       });
       onClose();

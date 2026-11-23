@@ -163,7 +163,7 @@ export function useDbConnectorDiscovery({
             ? "POSTGRESQL"
             : dbType === "mysql"
               ? "MYSQL"
-              : "POSTGRESQL";
+              : "SNOWFLAKE";
 
       const res = await apiFetch("/api/v1/connections", {
         method: "POST",

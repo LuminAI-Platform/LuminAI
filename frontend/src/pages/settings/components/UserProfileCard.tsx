@@ -1,6 +1,7 @@
 import React from "react";
 import { CheckCircle2 } from "../../../lib/icons";
 import { Badge } from "../../../components/ui/Badge";
+import { AUTH_URL } from "../../../stores/authTypes";
 import type { UserProfileCardProps } from "../types";
 
 export const UserProfileCard: React.FC<UserProfileCardProps> = ({
@@ -27,22 +28,28 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
               Assigned Platform Roles
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {roles.map((r) => (
-                <Badge key={r} variant="purple">
-                  {r}
-                </Badge>
-              ))}
+              {roles.length > 0 ? (
+                roles.map((r) => (
+                  <Badge key={r} variant="purple">
+                    {r}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-zinc-500">No roles assigned</span>
+              )}
             </div>
           </div>
 
-          <div>
-            <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
-              Authentication Authority
-            </label>
-            <span className="text-zinc-300 text-[11px] bg-zinc-950 px-2.5 py-1 rounded-md border border-zinc-800 inline-block">
-              Keycloak OIDC (OAuth 2.0 / RS256)
-            </span>
-          </div>
+          {AUTH_URL && (
+            <div>
+              <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
+                Authentication Authority
+              </label>
+              <span className="text-zinc-300 text-[11px] bg-zinc-950 px-2.5 py-1 rounded-md border border-zinc-800 inline-block font-mono break-all">
+                {AUTH_URL}
+              </span>
+            </div>
+          )}
 
           <div>
             <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
@@ -50,7 +57,7 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             </label>
             <div className="flex items-center gap-2 text-emerald-400 font-medium">
               <CheckCircle2 className="w-4 h-4" />
-              <span>Authenticated & Multi-Tenant Verified</span>
+              <span>Authenticated</span>
             </div>
           </div>
         </div>

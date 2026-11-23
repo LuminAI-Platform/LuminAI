@@ -21,7 +21,10 @@ const CONFIDENCE_CONFIG = {
 };
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  if (!iso) return "—";
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -39,7 +42,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   line,
   index,
 }) => {
-  const conf = CONFIDENCE_CONFIG[line.confidence];
+  const conf = line.confidence ? CONFIDENCE_CONFIG[line.confidence] : null;
   return (
     <div
       key={`${line.sourceDataset}-${index}`}
@@ -55,20 +58,24 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             <span className="text-xs font-semibold text-text truncate block">
               {line.sourceDataset}
             </span>
-            <span className="text-[10px] text-text-secondary truncate block">
-              Record: {line.sourceRecordId}
-            </span>
+            {line.sourceRecordId && (
+              <span className="text-[10px] text-text-secondary truncate block">
+                Record: {line.sourceRecordId}
+              </span>
+            )}
           </div>
         </div>
 
-        <span
-          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] border shrink-0 ${conf.badgeCls}`}
-        >
+        {conf && (
           <span
-            className={`w-1.5 h-1.5 rounded-full shrink-0 ${conf.dotCls}`}
-          />
-          {conf.label}
-        </span>
+            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] border shrink-0 ${conf.badgeCls}`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${conf.dotCls}`}
+            />
+            {conf.label}
+          </span>
+        )}
       </div>
 
       {/* Value contributed */}
@@ -90,7 +97,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
           <Clock className="w-3 h-3" />
           <span>{formatDateTime(line.ingestedAt)}</span>
         </div>
-        <span>Via pipeline sync</span>
+        {line.action && <span>{line.action}</span>}
       </div>
     </div>
   );

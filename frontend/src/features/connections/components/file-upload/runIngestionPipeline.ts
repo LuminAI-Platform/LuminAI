@@ -105,7 +105,6 @@ export async function runIngestionPipeline({
       columns: parsedData.columns,
       sampleRows: parsedData.rows.slice(0, 100),
     }),
-    credentialsRef: "minio-bucket-raw",
   };
 
   const connRes = await apiFetch("/api/v1/connections", {
@@ -125,7 +124,7 @@ export async function runIngestionPipeline({
   setProgress(50);
   const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
   addLog(
-    `[MinIO] Uploading multipart payload (${sizeMb} MB) to tenant-isolated raw storage...`,
+    `[Storage] Uploading multipart payload (${sizeMb} MB) to tenant-isolated storage...`,
     "INFO",
   );
   const formData = new FormData();
@@ -148,7 +147,7 @@ export async function runIngestionPipeline({
   const uploadJson = await uploadRes.json();
   setProgress(75);
   addLog(
-    `[MinIO] Upload complete. Key: ${uploadJson.fileKey || file.name}`,
+    `[Storage] Upload complete. Key: ${uploadJson.fileKey || file.name}`,
     "SUCCESS",
   );
   if (uploadJson.archive) {
@@ -158,7 +157,7 @@ export async function runIngestionPipeline({
     );
   } else {
     addLog(
-      `[Kafka] Published ${uploadJson.recordsCount ?? parsedData.rows.length} rows onto topic 'ingest.raw' for Data Engine processing.`,
+      `[Pipeline] Submitted ${uploadJson.recordsCount ?? parsedData.rows.length} rows for Data Engine processing.`,
       "SUCCESS",
     );
   }

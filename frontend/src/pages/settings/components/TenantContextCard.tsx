@@ -1,6 +1,5 @@
 import React from "react";
 import { Building } from "../../../lib/icons";
-import { Badge } from "../../../components/ui/Badge";
 import type { TenantContextCardProps } from "../types";
 
 export const TenantContextCard: React.FC<TenantContextCardProps> = ({
@@ -19,7 +18,7 @@ export const TenantContextCard: React.FC<TenantContextCardProps> = ({
               Tenant Organization
             </h3>
             <p className="text-xs text-zinc-400">
-              Schema-isolated enterprise workspace
+              Tenant-scoped workspace context
             </p>
           </div>
         </div>
@@ -40,16 +39,6 @@ export const TenantContextCard: React.FC<TenantContextCardProps> = ({
             </label>
             <div className="p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-400 font-mono text-[11px] truncate">
               {tenantId}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
-              Data Isolation Level
-            </label>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <Badge variant="info">PostgreSQL Schema Per Tenant</Badge>
-              <Badge variant="default">Neo4j Property Scoped</Badge>
             </div>
           </div>
         </div>

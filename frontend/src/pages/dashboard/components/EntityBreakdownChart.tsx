@@ -207,9 +207,9 @@ export const EntityBreakdownChart: React.FC<EntityBreakdownChartProps> = ({
                 Only one entity type found. Map more types during ingestion.
               </p>
               <p className="text-[11px] text-text-secondary leading-normal">
-                Columns like physician, insurer, and diagnosis were stored as
-                attributes on {single.name}. Configure additional entity types
-                to build a rich multi-class graph.
+                Additional source columns were stored as attributes on{" "}
+                {single.name}. Configure additional entity types to build a rich
+                multi-class graph.
               </p>
             </div>
           </div>

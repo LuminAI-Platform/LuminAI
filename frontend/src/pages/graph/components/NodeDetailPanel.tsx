@@ -126,7 +126,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                 Degree
               </span>
               <span className="text-sm font-bold text-text">
-                {stats?.degree ?? 0}
+                {stats?.degree ?? "—"}
               </span>
             </div>
             <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
@@ -138,7 +138,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                 In
               </span>
               <span className="text-sm font-bold text-text">
-                {stats?.inDegree ?? 0}
+                {stats?.inDegree ?? "—"}
               </span>
             </div>
             <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
@@ -150,7 +150,7 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                 Out
               </span>
               <span className="text-sm font-bold text-text">
-                {stats?.outDegree ?? 0}
+                {stats?.outDegree ?? "—"}
               </span>
             </div>
           </div>

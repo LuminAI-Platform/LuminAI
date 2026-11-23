@@ -92,7 +92,7 @@ export function useSettings(): UseSettingsResult {
       const res = await apiFetch("/api/v1/settings/api-keys/rotate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Production Live Key" }),
+        body: JSON.stringify({ name: "API Access Key" }),
       });
       const data = await res.json();
       setApiKey(data.apiKey);
@@ -101,7 +101,7 @@ export function useSettings(): UseSettingsResult {
       refetchApiKey();
       toast.success(
         "API Key Rotated",
-        "A new live access token has been generated and activated in PostgreSQL.",
+        "A new access token has been generated and activated.",
       );
     } catch (err) {
       toast.error(

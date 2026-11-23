@@ -9,6 +9,8 @@ import {
   EntityLoadingState,
   EntityErrorState,
 } from "./components";
+import { getEntityColor } from "../../lib/entityColors";
+import { useThemeStore } from "../../stores/themeStore";
 import { useEntityDetail } from "./hooks";
 
 // ─── EntityDetailPage ─────────────────────────────────────────────────────────
@@ -16,6 +18,7 @@ import { useEntityDetail } from "./hooks";
 export const EntityDetailPage: React.FC = () => {
   const { entityId } = useParams({ strict: false }) as { entityId: string };
   const navigate = useNavigate();
+  const isDark = useThemeStore((s) => s.isDark);
 
   const {
     entity,
@@ -26,7 +29,10 @@ export const EntityDetailPage: React.FC = () => {
     setActiveProvenanceKey,
   } = useEntityDetail(entityId);
 
-  const typeConf = { color: "#3b82f6", icon: "package" };
+  const typeConf = {
+    color: getEntityColor(entity?.entityType ?? "", isDark),
+    icon: entity?.entityType?.toLowerCase() || "database",
+  };
 
   const handleExploreGraph = () => {
     void navigate({ to: `/graph`, search: { entityId } });

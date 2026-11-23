@@ -109,10 +109,8 @@ export function normalizeSearchResponse(
       (item): item is Record<string, unknown> =>
         item != null && typeof item === "object",
     )
-    .map((item) => {
-      const id = String(
-        item.id || item.entityId || "00000000-0000-0000-0000-000000000000",
-      );
+    .map((item, idx) => {
+      const id = String(item.id || item.entityId || `entity-${idx}`);
       const rawProps =
         item.properties && typeof item.properties === "object"
           ? (item.properties as Record<string, unknown>)

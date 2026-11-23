@@ -8,7 +8,7 @@ export interface TrainModelRequest {
   datasetName?: string;
   datasetVersion?: number;
   targetColumn: string;
-  records: Record<string, unknown>[];
+  records?: Record<string, unknown>[];
   featureColumns?: string[];
   algorithm?: string;
   taskType?: MlTaskType;

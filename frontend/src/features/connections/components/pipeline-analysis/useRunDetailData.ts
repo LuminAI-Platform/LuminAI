@@ -86,8 +86,7 @@ export function useRunDetailData(
           ? "Syncing"
           : (run?.status ?? "");
 
-  const failedStep =
-    jobDetail?.failed_step || (isFailed ? "data_cleaning" : null);
+  const failedStep = jobDetail?.failed_step ?? null;
   const errorMessage =
     jobDetail?.error ||
     run?.errorMessage ||
@@ -132,10 +131,10 @@ export function useRunDetailData(
       if (res.ok) {
         setRetryMessage("Pipeline run scheduled for retry.");
       } else {
-        setRetryMessage("Retry accepted. Polling updated status...");
+        setRetryMessage(`Retry request failed (HTTP ${res.status}).`);
       }
     } catch {
-      setRetryMessage("Retry request submitted to data engine.");
+      setRetryMessage("Failed to submit retry request to data engine.");
     } finally {
       setIsRetrying(false);
     }

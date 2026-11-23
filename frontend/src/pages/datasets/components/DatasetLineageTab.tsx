@@ -31,7 +31,7 @@ export const DatasetLineageTab: React.FC<DatasetLineageTabProps> = ({
             <span className="text-xs text-text-secondary block">Upstream</span>
             <span className="text-xs font-bold text-text">
               {lineage?.nodes.find((n) => n.id !== datasetId)?.label ||
-                "Ingestion Source"}
+                "None recorded"}
             </span>
           </div>
           <ChevronRight className="w-5 h-5 text-text-secondary" />
@@ -51,7 +51,7 @@ export const DatasetLineageTab: React.FC<DatasetLineageTabProps> = ({
             <span className="text-xs font-bold text-text">
               {lineage?.edges.length
                 ? `${lineage.edges.length} Dependencies`
-                : "Analytics & ML Models"}
+                : "None recorded"}
             </span>
           </div>
         </div>

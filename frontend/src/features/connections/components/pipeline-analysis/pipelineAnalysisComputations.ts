@@ -59,65 +59,18 @@ export function computeStageBreakdown(runs: PipelineRunItem[]): StageMetric[] {
 
   if (totalIn === 0 && totalOut === 0) return [];
 
-  const stages: StageMetric[] = [
+  return [
     {
-      stage: "ingest",
-      label: "Data Ingest",
-      recordsIn: totalIn,
-      recordsOut: totalIn,
-      dropped: 0,
-      durationSeconds: 0,
-    },
-    {
-      stage: "clean",
-      label: "Data Cleaning",
+      stage: "pipeline",
+      label: "End-to-End Pipeline",
       recordsIn: totalIn,
       recordsOut: totalOut,
       dropped: totalFailed,
       durationSeconds: totalDuration,
-    },
-    {
-      stage: "dedupe",
-      label: "Deduplication",
-      recordsIn: totalOut,
-      recordsOut: totalOut,
-      dropped: 0,
-      durationSeconds: 0,
-    },
-    {
-      stage: "resolve",
-      label: "Entity Resolution",
-      recordsIn: totalOut,
-      recordsOut: totalOut,
-      dropped: 0,
-      durationSeconds: 0,
+      isSlowest: totalDuration > 0,
+      isHighestDrop: totalFailed > 0,
     },
   ];
-
-  let maxDuration = -1;
-  let maxDurationIdx = 0;
-  let maxDropped = -1;
-  let maxDroppedIdx = 0;
-
-  stages.forEach((st, idx) => {
-    if (st.durationSeconds > maxDuration) {
-      maxDuration = st.durationSeconds;
-      maxDurationIdx = idx;
-    }
-    if (st.dropped > maxDropped) {
-      maxDropped = st.dropped;
-      maxDroppedIdx = idx;
-    }
-  });
-
-  if (maxDuration > 0) {
-    stages[maxDurationIdx].isSlowest = true;
-  }
-  if (maxDropped > 0) {
-    stages[maxDroppedIdx].isHighestDrop = true;
-  }
-
-  return stages;
 }
 
 export function computeTopIssues(runs: PipelineRunItem[]): {

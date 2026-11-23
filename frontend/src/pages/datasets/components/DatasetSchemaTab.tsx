@@ -30,18 +30,34 @@ export const DatasetSchemaTab: React.FC<DatasetSchemaTabProps> = ({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {schemaEntries.map(([col, type]) => (
-            <tr key={col} className="hover:bg-surface-subtle/40">
-              <td className="py-2.5 px-4 font-mono font-medium text-text">
-                {col}
-              </td>
-              <td className="py-2.5 px-4 font-mono text-blue-400">{type}</td>
-              <td className="py-2.5 px-4 text-text-secondary">YES</td>
-              <td className="py-2.5 px-4 text-text-secondary">
-                Standard analytical field in {dataset.displayName}
-              </td>
-            </tr>
-          ))}
+          {schemaEntries.map(([col, type]) => {
+            const colMeta = ((dataset.profilingSummary?.columns as
+              | Record<string, Record<string, unknown>>
+              | undefined) ?? {})[col];
+            const nullable =
+              typeof colMeta?.nullable === "boolean"
+                ? colMeta.nullable
+                  ? "YES"
+                  : "NO"
+                : "—";
+            const description =
+              typeof colMeta?.description === "string" &&
+              colMeta.description.trim().length > 0
+                ? colMeta.description
+                : "—";
+            return (
+              <tr key={col} className="hover:bg-surface-subtle/40">
+                <td className="py-2.5 px-4 font-mono font-medium text-text">
+                  {col}
+                </td>
+                <td className="py-2.5 px-4 font-mono text-blue-400">{type}</td>
+                <td className="py-2.5 px-4 text-text-secondary">{nullable}</td>
+                <td className="py-2.5 px-4 text-text-secondary">
+                  {description}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

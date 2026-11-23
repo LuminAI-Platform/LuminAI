@@ -58,8 +58,8 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
     try {
       const res = await apiFetch(
         form.id
-          ? `/api/v1/ontology/entities/${form.id}`
-          : "/api/v1/ontology/entities",
+          ? `/api/v1/ontology/entity-types/${form.id}`
+          : "/api/v1/ontology/entity-types",
         {
           method: form.id ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },

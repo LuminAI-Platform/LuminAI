@@ -48,8 +48,12 @@ export function useForeignKeyState({
   });
 
   const [activeFkColId, setActiveFkColId] = useState<string | null>(null);
-  const [fkTargetEntity, setFkTargetEntity] = useState<string>("Customer");
-  const [fkRelType, setFkRelType] = useState<string>("CUSTOMER_OF");
+  const [fkTargetEntity, setFkTargetEntity] = useState<string>(
+    availableEntities[0] ?? "",
+  );
+  const [fkRelType, setFkRelType] = useState<string>(
+    availableRelationshipTypes[0] ?? "",
+  );
   const [fkDirection, setFkDirection] = useState<"OUTGOING" | "INCOMING">(
     "OUTGOING",
   );
@@ -67,12 +71,22 @@ export function useForeignKeyState({
         !availableRelationshipTypes.includes(existing.relationshipType),
       );
     } else {
-      const inferred = inferDefaultRelationship(col.name);
+      const inferred = inferDefaultRelationship(
+        col.name,
+        availableEntities,
+        availableRelationshipTypes,
+      );
       setFkTargetEntity(inferred.target);
       setFkRelType(inferred.rel);
       setFkDirection("OUTGOING");
-      setIsCustomEntity(false);
-      setIsCustomRel(false);
+      setIsCustomEntity(
+        Boolean(inferred.target) &&
+          !availableEntities.includes(inferred.target),
+      );
+      setIsCustomRel(
+        Boolean(inferred.rel) &&
+          !availableRelationshipTypes.includes(inferred.rel),
+      );
     }
     setActiveFkColId(col.id);
   };
