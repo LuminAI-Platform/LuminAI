@@ -5,7 +5,6 @@ import type { RelationshipType } from "../../features/ontology/components/Relati
 
 export type { EntityType, RelationshipType };
 
-
 export type Tab = "entities" | "relationships" | "versions";
 
 export interface OntologyVersion {

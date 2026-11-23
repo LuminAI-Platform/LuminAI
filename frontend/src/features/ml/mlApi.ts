@@ -52,7 +52,9 @@ export async function promoteModel(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || err.message || "Failed to update model status");
+    throw new Error(
+      err.detail || err.message || "Failed to update model status",
+    );
   }
   return res.json();
 }

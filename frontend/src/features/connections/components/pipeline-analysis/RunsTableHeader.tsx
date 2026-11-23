@@ -22,7 +22,9 @@ export const RunsTableHeader: React.FC<RunsTableHeaderProps> = ({
         >
           <div className="flex items-center gap-1.5">
             <span
-              className={sortBy === "connectorName" ? "text-primary font-bold" : ""}
+              className={
+                sortBy === "connectorName" ? "text-primary font-bold" : ""
+              }
             >
               Pipeline
             </span>
@@ -30,7 +32,9 @@ export const RunsTableHeader: React.FC<RunsTableHeaderProps> = ({
               className={`w-2.5 h-2.5 ${sortBy === "connectorName" ? "text-primary" : ""}`}
             />
             {sortBy === "connectorName" && (
-              <span className="text-[9px] font-mono lowercase">({sortOrder})</span>
+              <span className="text-[9px] font-mono lowercase">
+                ({sortOrder})
+              </span>
             )}
           </div>
         </th>
@@ -50,7 +54,9 @@ export const RunsTableHeader: React.FC<RunsTableHeaderProps> = ({
               className={`w-2.5 h-2.5 ${sortBy === "startedAt" ? "text-primary" : ""}`}
             />
             {sortBy === "startedAt" && (
-              <span className="text-[9px] font-mono lowercase">({sortOrder})</span>
+              <span className="text-[9px] font-mono lowercase">
+                ({sortOrder})
+              </span>
             )}
           </div>
         </th>
@@ -70,7 +76,9 @@ export const RunsTableHeader: React.FC<RunsTableHeaderProps> = ({
               className={`w-2.5 h-2.5 ${sortBy === "durationSeconds" ? "text-primary" : ""}`}
             />
             {sortBy === "durationSeconds" && (
-              <span className="text-[9px] font-mono lowercase">({sortOrder})</span>
+              <span className="text-[9px] font-mono lowercase">
+                ({sortOrder})
+              </span>
             )}
           </div>
         </th>
@@ -80,7 +88,9 @@ export const RunsTableHeader: React.FC<RunsTableHeaderProps> = ({
         >
           <div className="flex items-center gap-1.5">
             <span
-              className={sortBy === "recordsInput" ? "text-primary font-bold" : ""}
+              className={
+                sortBy === "recordsInput" ? "text-primary font-bold" : ""
+              }
             >
               In
             </span>
@@ -95,7 +105,9 @@ export const RunsTableHeader: React.FC<RunsTableHeaderProps> = ({
         >
           <div className="flex items-center gap-1.5">
             <span
-              className={sortBy === "recordsOutput" ? "text-primary font-bold" : ""}
+              className={
+                sortBy === "recordsOutput" ? "text-primary font-bold" : ""
+              }
             >
               Out
             </span>
@@ -110,7 +122,9 @@ export const RunsTableHeader: React.FC<RunsTableHeaderProps> = ({
         >
           <div className="flex items-center gap-1.5">
             <span
-              className={sortBy === "recordsFailed" ? "text-primary font-bold" : ""}
+              className={
+                sortBy === "recordsFailed" ? "text-primary font-bold" : ""
+              }
             >
               Rejected
             </span>

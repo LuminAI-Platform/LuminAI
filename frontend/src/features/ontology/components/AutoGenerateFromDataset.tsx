@@ -23,7 +23,9 @@ interface AutoGenerateFromDatasetProps {
   onClose: () => void;
 }
 
-export const AutoGenerateFromDataset: React.FC<AutoGenerateFromDatasetProps> = ({
+export const AutoGenerateFromDataset: React.FC<
+  AutoGenerateFromDatasetProps
+> = ({
   connections,
   loadingConnections,
   selectedConn,
@@ -107,7 +109,8 @@ export const AutoGenerateFromDataset: React.FC<AutoGenerateFromDatasetProps> = (
           No active datasets or connections found in this tenant.
         </p>
         <p className="text-[11px] text-zinc-600 mt-1">
-          Upload a file in Data Connections first or use an Industry Template tab.
+          Upload a file in Data Connections first or use an Industry Template
+          tab.
         </p>
       </div>
     );

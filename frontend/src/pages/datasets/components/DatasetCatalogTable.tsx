@@ -67,7 +67,8 @@ export const DatasetCatalogTable: React.FC<DatasetCatalogTableProps> = ({
           No datasets found in tier "{selectedLayer}".
         </span>
         <span className="text-xs text-text-secondary max-w-sm">
-          Ingest a data source via Data Connections or adjust your search filter.
+          Ingest a data source via Data Connections or adjust your search
+          filter.
         </span>
       </div>
     );
@@ -90,7 +91,8 @@ export const DatasetCatalogTable: React.FC<DatasetCatalogTableProps> = ({
         </thead>
         <tbody className="divide-y divide-border">
           {datasets.map((d) => {
-            const badge = DATASET_LAYER_BADGES[d.layer] || DATASET_LAYER_BADGES.RAW;
+            const badge =
+              DATASET_LAYER_BADGES[d.layer] || DATASET_LAYER_BADGES.RAW;
             return (
               <tr
                 key={d.id}
@@ -137,7 +139,9 @@ export const DatasetCatalogTable: React.FC<DatasetCatalogTableProps> = ({
                       />
                     </div>
                     <span className="font-semibold text-text">
-                      {d.qualityScore ? `${Math.round(d.qualityScore)}%` : "N/A"}
+                      {d.qualityScore
+                        ? `${Math.round(d.qualityScore)}%`
+                        : "N/A"}
                     </span>
                   </div>
                 </td>

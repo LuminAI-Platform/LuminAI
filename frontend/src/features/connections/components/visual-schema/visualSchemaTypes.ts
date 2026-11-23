@@ -46,7 +46,6 @@ export interface ConnectorLine {
   y2: number;
 }
 
-
 export const DATA_TYPE_COLORS: Record<string, string> = {
   string: "text-success bg-success-bg border-success-border",
   integer: "text-primary bg-primary-tint border-primary-border",

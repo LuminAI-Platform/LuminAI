@@ -75,7 +75,9 @@ export const DatasetSummaryMetrics: React.FC<DatasetSummaryMetricsProps> = ({
       <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
         <span className="text-xs text-text-secondary">Quality Score</span>
         <span className="text-lg font-bold text-emerald-400">
-          {dataset.qualityScore ? `${Math.round(dataset.qualityScore)}%` : "N/A"}
+          {dataset.qualityScore
+            ? `${Math.round(dataset.qualityScore)}%`
+            : "N/A"}
         </span>
         <span className="text-[11px] text-text-secondary">DAMA Verified</span>
       </div>

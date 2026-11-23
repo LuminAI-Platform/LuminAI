@@ -22,14 +22,7 @@ const PALETTE = [
   "#ec4899",
 ];
 
-const ICONS = [
-  "database",
-  "building",
-  "user",
-  "package",
-  "chart",
-  "globe",
-];
+const ICONS = ["database", "building", "user", "package", "chart", "globe"];
 
 export const TargetEntityModelForm: React.FC<TargetEntityModelFormProps> = ({
   entityName,

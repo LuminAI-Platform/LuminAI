@@ -1,11 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Icons,
-  Loader2,
-  Database,
-  Info,
-} from "../../../lib/icons";
+import { Icons, Loader2, Database, Info } from "../../../lib/icons";
 import { Button } from "../../../components/ui/Button";
 import type {
   GraphErrorInfo,
@@ -153,4 +148,3 @@ export const GraphOverlays: React.FC<GraphOverlaysProps> = ({
 };
 
 export { GraphNodeListPanel } from "./GraphNodeListPanel";
-

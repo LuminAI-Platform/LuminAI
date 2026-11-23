@@ -16,7 +16,10 @@ interface ExplorerResultsPaneProps {
   ontologyTypes: EntityType[];
   maskSensitiveData: boolean;
   onClearFilters: () => void;
-  onOpenEntity: (entity: SearchResultItem, triggerEl: HTMLElement | null) => void;
+  onOpenEntity: (
+    entity: SearchResultItem,
+    triggerEl: HTMLElement | null,
+  ) => void;
   onPageChange: (newPage: number) => void;
 }
 

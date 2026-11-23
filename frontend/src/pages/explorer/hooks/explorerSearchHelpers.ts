@@ -19,7 +19,10 @@ export function mapSortToApiParams(sort: SortOption): {
   }
 }
 
-export function buildApiFilterParams(rawQuery: string, types: string[]): {
+export function buildApiFilterParams(
+  rawQuery: string,
+  types: string[],
+): {
   apiQuery: string;
   effectiveTypes: string[];
 } {
@@ -44,12 +47,17 @@ export async function exportEntitiesCsv(
   query: string,
   selectedTypes: string[],
 ): Promise<void> {
-  const { apiQuery, effectiveTypes } = buildApiFilterParams(query, selectedTypes);
+  const { apiQuery, effectiveTypes } = buildApiFilterParams(
+    query,
+    selectedTypes,
+  );
   const params = new URLSearchParams();
   if (apiQuery) params.set("query", apiQuery);
   effectiveTypes.forEach((t) => params.append("entityType", t));
 
-  const res = await apiFetch(`/api/v1/explorer/export/csv?${params.toString()}`);
+  const res = await apiFetch(
+    `/api/v1/explorer/export/csv?${params.toString()}`,
+  );
 
   if (!res.ok) {
     throw new Error(`Export failed: ${res.statusText}`);

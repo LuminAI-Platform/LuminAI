@@ -77,7 +77,8 @@ export const FacetTypesList: React.FC<FacetTypesListProps> = ({
             className="flex items-center justify-between w-full px-2 py-1.5 text-[11px] font-medium text-text-muted hover:text-text rounded-lg hover:bg-surface-hover transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
           >
             <span>
-              {showEmptyTypes ? "Hide" : "Show"} empty types ({emptyRows.length})
+              {showEmptyTypes ? "Hide" : "Show"} empty types ({emptyRows.length}
+              )
             </span>
             {showEmptyTypes ? (
               <ChevronDown size={12} aria-hidden="true" />

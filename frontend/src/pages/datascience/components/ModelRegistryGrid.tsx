@@ -54,7 +54,9 @@ export const ModelRegistryGrid: React.FC<ModelRegistryGridProps> = ({
           </div>
 
           <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-text-secondary">
-            <span>Registered: {new Date(m.createdAt).toLocaleDateString()}</span>
+            <span>
+              Registered: {new Date(m.createdAt).toLocaleDateString()}
+            </span>
             {onUpdateStatus && m.status !== "CHAMPION" && (
               <button
                 onClick={() => onUpdateStatus(m.id, "CHAMPION")}

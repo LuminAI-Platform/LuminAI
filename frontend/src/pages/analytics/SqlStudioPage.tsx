@@ -80,7 +80,9 @@ export const SqlStudioPage: React.FC = () => {
         breadcrumbs={[{ label: "Analytics" }, { label: "SQL Studio" }]}
         title="Interactive SQL Studio"
         description="High-performance analytical SQL query engine powered by DuckDB over versioned datasets and staging records."
-        icon={<Table size={ICON_SIZES.header} className="text-text-secondary" />}
+        icon={
+          <Table size={ICON_SIZES.header} className="text-text-secondary" />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button

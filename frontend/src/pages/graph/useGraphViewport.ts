@@ -1,9 +1,6 @@
 import { useCallback, type RefObject } from "react";
 import type { Core } from "cytoscape";
-import type {
-  GraphNodeData,
-  GraphLayoutType,
-} from "./components/GraphCanvas";
+import type { GraphNodeData, GraphLayoutType } from "./components/GraphCanvas";
 
 export function useGraphViewport(
   cyRef: RefObject<Core | null>,

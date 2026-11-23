@@ -232,11 +232,7 @@ export function useGraphData() {
     return refetchCatalog();
   }, [activeEntityId, refetchGraph, refetchCatalog]);
 
-  const viewportHandlers = useGraphViewport(
-    cyRef,
-    layoutType,
-    setSelectedNode,
-  );
+  const viewportHandlers = useGraphViewport(cyRef, layoutType, setSelectedNode);
 
   return {
     selectedEntityId,

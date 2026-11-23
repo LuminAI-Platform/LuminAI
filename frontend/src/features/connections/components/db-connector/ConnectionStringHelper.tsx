@@ -51,7 +51,9 @@ export const ConnectionStringHelper: React.FC<ConnectionStringHelperProps> = ({
           }}
           className="text-xs font-medium text-primary hover:text-primary-hover transition-colors cursor-pointer disabled:opacity-50"
         >
-          {showConnString ? "Hide connection string" : "Paste connection string"}
+          {showConnString
+            ? "Hide connection string"
+            : "Paste connection string"}
         </button>
       </div>
 

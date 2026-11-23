@@ -57,7 +57,9 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
     setSaving(true);
     try {
       const res = await apiFetch(
-        form.id ? `/api/v1/ontology/entities/${form.id}` : "/api/v1/ontology/entities",
+        form.id
+          ? `/api/v1/ontology/entities/${form.id}`
+          : "/api/v1/ontology/entities",
         {
           method: form.id ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -85,7 +87,10 @@ export const EntityTypeEditor: React.FC<EntityTypeEditorProps> = ({
       hideHeader
       maxWidth="3xl"
     >
-      <form onSubmit={handleSubmit} className="flex flex-col h-[85vh] max-h-[720px]">
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col h-[85vh] max-h-[720px]"
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
           <div className="flex items-center gap-3">
             <div className="relative">

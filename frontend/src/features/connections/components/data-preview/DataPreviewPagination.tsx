@@ -20,19 +20,14 @@ export const DataPreviewPagination: React.FC<DataPreviewPaginationProps> = ({
       <div className="text-zinc-500 text-xs">
         Showing{" "}
         <span className="font-semibold text-zinc-400">
-          {Math.min(
-            filteredRowCount,
-            (currentPage - 1) * itemsPerPage + 1,
-          )}
+          {Math.min(filteredRowCount, (currentPage - 1) * itemsPerPage + 1)}
         </span>{" "}
         to{" "}
         <span className="font-semibold text-zinc-400">
           {Math.min(filteredRowCount, currentPage * itemsPerPage)}
         </span>{" "}
         of{" "}
-        <span className="font-semibold text-zinc-400">
-          {filteredRowCount}
-        </span>{" "}
+        <span className="font-semibold text-zinc-400">{filteredRowCount}</span>{" "}
         entries
       </div>
       <div className="flex items-center gap-1">

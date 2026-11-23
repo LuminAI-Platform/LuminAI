@@ -63,23 +63,13 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
         )}
 
         {step === 4 && ingestionFailed && (
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={onRetry}
-          >
+          <Button type="button" variant="primary" size="sm" onClick={onRetry}>
             Retry ingestion
           </Button>
         )}
 
         {step === 4 && ingestionFinished && (
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={onDone}
-          >
+          <Button type="button" variant="primary" size="sm" onClick={onDone}>
             Done
           </Button>
         )}

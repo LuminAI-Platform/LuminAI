@@ -8,10 +8,7 @@ import {
 } from "../../hooks/usePipelineStream";
 import type { PipelineRunItem } from "../pipeline-analysis/pipelineAnalysisTypes";
 import { parseSyncDatasetFromApi } from "../sync-job/syncJobHelpers";
-import type {
-  LogLevel,
-  LogEntry,
-} from "./executionLogTypes";
+import type { LogLevel, LogEntry } from "./executionLogTypes";
 
 interface UseExecutionLogStreamOptions {
   maxLines: number;

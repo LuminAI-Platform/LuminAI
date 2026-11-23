@@ -5,8 +5,7 @@ import { composeRefs } from "@radix-ui/react-compose-refs";
 import { ChevronDown, Loader2, ICON_SIZES } from "../../../lib/icons";
 import { useDropdownMenu } from "./DropdownMenuContext";
 
-export interface DropdownMenuTriggerProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
   showChevron?: boolean;
   isLoading?: boolean;

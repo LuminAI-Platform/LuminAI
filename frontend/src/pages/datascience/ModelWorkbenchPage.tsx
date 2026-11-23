@@ -23,7 +23,9 @@ import { ModelExperimentTable } from "./components/ModelExperimentTable";
 import { ModelRegistryGrid } from "./components/ModelRegistryGrid";
 
 export const ModelWorkbenchPage: React.FC = () => {
-  const [modelName, setModelName] = useState<string>("Customer Churn Predictor");
+  const [modelName, setModelName] = useState<string>(
+    "Customer Churn Predictor",
+  );
   const [algorithm, setAlgorithm] = useState<string>("Random Forest");
   const [taskType, setTaskType] = useState<MlTaskType>("CLASSIFICATION");
   const [targetColumn, setTargetColumn] = useState<string>("churn");

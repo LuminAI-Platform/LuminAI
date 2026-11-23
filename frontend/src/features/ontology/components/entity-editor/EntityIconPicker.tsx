@@ -1,9 +1,5 @@
 import React from "react";
-import {
-  EntityIcon,
-  ENTITY_ICON_KEYS,
-  ENTITY_ICON_LABELS,
-} from "./EntityIcon";
+import { EntityIcon, ENTITY_ICON_KEYS, ENTITY_ICON_LABELS } from "./EntityIcon";
 
 interface EntityIconPickerProps {
   currentIcon: string;

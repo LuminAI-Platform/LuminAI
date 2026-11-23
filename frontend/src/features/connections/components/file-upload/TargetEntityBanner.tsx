@@ -36,15 +36,16 @@ export const TargetEntityBanner: React.FC<TargetEntityBannerProps> = ({
             <span className="text-zinc-100 font-semibold text-sm">
               {primaryTargetEntity || inferredEntityName || "None"}
             </span>
-            {inferredEntityName && primaryTargetEntity === inferredEntityName && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-300 font-medium">
-                Auto-detected
-              </span>
-            )}
+            {inferredEntityName &&
+              primaryTargetEntity === inferredEntityName && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-300 font-medium">
+                  Auto-detected
+                </span>
+              )}
           </div>
           <p className="text-[11px] text-zinc-500">
-            All columns map to this Entity Type by default. You can switch target
-            entity or fine-tune individual column properties below.
+            All columns map to this Entity Type by default. You can switch
+            target entity or fine-tune individual column properties below.
           </p>
         </div>
       </div>
@@ -52,7 +53,9 @@ export const TargetEntityBanner: React.FC<TargetEntityBannerProps> = ({
       <div className="flex items-center gap-2">
         {!isCreatingCustomEntity ? (
           <>
-            <span className="text-zinc-400 text-xs font-medium">Change Target:</span>
+            <span className="text-zinc-400 text-xs font-medium">
+              Change Target:
+            </span>
             <div className="w-56">
               <Select
                 value={primaryTargetEntity}

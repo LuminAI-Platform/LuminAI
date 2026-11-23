@@ -26,7 +26,9 @@ export const DatasetKpiSummary: React.FC<DatasetKpiSummaryProps> = ({
           <Database className="w-4 h-4 text-primary" />
         </div>
         <span className="text-2xl font-bold text-text">{datasets.length}</span>
-        <span className="text-xs text-text-secondary">Across all storage tiers</span>
+        <span className="text-xs text-text-secondary">
+          Across all storage tiers
+        </span>
       </div>
 
       <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
@@ -47,7 +49,9 @@ export const DatasetKpiSummary: React.FC<DatasetKpiSummaryProps> = ({
           <span>Avg Quality Score</span>
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
         </div>
-        <span className="text-2xl font-bold text-emerald-400">{avgQuality}%</span>
+        <span className="text-2xl font-bold text-emerald-400">
+          {avgQuality}%
+        </span>
         <span className="text-xs text-text-secondary">
           DAMA-aligned 6-dimension evaluation
         </span>

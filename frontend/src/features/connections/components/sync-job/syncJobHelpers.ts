@@ -1,7 +1,4 @@
-import type {
-  SyncJobStatus,
-  SyncSourceType,
-} from "./syncJobTypes";
+import type { SyncJobStatus, SyncSourceType } from "./syncJobTypes";
 
 export { parseSyncDatasetFromApi } from "./parseSyncDataset";
 

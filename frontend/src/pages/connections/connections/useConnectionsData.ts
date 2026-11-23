@@ -41,88 +41,94 @@ export function useConnectionsData() {
 
   const isPollingPaused = isTabHidden || isEngineOffline();
 
-  const loadConnectors = useCallback(async (isInitial = false) => {
-    if (isInitial) setIsLoading(true);
-    else setIsRefreshing(true);
-    setError(null);
-    try {
-      const res = await apiFetch("/api/v1/connections", {
-        headers: { "X-Suppress-Toast": "true" },
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(
-          errBody.message || `Failed to load connections (HTTP ${res.status})`,
-        );
-      }
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const { fileItems, dbItems } = parseRawConnections(data);
+  const loadConnectors = useCallback(
+    async (isInitial = false) => {
+      if (isInitial) setIsLoading(true);
+      else setIsRefreshing(true);
+      setError(null);
+      try {
+        const res = await apiFetch("/api/v1/connections", {
+          headers: { "X-Suppress-Toast": "true" },
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(
+            errBody.message ||
+              `Failed to load connections (HTTP ${res.status})`,
+          );
+        }
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const { fileItems, dbItems } = parseRawConnections(data);
 
-        let localFiles: IngestedFile[] = [];
+          let localFiles: IngestedFile[] = [];
+          try {
+            const cached = localStorage.getItem("local_ingested_files");
+            if (cached) localFiles = JSON.parse(cached);
+          } catch {
+            // ignore
+          }
+
+          const mergedFiles = fileItems.map((f) => {
+            const localMatch = localFiles.find(
+              (lf) => lf.id === f.id || lf.name === f.name,
+            );
+            if (localMatch) {
+              return {
+                ...f,
+                columns:
+                  f.columns && f.columns.length > 0
+                    ? f.columns
+                    : localMatch.columns,
+                sampleRows:
+                  f.sampleRows && f.sampleRows.length > 0
+                    ? f.sampleRows
+                    : localMatch.sampleRows,
+              };
+            }
+            return f;
+          });
+
+          localFiles.forEach((lf) => {
+            if (
+              !mergedFiles.some((f) => f.id === lf.id || f.name === lf.name)
+            ) {
+              mergedFiles.push(lf);
+            }
+          });
+
+          setCustomConnectors(dbItems);
+          setIngestedFiles(mergedFiles);
+
+          tabState.adjustTabIfEmpty({
+            connectors: dbItems.length,
+            files: mergedFiles.length,
+          });
+        } else {
+          setCustomConnectors([]);
+          setIngestedFiles([]);
+        }
+        setLastRefreshedAt(new Date());
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Failed to load registered connections";
+        setError(msg);
+        setCustomConnectors([]);
         try {
           const cached = localStorage.getItem("local_ingested_files");
-          if (cached) localFiles = JSON.parse(cached);
+          setIngestedFiles(cached ? JSON.parse(cached) : []);
         } catch {
-          // ignore
+          setIngestedFiles([]);
         }
-
-        const mergedFiles = fileItems.map((f) => {
-          const localMatch = localFiles.find(
-            (lf) => lf.id === f.id || lf.name === f.name,
-          );
-          if (localMatch) {
-            return {
-              ...f,
-              columns:
-                f.columns && f.columns.length > 0
-                  ? f.columns
-                  : localMatch.columns,
-              sampleRows:
-                f.sampleRows && f.sampleRows.length > 0
-                  ? f.sampleRows
-                  : localMatch.sampleRows,
-            };
-          }
-          return f;
-        });
-
-        localFiles.forEach((lf) => {
-          if (!mergedFiles.some((f) => f.id === lf.id || f.name === lf.name)) {
-            mergedFiles.push(lf);
-          }
-        });
-
-        setCustomConnectors(dbItems);
-        setIngestedFiles(mergedFiles);
-
-        tabState.adjustTabIfEmpty({
-          connectors: dbItems.length,
-          files: mergedFiles.length,
-        });
-      } else {
-        setCustomConnectors([]);
-        setIngestedFiles([]);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
-      setLastRefreshedAt(new Date());
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Failed to load registered connections";
-      setError(msg);
-      setCustomConnectors([]);
-      try {
-        const cached = localStorage.getItem("local_ingested_files");
-        setIngestedFiles(cached ? JSON.parse(cached) : []);
-      } catch {
-        setIngestedFiles([]);
-      }
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [tabState]);
+    },
+    [tabState],
+  );
 
   const actionsState = useConnectionsActions({ loadConnectors });
 

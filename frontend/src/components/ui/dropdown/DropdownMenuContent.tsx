@@ -5,8 +5,7 @@ import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
 import { FocusScope } from "@radix-ui/react-focus-scope";
 import { useDropdownMenu } from "./DropdownMenuContext";
 
-export interface DropdownMenuContentProps
-  extends React.HTMLAttributes<HTMLDivElement> {
+export interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> {
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
   sideOffset?: number;

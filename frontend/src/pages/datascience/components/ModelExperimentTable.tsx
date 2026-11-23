@@ -13,7 +13,8 @@ export const ModelExperimentTable: React.FC<ModelExperimentTableProps> = ({
   if (experiments.length === 0) {
     return (
       <div className="p-12 text-center text-text-secondary bg-surface rounded-xl border border-border">
-        No recorded experiments found. Train a model to record an experiment run.
+        No recorded experiments found. Train a model to record an experiment
+        run.
       </div>
     );
   }

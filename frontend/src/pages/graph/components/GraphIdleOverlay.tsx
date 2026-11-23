@@ -48,7 +48,9 @@ export const GraphIdleOverlay: React.FC<GraphIdleOverlayProps> = ({
                   key={entity.id}
                   type="button"
                   role="listitem"
-                  onClick={() => onSelectEntity(entity.id, entity.canonicalName)}
+                  onClick={() =>
+                    onSelectEntity(entity.id, entity.canonicalName)
+                  }
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface border border-border hover:border-border-focus hover:bg-surface-hover text-xs text-text font-medium shadow-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <span

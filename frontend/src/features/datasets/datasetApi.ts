@@ -220,4 +220,3 @@ export async function trainMlModel(payload: {
   }
   return res.json();
 }
-

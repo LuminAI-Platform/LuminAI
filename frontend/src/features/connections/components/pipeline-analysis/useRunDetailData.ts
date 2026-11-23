@@ -65,7 +65,9 @@ export function useRunDetailData(
     };
   }, [activeRunId]);
 
-  const isFailed = run ? run.status === "FAILED" || Boolean(jobDetail?.error) : false;
+  const isFailed = run
+    ? run.status === "FAILED" || Boolean(jobDetail?.error)
+    : false;
   const hasIssues =
     !isFailed &&
     run &&
@@ -82,7 +84,7 @@ export function useRunDetailData(
         ? "Completed"
         : run?.status === "RUNNING"
           ? "Syncing"
-          : run?.status ?? "";
+          : (run?.status ?? "");
 
   const failedStep =
     jobDetail?.failed_step || (isFailed ? "data_cleaning" : null);

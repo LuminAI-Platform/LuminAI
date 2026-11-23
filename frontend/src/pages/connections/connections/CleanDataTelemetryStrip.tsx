@@ -12,7 +12,9 @@ interface CleanDataTelemetryStripProps {
   onSearchChange: (v: string) => void;
 }
 
-export const CleanDataTelemetryStrip: React.FC<CleanDataTelemetryStripProps> = ({
+export const CleanDataTelemetryStrip: React.FC<
+  CleanDataTelemetryStripProps
+> = ({
   cleanData,
   recordsCount,
   verifiedCount,

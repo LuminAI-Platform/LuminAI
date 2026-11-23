@@ -18,7 +18,9 @@ export const ModelEvaluationView: React.FC<ModelEvaluationViewProps> = ({
     return (
       <div className="p-12 rounded-xl border border-dashed border-border bg-surface text-center text-text-secondary flex flex-col items-center justify-center gap-2">
         <Cpu className="w-8 h-8 text-text-secondary" />
-        <span className="text-sm font-medium">No active training execution</span>
+        <span className="text-sm font-medium">
+          No active training execution
+        </span>
         <span className="text-xs max-w-sm">
           Configure hyperparameters on the left and click "Train Model" to
           compute real scikit-learn cross-validation metrics.
@@ -32,7 +34,9 @@ export const ModelEvaluationView: React.FC<ModelEvaluationViewProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CheckCircle className="w-5 h-5 text-emerald-400" />
-          <h3 className="text-sm font-semibold text-text">Training Completed</h3>
+          <h3 className="text-sm font-semibold text-text">
+            Training Completed
+          </h3>
         </div>
         <Button
           variant="primary"
@@ -46,19 +50,21 @@ export const ModelEvaluationView: React.FC<ModelEvaluationViewProps> = ({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {Object.entries(lastTrainedResult.metrics || {}).map(([metric, val]) => (
-          <div
-            key={metric}
-            className="p-3 rounded-lg bg-surface-subtle border border-border"
-          >
-            <span className="text-[11px] text-text-secondary uppercase block">
-              {metric}
-            </span>
-            <span className="text-lg font-bold text-emerald-400">
-              {typeof val === "number" ? val.toFixed(3) : String(val)}
-            </span>
-          </div>
-        ))}
+        {Object.entries(lastTrainedResult.metrics || {}).map(
+          ([metric, val]) => (
+            <div
+              key={metric}
+              className="p-3 rounded-lg bg-surface-subtle border border-border"
+            >
+              <span className="text-[11px] text-text-secondary uppercase block">
+                {metric}
+              </span>
+              <span className="text-lg font-bold text-emerald-400">
+                {typeof val === "number" ? val.toFixed(3) : String(val)}
+              </span>
+            </div>
+          ),
+        )}
       </div>
 
       {lastTrainedResult.feature_importances && (

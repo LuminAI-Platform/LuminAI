@@ -36,7 +36,8 @@ export function syncTabToUrlAndStorage(tab: ConnectionsTab) {
 }
 
 export function useConnectionsTab() {
-  const [activeTab, setActiveTabState] = useState<ConnectionsTab>(getInitialTab);
+  const [activeTab, setActiveTabState] =
+    useState<ConnectionsTab>(getInitialTab);
   const hasAutoAdjustedTabRef = useRef(false);
 
   const setActiveTab = useCallback((tab: ConnectionsTab) => {

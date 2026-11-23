@@ -45,7 +45,9 @@ export const DatasetLineageTab: React.FC<DatasetLineageTabProps> = ({
           </div>
           <ChevronRight className="w-5 h-5 text-text-secondary" />
           <div className="p-3 rounded-lg border border-border bg-surface text-center">
-            <span className="text-xs text-text-secondary block">Downstream</span>
+            <span className="text-xs text-text-secondary block">
+              Downstream
+            </span>
             <span className="text-xs font-bold text-text">
               {lineage?.edges.length
                 ? `${lineage.edges.length} Dependencies`

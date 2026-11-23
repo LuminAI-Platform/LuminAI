@@ -184,10 +184,7 @@ export const SystemHealthSectionContent: React.FC<
         </div>
       )}
 
-      <DataQualityBreakdown
-        score={quality.score}
-        dimensions={dimensions}
-      />
+      <DataQualityBreakdown score={quality.score} dimensions={dimensions} />
     </section>
   );
 };

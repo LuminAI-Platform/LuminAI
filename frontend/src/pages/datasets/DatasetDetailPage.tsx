@@ -80,7 +80,9 @@ export const DatasetDetailPage: React.FC = () => {
   if (!dataset) {
     return (
       <div className="p-12 text-center text-text-secondary">
-        <span className="text-lg font-semibold text-text">Dataset Not Found</span>
+        <span className="text-lg font-semibold text-text">
+          Dataset Not Found
+        </span>
         <p className="text-sm mt-1">
           The requested dataset does not exist or has been archived.
         </p>
@@ -105,7 +107,9 @@ export const DatasetDetailPage: React.FC = () => {
         ]}
         title={dataset.displayName || dataset.name}
         description={`Governed ${dataset.layer} dataset in project ${dataset.projectType} • Storage: ${dataset.storageFormat}`}
-        icon={<Database size={ICON_SIZES.header} className="text-text-secondary" />}
+        icon={
+          <Database size={ICON_SIZES.header} className="text-text-secondary" />
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button

@@ -107,7 +107,9 @@ export async function syncDecomposedGraph(payload: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.detail || "Graph synchronization failed");
+    throw new Error(
+      err.message || err.detail || "Graph synchronization failed",
+    );
   }
   return res.json();
 }
