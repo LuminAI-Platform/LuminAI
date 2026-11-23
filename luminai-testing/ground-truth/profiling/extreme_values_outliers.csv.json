@@ -1,0 +1,58 @@
+{
+  "dataset_name": "extreme_values_outliers.csv",
+  "row_count": 8,
+  "column_count": 5,
+  "exact_duplicates": 0,
+  "columns": {
+    "id": {
+      "name": "id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 8
+    },
+    "metric_name": {
+      "name": "metric_name",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 8
+    },
+    "amount": {
+      "name": "amount",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 8
+    },
+    "ratio": {
+      "name": "ratio",
+      "data_type": "String",
+      "null_count": 1,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 1,
+      "missing_percentage": 12.5,
+      "distinct_count": 8
+    },
+    "note": {
+      "name": "note",
+      "data_type": "String",
+      "null_count": 1,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 1,
+      "missing_percentage": 12.5,
+      "distinct_count": 8
+    }
+  }
+}

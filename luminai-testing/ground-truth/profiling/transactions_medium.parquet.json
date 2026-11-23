@@ -1,0 +1,120 @@
+{
+  "dataset_name": "transactions_medium.parquet",
+  "row_count": 50000,
+  "column_count": 9,
+  "exact_duplicates": 0,
+  "columns": {
+    "transaction_id": {
+      "name": "transaction_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 50000
+    },
+    "customer_id": {
+      "name": "customer_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 22004
+    },
+    "order_id": {
+      "name": "order_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 26589
+    },
+    "amount": {
+      "name": "amount",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 45650,
+      "numeric_metrics": {
+        "min": -9034.47,
+        "max": 949667.28,
+        "mean": 11835.5043,
+        "median": 839.74,
+        "std": 88830.0144,
+        "q1": 336.0,
+        "q3": 1711.34,
+        "iqr": 1375.34,
+        "outlier_count_iqr": 3183
+      }
+    },
+    "currency": {
+      "name": "currency",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 5
+    },
+    "fee": {
+      "name": "fee",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 7016,
+      "numeric_metrics": {
+        "min": 0.38,
+        "max": 165.16,
+        "mean": 18.3346,
+        "median": 12.86,
+        "std": 17.9149,
+        "q1": 5.51,
+        "q3": 25.4,
+        "iqr": 19.89,
+        "outlier_count_iqr": 2332
+      }
+    },
+    "payment_method": {
+      "name": "payment_method",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 636,
+      "sentinel_null_count": 1346,
+      "total_effective_missing": 1982,
+      "missing_percentage": 3.96,
+      "distinct_count": 9
+    },
+    "status": {
+      "name": "status",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 4
+    },
+    "timestamp": {
+      "name": "timestamp",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 49969
+    }
+  }
+}

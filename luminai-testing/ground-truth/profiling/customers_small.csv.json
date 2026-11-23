@@ -1,0 +1,139 @@
+{
+  "dataset_name": "customers_small.csv",
+  "row_count": 2010,
+  "column_count": 12,
+  "exact_duplicates": 10,
+  "columns": {
+    "customer_id": {
+      "name": "customer_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 2000
+    },
+    "full_name": {
+      "name": "full_name",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 1214
+    },
+    "email": {
+      "name": "email",
+      "data_type": "String",
+      "null_count": 67,
+      "empty_string_count": 0,
+      "sentinel_null_count": 61,
+      "total_effective_missing": 128,
+      "missing_percentage": 6.37,
+      "distinct_count": 1867
+    },
+    "phone": {
+      "name": "phone",
+      "data_type": "String",
+      "null_count": 88,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 88,
+      "missing_percentage": 4.38,
+      "distinct_count": 1913
+    },
+    "national_id": {
+      "name": "national_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 2000
+    },
+    "street_address": {
+      "name": "street_address",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 1857
+    },
+    "city": {
+      "name": "city",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 29
+    },
+    "region": {
+      "name": "region",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 10
+    },
+    "tier": {
+      "name": "tier",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 5
+    },
+    "credit_limit": {
+      "name": "credit_limit",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 1958,
+      "numeric_metrics": {
+        "min": -1000.0,
+        "max": 9999999.0,
+        "mean": 272103.3739,
+        "median": 124873.31,
+        "std": 1199821.2419,
+        "q1": 64820.71,
+        "q3": 191681.35,
+        "iqr": 126860.64,
+        "outlier_count_iqr": 30
+      }
+    },
+    "created_at": {
+      "name": "created_at",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 886
+    },
+    "is_active": {
+      "name": "is_active",
+      "data_type": "Boolean",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 2
+    }
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "dataset_name": "orders_medium.csv",
+  "row_count": 35000,
+  "column_count": 11,
+  "exact_duplicates": 0,
+  "columns": {
+    "order_id": {
+      "name": "order_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 35000
+    },
+    "customer_id": {
+      "name": "customer_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 18907
+    },
+    "product_id": {
+      "name": "product_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15
+    },
+    "product_name": {
+      "name": "product_name",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15
+    },
+    "category": {
+      "name": "category",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 7
+    },
+    "quantity": {
+      "name": "quantity",
+      "data_type": "Int64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15,
+      "numeric_metrics": {
+        "min": 1.0,
+        "max": 15.0,
+        "mean": 8.0064,
+        "median": 8.0,
+        "std": 4.3412,
+        "q1": 4.0,
+        "q3": 12.0,
+        "iqr": 8.0,
+        "outlier_count_iqr": 0
+      }
+    },
+    "unit_price": {
+      "name": "unit_price",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15,
+      "numeric_metrics": {
+        "min": 60.0,
+        "max": 24000.0,
+        "mean": 4306.0217,
+        "median": 920.0,
+        "std": 7288.2896,
+        "q1": 180.0,
+        "q3": 2600.0,
+        "iqr": 2420.0,
+        "outlier_count_iqr": 7070
+      }
+    },
+    "discount_rate": {
+      "name": "discount_rate",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 4,
+      "numeric_metrics": {
+        "min": 0.0,
+        "max": 0.15,
+        "mean": 0.06,
+        "median": 0.05,
+        "std": 0.0584,
+        "q1": 0.0,
+        "q3": 0.1,
+        "iqr": 0.1,
+        "outlier_count_iqr": 0
+      }
+    },
+    "total_amount": {
+      "name": "total_amount",
+      "data_type": "Float64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 753,
+      "numeric_metrics": {
+        "min": 51.0,
+        "max": 360000.0,
+        "mean": 32364.2225,
+        "median": 4680.0,
+        "std": 64944.5544,
+        "q1": 1178.0,
+        "q3": 21420.0,
+        "iqr": 20242.0,
+        "outlier_count_iqr": 5693
+      }
+    },
+    "status": {
+      "name": "status",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 4
+    },
+    "order_date": {
+      "name": "order_date",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 689
+    }
+  }
+}

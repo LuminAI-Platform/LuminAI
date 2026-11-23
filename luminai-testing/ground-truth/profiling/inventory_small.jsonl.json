@@ -1,0 +1,80 @@
+{
+  "dataset_name": "inventory_small.jsonl",
+  "row_count": 60,
+  "column_count": 5,
+  "exact_duplicates": 0,
+  "columns": {
+    "warehouse_id": {
+      "name": "warehouse_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 4
+    },
+    "product_id": {
+      "name": "product_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 15
+    },
+    "quantity_on_hand": {
+      "name": "quantity_on_hand",
+      "data_type": "Int64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 55,
+      "numeric_metrics": {
+        "min": 49.0,
+        "max": 481.0,
+        "mean": 244.9667,
+        "median": 261.0,
+        "std": 122.9874,
+        "q1": 135.0,
+        "q3": 335.0,
+        "iqr": 200.0,
+        "outlier_count_iqr": 0
+      }
+    },
+    "reorder_point": {
+      "name": "reorder_point",
+      "data_type": "Int64",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 31,
+      "numeric_metrics": {
+        "min": 31.0,
+        "max": 80.0,
+        "mean": 51.7167,
+        "median": 52.0,
+        "std": 13.8602,
+        "q1": 39.0,
+        "q3": 62.0,
+        "iqr": 23.0,
+        "outlier_count_iqr": 0
+      }
+    },
+    "last_restocked": {
+      "name": "last_restocked",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 58
+    }
+  }
+}

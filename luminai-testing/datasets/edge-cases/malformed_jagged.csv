@@ -1,0 +1,5 @@
+id,name,value
+1,Item One,100
+2,"Unclosed quote item,200
+3,Jagged,Row,Extra,Columns,Here,999
+4,Item Four,400

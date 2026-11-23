@@ -1,0 +1,9 @@
+id,metric_name,amount,ratio,note
+1,Standard Value,100.5,0.5,Normal baseline
+2,Extreme High,999999999.99,10000.0,Huge positive outlier
+3,Extreme Negative,-850000.0,-99.9,Negative anomaly
+4,Zero Value,0.0,0.0,Zero denominator test
+5,Whitespace Note,50.0,0.25,   Leading and trailing spaces   
+6,Missing Note,25.0,0.1,
+7,Null Ratio,75.0,,Explicit None value
+8,Special Chars,12.34,0.99,<script>alert('xss')</script> & Ghana Cedis GH₵

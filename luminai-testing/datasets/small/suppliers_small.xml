@@ -1,0 +1,1053 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppliers>
+  <supplier id="SUP-0001">
+    <company_name>Afrilink Supply Partner 1 Ltd.</company_name>
+    <contact_person>Peter Gbeho</contact_person>
+    <country>Kenya</country>
+    <rating>4.3</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0002">
+    <company_name>Afrilink Supply Partner 2 Ltd.</company_name>
+    <contact_person>Amina Quaye</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0003">
+    <company_name>Afrilink Supply Partner 3 Ltd.</company_name>
+    <contact_person>Samuel Addison</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.2</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0004">
+    <company_name>Afrilink Supply Partner 4 Ltd.</company_name>
+    <contact_person>Joseph Adeyemi</contact_person>
+    <country>South Africa</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0005">
+    <company_name>Afrilink Supply Partner 5 Ltd.</company_name>
+    <contact_person>Emeka Tetteh</contact_person>
+    <country>Ghana</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0006">
+    <company_name>Afrilink Supply Partner 6 Ltd.</company_name>
+    <contact_person>Patience Darko</contact_person>
+    <country>South Africa</country>
+    <rating>4.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0007">
+    <company_name>Afrilink Supply Partner 7 Ltd.</company_name>
+    <contact_person>Chidi Coulibaly</contact_person>
+    <country>Nigeria</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0008">
+    <company_name>Afrilink Supply Partner 8 Ltd.</company_name>
+    <contact_person>Yaa Gbeho</contact_person>
+    <country>Kenya</country>
+    <rating>4.7</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0009">
+    <company_name>Afrilink Supply Partner 9 Ltd.</company_name>
+    <contact_person>Koku Dzogbe</contact_person>
+    <country>Ghana</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0010">
+    <company_name>Afrilink Supply Partner 10 Ltd.</company_name>
+    <contact_person>Akua Traore</contact_person>
+    <country>United Kingdom</country>
+    <rating>5.0</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0011">
+    <company_name>Afrilink Supply Partner 11 Ltd.</company_name>
+    <contact_person>Grace Darko</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.8</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0012">
+    <company_name>Afrilink Supply Partner 12 Ltd.</company_name>
+    <contact_person>Yaw Boateng</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>4.5</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0013">
+    <company_name>Afrilink Supply Partner 13 Ltd.</company_name>
+    <contact_person>Zainab Frimpong</contact_person>
+    <country>China</country>
+    <rating>4.7</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0014">
+    <company_name>Afrilink Supply Partner 14 Ltd.</company_name>
+    <contact_person>Patience Mensah</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.4</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0015">
+    <company_name>Afrilink Supply Partner 15 Ltd.</company_name>
+    <contact_person>John Tagoe</contact_person>
+    <country>Nigeria</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0016">
+    <company_name>Afrilink Supply Partner 16 Ltd.</company_name>
+    <contact_person>Yaa Okafor</contact_person>
+    <country>South Africa</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0017">
+    <company_name>Afrilink Supply Partner 17 Ltd.</company_name>
+    <contact_person>Kwaku Kone</contact_person>
+    <country>Ghana</country>
+    <rating>3.3</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0018">
+    <company_name>Afrilink Supply Partner 18 Ltd.</company_name>
+    <contact_person>Elizabeth Boateng</contact_person>
+    <country>China</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0019">
+    <company_name>Afrilink Supply Partner 19 Ltd.</company_name>
+    <contact_person>Ngozi Acheampong</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>5.0</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0020">
+    <company_name>Afrilink Supply Partner 20 Ltd.</company_name>
+    <contact_person>Beatrice Okafor</contact_person>
+    <country>Nigeria</country>
+    <rating>4.7</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0021">
+    <company_name>Afrilink Supply Partner 21 Ltd.</company_name>
+    <contact_person>Afia Mwangi</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>4.2</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0022">
+    <company_name>Afrilink Supply Partner 22 Ltd.</company_name>
+    <contact_person>Joseph Abubakar</contact_person>
+    <country>Ghana</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0023">
+    <company_name>Afrilink Supply Partner 23 Ltd.</company_name>
+    <contact_person>Mercy Lamptey</contact_person>
+    <country>Nigeria</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0024">
+    <company_name>Afrilink Supply Partner 24 Ltd.</company_name>
+    <contact_person>Esi Appiah</contact_person>
+    <country>Ghana</country>
+    <rating>4.2</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0025">
+    <company_name>Afrilink Supply Partner 25 Ltd.</company_name>
+    <contact_person>Patience Agyemang</contact_person>
+    <country>Ghana</country>
+    <rating>4.4</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0026">
+    <company_name>Afrilink Supply Partner 26 Ltd.</company_name>
+    <contact_person>Daniel Quaye</contact_person>
+    <country>South Africa</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0027">
+    <company_name>Afrilink Supply Partner 27 Ltd.</company_name>
+    <contact_person>Daniel Appiah</contact_person>
+    <country>United Kingdom</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0028">
+    <company_name>Afrilink Supply Partner 28 Ltd.</company_name>
+    <contact_person>Emeka Adeyemi</contact_person>
+    <country>Ghana</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0029">
+    <company_name>Afrilink Supply Partner 29 Ltd.</company_name>
+    <contact_person>Beatrice Abubakar</contact_person>
+    <country>Nigeria</country>
+    <rating>3.7</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0030">
+    <company_name>Afrilink Supply Partner 30 Ltd.</company_name>
+    <contact_person>Yao Gbeho</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.9</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0031">
+    <company_name>Afrilink Supply Partner 31 Ltd.</company_name>
+    <contact_person>Ngozi Boateng</contact_person>
+    <country>South Africa</country>
+    <rating>4.4</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0032">
+    <company_name>Afrilink Supply Partner 32 Ltd.</company_name>
+    <contact_person>Michael Gbeho</contact_person>
+    <country>China</country>
+    <rating>4.6</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0033">
+    <company_name>Afrilink Supply Partner 33 Ltd.</company_name>
+    <contact_person>Grace Owusu</contact_person>
+    <country>Ghana</country>
+    <rating>4.2</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0034">
+    <company_name>Afrilink Supply Partner 34 Ltd.</company_name>
+    <contact_person>Francis Lamptey</contact_person>
+    <country>Ghana</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0035">
+    <company_name>Afrilink Supply Partner 35 Ltd.</company_name>
+    <contact_person>Chidi Coulibaly</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.9</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0036">
+    <company_name>Afrilink Supply Partner 36 Ltd.</company_name>
+    <contact_person>Grace Anang</contact_person>
+    <country>Ghana</country>
+    <rating>3.2</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0037">
+    <company_name>Afrilink Supply Partner 37 Ltd.</company_name>
+    <contact_person>Emmanuel Lartey</contact_person>
+    <country>Ghana</country>
+    <rating>4.8</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0038">
+    <company_name>Afrilink Supply Partner 38 Ltd.</company_name>
+    <contact_person>Fatima Kone</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.8</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0039">
+    <company_name>Afrilink Supply Partner 39 Ltd.</company_name>
+    <contact_person>Kehinde Mwangi</contact_person>
+    <country>Nigeria</country>
+    <rating>3.3</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0040">
+    <company_name>Afrilink Supply Partner 40 Ltd.</company_name>
+    <contact_person>Ibrahim Kone</contact_person>
+    <country>China</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0041">
+    <company_name>Afrilink Supply Partner 41 Ltd.</company_name>
+    <contact_person>Grace Amponsah</contact_person>
+    <country>South Africa</country>
+    <rating>3.8</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0042">
+    <company_name>Afrilink Supply Partner 42 Ltd.</company_name>
+    <contact_person>Samuel Mwangi</contact_person>
+    <country>Ghana</country>
+    <rating>3.3</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0043">
+    <company_name>Afrilink Supply Partner 43 Ltd.</company_name>
+    <contact_person>Patience Traore</contact_person>
+    <country>Kenya</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0044">
+    <company_name>Afrilink Supply Partner 44 Ltd.</company_name>
+    <contact_person>Grace Antwi</contact_person>
+    <country>United Kingdom</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0045">
+    <company_name>Afrilink Supply Partner 45 Ltd.</company_name>
+    <contact_person>Kehinde Asante</contact_person>
+    <country>Nigeria</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0046">
+    <company_name>Afrilink Supply Partner 46 Ltd.</company_name>
+    <contact_person>Yao Anang</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.0</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0047">
+    <company_name>Afrilink Supply Partner 47 Ltd.</company_name>
+    <contact_person>Dorothy Dzogbe</contact_person>
+    <country>South Africa</country>
+    <rating>4.4</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0048">
+    <company_name>Afrilink Supply Partner 48 Ltd.</company_name>
+    <contact_person>Afia Kone</contact_person>
+    <country>Kenya</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0049">
+    <company_name>Afrilink Supply Partner 49 Ltd.</company_name>
+    <contact_person>Samuel Tagoe</contact_person>
+    <country>Nigeria</country>
+    <rating>4.1</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0050">
+    <company_name>Afrilink Supply Partner 50 Ltd.</company_name>
+    <contact_person>Peter Owusu</contact_person>
+    <country>South Africa</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0051">
+    <company_name>Afrilink Supply Partner 51 Ltd.</company_name>
+    <contact_person>Kwesi Acheampong</contact_person>
+    <country>China</country>
+    <rating>4.3</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0052">
+    <company_name>Afrilink Supply Partner 52 Ltd.</company_name>
+    <contact_person>Koku Kwarteng</contact_person>
+    <country>Nigeria</country>
+    <rating>4.3</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0053">
+    <company_name>Afrilink Supply Partner 53 Ltd.</company_name>
+    <contact_person>Elizabeth Amponsah</contact_person>
+    <country>Nigeria</country>
+    <rating>4.5</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0054">
+    <company_name>Afrilink Supply Partner 54 Ltd.</company_name>
+    <contact_person>Oluwaseun Gbeho</contact_person>
+    <country>Nigeria</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0055">
+    <company_name>Afrilink Supply Partner 55 Ltd.</company_name>
+    <contact_person>Koku Boateng</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0056">
+    <company_name>Afrilink Supply Partner 56 Ltd.</company_name>
+    <contact_person>Kehinde Darko</contact_person>
+    <country>China</country>
+    <rating>4.2</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0057">
+    <company_name>Afrilink Supply Partner 57 Ltd.</company_name>
+    <contact_person>David Owusu</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>4.1</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0058">
+    <company_name>Afrilink Supply Partner 58 Ltd.</company_name>
+    <contact_person>Michael Otieno</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.2</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0059">
+    <company_name>Afrilink Supply Partner 59 Ltd.</company_name>
+    <contact_person>Yaa Adeyemi</contact_person>
+    <country>China</country>
+    <rating>4.9</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0060">
+    <company_name>Afrilink Supply Partner 60 Ltd.</company_name>
+    <contact_person>Zainab Boateng</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.5</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0061">
+    <company_name>Afrilink Supply Partner 61 Ltd.</company_name>
+    <contact_person>Grace Otieno</contact_person>
+    <country>Kenya</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0062">
+    <company_name>Afrilink Supply Partner 62 Ltd.</company_name>
+    <contact_person>Mohammed Mwangi</contact_person>
+    <country>Ghana</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0063">
+    <company_name>Afrilink Supply Partner 63 Ltd.</company_name>
+    <contact_person>Esi Bello</contact_person>
+    <country>United Kingdom</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0064">
+    <company_name>Afrilink Supply Partner 64 Ltd.</company_name>
+    <contact_person>Chidi Coulibaly</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0065">
+    <company_name>Afrilink Supply Partner 65 Ltd.</company_name>
+    <contact_person>Ngozi Adeyemi</contact_person>
+    <country>Nigeria</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0066">
+    <company_name>Afrilink Supply Partner 66 Ltd.</company_name>
+    <contact_person>Patience Kwarteng</contact_person>
+    <country>Nigeria</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0067">
+    <company_name>Afrilink Supply Partner 67 Ltd.</company_name>
+    <contact_person>Dorothy Lamptey</contact_person>
+    <country>Kenya</country>
+    <rating>3.7</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0068">
+    <company_name>Afrilink Supply Partner 68 Ltd.</company_name>
+    <contact_person>Ama Antwi</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0069">
+    <company_name>Afrilink Supply Partner 69 Ltd.</company_name>
+    <contact_person>Zainab Darko</contact_person>
+    <country>Ghana</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0070">
+    <company_name>Afrilink Supply Partner 70 Ltd.</company_name>
+    <contact_person>Francis Quaye</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0071">
+    <company_name>Afrilink Supply Partner 71 Ltd.</company_name>
+    <contact_person>Fatima Osei</contact_person>
+    <country>Nigeria</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0072">
+    <company_name>Afrilink Supply Partner 72 Ltd.</company_name>
+    <contact_person>Zainab Quaye</contact_person>
+    <country>Kenya</country>
+    <rating>5.0</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0073">
+    <company_name>Afrilink Supply Partner 73 Ltd.</company_name>
+    <contact_person>Koku Tagoe</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0074">
+    <company_name>Afrilink Supply Partner 74 Ltd.</company_name>
+    <contact_person>Amina Tagoe</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.7</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0075">
+    <company_name>Afrilink Supply Partner 75 Ltd.</company_name>
+    <contact_person>Kiprono Amponsah</contact_person>
+    <country>Kenya</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0076">
+    <company_name>Afrilink Supply Partner 76 Ltd.</company_name>
+    <contact_person>Koku Gbeho</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.8</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0077">
+    <company_name>Afrilink Supply Partner 77 Ltd.</company_name>
+    <contact_person>Kiprono Frimpong</contact_person>
+    <country>South Africa</country>
+    <rating>3.5</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0078">
+    <company_name>Afrilink Supply Partner 78 Ltd.</company_name>
+    <contact_person>Grace Bello</contact_person>
+    <country>Nigeria</country>
+    <rating>4.7</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0079">
+    <company_name>Afrilink Supply Partner 79 Ltd.</company_name>
+    <contact_person>Ibrahim Asante</contact_person>
+    <country>Ghana</country>
+    <rating>4.7</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0080">
+    <company_name>Afrilink Supply Partner 80 Ltd.</company_name>
+    <contact_person>Elizabeth Otieno</contact_person>
+    <country>South Africa</country>
+    <rating>4.9</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0081">
+    <company_name>Afrilink Supply Partner 81 Ltd.</company_name>
+    <contact_person>Abena Addison</contact_person>
+    <country>Ghana</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0082">
+    <company_name>Afrilink Supply Partner 82 Ltd.</company_name>
+    <contact_person>Zainab Dzogbe</contact_person>
+    <country>South Africa</country>
+    <rating>4.7</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0083">
+    <company_name>Afrilink Supply Partner 83 Ltd.</company_name>
+    <contact_person>Kojo Quaye</contact_person>
+    <country>Kenya</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0084">
+    <company_name>Afrilink Supply Partner 84 Ltd.</company_name>
+    <contact_person>Samuel Coulibaly</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0085">
+    <company_name>Afrilink Supply Partner 85 Ltd.</company_name>
+    <contact_person>Comfort Anang</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>4.1</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0086">
+    <company_name>Afrilink Supply Partner 86 Ltd.</company_name>
+    <contact_person>Kwame Kpodo</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.2</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0087">
+    <company_name>Afrilink Supply Partner 87 Ltd.</company_name>
+    <contact_person>Beatrice Osei</contact_person>
+    <country>China</country>
+    <rating>4.6</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0088">
+    <company_name>Afrilink Supply Partner 88 Ltd.</company_name>
+    <contact_person>Daniel Darko</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0089">
+    <company_name>Afrilink Supply Partner 89 Ltd.</company_name>
+    <contact_person>Yaw Acheampong</contact_person>
+    <country>Kenya</country>
+    <rating>4.9</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0090">
+    <company_name>Afrilink Supply Partner 90 Ltd.</company_name>
+    <contact_person>Kwame Kone</contact_person>
+    <country>United Kingdom</country>
+    <rating>5.0</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0091">
+    <company_name>Afrilink Supply Partner 91 Ltd.</company_name>
+    <contact_person>Mercy Gbeho</contact_person>
+    <country>Ghana</country>
+    <rating>4.6</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0092">
+    <company_name>Afrilink Supply Partner 92 Ltd.</company_name>
+    <contact_person>Joseph Darko</contact_person>
+    <country>Ghana</country>
+    <rating>4.2</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0093">
+    <company_name>Afrilink Supply Partner 93 Ltd.</company_name>
+    <contact_person>Koku Mwangi</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0094">
+    <company_name>Afrilink Supply Partner 94 Ltd.</company_name>
+    <contact_person>Michael Mwangi</contact_person>
+    <country>Nigeria</country>
+    <rating>4.1</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0095">
+    <company_name>Afrilink Supply Partner 95 Ltd.</company_name>
+    <contact_person>John Tagoe</contact_person>
+    <country>Nigeria</country>
+    <rating>3.8</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0096">
+    <company_name>Afrilink Supply Partner 96 Ltd.</company_name>
+    <contact_person>Koku Antwi</contact_person>
+    <country>Nigeria</country>
+    <rating>4.6</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0097">
+    <company_name>Afrilink Supply Partner 97 Ltd.</company_name>
+    <contact_person>Oluwaseun Coulibaly</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.2</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0098">
+    <company_name>Afrilink Supply Partner 98 Ltd.</company_name>
+    <contact_person>Kiprono Agyemang</contact_person>
+    <country>China</country>
+    <rating>4.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0099">
+    <company_name>Afrilink Supply Partner 99 Ltd.</company_name>
+    <contact_person>Ibrahim Appiah</contact_person>
+    <country>South Africa</country>
+    <rating>3.7</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0100">
+    <company_name>Afrilink Supply Partner 100 Ltd.</company_name>
+    <contact_person>Kehinde Tetteh</contact_person>
+    <country>China</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0101">
+    <company_name>Afrilink Supply Partner 101 Ltd.</company_name>
+    <contact_person>Joseph Owusu</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.1</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0102">
+    <company_name>Afrilink Supply Partner 102 Ltd.</company_name>
+    <contact_person>Esi Abubakar</contact_person>
+    <country>Nigeria</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0103">
+    <company_name>Afrilink Supply Partner 103 Ltd.</company_name>
+    <contact_person>Afia Quaye</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.8</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0104">
+    <company_name>Afrilink Supply Partner 104 Ltd.</company_name>
+    <contact_person>Emmanuel Coulibaly</contact_person>
+    <country>Nigeria</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0105">
+    <company_name>Afrilink Supply Partner 105 Ltd.</company_name>
+    <contact_person>Koku Boateng</contact_person>
+    <country>Nigeria</country>
+    <rating>4.3</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0106">
+    <company_name>Afrilink Supply Partner 106 Ltd.</company_name>
+    <contact_person>Akua Dzogbe</contact_person>
+    <country>China</country>
+    <rating>3.2</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0107">
+    <company_name>Afrilink Supply Partner 107 Ltd.</company_name>
+    <contact_person>Kojo Okafor</contact_person>
+    <country>Ghana</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0108">
+    <company_name>Afrilink Supply Partner 108 Ltd.</company_name>
+    <contact_person>Grace Coulibaly</contact_person>
+    <country>Nigeria</country>
+    <rating>4.2</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0109">
+    <company_name>Afrilink Supply Partner 109 Ltd.</company_name>
+    <contact_person>Kwesi Agyemang</contact_person>
+    <country>Kenya</country>
+    <rating>3.2</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0110">
+    <company_name>Afrilink Supply Partner 110 Ltd.</company_name>
+    <contact_person>Ama Anang</contact_person>
+    <country>Nigeria</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0111">
+    <company_name>Afrilink Supply Partner 111 Ltd.</company_name>
+    <contact_person>Joseph Mwangi</contact_person>
+    <country>Kenya</country>
+    <rating>4.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0112">
+    <company_name>Afrilink Supply Partner 112 Ltd.</company_name>
+    <contact_person>Grace Kwarteng</contact_person>
+    <country>Nigeria</country>
+    <rating>4.7</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0113">
+    <company_name>Afrilink Supply Partner 113 Ltd.</company_name>
+    <contact_person>Daniel Osei</contact_person>
+    <country>South Africa</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0114">
+    <company_name>Afrilink Supply Partner 114 Ltd.</company_name>
+    <contact_person>Yaa Appiah</contact_person>
+    <country>China</country>
+    <rating>4.1</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0115">
+    <company_name>Afrilink Supply Partner 115 Ltd.</company_name>
+    <contact_person>Patience Appiah</contact_person>
+    <country>Nigeria</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0116">
+    <company_name>Afrilink Supply Partner 116 Ltd.</company_name>
+    <contact_person>Zainab Traore</contact_person>
+    <country>United Kingdom</country>
+    <rating>3.7</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0117">
+    <company_name>Afrilink Supply Partner 117 Ltd.</company_name>
+    <contact_person>Patience Dzogbe</contact_person>
+    <country>China</country>
+    <rating>4.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0118">
+    <company_name>Afrilink Supply Partner 118 Ltd.</company_name>
+    <contact_person>Francis Anang</contact_person>
+    <country>Ghana</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0119">
+    <company_name>Afrilink Supply Partner 119 Ltd.</company_name>
+    <contact_person>Yaa Agyemang</contact_person>
+    <country>United Kingdom</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0120">
+    <company_name>Afrilink Supply Partner 120 Ltd.</company_name>
+    <contact_person>Afia Otieno</contact_person>
+    <country>United Kingdom</country>
+    <rating>3.3</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0121">
+    <company_name>Afrilink Supply Partner 121 Ltd.</company_name>
+    <contact_person>Koku Danjuma</contact_person>
+    <country>South Africa</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0122">
+    <company_name>Afrilink Supply Partner 122 Ltd.</company_name>
+    <contact_person>Elizabeth Lartey</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.8</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0123">
+    <company_name>Afrilink Supply Partner 123 Ltd.</company_name>
+    <contact_person>Samuel Danjuma</contact_person>
+    <country>Nigeria</country>
+    <rating>3.7</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0124">
+    <company_name>Afrilink Supply Partner 124 Ltd.</company_name>
+    <contact_person>Kwaku Quaye</contact_person>
+    <country>Ghana</country>
+    <rating>3.5</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0125">
+    <company_name>Afrilink Supply Partner 125 Ltd.</company_name>
+    <contact_person>Akua Tagoe</contact_person>
+    <country>Nigeria</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0126">
+    <company_name>Afrilink Supply Partner 126 Ltd.</company_name>
+    <contact_person>Fatima Kwarteng</contact_person>
+    <country>China</country>
+    <rating>4.9</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0127">
+    <company_name>Afrilink Supply Partner 127 Ltd.</company_name>
+    <contact_person>Joseph Osei</contact_person>
+    <country>Nigeria</country>
+    <rating>4.5</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0128">
+    <company_name>Afrilink Supply Partner 128 Ltd.</company_name>
+    <contact_person>Esi Traore</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.9</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0129">
+    <company_name>Afrilink Supply Partner 129 Ltd.</company_name>
+    <contact_person>Michael Gbeho</contact_person>
+    <country>Ghana</country>
+    <rating>3.7</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0130">
+    <company_name>Afrilink Supply Partner 130 Ltd.</company_name>
+    <contact_person>Yaw Kone</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>5.0</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0131">
+    <company_name>Afrilink Supply Partner 131 Ltd.</company_name>
+    <contact_person>Daniel Traore</contact_person>
+    <country>China</country>
+    <rating>3.4</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0132">
+    <company_name>Afrilink Supply Partner 132 Ltd.</company_name>
+    <contact_person>Dorothy Tetteh</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.6</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0133">
+    <company_name>Afrilink Supply Partner 133 Ltd.</company_name>
+    <contact_person>Fatima Gbeho</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0134">
+    <company_name>Afrilink Supply Partner 134 Ltd.</company_name>
+    <contact_person>Kiprono Danjuma</contact_person>
+    <country>Nigeria</country>
+    <rating>4.0</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0135">
+    <company_name>Afrilink Supply Partner 135 Ltd.</company_name>
+    <contact_person>Amina Antwi</contact_person>
+    <country>China</country>
+    <rating>4.4</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0136">
+    <company_name>Afrilink Supply Partner 136 Ltd.</company_name>
+    <contact_person>Yaa Asante</contact_person>
+    <country>South Africa</country>
+    <rating>3.8</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0137">
+    <company_name>Afrilink Supply Partner 137 Ltd.</company_name>
+    <contact_person>Yaa Otieno</contact_person>
+    <country>China</country>
+    <rating>4.1</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0138">
+    <company_name>Afrilink Supply Partner 138 Ltd.</company_name>
+    <contact_person>Abena Kpodo</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.7</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0139">
+    <company_name>Afrilink Supply Partner 139 Ltd.</company_name>
+    <contact_person>Oluwaseun Lartey</contact_person>
+    <country>Ghana</country>
+    <rating>3.9</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0140">
+    <company_name>Afrilink Supply Partner 140 Ltd.</company_name>
+    <contact_person>Yaa Kwarteng</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>4.2</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0141">
+    <company_name>Afrilink Supply Partner 141 Ltd.</company_name>
+    <contact_person>Michael Gbeho</contact_person>
+    <country>Côte d'Ivoire</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0142">
+    <company_name>Afrilink Supply Partner 142 Ltd.</company_name>
+    <contact_person>Mercy Lartey</contact_person>
+    <country>Ghana</country>
+    <rating>4.7</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0143">
+    <company_name>Afrilink Supply Partner 143 Ltd.</company_name>
+    <contact_person>Kwesi Addison</contact_person>
+    <country>Ghana</country>
+    <rating>4.3</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0144">
+    <company_name>Afrilink Supply Partner 144 Ltd.</company_name>
+    <contact_person>Ngozi Coulibaly</contact_person>
+    <country>Kenya</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0145">
+    <company_name>Afrilink Supply Partner 145 Ltd.</company_name>
+    <contact_person>John Kpodo</contact_person>
+    <country>China</country>
+    <rating>4.5</rating>
+    <payment_terms>Immediate Advance</payment_terms>
+  </supplier>
+  <supplier id="SUP-0146">
+    <company_name>Afrilink Supply Partner 146 Ltd.</company_name>
+    <contact_person>Fatima Agyemang</contact_person>
+    <country>United Kingdom</country>
+    <rating>4.7</rating>
+    <payment_terms>Net 30</payment_terms>
+  </supplier>
+  <supplier id="SUP-0147">
+    <company_name>Afrilink Supply Partner 147 Ltd.</company_name>
+    <contact_person>David Lartey</contact_person>
+    <country>Ghana</country>
+    <rating>5.0</rating>
+    <payment_terms>Net 60</payment_terms>
+  </supplier>
+  <supplier id="SUP-0148">
+    <company_name>Afrilink Supply Partner 148 Ltd.</company_name>
+    <contact_person>Francis Kone</contact_person>
+    <country>South Africa</country>
+    <rating>3.8</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0149">
+    <company_name>Afrilink Supply Partner 149 Ltd.</company_name>
+    <contact_person>Chidi Acheampong</contact_person>
+    <country>South Africa</country>
+    <rating>3.5</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+  <supplier id="SUP-0150">
+    <company_name>Afrilink Supply Partner 150 Ltd.</company_name>
+    <contact_person>Fatima Gbeho</contact_person>
+    <country>China</country>
+    <rating>4.8</rating>
+    <payment_terms>Net 45</payment_terms>
+  </supplier>
+</suppliers>

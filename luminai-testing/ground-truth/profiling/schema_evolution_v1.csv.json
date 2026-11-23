@@ -1,0 +1,38 @@
+{
+  "dataset_name": "schema_evolution_v1.csv",
+  "row_count": 50,
+  "column_count": 3,
+  "exact_duplicates": 0,
+  "columns": {
+    "customer_id": {
+      "name": "customer_id",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 50
+    },
+    "name": {
+      "name": "name",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 50
+    },
+    "email": {
+      "name": "email",
+      "data_type": "String",
+      "null_count": 0,
+      "empty_string_count": 0,
+      "sentinel_null_count": 0,
+      "total_effective_missing": 0,
+      "missing_percentage": 0.0,
+      "distinct_count": 50
+    }
+  }
+}

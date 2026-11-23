@@ -1,0 +1,11 @@
+entity_id,name,phone,city,region,pair_id
+ER-001,Kwesi Mensah,+233-24-4123456,Accra,Greater Accra,P1
+ER-002,Kwesi Mensah,+233-24-4123465,Accra,Greater Accra,P1
+ER-003,Ama Serwaa,+233-20-8991122,Kumasi,Ashanti,P2
+ER-004,Ama K. Serwaa,+233-20-8991122,Kumasi,Ashanti,P2
+ER-005,Kofi Boateng,+233-54-3322110,Takoradi,Western,P3
+ER-006,Koffi Boaten,+233-54-3322110,Takoradi,Western,P3
+ER-007,FATIMA BELLO,+233-27-7788990,Tamale,Northern,P4
+ER-008,  fatima bello  ,+233-27-7788990,Tamale,Northern,P4
+ER-009,Yaw Dzogbe,+233-24-9988776,Ho,Volta,P5
+ER-010,Peter Anang,+233-24-1122334,Tema,Greater Accra,P6
