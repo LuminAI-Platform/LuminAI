@@ -24,7 +24,8 @@ interface NodeStats {
   inDegree: number;
   outDegree: number;
   clusterCoefficient: number;
-  relationshipTypeCounts: Record<string, number>;
+  relationshipTypeCounts?: Record<string, number>;
+  relationshipCounts?: Record<string, number>;
 }
 
 interface NodeDetailPanelProps {

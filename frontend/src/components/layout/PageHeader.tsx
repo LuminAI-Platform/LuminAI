@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Tooltip } from "../ui/Tooltip";
 
 export interface BreadcrumbItem {
@@ -72,6 +73,7 @@ const DOT_COLORS = {
 };
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
+  breadcrumbs,
   title,
   description,
   icon,
@@ -87,6 +89,36 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
   return (
     <div className="@container pb-2 select-none border-b border-border">
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-1.5 text-[11px] text-text-secondary mb-1.5"
+        >
+          {breadcrumbs.map((crumb, idx) => (
+            <React.Fragment key={`${crumb.label}-${idx}`}>
+              {idx > 0 && <span className="opacity-50">/</span>}
+              {crumb.to ? (
+                <Link
+                  to={crumb.to}
+                  className="hover:text-text transition-colors"
+                >
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span
+                  className={
+                    idx === breadcrumbs.length - 1
+                      ? "text-text font-medium"
+                      : ""
+                  }
+                >
+                  {crumb.label}
+                </span>
+              )}
+            </React.Fragment>
+          ))}
+        </nav>
+      )}
       {/* Main Title Row */}
       <div
         className={
@@ -121,7 +153,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border whitespace-nowrap min-w-0 shrink ${BADGE_STYLES[variant]}`}
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${DOT_COLORS[variant]}`}
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${DOT_COLORS[variant]} ${badge.pulse ? "animate-pulse" : ""}`}
                       aria-hidden="true"
                     />
                     <span ref={badgeLabelRef} className="truncate">

@@ -178,8 +178,9 @@ export function useGraphData() {
     for (const e of graphData.edges) {
       if (e.data.relationshipType) rels.add(e.data.relationshipType);
     }
+    if (selectedRelFilter) rels.add(selectedRelFilter);
     return Array.from(rels);
-  }, [graphData.edges]);
+  }, [graphData.edges, selectedRelFilter]);
 
   const activeError = activeEntityId ? graphError : catalogError;
   const errorInfo = useMemo(

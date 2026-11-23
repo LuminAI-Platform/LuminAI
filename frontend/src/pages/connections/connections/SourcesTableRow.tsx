@@ -77,7 +77,17 @@ export const SourcesTableRow: React.FC<SourcesTableRowProps> = ({
           {
             label: "Open in Schema Studio",
             icon: <Layers className="w-4 h-4" />,
-            onClick: () => navigate({ to: "/connections/schema-map" }),
+            onClick: () => {
+              try {
+                localStorage.setItem("lumin_selected_connection_id", source.id);
+              } catch {
+                // ignore
+              }
+              void navigate({
+                to: "/connections/schema-map",
+                search: { connectionId: source.id },
+              });
+            },
           },
           {
             label: "Delete",

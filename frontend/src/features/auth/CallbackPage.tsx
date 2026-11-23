@@ -20,7 +20,8 @@ export const CallbackPage: React.FC = () => {
         if (
           savedRedirect &&
           savedRedirect !== "/login" &&
-          savedRedirect.startsWith("/")
+          savedRedirect.startsWith("/") &&
+          !savedRedirect.startsWith("//")
         ) {
           sessionStorage.removeItem("post_login_redirect");
           navigate({ to: savedRedirect, replace: true });

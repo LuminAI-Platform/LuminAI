@@ -32,8 +32,15 @@ export const SqlStudioPage: React.FC = () => {
     queryFn: fetchSavedQueries,
   });
 
+  const initialDatasetId =
+    typeof window !== "undefined"
+      ? (new URLSearchParams(window.location.search).get("datasetId") ??
+        undefined)
+      : undefined;
+
   const sqlMutation = useMutation<SqlQueryResult, Error, string>({
-    mutationFn: (sql: string) => runSqlQuery({ query: sql, limit: 500 }),
+    mutationFn: (sql: string) =>
+      runSqlQuery({ query: sql, datasetId: initialDatasetId, limit: 500 }),
   });
 
   const saveMutation = useMutation({
@@ -133,9 +140,18 @@ export const SqlStudioPage: React.FC = () => {
 
       <SaveQueryModal
         isOpen={showSaveModal}
-        onClose={() => setShowSaveModal(false)}
+        onClose={() => {
+          setShowSaveModal(false);
+          saveMutation.reset();
+        }}
         queryName={saveQueryName}
         setQueryName={setSaveQueryName}
+        canSave={Boolean(queryText.trim())}
+        errorMessage={
+          saveMutation.isError
+            ? (saveMutation.error as Error)?.message || "Failed to save query"
+            : null
+        }
         onSave={() =>
           saveMutation.mutate({
             name: saveQueryName,

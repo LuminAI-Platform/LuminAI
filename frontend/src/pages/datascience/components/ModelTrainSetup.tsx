@@ -77,7 +77,15 @@ export const ModelTrainSetup: React.FC<ModelTrainSetupProps> = ({
         <label className="text-xs text-text-secondary">Task Type</label>
         <select
           value={taskType}
-          onChange={(e) => setTaskType(e.target.value as MlTaskType)}
+          onChange={(e) => {
+            const nextTask = e.target.value as MlTaskType;
+            setTaskType(nextTask);
+            setAlgorithm(
+              nextTask === "CLASSIFICATION"
+                ? "Random Forest"
+                : "Linear Regression",
+            );
+          }}
           className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
         >
           <option value="CLASSIFICATION">Classification</option>

@@ -126,8 +126,11 @@ export function useConnectionsSourceOps({
           await apiFetch(`/api/v1/connections/${deleteTarget.id}`, {
             method: "DELETE",
           });
-        } catch {
-          // ignore if local-only
+        } catch (err: unknown) {
+          const status = (err as { status?: number })?.status;
+          if (status && status !== 404) {
+            throw err;
+          }
         }
         try {
           const cached = JSON.parse(

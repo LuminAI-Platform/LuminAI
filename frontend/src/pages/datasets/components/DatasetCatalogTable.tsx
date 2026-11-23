@@ -139,7 +139,7 @@ export const DatasetCatalogTable: React.FC<DatasetCatalogTableProps> = ({
                       />
                     </div>
                     <span className="font-semibold text-text">
-                      {d.qualityScore
+                      {d.qualityScore != null
                         ? `${Math.round(d.qualityScore)}%`
                         : "N/A"}
                     </span>

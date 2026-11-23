@@ -30,10 +30,14 @@ export interface Dataset {
   projectType: ProjectType;
   storageFormat: string;
   storagePath?: string;
+  storageLocation?: string;
+  sourceConnectionId?: string;
   currentVersion: number;
   rowCount: number;
   sizeBytes: number;
-  qualityScore: number;
+  byteSize?: number;
+  qualityScore?: number | null;
+  qualityStatus?: string;
   status: DatasetStatus;
   schemaMetadata?: Record<string, string>;
   profilingSummary?: Record<string, unknown>;

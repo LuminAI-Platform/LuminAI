@@ -57,13 +57,33 @@ export const ModelRegistryGrid: React.FC<ModelRegistryGridProps> = ({
             <span>
               Registered: {new Date(m.createdAt).toLocaleDateString()}
             </span>
-            {onUpdateStatus && m.status !== "CHAMPION" && (
-              <button
-                onClick={() => onUpdateStatus(m.id, "CHAMPION")}
-                className="text-primary hover:underline text-xs cursor-pointer"
-              >
-                Make Champion
-              </button>
+            {onUpdateStatus && (
+              <div className="flex items-center gap-2">
+                {m.status !== "CHAMPION" && (
+                  <button
+                    onClick={() => onUpdateStatus(m.id, "CHAMPION")}
+                    className="text-primary hover:underline text-xs cursor-pointer"
+                  >
+                    Champion
+                  </button>
+                )}
+                {m.status !== "CHALLENGER" && (
+                  <button
+                    onClick={() => onUpdateStatus(m.id, "CHALLENGER")}
+                    className="text-blue-400 hover:underline text-xs cursor-pointer"
+                  >
+                    Challenger
+                  </button>
+                )}
+                {m.status !== "RETIRED" && (
+                  <button
+                    onClick={() => onUpdateStatus(m.id, "RETIRED")}
+                    className="text-text-secondary hover:text-error hover:underline text-xs cursor-pointer"
+                  >
+                    Retire
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

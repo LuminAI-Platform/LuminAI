@@ -21,6 +21,23 @@ export {
   listExperiments,
 } from "../ml/mlApi";
 
+function normalizeDataset(raw: Record<string, unknown>): Dataset {
+  const ds = raw as unknown as Dataset;
+  const normalized: Dataset = { ...ds };
+  if (typeof ds.sizeBytes !== "number" && typeof ds.byteSize === "number") {
+    normalized.sizeBytes = ds.byteSize;
+  }
+  if (
+    !ds.storageFormat &&
+    typeof ds.storageLocation === "string" &&
+    ds.storageLocation.includes(".")
+  ) {
+    normalized.storageFormat =
+      ds.storageLocation.split(".").pop()?.toUpperCase() || "";
+  }
+  return normalized;
+}
+
 export async function fetchDatasets(params?: {
   layer?: string;
   projectType?: string;
@@ -38,7 +55,8 @@ export async function fetchDatasets(params?: {
   if (!res.ok) {
     throw new Error(`Failed to fetch datasets: ${res.statusText}`);
   }
-  return res.json();
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(normalizeDataset) : [];
 }
 
 export async function fetchDatasetById(id: string): Promise<Dataset> {
@@ -46,22 +64,25 @@ export async function fetchDatasetById(id: string): Promise<Dataset> {
   if (!res.ok) {
     throw new Error(`Failed to load dataset ${id}: ${res.statusText}`);
   }
-  return res.json();
+  return normalizeDataset(await res.json());
 }
 
 export async function transitionDatasetLayer(
   id: string,
   layer: DatasetLayer,
 ): Promise<Dataset> {
-  const res = await apiFetch(`/api/v1/datasets/${id}/layer`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ layer }),
-  });
+  const res = await apiFetch(
+    `/api/v1/datasets/${id}/layer?layer=${encodeURIComponent(layer)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ layer }),
+    },
+  );
   if (!res.ok) {
     throw new Error(`Failed to transition dataset layer: ${res.statusText}`);
   }
-  return res.json();
+  return normalizeDataset(await res.json());
 }
 
 export async function deleteDataset(id: string): Promise<void> {
@@ -153,6 +174,7 @@ export async function executeDatasetPipeline(
 
 export async function runSqlQuery(payload: {
   query: string;
+  datasetId?: string;
   limit?: number;
   tables?: Record<string, unknown[]>;
 }): Promise<SqlQueryResult> {
@@ -160,7 +182,8 @@ export async function runSqlQuery(payload: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+    timeoutMs: 60_000,
+  } as RequestInit);
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(
@@ -169,7 +192,14 @@ export async function runSqlQuery(payload: {
         `SQL Execution failed (${res.status})`,
     );
   }
-  return res.json();
+  const raw = await res.json();
+  const rows = Array.isArray(raw.rows) ? raw.rows : [];
+  return {
+    ...raw,
+    rows,
+    rowCount: raw.rowCount ?? raw.totalRows ?? rows.length,
+    totalCount: raw.totalCount ?? raw.totalRows ?? rows.length,
+  };
 }
 
 export async function fetchSavedQueries(): Promise<SavedQuery[]> {

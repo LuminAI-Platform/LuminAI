@@ -13,13 +13,22 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     const intended = sessionStorage.getItem("post_login_redirect");
-    checkUser().then((user) => {
-      if (user) {
-        const dest = intended ?? "/";
-        sessionStorage.removeItem("post_login_redirect");
-        navigate({ to: dest as "/", replace: true });
-      }
-    });
+    checkUser()
+      .then((user) => {
+        if (user) {
+          const isSafe =
+            intended &&
+            intended.startsWith("/") &&
+            !intended.startsWith("//") &&
+            intended !== "/login";
+          const dest = isSafe ? intended : "/";
+          sessionStorage.removeItem("post_login_redirect");
+          navigate({ to: dest as "/", replace: true });
+        }
+      })
+      .catch(() => {
+        // Stay on login page if session check fails
+      });
   }, [checkUser, navigate]);
 
   const handleLogin = async () => {

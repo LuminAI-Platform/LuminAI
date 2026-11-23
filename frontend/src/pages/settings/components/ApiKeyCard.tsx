@@ -12,19 +12,24 @@ export const ApiKeyCard: React.FC<ApiKeyCardProps> = ({
   onRollKeyClick,
   apiKeyData,
 }) => {
+  const hasCopyableKey = Boolean(
+    apiKeyData?.hasKey ||
+    (displayedKey && !displayedKey.startsWith("No active")),
+  );
+
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-      <div className="flex items-center gap-3 mb-3 pb-3 border-b border-zinc-800/80">
-        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
+    <div className="bg-surface border border-border rounded-lg p-6 shadow-xs transition-colors">
+      <div className="flex items-center gap-3 mb-3 pb-3 border-b border-border">
+        <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border text-text-secondary flex items-center justify-center">
           <Key className="w-4 h-4" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-zinc-100">
+          <h3 className="text-sm font-semibold text-text">
             Data Engine API Access Key
           </h3>
-          <p className="text-xs text-zinc-400">
-            Authenticate external Dagster workers, Python SDK scripts, and
-            programmatic REST clients
+          <p className="text-xs text-text-secondary">
+            Authenticate external workers, Python SDK scripts, and programmatic
+            REST clients
           </p>
         </div>
       </div>
@@ -35,11 +40,13 @@ export const ApiKeyCard: React.FC<ApiKeyCardProps> = ({
             type={isKeyVisible ? "text" : "password"}
             readOnly
             value={displayedKey}
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2.5 pl-3 pr-10 text-xs font-mono text-zinc-200 outline-none select-all"
+            className="w-full bg-surface-subtle border border-border rounded-lg py-2.5 pl-3 pr-10 text-xs font-mono text-text outline-none select-all"
           />
           <button
+            type="button"
             onClick={onToggleKeyVisibility}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-1 cursor-pointer"
+            disabled={!hasCopyableKey}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text p-1 cursor-pointer disabled:opacity-40"
             title={isKeyVisible ? "Hide key" : "Show key"}
           >
             {isKeyVisible ? (
@@ -54,6 +61,7 @@ export const ApiKeyCard: React.FC<ApiKeyCardProps> = ({
           <Button
             variant="secondary"
             size="md"
+            disabled={!hasCopyableKey}
             onClick={onCopyKey}
             leftIcon={
               copiedKey ? (
@@ -78,10 +86,10 @@ export const ApiKeyCard: React.FC<ApiKeyCardProps> = ({
       </div>
 
       {apiKeyData?.hasKey && apiKeyData.key && (
-        <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500 mt-3 pt-3 border-t border-zinc-800/60">
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-text-secondary mt-3 pt-3 border-t border-border">
           <span>
             Key Prefix:{" "}
-            <strong className="font-mono text-zinc-300">
+            <strong className="font-mono text-text">
               {apiKeyData.key.keyPrefix}
             </strong>
           </span>

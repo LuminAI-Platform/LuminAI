@@ -7,6 +7,8 @@ interface SaveQueryModalProps {
   onClose: () => void;
   queryName: string;
   setQueryName: (v: string) => void;
+  canSave?: boolean;
+  errorMessage?: string | null;
   onSave: () => void;
   isSaving: boolean;
 }
@@ -16,6 +18,8 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
   onClose,
   queryName,
   setQueryName,
+  canSave = true,
+  errorMessage,
   onSave,
   isSaving,
 }) => {
@@ -34,10 +38,15 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
               type="text"
               value={queryName}
               onChange={(e) => setQueryName(e.target.value)}
-              placeholder="e.g. Monthly Revenue by Tier"
+              placeholder="Enter a descriptive query name"
               className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
             />
           </div>
+          {errorMessage && (
+            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+              {errorMessage}
+            </p>
+          )}
           <div className="flex items-center justify-end gap-2 mt-2">
             <Button variant="secondary" size="sm" onClick={onClose}>
               Cancel
@@ -45,7 +54,7 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
             <Button
               variant="primary"
               size="sm"
-              disabled={!queryName.trim()}
+              disabled={!queryName.trim() || !canSave}
               isLoading={isSaving}
               onClick={onSave}
             >

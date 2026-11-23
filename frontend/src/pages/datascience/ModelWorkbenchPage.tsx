@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Cpu, Play, Award, BarChart3, ICON_SIZES } from "../../lib/icons";
+import { apiFetch } from "../../lib/api";
+import {
+  Cpu,
+  Play,
+  Award,
+  BarChart3,
+  AlertCircle,
+  ICON_SIZES,
+} from "../../lib/icons";
 import { fetchDatasets } from "../../features/datasets/datasetApi";
 import {
   trainModel,
@@ -27,7 +35,10 @@ export const ModelWorkbenchPage: React.FC = () => {
   const [algorithm, setAlgorithm] = useState<string>("Random Forest");
   const [taskType, setTaskType] = useState<MlTaskType>("CLASSIFICATION");
   const [targetColumn, setTargetColumn] = useState<string>("");
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string>("");
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("datasetId") ?? "";
+  });
   const [activeTab, setActiveTab] = useState<
     "train" | "experiments" | "registry"
   >("train");
@@ -63,12 +74,36 @@ export const ModelWorkbenchPage: React.FC = () => {
         throw new Error("Model name and target column are required.");
       }
 
+      let records: Record<string, unknown>[] = [];
+      if (selectedDataset.sourceConnectionId) {
+        try {
+          const cleanRes = await apiFetch(
+            `/api/v1/connections/${selectedDataset.sourceConnectionId}/clean-preview`,
+            { headers: { "X-Suppress-Toast": "true" } },
+          );
+          const cleanJson = await cleanRes.json();
+          if (Array.isArray(cleanJson?.rows)) records = cleanJson.rows;
+        } catch {
+          try {
+            const rawRes = await apiFetch(
+              `/api/v1/connections/${selectedDataset.sourceConnectionId}/preview/file`,
+              { headers: { "X-Suppress-Toast": "true" } },
+            );
+            const rawJson = await rawRes.json();
+            if (Array.isArray(rawJson)) records = rawJson;
+          } catch {
+            // Backend will validate records
+          }
+        }
+      }
+
       return trainModel({
         modelName: modelName.trim(),
         datasetId: selectedDataset.id,
         datasetName: selectedDataset.name,
         datasetVersion: selectedDataset.currentVersion,
         targetColumn: targetColumn.trim(),
+        records,
         algorithm,
         taskType,
       });
@@ -76,29 +111,32 @@ export const ModelWorkbenchPage: React.FC = () => {
     onSuccess: (data) => {
       setLastTrainedResult(data);
       void refetchExperiments();
+      void refetchRegistry();
     },
   });
 
   const promoteMutation = useMutation({
-    mutationFn: (modelId: string) => promoteModel(modelId, "CHAMPION"),
+    mutationFn: ({ id, status }: { id: string; status: MlModelStatus }) =>
+      promoteModel(id, status),
     onSuccess: () => {
       void refetchRegistry();
       setActiveTab("registry");
     },
   });
 
-  const handlePromoteRun = async (runId?: string) => {
-    if (runId) {
-      promoteMutation.mutate(runId);
-    } else if (lastTrainedResult?.model_id) {
-      promoteMutation.mutate(lastTrainedResult.model_id);
-    } else if (registeredModels.length > 0) {
-      promoteMutation.mutate(registeredModels[0].id);
+  const handlePromoteRun = async (idOrRunId?: string) => {
+    const targetId =
+      idOrRunId ||
+      lastTrainedResult?.model_id ||
+      lastTrainedResult?.run_id ||
+      registeredModels[0]?.id;
+    if (targetId) {
+      promoteMutation.mutate({ id: targetId, status: "CHAMPION" });
     }
   };
 
   const handleUpdateStatus = (modelId: string, status: MlModelStatus) => {
-    promoteModel(modelId, status).then(() => void refetchRegistry());
+    promoteMutation.mutate({ id: modelId, status });
   };
 
   return (
@@ -166,6 +204,17 @@ export const ModelWorkbenchPage: React.FC = () => {
             isTraining={trainMutation.isPending}
           />
           <div className="lg:col-span-2 flex flex-col gap-4">
+            {(trainMutation.isError || promoteMutation.isError) && (
+              <div className="p-3.5 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  {
+                    ((trainMutation.error || promoteMutation.error) as Error)
+                      ?.message
+                  }
+                </span>
+              </div>
+            )}
             <ModelEvaluationView
               lastTrainedResult={lastTrainedResult}
               onPromote={handlePromoteRun}
