@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-luminai}
       POSTGRES_USER: ${POSTGRES_USER:-luminai_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     deploy:
       resources:
         limits:
@@ -36,11 +36,11 @@ services:
     ports: []
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
       KC_DB_USERNAME: ${POSTGRES_USER:-luminai_admin}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       KC_HTTP_PORT: 8180
       KC_HTTP_ENABLED: "true"
       KC_PROXY: "edge"
@@ -88,10 +88,10 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-luminai_admin}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-luminai}
       SPRING_FLYWAY_USER: ${POSTGRES_USER:-luminai_admin}
-      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_SSL_ENABLED: "false"
@@ -110,9 +110,9 @@ services:
       VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-01234567890123456789012345678901}
       DATA_ENGINE_URL: http://data-engine:8000
       DATA_ENGINE_API_KEY: ${DATA_ENGINE_API_KEY:-luminai-internal-secret-key}
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin}}
       MINIO_BUCKET: ${MINIO_BUCKET_RAW:-luminai-raw}
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
       CORS_ALLOWED_ORIGINS: https://luminai.${DOMAIN_NAME},https://app.${DOMAIN_NAME},http://localhost:5173
@@ -126,16 +126,16 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-luminai_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-luminai}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-luminai_admin}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-luminai}
       REDIS_URL: redis://redis:6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       KAFKA_ENABLED: "true"
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-luminai_dev_password}
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin}}
       MINIO_SECURE: ${MINIO_SECURE:-true}
       MINIO_BUCKET_RAW: ${MINIO_BUCKET_RAW:-luminai-raw}
       MINIO_REGION: ${MINIO_REGION:-us-east-1}
