@@ -30,27 +30,67 @@ public class EntityTypeService {
   private final EntityTypeRepository repository;
   private final JwtClaimsExtractor claimsExtractor;
   private final Neo4jGraphRepository neo4jGraphRepository;
+  private final com.luminai.connection.repository.GoldenRecordRepository goldenRecordRepository;
 
   public EntityTypeService(EntityTypeRepository repository, JwtClaimsExtractor claimsExtractor) {
-    this(repository, claimsExtractor, null);
+    this(repository, claimsExtractor, null, null);
+  }
+
+  public EntityTypeService(
+      EntityTypeRepository repository,
+      JwtClaimsExtractor claimsExtractor,
+      Neo4jGraphRepository neo4jGraphRepository) {
+    this(repository, claimsExtractor, neo4jGraphRepository, null);
   }
 
   @Autowired
   public EntityTypeService(
       EntityTypeRepository repository,
       JwtClaimsExtractor claimsExtractor,
-      @Autowired(required = false) Neo4jGraphRepository neo4jGraphRepository) {
+      @Autowired(required = false) Neo4jGraphRepository neo4jGraphRepository,
+      @Autowired(required = false)
+          com.luminai.connection.repository.GoldenRecordRepository goldenRecordRepository) {
     this.repository = repository;
     this.claimsExtractor = claimsExtractor;
     this.neo4jGraphRepository = neo4jGraphRepository;
+    this.goldenRecordRepository = goldenRecordRepository;
   }
 
   /** Lists all entity types defined for the current tenant. */
   @Transactional(readOnly = true)
   public List<EntityTypeDto.Response> getAll() {
+    return getAll(true);
+  }
+
+  /**
+   * Lists all entity types defined for the current tenant, with live entity counts and optional
+   * filtering.
+   */
+  @Transactional(readOnly = true)
+  public List<EntityTypeDto.Response> getAll(Boolean includeEmpty) {
     UUID tenantId = getCurrentTenantId();
+    Map<String, Long> countsByType = new HashMap<>();
+    if (goldenRecordRepository != null) {
+      try {
+        List<Object[]> counts = goldenRecordRepository.countByEntityType();
+        if (counts != null) {
+          for (Object[] row : counts) {
+            if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+              countsByType.put(String.valueOf(row[0]).toLowerCase(), ((Number) row[1]).longValue());
+            }
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    }
+
     return repository.findAllByTenantIdOrderByNameAsc(tenantId).stream()
-        .map(EntityTypeDto.Response::from)
+        .map(
+            et -> {
+              long count = countsByType.getOrDefault(et.getName().toLowerCase(), 0L);
+              return EntityTypeDto.Response.from(et, count);
+            })
+        .filter(r -> includeEmpty == null || includeEmpty || r.entityCount() > 0)
         .toList();
   }
 

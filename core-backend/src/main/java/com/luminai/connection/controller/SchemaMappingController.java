@@ -44,6 +44,29 @@ public class SchemaMappingController {
     return ResponseEntity.status(HttpStatus.CREATED).body(created);
   }
 
+  @PostMapping("/batch")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
+  public ResponseEntity<SchemaMappingDto.BatchResponse> batchSave(
+      @RequestBody SchemaMappingDto.BatchRequest request) {
+    return ResponseEntity.ok(schemaMappingService.saveBatch(request));
+  }
+
+  @PutMapping("/connector/{connectorId}")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")
+  public ResponseEntity<SchemaMappingDto.BatchResponse> updateConnectorMappings(
+      @PathVariable UUID connectorId, @RequestBody SchemaMappingDto.BatchRequest request) {
+    SchemaMappingDto.BatchRequest resolved =
+        new SchemaMappingDto.BatchRequest(
+            connectorId,
+            request.sourceTable(),
+            request.targetEntity(),
+            request.mappings(),
+            request.foreignKeys());
+    return ResponseEntity.ok(schemaMappingService.saveBatch(resolved));
+  }
+
   @GetMapping
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")

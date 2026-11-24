@@ -59,12 +59,12 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
   @Override
   public List<Map<String, Object>> previewFile(UUID connectionId) {
     UUID currentTenant = com.luminai.common.tenant.TenantContext.getTenantUuid();
-    Optional<Connection> connOpt;
-    if (currentTenant != null) {
-      connOpt = connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
-    } else {
-      connOpt = connectionRepository.findById(connectionId);
+    if (currentTenant == null) {
+      log.warn("Tenant context missing for file preview (connection: {})", connectionId);
+      return List.of();
     }
+    Optional<Connection> connOpt =
+        connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
 
     if (connOpt.isEmpty()) {
       log.warn(
@@ -149,12 +149,12 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
   @Override
   public List<Map<String, Object>> previewTable(UUID connectionId, String table) {
     UUID currentTenant = com.luminai.common.tenant.TenantContext.getTenantUuid();
-    Optional<Connection> connOpt;
-    if (currentTenant != null) {
-      connOpt = connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
-    } else {
-      connOpt = connectionRepository.findById(connectionId);
+    if (currentTenant == null) {
+      log.warn("Tenant context missing for table preview (connection: {})", connectionId);
+      return List.of();
     }
+    Optional<Connection> connOpt =
+        connectionRepository.findByIdAndTenantId(connectionId, currentTenant);
 
     if (connOpt.isEmpty()) {
       log.warn(
@@ -188,18 +188,35 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
 
   private String resolveObjectKey(Connection connection) {
     try {
+      String expectedPrefix = connection.getTenantId().toString() + "/";
       if (connection.getConfig() != null && !connection.getConfig().isBlank()) {
         JsonNode root = objectMapper.readTree(connection.getConfig());
         if (root.has("fileKey") && !root.get("fileKey").asText().isBlank()) {
-          return root.get("fileKey").asText();
+          String key = root.get("fileKey").asText();
+          if (isSafeTenantKey(key, expectedPrefix)) {
+            return key;
+          }
+          log.warn(
+              "Invalid or cross-tenant fileKey '{}' rejected for tenant '{}'",
+              key,
+              connection.getTenantId());
         }
         if (root.has("objectKey") && !root.get("objectKey").asText().isBlank()) {
-          return root.get("objectKey").asText();
+          String key = root.get("objectKey").asText();
+          if (isSafeTenantKey(key, expectedPrefix)) {
+            return key;
+          }
+          log.warn(
+              "Invalid or cross-tenant objectKey '{}' rejected for tenant '{}'",
+              key,
+              connection.getTenantId());
         }
         if (root.has("fileName") && !root.get("fileName").asText().isBlank()) {
-          return String.format(
-              "%s/raw/%s/%s",
-              connection.getTenantId(), connection.getId(), root.get("fileName").asText());
+          String fileName = root.get("fileName").asText();
+          if (!fileName.contains("..") && !fileName.contains("/") && !fileName.contains("\\")) {
+            return String.format(
+                "%s/raw/%s/%s", connection.getTenantId(), connection.getId(), fileName);
+          }
         }
       }
 
@@ -219,6 +236,13 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
     }
 
     return null;
+  }
+
+  private boolean isSafeTenantKey(String key, String expectedPrefix) {
+    if (key == null || key.contains("..") || key.startsWith("/") || key.startsWith("\\")) {
+      return false;
+    }
+    return key.startsWith(expectedPrefix);
   }
 
   private List<Map<String, Object>> parseCsvPreview(InputStream inputStream) {

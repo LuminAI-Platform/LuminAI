@@ -1,5 +1,6 @@
 package com.luminai.auth.service;
 
+import com.luminai.auth.dto.UserDto;
 import com.luminai.auth.dto.UserDto.CreateUserRequest;
 import com.luminai.auth.dto.UserDto.CreateUserResponse;
 import com.luminai.auth.keycloak.KeycloakAdminClient;
@@ -10,6 +11,7 @@ import com.luminai.auth.repository.UserRepository;
 import com.luminai.common.exception.ConflictException;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.config.CacheConfig;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
@@ -99,5 +101,71 @@ public class UserProvisioningService {
         saved.getEmail(),
         saved.getRole(),
         "User created. They will receive an email to set their password and sign in.");
+  }
+
+  @Transactional(readOnly = true)
+  public org.springframework.data.domain.Page<UserDto.UserItemDto> listUsers(
+      String tenantSlug, org.springframework.data.domain.Pageable pageable) {
+    org.springframework.data.domain.Page<User> users = userRepository.findAll(pageable);
+
+    if (tenantSlug != null && !tenantSlug.isBlank()) {
+      java.util.List<UserDto.UserItemDto> filtered =
+          users.getContent().stream()
+              .filter(
+                  u ->
+                      u.getTenant() != null && tenantSlug.equalsIgnoreCase(u.getTenant().getSlug()))
+              .map(
+                  u ->
+                      new UserDto.UserItemDto(
+                          u.getId(),
+                          u.getEmail(),
+                          u.getFullName(),
+                          u.getRole(),
+                          u.getTenant() != null ? u.getTenant().getSlug() : null,
+                          u.getTenant() != null ? u.getTenant().getId() : null,
+                          u.isActive(),
+                          u.getCreatedAt()))
+              .toList();
+      return new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
+    }
+
+    return users.map(
+        u ->
+            new UserDto.UserItemDto(
+                u.getId(),
+                u.getEmail(),
+                u.getFullName(),
+                u.getRole(),
+                u.getTenant() != null ? u.getTenant().getSlug() : null,
+                u.getTenant() != null ? u.getTenant().getId() : null,
+                u.isActive(),
+                u.getCreatedAt()));
+  }
+
+  @Transactional
+  public UserDto.UserItemDto updateUser(UUID id, UserDto.UpdateUserRequest req) {
+    User u =
+        userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User", id));
+    if (req.fullName() != null) u.setFullName(req.fullName());
+    if (req.role() != null) u.setRole(req.role());
+    if (req.active() != null) u.setActive(req.active());
+    User saved = userRepository.save(u);
+    return new UserDto.UserItemDto(
+        saved.getId(),
+        saved.getEmail(),
+        saved.getFullName(),
+        saved.getRole(),
+        saved.getTenant() != null ? saved.getTenant().getSlug() : null,
+        saved.getTenant() != null ? saved.getTenant().getId() : null,
+        saved.isActive(),
+        saved.getCreatedAt());
+  }
+
+  @Transactional
+  public void deleteUser(UUID id) {
+    User u =
+        userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User", id));
+    userRepository.delete(u);
+    log.info("Deleted user {} (email={})", id, u.getEmail());
   }
 }

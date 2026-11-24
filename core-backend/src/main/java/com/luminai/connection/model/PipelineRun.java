@@ -79,6 +79,7 @@ public class PipelineRun {
     CLEANED,
     VALIDATED,
     RUNNING,
+    PAUSED,
     COMPLETED,
     FAILED,
     CANCELLED

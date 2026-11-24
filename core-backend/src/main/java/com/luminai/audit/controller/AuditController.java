@@ -14,12 +14,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /** Enterprise REST API for compliance audit logging, activity trails, and forensic analysis. */
 @RestController
 @RequestMapping("/api/v1/audit")
+@PreAuthorize("isAuthenticated()")
 @Tag(
     name = "Audit Logs",
     description = "Enterprise compliance audit trail and forensic activity logs")

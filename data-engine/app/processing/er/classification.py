@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -23,6 +24,14 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 ClassificationCategory = Literal["match", "review", "non_match"]
+
+
+def _safe_schema_name(tenant_id: str) -> str:
+    """Sanitize tenant identifier to prevent search_path injection."""
+    cleaned = str(tenant_id).replace("-", "_").strip()
+    if not re.match(r"^[a-zA-Z0-9_]+$", cleaned):
+        raise ValueError(f"Invalid tenant identifier: {tenant_id}")
+    return f"tenant_{cleaned}" if not cleaned.startswith("tenant_") else cleaned
 
 MATCH_THRESHOLD_DEFAULT = 0.90
 REVIEW_THRESHOLD_DEFAULT = 0.70
@@ -118,11 +127,7 @@ def persist_review_candidates(
 
     now_utc = datetime.now(timezone.utc)
 
-    schema_name = (
-        f"tenant_{tenant_id}"
-        if not str(tenant_id).startswith("tenant_")
-        else str(tenant_id)
-    )
+    schema_name = _safe_schema_name(tenant_id)
 
     # Try PostgreSQL first
     try:
@@ -134,7 +139,7 @@ def persist_review_candidates(
         with pg_engine.connect() as conn:
             try:
                 conn.execute(
-                    text(f"SET search_path TO {schema_name}, tenant_default, public;")
+                    text(f'SET search_path TO "{schema_name}", tenant_default, public;')
                 )
             except Exception:
                 pass
@@ -164,11 +169,15 @@ def persist_review_candidates(
                     cols = {c["name"] for c in inspector.get_columns("er_candidates")}
                 except Exception:
                     cols = set()
+            try:
+                conn.execute(text("RESET search_path;"))
+            except Exception:
+                pass
 
         with pg_engine.begin() as conn:
             try:
                 conn.execute(
-                    text(f"SET search_path TO {schema_name}, tenant_default, public;")
+                    text(f'SET search_path TO "{schema_name}", tenant_default, public;')
                 )
             except Exception:
                 pass
@@ -244,6 +253,11 @@ def persist_review_candidates(
                         }
                     )
                 conn.execute(text(insert_sql), params)
+
+            try:
+                conn.execute(text("RESET search_path;"))
+            except Exception:
+                pass
 
         logger.info(
             "Persisted %d ER review candidates to PostgreSQL er_candidates",

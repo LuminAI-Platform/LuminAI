@@ -170,6 +170,54 @@ public class SchemaMappingService {
     log.info("Deleted schema mapping (id={}) for tenant {}", id, tenantId);
   }
 
+  @Transactional
+  public SchemaMappingDto.BatchResponse saveBatch(SchemaMappingDto.BatchRequest request) {
+    UUID tenantId = getCurrentTenantId();
+    UUID connectorId = request.connectorId();
+
+    if (connectorId != null) {
+      repository.deleteAllByConnectorIdAndTenantId(connectorId, tenantId);
+    }
+
+    java.util.List<SchemaMappingDto.Response> savedList = new java.util.ArrayList<>();
+    if (request.mappings() != null) {
+      for (SchemaMappingDto.MappingItem item : request.mappings()) {
+        String name =
+            item.name() != null
+                ? item.name()
+                : (request.sourceTable() + " - " + item.sourceColumn());
+        String targetEntity =
+            item.targetEntityType() != null ? item.targetEntityType() : request.targetEntity();
+        SchemaMapping.Transformation trans =
+            item.transformation() != null
+                ? item.transformation()
+                : SchemaMapping.Transformation.NONE;
+
+        SchemaMapping mapping =
+            new SchemaMapping(
+                tenantId,
+                connectorId != null ? connectorId : UUID.randomUUID(),
+                name,
+                item.sourceColumn(),
+                targetEntity != null ? targetEntity : "Entity",
+                item.targetProperty(),
+                trans);
+        SchemaMapping saved = repository.save(mapping);
+        savedList.add(SchemaMappingDto.Response.from(saved));
+      }
+    }
+
+    log.info(
+        "Batch saved {} schema mappings for connector {} (tenant={})",
+        savedList.size(),
+        connectorId,
+        tenantId);
+    return new SchemaMappingDto.BatchResponse(
+        savedList,
+        request.foreignKeys() != null ? request.foreignKeys() : java.util.List.of(),
+        savedList.size());
+  }
+
   // ----------------------------------------------------------------
   // Helpers
   // ----------------------------------------------------------------

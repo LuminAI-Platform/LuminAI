@@ -1,6 +1,7 @@
 package com.luminai.engine.service;
 
 import com.luminai.engine.dto.DataEngineHealthDto;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -275,29 +276,62 @@ public class DataEngineClient {
 
   public Map<String, Object> getJobStatus(String jobId) {
     try {
-      return restClient
-          .get()
-          .uri("/process/status/{jobId}", jobId)
-          .accept(MediaType.APPLICATION_JSON)
-          .retrieve()
-          .body(MAP_TYPE);
+      Map<String, Object> result =
+          restClient
+              .get()
+              .uri("/process/status/{jobId}", jobId)
+              .accept(MediaType.APPLICATION_JSON)
+              .retrieve()
+              .body(MAP_TYPE);
+      if (result != null
+          && result.containsKey("failed_step")
+          && result.get("failed_step") != null) {
+        String fs = String.valueOf(result.get("failed_step")).toLowerCase();
+        String normalized = fs;
+        if (fs.contains("dedupe")
+            || fs.contains("deduplicat")
+            || fs.contains("block")
+            || fs.contains("cluster")) {
+          normalized = "dedupe";
+        } else if (fs.contains("clean")) {
+          normalized = "clean";
+        } else if (fs.contains("resolve") || fs.contains("golden") || fs.contains("classif")) {
+          normalized = "resolve";
+        } else if (fs.contains("ingest") || fs.contains("raw")) {
+          normalized = "ingest";
+        }
+        Map<String, Object> copy = new HashMap<>(result);
+        copy.put("failed_step", normalized);
+        return copy;
+      }
+      return result;
     } catch (Exception e) {
       log.warn(
           "Failed to fetch job status for {} from Data Engine ({}): {}",
           jobId,
           baseUrl,
           e.getMessage());
-      return Map.of(
-          "jobId",
-          jobId,
-          "status",
-          "UNKNOWN",
-          "available",
-          false,
+      Map<String, Object> fallback = new HashMap<>();
+      fallback.put("jobId", jobId);
+      fallback.put("status", "UNKNOWN");
+      fallback.put("available", false);
+      fallback.put("failed_step", null);
+      fallback.put(
+          "logs",
+          List.of(
+              "Data Engine unreachable at "
+                  + baseUrl
+                  + " ("
+                  + e.getClass().getSimpleName()
+                  + ")."));
+      fallback.put(
+          "quality_scores",
+          Map.of("completeness", 0.0, "uniqueness", 0.0, "consistency", 0.0, "timeliness", 0.0));
+      fallback.put(
           "message",
-          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").",
-          "error",
-          e.getMessage() != null ? e.getMessage() : "Connection failed");
+          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").");
+      fallback.put("error", e.getMessage() != null ? e.getMessage() : "Connection failed");
+      return fallback;
     }
   }
 

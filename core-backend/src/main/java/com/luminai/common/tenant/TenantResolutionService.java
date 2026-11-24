@@ -95,8 +95,8 @@ public class TenantResolutionService {
    */
   @Cacheable(
       value = CacheConfig.CACHE_TENANT_RESOLUTION,
-      key = "#keycloakId",
-      unless = "#result == null")
+      key = "'email:' + #keycloakId + ':' + #email",
+      unless = "#result == null || !#result.isPresent()")
   @Transactional
   public Optional<ResolvedTenant> resolveForKeycloakUserWithEmail(String keycloakId, String email) {
     if (!StringUtils.hasText(keycloakId)) {
@@ -105,13 +105,29 @@ public class TenantResolutionService {
 
     Optional<User> user = userRepository.findByKeycloakId(keycloakId);
     if (user.isEmpty() && StringUtils.hasText(email)) {
-      user = userRepository.findByEmailIgnoreCase(email.trim());
-      if (user.isPresent()) {
-        User u = user.get();
-        u.setKeycloakId(keycloakId);
-        userRepository.save(u);
-        log.info(
-            "Linked existing user {} ({}) to Keycloak ID {}", u.getId(), u.getEmail(), keycloakId);
+      Optional<User> byEmail = userRepository.findByEmailIgnoreCase(email.trim());
+      if (byEmail.isPresent()) {
+        User u = byEmail.get();
+        // Prevent account takeover: only link if keycloakId is null or a dev/mock placeholder
+        if (u.getKeycloakId() == null
+            || u.getKeycloakId().isBlank()
+            || u.getKeycloakId().startsWith("mock-")
+            || u.getKeycloakId().startsWith("sandbox-")) {
+          u.setKeycloakId(keycloakId);
+          userRepository.save(u);
+          user = Optional.of(u);
+          log.info(
+              "Linked existing user {} ({}) to Keycloak ID {}",
+              u.getId(),
+              u.getEmail(),
+              keycloakId);
+        } else {
+          log.warn(
+              "Prevented unverified email account takeover for user email '{}'. Existing keycloakId='{}', attempted='{}'",
+              email,
+              u.getKeycloakId(),
+              keycloakId);
+        }
       }
     }
     if (user.isEmpty() && tenantRepository != null) {
@@ -127,11 +143,11 @@ public class TenantResolutionService {
                 effectiveEmail,
                 "LuminAI User",
                 fallbackTenant.get(),
-                "ADMIN",
+                "VIEWER",
                 true);
         user = Optional.of(userRepository.save(newUser));
         log.info(
-            "Auto-provisioned new authenticated user (keycloak_id={}, email={}) into tenant '{}'",
+            "Auto-provisioned new authenticated viewer (keycloak_id={}, email={}) into tenant '{}'",
             keycloakId,
             effectiveEmail,
             fallbackTenant.get().getSlug());

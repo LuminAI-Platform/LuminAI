@@ -29,4 +29,7 @@ public interface SchemaMappingRepository extends JpaRepository<SchemaMapping, UU
    * Delete a schema mapping by ID, scoped to a tenant. Returns the count of deleted rows (0 or 1).
    */
   long deleteByIdAndTenantId(UUID id, UUID tenantId);
+
+  /** Delete all mappings for a specific connector within a tenant. */
+  void deleteAllByConnectorIdAndTenantId(UUID connectorId, UUID tenantId);
 }

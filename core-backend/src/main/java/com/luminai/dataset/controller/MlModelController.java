@@ -10,10 +10,12 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/ml")
+@PreAuthorize("isAuthenticated()")
 public class MlModelController {
 
   private final MlModelService mlModelService;

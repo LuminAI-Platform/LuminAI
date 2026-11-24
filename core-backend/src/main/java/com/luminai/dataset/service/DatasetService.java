@@ -61,9 +61,20 @@ public class DatasetService {
 
   @Transactional(readOnly = true)
   public List<DatasetDto> listDatasets(Dataset.Layer layer, Dataset.ProjectType projectType) {
+    return listDatasets(layer, projectType, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<DatasetDto> listDatasets(
+      Dataset.Layer layer, Dataset.ProjectType projectType, String search) {
     UUID tenantId = requireTenant();
     List<Dataset> list;
-    if (layer != null) {
+    if (layer != null && projectType != null) {
+      list =
+          datasetRepository.findAllByTenantIdOrderByUpdatedAtDesc(tenantId).stream()
+              .filter(d -> d.getLayer() == layer && d.getProjectType() == projectType)
+              .toList();
+    } else if (layer != null) {
       list = datasetRepository.findAllByTenantIdAndLayerOrderByUpdatedAtDesc(tenantId, layer);
     } else if (projectType != null) {
       list =
@@ -72,6 +83,21 @@ public class DatasetService {
     } else {
       list = datasetRepository.findAllByTenantIdOrderByUpdatedAtDesc(tenantId);
     }
+
+    if (search != null && !search.isBlank()) {
+      String q = search.trim().toLowerCase();
+      list =
+          list.stream()
+              .filter(
+                  d ->
+                      (d.getName() != null && d.getName().toLowerCase().contains(q))
+                          || (d.getDisplayName() != null
+                              && d.getDisplayName().toLowerCase().contains(q))
+                          || (d.getDescription() != null
+                              && d.getDescription().toLowerCase().contains(q)))
+              .toList();
+    }
+
     return list.stream().map(DatasetDto::fromEntity).toList();
   }
 

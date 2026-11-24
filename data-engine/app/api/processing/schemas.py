@@ -41,25 +41,46 @@ async def validate_schema_endpoint(
     if request.content is not None:
         data_bytes = request.content.encode("utf-8")
     elif request.object_key is not None:
+        clean_key = request.object_key.lstrip("/").replace("\\", "/")
+        if ".." in clean_key or clean_key.startswith("/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid object_key format (directory traversal disallowed).",
+            )
         bucket = request.bucket or "luminai-raw"
-        file_name = request.object_key
+        file_name = clean_key
         try:
             client = get_minio_client()
-            data_bytes = client.get_object_bytes(bucket, request.object_key)
+            data_bytes = client.get_object_bytes(bucket, clean_key)
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Could not retrieve object '{request.object_key}' from bucket '{bucket}': {exc}",
+                detail=f"Could not retrieve object '{clean_key}' from bucket '{bucket}': {exc}",
             )
     elif request.file_path is not None:
-        file_name = request.file_path
+        import tempfile
+        from pathlib import Path
+
+        file_path_obj = Path(request.file_path).resolve()
+        allowed_bases = [
+            Path(tempfile.gettempdir()).resolve(),
+            Path("storage").resolve(),
+            Path("data").resolve(),
+        ]
+        is_safe = any(file_path_obj.is_relative_to(base) for base in allowed_bases)
+        if not is_safe or not file_path_obj.is_file():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="file_path must point to an existing file within authorized storage or temp upload directories.",
+            )
+        file_name = file_path_obj.name
         try:
-            with open(request.file_path, "rb") as f:
+            with open(file_path_obj, "rb") as f:
                 data_bytes = f.read()
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Could not read file at '{request.file_path}': {exc}",
+                detail=f"Could not read file at '{file_path_obj}': {exc}",
             )
     else:
         raise HTTPException(

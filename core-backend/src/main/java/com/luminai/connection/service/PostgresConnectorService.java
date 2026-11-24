@@ -108,9 +108,7 @@ public class PostgresConnectorService {
    */
   public Map<String, List<String>> discoverSchemasDirect(
       String host, int port, String database, String username, String password) {
-    if (host == null || host.isBlank() || database == null || database.isBlank()) {
-      throw new IllegalArgumentException("Host and database name must not be blank");
-    }
+    validateHostAndDatabase(host, port, database);
     String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, database);
     Map<String, List<String>> schemaTableMap = new LinkedHashMap<>();
 
@@ -408,8 +406,66 @@ public class PostgresConnectorService {
   }
 
   private String buildJdbcUrl(DbCredentials creds) {
+    validateHostAndDatabase(creds.host(), creds.port(), creds.database());
     return String.format(
         "jdbc:postgresql://%s:%d/%s", creds.host(), creds.port(), creds.database());
+  }
+
+  public static void validateHostAndDatabase(String host, int port, String database) {
+    if (host == null || host.isBlank()) {
+      throw new IllegalArgumentException("Host must not be blank");
+    }
+    if (database == null || database.isBlank()) {
+      throw new IllegalArgumentException("Database must not be blank");
+    }
+    if (port < 1 || port > 65535) {
+      throw new IllegalArgumentException("Invalid port number: " + port);
+    }
+    if (!host.matches("^[a-zA-Z0-9.\\-_]+$")) {
+      throw new IllegalArgumentException("Invalid host format");
+    }
+    // Block cloud metadata SSRF (AWS/GCP/Azure/OpenStack)
+    if (host.equals("169.254.169.254")
+        || host.startsWith("169.254.")
+        || host.equalsIgnoreCase("metadata.google.internal")
+        || host.equalsIgnoreCase("instance-data")) {
+      throw new IllegalArgumentException("Access to cloud metadata service is prohibited");
+    }
+    // In production, block loopback and private networks unless explicitly permitted
+    boolean allowPrivate =
+        Boolean.parseBoolean(
+            System.getProperty(
+                "luminai.allow.private.networks",
+                System.getenv().getOrDefault("ALLOW_PRIVATE_NETWORKS", "false")));
+    if (!allowPrivate
+        && ("prod".equalsIgnoreCase(System.getProperty("spring.profiles.active"))
+            || "production".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE")))) {
+      if (host.equalsIgnoreCase("localhost")
+          || host.equals("127.0.0.1")
+          || host.equals("::1")
+          || host.startsWith("10.")
+          || host.startsWith("192.168.")
+          || (host.startsWith("172.") && isPrivate172(host))) {
+        throw new IllegalArgumentException(
+            "Connections to private/loopback addresses are prohibited in production");
+      }
+    }
+    if (!database.matches("^[a-zA-Z0-9_\\-]+$")) {
+      throw new IllegalArgumentException(
+          "Invalid database name: only alphanumeric, underscore and hyphens allowed");
+    }
+  }
+
+  private static boolean isPrivate172(String host) {
+    String[] parts = host.split("\\.");
+    if (parts.length >= 2) {
+      try {
+        int second = Integer.parseInt(parts[1]);
+        return second >= 16 && second <= 31;
+      } catch (NumberFormatException ignored) {
+      }
+    }
+    return false;
   }
 
   /**

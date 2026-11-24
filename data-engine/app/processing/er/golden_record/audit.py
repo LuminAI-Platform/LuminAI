@@ -20,18 +20,27 @@ def get_golden_record(
 ) -> dict[str, Any] | None:
     """Retrieve the current state of a Golden Record by its ID."""
     engine = _get_active_engine()
-    query = text("""
-        SELECT golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, created_at, updated_at
-        FROM golden_records
-        WHERE golden_id = :golden_id
-    """)
+    if tenant_id:
+        query = text("""
+            SELECT golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, created_at, updated_at
+            FROM golden_records
+            WHERE golden_id = :golden_id AND tenant_id = :tenant_id
+        """)
+        params = {"golden_id": golden_id, "tenant_id": tenant_id}
+    else:
+        query = text("""
+            SELECT golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, created_at, updated_at
+            FROM golden_records
+            WHERE golden_id = :golden_id
+        """)
+        params = {"golden_id": golden_id}
 
     with engine.connect() as conn:
-        row = conn.execute(query, {"golden_id": golden_id}).mappings().first()
+        row = conn.execute(query, params).mappings().first()
         if not row:
             return None
 
-        if tenant_id and row["tenant_id"] != tenant_id and tenant_id != "acme":
+        if tenant_id and row["tenant_id"] != tenant_id:
             return None
 
         try:
@@ -63,18 +72,28 @@ def get_golden_record_history(
 ) -> list[dict[str, Any]]:
     """Retrieve full audit history for a Golden Record ordered newest first."""
     engine = _get_active_engine()
-    query = text("""
-        SELECT id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, action, created_at
-        FROM golden_record_history
-        WHERE golden_id = :golden_id
-        ORDER BY version DESC
-    """)
+    if tenant_id:
+        query = text("""
+            SELECT id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, action, created_at
+            FROM golden_record_history
+            WHERE golden_id = :golden_id AND tenant_id = :tenant_id
+            ORDER BY version DESC
+        """)
+        params = {"golden_id": golden_id, "tenant_id": tenant_id}
+    else:
+        query = text("""
+            SELECT id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, action, created_at
+            FROM golden_record_history
+            WHERE golden_id = :golden_id
+            ORDER BY version DESC
+        """)
+        params = {"golden_id": golden_id}
 
     history_items = []
     with engine.connect() as conn:
-        rows = conn.execute(query, {"golden_id": golden_id}).mappings().all()
+        rows = conn.execute(query, params).mappings().all()
         for row in rows:
-            if tenant_id and row["tenant_id"] != tenant_id and tenant_id != "acme":
+            if tenant_id and row["tenant_id"] != tenant_id:
                 continue
 
             try:
@@ -126,17 +145,26 @@ def rollback_golden_record(
         raise KeyError(f"Golden Record '{golden_id}' not found")
 
     # 2. Fetch the target historical snapshot
-    find_snapshot_sql = text("""
-        SELECT id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes
-        FROM golden_record_history
-        WHERE golden_id = :golden_id AND version = :target_version
-    """)
+    if tenant_id:
+        find_snapshot_sql = text("""
+            SELECT id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes
+            FROM golden_record_history
+            WHERE golden_id = :golden_id AND version = :target_version AND tenant_id = :tenant_id
+        """)
+        snapshot_params = {"golden_id": golden_id, "target_version": target_version, "tenant_id": tenant_id}
+    else:
+        find_snapshot_sql = text("""
+            SELECT id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes
+            FROM golden_record_history
+            WHERE golden_id = :golden_id AND version = :target_version
+        """)
+        snapshot_params = {"golden_id": golden_id, "target_version": target_version}
 
     with engine.connect() as conn:
         snapshot = (
             conn.execute(
                 find_snapshot_sql,
-                {"golden_id": golden_id, "target_version": target_version},
+                snapshot_params,
             )
             .mappings()
             .first()
@@ -150,12 +178,37 @@ def rollback_golden_record(
     new_version = current["version"] + 1
 
     # 3. Apply rollback update in a transaction
-    update_sql = text("""
-        UPDATE golden_records
-        SET version = :version, cluster_size = :cluster_size, source_record_ids = :source_record_ids,
-            attributes = :attributes, updated_at = :updated_at
-        WHERE golden_id = :golden_id
-    """)
+    if tenant_id:
+        update_sql = text("""
+            UPDATE golden_records
+            SET version = :version, cluster_size = :cluster_size, source_record_ids = :source_record_ids,
+                attributes = :attributes, updated_at = :updated_at
+            WHERE golden_id = :golden_id AND tenant_id = :tenant_id
+        """)
+        update_params = {
+            "golden_id": golden_id,
+            "tenant_id": tenant_id,
+            "version": new_version,
+            "cluster_size": snapshot["cluster_size"],
+            "source_record_ids": snapshot["source_record_ids"],
+            "attributes": snapshot["attributes"],
+            "updated_at": now_utc,
+        }
+    else:
+        update_sql = text("""
+            UPDATE golden_records
+            SET version = :version, cluster_size = :cluster_size, source_record_ids = :source_record_ids,
+                attributes = :attributes, updated_at = :updated_at
+            WHERE golden_id = :golden_id
+        """)
+        update_params = {
+            "golden_id": golden_id,
+            "version": new_version,
+            "cluster_size": snapshot["cluster_size"],
+            "source_record_ids": snapshot["source_record_ids"],
+            "attributes": snapshot["attributes"],
+            "updated_at": now_utc,
+        }
     insert_history_sql = text("""
         INSERT INTO golden_record_history (id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, action, created_at)
         VALUES (:id, :golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, 'ROLLBACK', :created_at)
@@ -164,14 +217,7 @@ def rollback_golden_record(
     with engine.begin() as conn:
         conn.execute(
             update_sql,
-            {
-                "golden_id": golden_id,
-                "version": new_version,
-                "cluster_size": snapshot["cluster_size"],
-                "source_record_ids": snapshot["source_record_ids"],
-                "attributes": snapshot["attributes"],
-                "updated_at": now_utc,
-            },
+            update_params,
         )
         conn.execute(
             insert_history_sql,

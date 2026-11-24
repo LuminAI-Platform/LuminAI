@@ -246,8 +246,13 @@ async def get_current_identity(
     3. Check Authorization: Bearer <token> (supports API key or Keycloak JWT).
     4. If none present: raise 401 Unauthorized.
     """
-    # 1. Dev bypass if auth is disabled
-    if not settings.auth_enabled:
+    # 1. Dev bypass if auth is disabled (forbidden in production)
+    if not settings.is_auth_enabled:
+        if settings.is_production:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication bypass is strictly prohibited in production.",
+            )
         return AuthIdentity(
             user_id="dev-user",
             username="developer",
@@ -261,6 +266,11 @@ async def get_current_identity(
     # 2. Service API Key via X-API-Key header
     if api_key_header:
         if secrets.compare_digest(api_key_header, settings.api_key):
+            if settings.is_production and settings.api_key == "luminai-internal-secret-key":
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Default internal secret key cannot be used in production.",
+                )
             return AuthIdentity(
                 user_id="service-account",
                 username="service-core-backend",

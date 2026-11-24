@@ -40,6 +40,31 @@ public final class SchemaMappingDto {
       SchemaMapping.Transformation transformation,
       Boolean active) {}
 
+  public record MappingItem(
+      UUID id,
+      String name,
+      String sourceColumn,
+      String targetEntityType,
+      String targetProperty,
+      SchemaMapping.Transformation transformation) {}
+
+  public record ForeignKeyItem(
+      String columnId,
+      String columnName,
+      String targetEntityType,
+      String relationshipType,
+      String direction) {}
+
+  public record BatchRequest(
+      UUID connectorId,
+      String sourceTable,
+      String targetEntity,
+      java.util.List<MappingItem> mappings,
+      java.util.List<ForeignKeyItem> foreignKeys) {}
+
+  public record BatchResponse(
+      java.util.List<Response> mappings, java.util.List<ForeignKeyItem> foreignKeys, int count) {}
+
   // ----------------------------------------------------------------
   // Response DTOs
   // ----------------------------------------------------------------

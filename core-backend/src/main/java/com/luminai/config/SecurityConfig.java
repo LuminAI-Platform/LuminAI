@@ -208,23 +208,37 @@ public class SecurityConfig {
               || token.contains("sandbox")
               || "mock-access-token-123".equals(token);
 
-      boolean isDevProfile =
-          (activeProfiles != null
-                  && (activeProfiles.contains("dev")
-                      || activeProfiles.contains("local")
-                      || activeProfiles.contains("test")))
+      boolean isProdProfile =
+          (activeProfiles != null && activeProfiles.contains("prod"))
               || (environment != null
-                  && environment.acceptsProfiles(
-                      org.springframework.core.env.Profiles.of("dev", "local", "test")));
+                  && environment.acceptsProfiles(org.springframework.core.env.Profiles.of("prod")));
 
-      if (isMockCandidate && (allowMockTokens || isDevProfile)) {
+      boolean isDevProfile =
+          !isProdProfile
+              && ((activeProfiles != null
+                      && (activeProfiles.contains("dev")
+                          || activeProfiles.contains("local")
+                          || activeProfiles.contains("test")))
+                  || (environment != null
+                      && environment.acceptsProfiles(
+                          org.springframework.core.env.Profiles.of("dev", "local", "test"))));
+
+      if (isMockCandidate) {
+        if (isProdProfile || !allowMockTokens || !isDevProfile) {
+          throw new org.springframework.security.oauth2.jwt.BadJwtException(
+              "Mock tokens are strictly prohibited in production environments or when mock tokens are disabled.");
+        }
         String sub = "sandbox-admin-id";
         String email = "admin@luminai.dev";
         String username = "admin";
+        List<String> roles = List.of("user", "VIEWER", "TENANT_ADMIN");
         if (token.contains("acme")) {
           sub = "sandbox-acme-id";
           email = "alice@acme.com";
           username = "alice.acme";
+        }
+        if (token.contains("platform-admin")) {
+          roles = List.of("admin", "user", "TENANT_ADMIN", "PLATFORM_ADMIN", "ADMIN");
         }
         return Jwt.withTokenValue(token)
             .header("alg", "none")
@@ -232,10 +246,7 @@ public class SecurityConfig {
             .claim("sub", sub)
             .claim("preferred_username", username)
             .claim("email", email)
-            .claim(
-                "realm_access",
-                Map.of(
-                    "roles", List.of("admin", "user", "TENANT_ADMIN", "PLATFORM_ADMIN", "ADMIN")))
+            .claim("realm_access", Map.of("roles", roles))
             .issuedAt(Instant.now())
             .expiresAt(Instant.now().plusSeconds(86400))
             .build();

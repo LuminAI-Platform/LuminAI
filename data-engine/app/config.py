@@ -227,13 +227,22 @@ class Settings(BaseSettings):
         return f"http://{self.dagster_host}:{self.dagster_port}/graphql"
 
     # Authentication & Keycloak OIDC Configuration
-    auth_enabled: bool = False  # Set True via AUTH_ENABLED=true in production
+    auth_enabled: bool = (
+        False  # Default False for dev/testing; strictly enforced True in production via is_auth_enabled
+    )
     api_key: str = "luminai-internal-secret-key"
     keycloak_url: str = "http://localhost:8080"
     keycloak_realm: str = "luminai"
     keycloak_client_id: str = "luminai-spa"
     keycloak_audience: str | None = None
     keycloak_public_key: str | None = None
+
+    @property
+    def is_auth_enabled(self) -> bool:
+        """Strictly prohibit disabling auth in production."""
+        if self.is_production:
+            return True
+        return self.auth_enabled
 
     @property
     def keycloak_jwks_url(self) -> str:

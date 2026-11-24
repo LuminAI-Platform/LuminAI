@@ -54,9 +54,16 @@ public class CacheConfig implements CachingConfigurer {
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     PolymorphicTypeValidator ptv =
-        BasicPolymorphicTypeValidator.builder().allowIfSubType(Object.class).build();
+        BasicPolymorphicTypeValidator.builder()
+            .allowIfBaseType(java.util.Collection.class)
+            .allowIfBaseType(java.util.Map.class)
+            .allowIfSubType("com.luminai.")
+            .allowIfSubType("java.lang.")
+            .allowIfSubType("java.time.")
+            .allowIfSubType("java.util.")
+            .build();
     mapper.activateDefaultTyping(
-        ptv, ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
+        ptv, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
 
     return new GenericJackson2JsonRedisSerializer(mapper);
   }

@@ -1,5 +1,6 @@
 package com.luminai.graph.controller;
 
+import com.luminai.common.tenant.TenantContext;
 import com.luminai.graph.dto.GraphQueryResponseDto;
 import com.luminai.graph.service.DecomposedGraphSyncService;
 import com.luminai.graph.service.GraphQueryService;
@@ -9,8 +10,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @Validated
 @RequestMapping("/api/v1/graph")
+@PreAuthorize(
+    "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
 public class GraphController {
 
   private final GraphQueryService graphQueryService;
@@ -80,26 +85,42 @@ public class GraphController {
   }
 
   @PostMapping("/sync/decomposed")
+  @PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> syncDecomposedGraph(
       @RequestParam(required = false) String tenantId, @RequestBody Map<String, Object> request) {
     if (decomposedGraphSyncService == null) {
       return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
           .body(Map.of("error", "DecomposedGraphSyncService unavailable"));
     }
+    String effectiveTenant = resolveTenant(tenantId);
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> nodes = (List<Map<String, Object>>) request.get("nodes");
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> edges = (List<Map<String, Object>>) request.get("edges");
-    return ResponseEntity.ok(decomposedGraphSyncService.syncNodesAndEdges(tenantId, nodes, edges));
+    return ResponseEntity.ok(
+        decomposedGraphSyncService.syncNodesAndEdges(effectiveTenant, nodes, edges));
   }
 
   @PostMapping("/decompose-and-sync")
+  @PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> decomposeAndSync(
       @RequestParam(required = false) String tenantId, @RequestBody Map<String, Object> request) {
     if (decomposedGraphSyncService == null) {
       return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
           .body(Map.of("error", "DecomposedGraphSyncService unavailable"));
     }
-    return ResponseEntity.ok(decomposedGraphSyncService.decomposeAndSync(tenantId, request));
+    String effectiveTenant = resolveTenant(tenantId);
+    return ResponseEntity.ok(decomposedGraphSyncService.decomposeAndSync(effectiveTenant, request));
+  }
+
+  private String resolveTenant(String supplied) {
+    String slug = TenantContext.getTenantSlug();
+    if (slug != null && !slug.isBlank()) return slug;
+    UUID uuid = TenantContext.getTenantUuid();
+    if (uuid != null) return uuid.toString();
+    if (supplied != null && !supplied.isBlank()) return supplied.trim();
+    throw new org.springframework.security.access.AccessDeniedException("Missing tenant context");
   }
 }

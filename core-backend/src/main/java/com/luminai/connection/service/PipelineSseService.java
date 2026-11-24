@@ -201,11 +201,16 @@ public class PipelineSseService {
             "duration", duration != null ? duration : "0s");
     broadcastToRun(tenantId, "pipeline.complete", runId, data);
 
-    // Gracefully complete any emitter subscribed specifically to this runId
+    // Gracefully complete any emitter subscribed specifically to this runId for this tenant
     for (EmitterEntry entry : emitters) {
+      if (tenantId != null && !tenantId.equals(entry.tenantId())) {
+        continue;
+      }
       if (runId.equals(entry.runIdFilter())) {
         try {
-          entry.emitter().complete();
+          synchronized (entry.emitter()) {
+            entry.emitter().complete();
+          }
         } catch (Exception ignored) {
           // ignore already completed
         }
@@ -220,10 +225,13 @@ public class PipelineSseService {
 
   public void broadcastToRun(
       UUID tenantId, String eventType, String runId, Map<String, Object> data) {
+    if (tenantId == null) {
+      tenantId = com.luminai.common.tenant.TenantContext.getTenantUuid();
+    }
     List<EmitterEntry> stale = new ArrayList<>();
 
     for (EmitterEntry entry : emitters) {
-      if (tenantId != null && entry.tenantId() != null && !entry.tenantId().equals(tenantId)) {
+      if (tenantId == null || entry.tenantId() == null || !entry.tenantId().equals(tenantId)) {
         continue;
       }
       if (entry.runIdFilter() != null && !entry.runIdFilter().equals(runId)) {
@@ -231,8 +239,10 @@ public class PipelineSseService {
       }
 
       try {
-        entry.emitter().send(SseEmitter.event().name(eventType).data(data));
-      } catch (IOException e) {
+        synchronized (entry.emitter()) {
+          entry.emitter().send(SseEmitter.event().name(eventType).data(data));
+        }
+      } catch (Exception e) {
         log.warn("Failed to send SSE event to clientId={} — marking stale", entry.clientId());
         stale.add(entry);
       }
@@ -249,10 +259,13 @@ public class PipelineSseService {
 
   public void broadcast(
       UUID tenantId, String eventType, UUID connectionId, Map<String, Object> data) {
+    if (tenantId == null) {
+      tenantId = com.luminai.common.tenant.TenantContext.getTenantUuid();
+    }
     List<EmitterEntry> stale = new ArrayList<>();
 
     for (EmitterEntry entry : emitters) {
-      if (tenantId != null && entry.tenantId() != null && !entry.tenantId().equals(tenantId)) {
+      if (tenantId == null || entry.tenantId() == null || !entry.tenantId().equals(tenantId)) {
         continue;
       }
       if (entry.connectionIdFilter() != null && !entry.connectionIdFilter().equals(connectionId)) {
@@ -260,8 +273,10 @@ public class PipelineSseService {
       }
 
       try {
-        entry.emitter().send(SseEmitter.event().name(eventType).data(data));
-      } catch (IOException e) {
+        synchronized (entry.emitter()) {
+          entry.emitter().send(SseEmitter.event().name(eventType).data(data));
+        }
+      } catch (Exception e) {
         log.warn("Failed to send SSE event to clientId={} — marking stale", entry.clientId());
         stale.add(entry);
       }

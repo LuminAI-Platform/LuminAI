@@ -6,13 +6,16 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Access to {@link PipelineRun} entities. Schema-based multi-tenancy is handled via TenantContext &
  * Hibernate schema routing.
  */
-public interface PipelineRunRepository extends JpaRepository<PipelineRun, UUID> {
+public interface PipelineRunRepository
+    extends JpaRepository<PipelineRun, UUID>, JpaSpecificationExecutor<PipelineRun> {
 
   List<PipelineRun> findByConnectionId(UUID connectionId);
 
@@ -30,10 +33,13 @@ public interface PipelineRunRepository extends JpaRepository<PipelineRun, UUID> 
 
   @Query("select count(p) from PipelineRun p where p.startedAt >= :start and p.startedAt < :end")
   long countByStartedAtBetween(
-      @org.springframework.data.repository.query.Param("start") java.time.Instant start,
-      @org.springframework.data.repository.query.Param("end") java.time.Instant end);
+      @Param("start") java.time.Instant start, @Param("end") java.time.Instant end);
 
   @Query("select p.startedAt from PipelineRun p where p.startedAt >= :start")
-  List<java.time.Instant> findStartedAtSince(
-      @org.springframework.data.repository.query.Param("start") java.time.Instant start);
+  List<java.time.Instant> findStartedAtSince(@Param("start") java.time.Instant start);
+
+  @Query(
+      "select p.startedAt from PipelineRun p where p.startedAt >= :start and (:connectionId is null or p.connectionId = :connectionId)")
+  List<java.time.Instant> findStartedAtSinceAndConnectionId(
+      @Param("start") java.time.Instant start, @Param("connectionId") UUID connectionId);
 }

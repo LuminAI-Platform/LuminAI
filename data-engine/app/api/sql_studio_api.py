@@ -34,6 +34,13 @@ DISALLOWED_PATTERNS = [
     r"\bINSTALL\b",
     r"\bLOAD\b",
     r"\bPRAGMA\b",
+    r"\bREAD_CSV\b",
+    r"\bREAD_PARQUET\b",
+    r"\bREAD_JSON\b",
+    r"\bREAD_TEXT\b",
+    r"\bSCAN_PARQUET\b",
+    r"\bSCAN_CSV\b",
+    r"\bGLOB\b",
 ]
 DISALLOWED_REGEX = re.compile("|".join(DISALLOWED_PATTERNS), re.IGNORECASE)
 
@@ -41,6 +48,7 @@ DISALLOWED_REGEX = re.compile("|".join(DISALLOWED_PATTERNS), re.IGNORECASE)
 class SqlQueryRequest(BaseModel):
     query: str = Field(..., description="Read-only SQL query to execute.")
     tenant_id: str = Field(default="acme", description="Tenant context.")
+    dataset_id: Optional[str] = Field(default=None, description="Optional dataset ID.")
     tables: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
         default=None,
         description="Optional dictionary mapping table names to row records.",
@@ -90,7 +98,11 @@ async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     start_time = time.perf_counter()
-    conn = duckdb.connect(":memory:")
+    conn = duckdb.connect(":memory:", config={"enable_external_access": False})
+    try:
+        conn.execute("SET enable_external_access = false;")
+    except Exception:
+        pass
 
     try:
         # Register in-memory tables if supplied
@@ -109,6 +121,17 @@ async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
                 else:
                     # Register empty table schema
                     conn.execute(f"CREATE TABLE {table_name} AS SELECT 1 AS id WHERE 1=0")
+
+        # If dataset_id is provided and no inline table named "dataset", attempt loading from storage
+        if request.dataset_id and (not request.tables or "dataset" not in request.tables):
+            try:
+                from app.processing.minio_client import get_minio_client
+                m_client = get_minio_client()
+                ds_key = f"{request.tenant_id}/raw/{request.dataset_id}"
+                ds_df = m_client.load_dataframe("luminai-raw", ds_key)
+                conn.register("dataset", ds_df.to_arrow())
+            except Exception:
+                pass
 
         # Execute query
         rel = conn.sql(request.query)
