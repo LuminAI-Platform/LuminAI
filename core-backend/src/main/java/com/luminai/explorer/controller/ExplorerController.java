@@ -68,13 +68,7 @@ public class ExplorerController {
     }
 
     return ResponseEntity.ok(
-        searchService.search(
-            query,
-            combinedEntityType,
-            page,
-            size,
-            sortBy,
-            sortDirection));
+        searchService.search(query, combinedEntityType, page, size, sortBy, sortDirection));
   }
 
   @GetMapping("/entities/{id}")

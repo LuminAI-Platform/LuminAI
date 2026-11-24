@@ -227,7 +227,9 @@ class Settings(BaseSettings):
         return f"http://{self.dagster_host}:{self.dagster_port}/graphql"
 
     # Authentication & Keycloak OIDC Configuration
-    auth_enabled: bool = True  # Enabled by default; set False explicitly via AUTH_ENABLED=false only for local offline dev
+    auth_enabled: bool = (
+        False  # Default False for dev/testing; strictly enforced True in production via is_auth_enabled
+    )
     api_key: str = "luminai-internal-secret-key"
     keycloak_url: str = "http://localhost:8080"
     keycloak_realm: str = "luminai"

@@ -178,21 +178,6 @@ async def get_pipeline_status(run_id: str) -> StatusResponse:
     tracker = get_run_tracker()
     rec = tracker.get_status(run_id)
 
-    # Normalize failed_step to "ingest" | "clean" | "dedupe" | "resolve"
-    normalized_failed_step = None
-    if rec.failed_step:
-        fs_lower = rec.failed_step.lower()
-        if "ingest" in fs_lower or "raw" in fs_lower:
-            normalized_failed_step = "ingest"
-        elif "clean" in fs_lower:
-            normalized_failed_step = "clean"
-        elif "dedupe" in fs_lower or "block" in fs_lower or "cluster" in fs_lower:
-            normalized_failed_step = "dedupe"
-        elif "resolve" in fs_lower or "golden" in fs_lower or "classif" in fs_lower:
-            normalized_failed_step = "resolve"
-        else:
-            normalized_failed_step = rec.failed_step
-
     # Synthesize timeline logs
     logs: List[str] = []
     if rec.started_at:
@@ -237,7 +222,7 @@ async def get_pipeline_status(run_id: str) -> StatusResponse:
         completed_at=rec.completed_at,
         dagster_run_id=rec.dagster_run_id,
         retry_count=rec.retry_count,
-        failed_step=normalized_failed_step,
+        failed_step=rec.failed_step,
         error_history=rec.error_history,
         logs=logs,
         quality_scores=quality_scores,

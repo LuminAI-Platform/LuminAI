@@ -132,7 +132,8 @@ public class SqlAnalyticsService {
               try {
                 conn.setReadOnly(originalReadOnly);
                 try (Statement resetStmt = conn.createStatement()) {
-                  resetStmt.execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
+                  resetStmt.execute(
+                      "SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
                 }
               } catch (Exception e) {
                 log.warn(
