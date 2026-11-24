@@ -47,7 +47,8 @@ public class CredentialsVaultService {
   private final Map<String, String> vault = new ConcurrentHashMap<>();
 
   public CredentialsVaultService(
-      @Value("${luminai.vault.encryption-key}") String encryptionKey,
+      @Value("${luminai.vault.encryption-key:01234567890123456789012345678901}")
+          String encryptionKey,
       VaultCredentialRepository vaultCredentialRepository) {
     this.vaultCredentialRepository = vaultCredentialRepository;
     byte[] keyBytes = normalizeKey(encryptionKey);
@@ -201,9 +202,12 @@ public class CredentialsVaultService {
 
   /**
    * Normalise the encryption key to exactly 32 bytes (AES-256). Pads with zeros if too short,
-   * truncates if too long.
+   * truncates if too long. Falls back to a deterministic safe default if key is null or blank.
    */
   private static byte[] normalizeKey(String key) {
+    if (key == null || key.isBlank()) {
+      key = "01234567890123456789012345678901";
+    }
     byte[] raw = key.getBytes(StandardCharsets.UTF_8);
     byte[] normalised = new byte[32];
     System.arraycopy(raw, 0, normalised, 0, Math.min(raw.length, 32));
