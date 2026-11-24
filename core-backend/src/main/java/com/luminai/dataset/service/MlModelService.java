@@ -24,14 +24,22 @@ public class MlModelService {
   private final MlModelRepository mlModelRepository;
   private final DataEngineClient dataEngineClient;
   private final ObjectMapper objectMapper;
+  private final com.luminai.dataset.repository.DatasetRepository datasetRepository;
+  private final com.luminai.connection.repository.ConnectionPreviewService connectionPreviewService;
 
   public MlModelService(
       MlModelRepository mlModelRepository,
       @Autowired(required = false) DataEngineClient dataEngineClient,
-      ObjectMapper objectMapper) {
+      ObjectMapper objectMapper,
+      @Autowired(required = false)
+          com.luminai.dataset.repository.DatasetRepository datasetRepository,
+      @Autowired(required = false)
+          com.luminai.connection.repository.ConnectionPreviewService connectionPreviewService) {
     this.mlModelRepository = mlModelRepository;
     this.dataEngineClient = dataEngineClient;
     this.objectMapper = objectMapper;
+    this.datasetRepository = datasetRepository;
+    this.connectionPreviewService = connectionPreviewService;
   }
 
   private UUID requireTenantUuid() {
@@ -54,13 +62,35 @@ public class MlModelService {
 
     log.info("Triggering ML model training for '{}' (tenant={})", req.modelName(), tenantSlug);
 
+    List<Map<String, Object>> records = req.records();
+    if ((records == null || records.isEmpty()) && req.datasetId() != null) {
+      if (datasetRepository != null && connectionPreviewService != null) {
+        var datasetOpt = datasetRepository.findByIdAndTenantId(req.datasetId(), tenantId);
+        if (datasetOpt.isPresent()) {
+          var dataset = datasetOpt.get();
+          if (dataset.getSourceConnectionId() != null) {
+            records = connectionPreviewService.previewFile(dataset.getSourceConnectionId());
+            if (records == null || records.isEmpty()) {
+              records =
+                  connectionPreviewService.previewTable(
+                      dataset.getSourceConnectionId(), dataset.getName());
+            }
+          }
+        }
+      }
+    }
+    if (records == null || records.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Training records cannot be empty. Please provide records or select a dataset with accessible data.");
+    }
+
     Map<String, Object> engineReq = new LinkedHashMap<>();
     engineReq.put("tenant_id", tenantSlug);
     engineReq.put("model_name", req.modelName());
     engineReq.put("dataset_name", req.datasetName() != null ? req.datasetName() : "dataset");
     engineReq.put("dataset_version", req.datasetVersion() != null ? req.datasetVersion() : 1);
     engineReq.put("target_column", req.targetColumn());
-    engineReq.put("records", req.records());
+    engineReq.put("records", records);
     if (req.featureColumns() != null) engineReq.put("feature_columns", req.featureColumns());
     if (req.algorithm() != null) engineReq.put("algorithm", req.algorithm());
     if (req.taskType() != null) engineReq.put("task_type", req.taskType());
@@ -110,6 +140,8 @@ public class MlModelService {
 
     Map<String, Object> result = new LinkedHashMap<>(outcome);
     result.put("persistedModel", MlModelDto.fromEntity(saved));
+    result.put("model_id", saved.getId().toString());
+    result.put("run_id", runId);
     return result;
   }
 
@@ -187,9 +219,16 @@ public class MlModelService {
     // Sync with Data Engine model registry if available
     if (dataEngineClient != null) {
       try {
+        String runId = saved.getId().toString();
+        if (saved.getModelArtifactPath() != null && saved.getModelArtifactPath().contains("/")) {
+          runId =
+              saved
+                  .getModelArtifactPath()
+                  .substring(saved.getModelArtifactPath().lastIndexOf('/') + 1);
+        }
         Map<String, Object> regReq = new LinkedHashMap<>();
         regReq.put("tenant_id", getTenantSlug());
-        regReq.put("run_id", saved.getId().toString());
+        regReq.put("run_id", runId);
         regReq.put("name", saved.getName());
         regReq.put("status", safeStatus);
         dataEngineClient.registerMlModel(regReq);
@@ -203,8 +242,30 @@ public class MlModelService {
 
   @Transactional(readOnly = true)
   public List<Map<String, Object>> listExperiments() {
+    UUID tenantId = requireTenantUuid();
     String tenantSlug = getTenantSlug();
-    if (dataEngineClient == null) return List.of();
-    return dataEngineClient.listMlExperiments(tenantSlug);
+    List<Map<String, Object>> exps =
+        dataEngineClient != null ? dataEngineClient.listMlExperiments(tenantSlug) : List.of();
+    List<MlModel> localModels = mlModelRepository.findAllByTenantIdOrderByUpdatedAtDesc(tenantId);
+    Map<String, String> runToModelId = new HashMap<>();
+    for (MlModel m : localModels) {
+      if (m.getModelArtifactPath() != null) {
+        String path = m.getModelArtifactPath();
+        String run = path.substring(path.lastIndexOf('/') + 1);
+        runToModelId.put(run, m.getId().toString());
+      }
+    }
+    List<Map<String, Object>> enriched = new ArrayList<>();
+    for (Map<String, Object> exp : exps) {
+      Map<String, Object> item = new LinkedHashMap<>(exp);
+      String run = String.valueOf(item.get("run_id"));
+      if (runToModelId.containsKey(run)) {
+        item.put("model_id", runToModelId.get(run));
+      } else if (!localModels.isEmpty()) {
+        item.put("model_id", localModels.get(0).getId().toString());
+      }
+      enriched.add(item);
+    }
+    return enriched;
   }
 }

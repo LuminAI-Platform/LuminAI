@@ -1,10 +1,13 @@
 package com.luminai.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import java.time.Instant;
 import java.util.UUID;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDto {
 
   private UserDto() {}
@@ -25,6 +28,8 @@ public class UserDto {
       String fullName,
       String role) {}
 
+  public record UpdateUserRequest(String fullName, String role, Boolean active) {}
+
   // ----------------------------------------------------------------
   // Response DTOs
   // ----------------------------------------------------------------
@@ -38,4 +43,14 @@ public class UserDto {
       String email,
       String role,
       String message) {}
+
+  public record UserItemDto(
+      UUID id,
+      String email,
+      String fullName,
+      String role,
+      String tenantSlug,
+      UUID tenantId,
+      boolean active,
+      Instant createdAt) {}
 }

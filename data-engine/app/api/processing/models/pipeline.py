@@ -126,6 +126,14 @@ class StatusResponse(BaseModel):
         default_factory=list,
         description="Historical log of step errors and retry attempts.",
     )
+    logs: List[str] = Field(
+        default_factory=list,
+        description="Execution log messages for stage timelines and diagnostics.",
+    )
+    quality_scores: Dict[str, float] = Field(
+        default_factory=dict,
+        description="DAMA dimension quality scores (completeness, uniqueness, consistency, timeliness).",
+    )
 
 
 class RetryResponse(BaseModel):

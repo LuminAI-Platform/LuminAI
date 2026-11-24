@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/v1/explorer")
+@PreAuthorize("isAuthenticated()")
 @Tag(
     name = "Explorer",
     description = "Global Entity Search, Facets, Entity Details & Provenance Lineage")
@@ -39,6 +41,9 @@ public class ExplorerController {
   public ResponseEntity<SearchResponseDto.Response> search(
       @RequestParam(name = "query", required = false, defaultValue = "") String query,
       @RequestParam(name = "entityType", required = false) List<String> entityType,
+      @RequestParam(name = "duplicates", required = false) Boolean duplicates,
+      @RequestParam(name = "missing", required = false) Boolean missing,
+      @RequestParam(name = "review", required = false) Boolean review,
       @RequestParam(name = "page", required = false, defaultValue = "0") int page,
       @RequestParam(name = "size", required = false, defaultValue = "20") int size,
       @RequestParam(name = "sortBy", required = false, defaultValue = "createdAt") String sortBy,
@@ -49,7 +54,16 @@ public class ExplorerController {
         (entityType != null && !entityType.isEmpty()) ? String.join(",", entityType) : null;
 
     return ResponseEntity.ok(
-        searchService.search(query, combinedEntityType, page, size, sortBy, sortDirection));
+        searchService.search(
+            query,
+            combinedEntityType,
+            duplicates,
+            missing,
+            review,
+            page,
+            size,
+            sortBy,
+            sortDirection));
   }
 
   @GetMapping("/entities/{id}")

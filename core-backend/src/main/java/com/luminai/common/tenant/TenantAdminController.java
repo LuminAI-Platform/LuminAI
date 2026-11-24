@@ -1,15 +1,15 @@
 package com.luminai.common.tenant;
 
+import com.luminai.auth.repository.TenantRepository;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /** Admin endpoint for provisioning new tenant schemas. Requires authentication. */
 @RestController
@@ -20,9 +20,24 @@ public class TenantAdminController {
   private static final Logger log = LoggerFactory.getLogger(TenantAdminController.class);
 
   private final TenantProvisioningService provisioningService;
+  private final TenantRepository tenantRepository;
 
-  public TenantAdminController(TenantProvisioningService provisioningService) {
+  public TenantAdminController(
+      TenantProvisioningService provisioningService,
+      @Autowired(required = false) TenantRepository tenantRepository) {
     this.provisioningService = provisioningService;
+    this.tenantRepository = tenantRepository;
+  }
+
+  @GetMapping
+  @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'ADMIN')")
+  public ResponseEntity<?> listTenants(
+      @RequestParam(required = false, defaultValue = "0") int page,
+      @RequestParam(required = false, defaultValue = "50") int size) {
+    if (tenantRepository != null) {
+      return ResponseEntity.ok(tenantRepository.findAll(PageRequest.of(page, size)));
+    }
+    return ResponseEntity.ok(java.util.List.of());
   }
 
   @PostMapping

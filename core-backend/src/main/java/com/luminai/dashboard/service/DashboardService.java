@@ -179,14 +179,23 @@ public class DashboardService {
     return activities.stream().limit(maxLimit).toList();
   }
 
-  /** Generates time-series points over the specified window (e.g. "7d"). */
+  /**
+   * Generates time-series points over the specified window (e.g. "24h", "1d", "7d", "14d", "30d").
+   */
   @Transactional(readOnly = true)
   public List<TimeSeriesPointDto> getTimeSeries(String range) {
+    return getTimeSeries(range, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<TimeSeriesPointDto> getTimeSeries(String range, UUID connectionId) {
     int days = 7;
     if ("30d".equalsIgnoreCase(range)) {
       days = 30;
     } else if ("14d".equalsIgnoreCase(range)) {
       days = 14;
+    } else if ("24h".equalsIgnoreCase(range) || "1d".equalsIgnoreCase(range)) {
+      days = 1;
     }
 
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
@@ -195,7 +204,8 @@ public class DashboardService {
     Instant startWindow = today.minusDays(days - 1).atStartOfDay().toInstant(ZoneOffset.UTC);
     Map<String, Long> runsByDate = new HashMap<>();
     try {
-      List<Instant> runTimestamps = pipelineRunRepository.findStartedAtSince(startWindow);
+      List<Instant> runTimestamps =
+          pipelineRunRepository.findStartedAtSinceAndConnectionId(startWindow, connectionId);
       for (Instant ts : runTimestamps) {
         if (ts != null) {
           String dateStr = ts.atZone(ZoneOffset.UTC).toLocalDate().toString();

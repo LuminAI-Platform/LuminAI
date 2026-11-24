@@ -1,18 +1,19 @@
 package com.luminai.auth.controller;
 
+import com.luminai.auth.dto.UserDto;
 import com.luminai.auth.dto.UserDto.CreateUserRequest;
 import com.luminai.auth.dto.UserDto.CreateUserResponse;
 import com.luminai.auth.service.UserProvisioningService;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * Internal, staff-only endpoint for provisioning a new user against an existing tenant.
@@ -51,5 +52,29 @@ public class UserAdminController {
 
     CreateUserResponse response = userProvisioningService.provisionUser(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  @GetMapping
+  @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+  public ResponseEntity<Page<UserDto.UserItemDto>> listUsers(
+      @RequestParam(required = false) String tenantSlug,
+      @RequestParam(required = false, defaultValue = "0") int page,
+      @RequestParam(required = false, defaultValue = "50") int size) {
+    return ResponseEntity.ok(
+        userProvisioningService.listUsers(tenantSlug, PageRequest.of(page, size)));
+  }
+
+  @PutMapping("/{id}")
+  @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+  public ResponseEntity<UserDto.UserItemDto> updateUser(
+      @PathVariable UUID id, @RequestBody UserDto.UpdateUserRequest request) {
+    return ResponseEntity.ok(userProvisioningService.updateUser(id, request));
+  }
+
+  @DeleteMapping("/{id}")
+  @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+  public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
+    userProvisioningService.deleteUser(id);
+    return ResponseEntity.noContent().build();
   }
 }

@@ -74,12 +74,17 @@ public class Connection {
     POSTGRESQL,
     MYSQL,
     MSSQL,
+    SNOWFLAKE,
+    S3,
+    GCS,
+    CLICKHOUSE,
     API
   }
 
   public enum Status {
     ACTIVE,
     INACTIVE,
+    SYNCING,
     ERROR
   }
 

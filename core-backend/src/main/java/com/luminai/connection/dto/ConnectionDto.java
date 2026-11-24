@@ -1,5 +1,6 @@
 package com.luminai.connection.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.luminai.connection.model.Connection;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -7,6 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /** Data Transfer Objects for Connection CRUD operations. */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class ConnectionDto {
 
   private ConnectionDto() {}
@@ -20,7 +22,12 @@ public final class ConnectionDto {
       @NotBlank(message = "name is required") String name,
       @NotNull(message = "type is required") Connection.Type type,
       String config,
-      String credentialsRef) {}
+      String credentialsRef,
+      String password,
+      String host,
+      Integer port,
+      String database,
+      String username) {}
 
   /** Request body for updating an existing connection. */
   public record UpdateRequest(
@@ -40,9 +47,51 @@ public final class ConnectionDto {
       String credentialsRef,
       Connection.Status status,
       Instant lastSyncAt,
+      long rowsSynced,
+      boolean schemaDrift,
       UUID createdBy,
       Instant createdAt,
       Instant updatedAt) {
+
+    public Response(
+        UUID id,
+        UUID tenantId,
+        String name,
+        Connection.Type type,
+        String config,
+        String credentialsRef,
+        Connection.Status status,
+        Instant lastSyncAt,
+        UUID createdBy,
+        Instant createdAt,
+        Instant updatedAt) {
+      this(
+          id,
+          tenantId,
+          name,
+          type,
+          config,
+          credentialsRef,
+          status,
+          lastSyncAt,
+          extractRowsSynced(config),
+          false,
+          createdBy,
+          createdAt,
+          updatedAt);
+    }
+
+    private static long extractRowsSynced(String config) {
+      if (config == null || config.isBlank()) return 0;
+      try {
+        com.fasterxml.jackson.databind.JsonNode n =
+            new com.fasterxml.jackson.databind.ObjectMapper().readTree(config);
+        if (n.has("recordsCount")) return n.get("recordsCount").asLong();
+        if (n.has("rowsSynced")) return n.get("rowsSynced").asLong();
+      } catch (Exception ignored) {
+      }
+      return 0;
+    }
 
     /** Factory method to convert a Connection entity to a response DTO. */
     public static Response from(Connection entity) {

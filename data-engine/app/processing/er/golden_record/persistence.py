@@ -6,12 +6,21 @@ from datetime import datetime, timezone
 import json
 import logging
 import os
+import re
 import uuid
 
 import polars as pl
 from sqlalchemy import inspect, text
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_schema_name(tenant_id: str) -> str:
+    """Sanitize tenant identifier to prevent search_path injection."""
+    cleaned = str(tenant_id).replace("-", "_").strip()
+    if not re.match(r"^[a-zA-Z0-9_]+$", cleaned):
+        raise ValueError(f"Invalid tenant identifier: {tenant_id}")
+    return f"tenant_{cleaned}" if not cleaned.startswith("tenant_") else cleaned
 
 
 def _get_active_engine():
@@ -66,16 +75,12 @@ def persist_golden_records(
     now_utc = datetime.now(timezone.utc)
     persisted_count = 0
 
-    schema_name = (
-        f"tenant_{tenant_id}"
-        if not str(tenant_id).startswith("tenant_")
-        else str(tenant_id)
-    )
+    schema_name = _safe_schema_name(tenant_id)
 
     with engine.connect() as conn:
         try:
             conn.execute(
-                text(f"SET search_path TO {schema_name}, tenant_default, public;")
+                text(f'SET search_path TO "{schema_name}", tenant_default, public;')
             )
         except Exception:
             pass
@@ -103,6 +108,10 @@ def persist_golden_records(
                 cols = {c["name"] for c in inspector.get_columns("golden_records")}
             except Exception:
                 cols = set()
+        try:
+            conn.execute(text("RESET search_path;"))
+        except Exception:
+            pass
 
     is_postgres_schema = "canonical_name" in cols
 
@@ -112,7 +121,7 @@ def persist_golden_records(
     with engine.begin() as conn:
         try:
             conn.execute(
-                text(f"SET search_path TO {schema_name}, tenant_default, public;")
+                text(f'SET search_path TO "{schema_name}", tenant_default, public;')
             )
         except Exception:
             pass
@@ -416,6 +425,11 @@ def persist_golden_records(
                     conn.execute(insert_history_sql, history_to_insert)
 
                 persisted_count += len(chunk)
+
+            try:
+                conn.execute(text("RESET search_path;"))
+            except Exception:
+                pass
 
     logger.info(
         "Persisted %d Golden Records in batches of %d (with versioning & audit trail)",

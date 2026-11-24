@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/datasets")
+@PreAuthorize("isAuthenticated()")
 public class DatasetController {
 
   private final DatasetService datasetService;
@@ -33,8 +35,9 @@ public class DatasetController {
   @GetMapping
   public ResponseEntity<List<DatasetDto>> listDatasets(
       @RequestParam(required = false) Dataset.Layer layer,
-      @RequestParam(required = false) Dataset.ProjectType projectType) {
-    return ResponseEntity.ok(datasetService.listDatasets(layer, projectType));
+      @RequestParam(required = false) Dataset.ProjectType projectType,
+      @RequestParam(required = false) String search) {
+    return ResponseEntity.ok(datasetService.listDatasets(layer, projectType, search));
   }
 
   @GetMapping("/{id}")
@@ -69,9 +72,34 @@ public class DatasetController {
   }
 
   @GetMapping("/queries")
-  public ResponseEntity<List<SavedQuery>> listSavedQueries(
+  public ResponseEntity<List<SavedQueryDto>> listSavedQueries(
       @RequestParam(required = false) UUID datasetId) {
-    return ResponseEntity.ok(sqlAnalyticsService.listSavedQueries(datasetId));
+    List<SavedQuery> list = sqlAnalyticsService.listSavedQueries(datasetId);
+    return ResponseEntity.ok(list.stream().map(SavedQueryDto::fromEntity).toList());
+  }
+
+  @PostMapping("/queries")
+  public ResponseEntity<SavedQueryDto> createSavedQuery(
+      @RequestBody SavedQueryDto.UpsertRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(sqlAnalyticsService.createSavedQuery(request));
+  }
+
+  @GetMapping("/queries/{id}")
+  public ResponseEntity<SavedQueryDto> getSavedQuery(@PathVariable UUID id) {
+    return ResponseEntity.ok(sqlAnalyticsService.getSavedQuery(id));
+  }
+
+  @PutMapping("/queries/{id}")
+  public ResponseEntity<SavedQueryDto> updateSavedQuery(
+      @PathVariable UUID id, @RequestBody SavedQueryDto.UpsertRequest request) {
+    return ResponseEntity.ok(sqlAnalyticsService.updateSavedQuery(id, request));
+  }
+
+  @DeleteMapping("/queries/{id}")
+  public ResponseEntity<Void> deleteSavedQuery(@PathVariable UUID id) {
+    sqlAnalyticsService.deleteSavedQuery(id);
+    return ResponseEntity.noContent().build();
   }
 
   @PutMapping("/{id}/layer")

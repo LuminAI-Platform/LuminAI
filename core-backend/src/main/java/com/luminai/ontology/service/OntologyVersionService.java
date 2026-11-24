@@ -118,8 +118,19 @@ public class OntologyVersionService {
 
     UUID currentUserId = null;
     try {
-      currentUserId = UUID.fromString(claimsExtractor.getCurrentUserId());
+      String uidStr = claimsExtractor.getCurrentUserId();
+      if (uidStr != null && !uidStr.isBlank()) {
+        try {
+          currentUserId = UUID.fromString(uidStr);
+        } catch (IllegalArgumentException ex) {
+          currentUserId =
+              UUID.nameUUIDFromBytes(uidStr.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+      }
     } catch (Exception ignored) {
+    }
+    if (currentUserId == null) {
+      currentUserId = tenantId;
     }
 
     OntologyVersion newVersion =
@@ -185,6 +196,8 @@ public class OntologyVersionService {
 
     List<String> addedEntities = new ArrayList<>();
     List<String> removedEntities = new ArrayList<>();
+    List<String> modifiedEntities = new ArrayList<>();
+
     for (String e : currentEntities) {
       if (!previousEntities.contains(e)) {
         addedEntities.add(e);
@@ -213,7 +226,7 @@ public class OntologyVersionService {
         current.getVersion(),
         previous != null ? previous.getVersion() : "none",
         addedEntities,
-        Collections.emptyList(),
+        modifiedEntities,
         removedEntities,
         addedRels,
         removedRels);

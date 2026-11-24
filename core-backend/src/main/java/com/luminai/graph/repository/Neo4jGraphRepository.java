@@ -256,9 +256,9 @@ public class Neo4jGraphRepository {
         """
               MATCH (start:Entity)
               WHERE (start.id = $entityId OR start.canonical_name = $entityId OR toLower(coalesce(start.canonical_name, '')) = toLower($entityId))
-                AND (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId OR $tenantId = '*')
+                AND (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId)
               OPTIONAL MATCH path = (start)-[rels*1..%d]-(neighbour:Entity)
-              WHERE all(node IN nodes(path) WHERE node:Entity AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId OR $tenantId = '*'))
+              WHERE all(node IN nodes(path) WHERE node:Entity AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId))
                 AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
               WITH start, [p IN collect(path) WHERE p IS NOT NULL] AS validPaths
               WITH [start] + reduce(acc = [], p IN validPaths | acc + nodes(p)) AS allNodes,
@@ -308,10 +308,10 @@ public class Neo4jGraphRepository {
     String cypher =
         """
         MATCH (start:Entity)
-        WHERE (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId OR $tenantId = '*')
+        WHERE (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId)
         WITH start LIMIT $limit
         OPTIONAL MATCH (start)-[r]-(other:Entity)
-        WHERE (other.tenant_id = $tenantId OR other.tenant_id = $altTenantId OR $tenantId = '*')
+        WHERE (other.tenant_id = $tenantId OR other.tenant_id = $altTenantId)
         WITH collect(DISTINCT start) AS starts,
              [o IN collect(DISTINCT other) WHERE o IS NOT NULL] AS others,
              [rel IN collect(DISTINCT r) WHERE rel IS NOT NULL] AS rels

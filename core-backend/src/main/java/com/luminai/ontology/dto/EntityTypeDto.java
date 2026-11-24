@@ -63,8 +63,38 @@ public final class EntityTypeDto {
       String description,
       String propertiesSchema,
       List<PropertyDefinition> properties,
+      long entityCount,
       Instant createdAt,
       Instant updatedAt) {
+
+    public Response(
+        UUID id,
+        UUID tenantId,
+        UUID ontologyId,
+        String name,
+        String label,
+        String color,
+        String icon,
+        String description,
+        String propertiesSchema,
+        List<PropertyDefinition> properties,
+        Instant createdAt,
+        Instant updatedAt) {
+      this(
+          id,
+          tenantId,
+          ontologyId,
+          name,
+          label,
+          color,
+          icon,
+          description,
+          propertiesSchema,
+          properties,
+          0L,
+          createdAt,
+          updatedAt);
+    }
 
     public Response(
         UUID id,
@@ -89,11 +119,16 @@ public final class EntityTypeDto {
           description,
           propertiesSchema,
           parseProperties(propertiesSchema),
+          0L,
           createdAt,
           updatedAt);
     }
 
     public static Response from(EntityType entity) {
+      return from(entity, 0L);
+    }
+
+    public static Response from(EntityType entity, long entityCount) {
       return new Response(
           entity.getId(),
           entity.getTenantId(),
@@ -105,6 +140,7 @@ public final class EntityTypeDto {
           entity.getDescription(),
           entity.getPropertiesSchema(),
           parseProperties(entity.getPropertiesSchema()),
+          entityCount,
           entity.getCreatedAt(),
           entity.getUpdatedAt());
     }

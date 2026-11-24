@@ -50,12 +50,14 @@ public class OntologyController {
   @GetMapping("/entity-types")
   @Operation(
       summary = "List all entity types",
-      description = "Retrieves all registered entity types for the active tenant")
+      description =
+          "Retrieves all registered entity types for the active tenant, with optional empty filter")
   @ApiResponse(responseCode = "200", description = "List of entity types")
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
-  public ResponseEntity<List<EntityTypeDto.Response>> getAllEntityTypes() {
-    return ResponseEntity.ok(entityTypeService.getAll());
+  public ResponseEntity<List<EntityTypeDto.Response>> getAllEntityTypes(
+      @RequestParam(required = false, defaultValue = "true") Boolean includeEmpty) {
+    return ResponseEntity.ok(entityTypeService.getAll(includeEmpty));
   }
 
   @GetMapping("/entity-types/{id}")

@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @Validated
 @RequestMapping("/api/v1/dashboard")
+@PreAuthorize("isAuthenticated()")
 @Tag(
     name = "Dashboard",
     description = "Tenant dashboard KPI summary, event streams, and time-series telemetry")
@@ -64,9 +66,12 @@ public class DashboardController {
   @ApiResponse(responseCode = "200", description = "Time-series stats retrieved successfully")
   @GetMapping("/stats/timeseries")
   public ResponseEntity<List<TimeSeriesPointDto>> getTimeSeries(
-      @Parameter(description = "Time window range (e.g. 7d, 14d, 30d)")
+      @Parameter(description = "Time window range (e.g. 24h, 1d, 7d, 14d, 30d)")
           @RequestParam(defaultValue = "7d")
-          String range) {
-    return ResponseEntity.ok(dashboardService.getTimeSeries(range));
+          String range,
+      @Parameter(description = "Optional connection ID to filter telemetry")
+          @RequestParam(required = false)
+          java.util.UUID connectionId) {
+    return ResponseEntity.ok(dashboardService.getTimeSeries(range, connectionId));
   }
 }

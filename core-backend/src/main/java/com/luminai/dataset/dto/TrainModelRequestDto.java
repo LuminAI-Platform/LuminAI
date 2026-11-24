@@ -1,7 +1,6 @@
 package com.luminai.dataset.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -12,7 +11,7 @@ public record TrainModelRequestDto(
     String datasetName,
     Integer datasetVersion,
     @NotBlank(message = "targetColumn is required") String targetColumn,
-    @NotNull(message = "records are required") List<Map<String, Object>> records,
+    List<Map<String, Object>> records,
     List<String> featureColumns,
     String algorithm,
     String taskType,

@@ -8,7 +8,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/engine")
+@PreAuthorize("isAuthenticated()")
 @Tag(
     name = "Data Engine",
     description = "Python Data Engine telemetry, Polars processing, and job execution gateway")
@@ -51,7 +54,11 @@ public class DataEngineController {
   @GetMapping("/metrics")
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
-  public ResponseEntity<Map<String, Object>> getMetrics() {
+  public ResponseEntity<Map<String, Object>> getMetrics(
+      @org.springframework.web.bind.annotation.RequestParam(required = false, defaultValue = "7d")
+          String range,
+      @org.springframework.web.bind.annotation.RequestParam(required = false)
+          java.util.UUID connectionId) {
     String tenantSlug = TenantContext.getTenantSlug();
     CompletableFuture<DataEngineHealthDto> healthFuture =
         CompletableFuture.supplyAsync(() -> dataEngineClient.checkHealth());
@@ -70,6 +77,10 @@ public class DataEngineController {
     response.put("pipelineStats", pipelineStatsFuture.join());
     response.put("dataQuality", dataQualityFuture.join());
     response.put("entityStats", entityStatsFuture.join());
+    response.put("range", range);
+    if (connectionId != null) {
+      response.put("connectionId", connectionId);
+    }
 
     return ResponseEntity.ok(response);
   }
@@ -81,7 +92,8 @@ public class DataEngineController {
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> cleanData(@RequestBody Object requestPayload) {
-    return ResponseEntity.ok(dataEngineClient.cleanData(requestPayload));
+    Object securePayload = enforceTenantPayload(requestPayload);
+    return ResponseEntity.ok(dataEngineClient.cleanData(securePayload));
   }
 
   @Operation(
@@ -92,7 +104,8 @@ public class DataEngineController {
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> resolveEntities(@RequestBody Object requestPayload) {
-    return ResponseEntity.ok(dataEngineClient.resolveEntities(requestPayload));
+    Object securePayload = enforceTenantPayload(requestPayload);
+    return ResponseEntity.ok(dataEngineClient.resolveEntities(securePayload));
   }
 
   @Operation(
@@ -116,14 +129,8 @@ public class DataEngineController {
     try {
       return ResponseEntity.ok(dataEngineClient.getJobStatus(jobId));
     } catch (Exception e) {
-      return ResponseEntity.ok(
-          Map.of(
-              "status",
-              "RETRYING",
-              "jobId",
-              jobId,
-              "message",
-              "Pipeline run queued for re-execution"));
+      return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+          .body(Map.of("status", "FAILED", "jobId", jobId, "error", e.getMessage()));
     }
   }
 
@@ -137,9 +144,20 @@ public class DataEngineController {
   public ResponseEntity<Map<String, Object>> generateInsights(
       @RequestBody Map<String, Object> requestPayload) {
     Map<String, Object> enrichedPayload = new HashMap<>(requestPayload);
-    if (!enrichedPayload.containsKey("tenant_id") || enrichedPayload.get("tenant_id") == null) {
-      enrichedPayload.put("tenant_id", TenantContext.getTenantSlug());
-    }
+    String slug = TenantContext.getTenantSlug();
+    enrichedPayload.put("tenant_id", slug != null ? slug : "acme");
     return ResponseEntity.ok(dataEngineClient.getInsights(enrichedPayload));
+  }
+
+  @SuppressWarnings("unchecked")
+  private Object enforceTenantPayload(Object payload) {
+    String slug = TenantContext.getTenantSlug();
+    if (slug == null || slug.isBlank()) slug = "acme";
+    if (payload instanceof Map<?, ?> rawMap) {
+      Map<String, Object> copy = new HashMap<>((Map<String, Object>) rawMap);
+      copy.put("tenant_id", slug);
+      return copy;
+    }
+    return payload;
   }
 }

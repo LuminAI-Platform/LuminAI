@@ -68,9 +68,25 @@ class MinioRawStorageClient:
             content_type=content_type,
         )
 
+    def _safe_key(self, key: str) -> str:
+        """Sanitize object key and prevent directory traversal."""
+        clean = key.lstrip("/").replace("\\", "/")
+        norm = os.path.normpath(clean).replace("\\", "/")
+        if norm.startswith("..") or "/../" in norm or norm.startswith("/"):
+            raise ValueError(f"Directory traversal detected in object key: {key}")
+        return clean
+
+    def _safe_local_path(self, bucket: str, clean_key: str) -> str:
+        """Resolve and verify that local fallback path stays strictly within fallback directory."""
+        base_dir = os.path.abspath(self.local_fallback_dir)
+        resolved = os.path.abspath(os.path.join(base_dir, bucket, clean_key))
+        if not resolved.startswith(base_dir):
+            raise ValueError(f"Path traversal detected for key '{clean_key}'")
+        return resolved
+
     def get_object_bytes(self, bucket: str, object_key: str) -> bytes:
         """Fetch raw object bytes from MinIO, falling back to local storage."""
-        clean_key = object_key.lstrip("/")
+        clean_key = self._safe_key(object_key)
         path = f"/{bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
@@ -97,7 +113,7 @@ class MinioRawStorageClient:
                 "MinIO unreachable (%s). Checking local storage fallback.", exc
             )
 
-        local_path = os.path.join(self.local_fallback_dir, bucket, clean_key)
+        local_path = self._safe_local_path(bucket, clean_key)
         if os.path.exists(local_path):
             with open(local_path, "rb") as f:
                 logger.debug(
@@ -108,8 +124,8 @@ class MinioRawStorageClient:
                 )
                 return f.read()
 
-        alt_local_path = os.path.join(self.local_fallback_dir, clean_key)
-        if os.path.exists(alt_local_path):
+        alt_local_path = os.path.abspath(os.path.join(os.path.abspath(self.local_fallback_dir), clean_key))
+        if alt_local_path.startswith(os.path.abspath(self.local_fallback_dir)) and os.path.exists(alt_local_path):
             with open(alt_local_path, "rb") as f:
                 logger.debug(
                     "Loaded %s from local fallback: %s", clean_key, alt_local_path
@@ -131,11 +147,11 @@ class MinioRawStorageClient:
         """Upload large object to MinIO using S3 multipart upload protocol."""
         import xml.etree.ElementTree as ET
 
-        clean_key = object_key.lstrip("/")
+        clean_key = self._safe_key(object_key)
         path = f"/{bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
-        local_path = os.path.join(self.local_fallback_dir, bucket, clean_key)
+        local_path = self._safe_local_path(bucket, clean_key)
         try:
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             with open(local_path, "wb") as f:
@@ -261,12 +277,12 @@ class MinioRawStorageClient:
                 bucket, object_key, data, content_type=content_type
             )
 
-        clean_key = object_key.lstrip("/")
+        clean_key = self._safe_key(object_key)
         path = f"/{bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
         try:
-            local_path = os.path.join(self.local_fallback_dir, bucket, clean_key)
+            local_path = self._safe_local_path(bucket, clean_key)
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             with open(local_path, "wb") as f:
                 f.write(data)
