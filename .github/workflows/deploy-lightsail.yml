@@ -34,9 +34,32 @@ jobs:
             echo "🔨 Building updated application containers..."
             docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
             
+            echo "🧠 Checking system memory and swap..."
+            free -h || true
+            if [ $(free -m | awk '/^Swap:/ {print $2}') -lt 1024 ]; then
+              echo "⚠️ Low swap detected (<1GB). Creating swapfile for build & startup stability..."
+              (sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null) && \
+              sudo chmod 600 /swapfile && \
+              sudo mkswap /swapfile && \
+              sudo swapon /swapfile || true
+            fi
+
             echo "🔄 Bringing up updated services..."
             docker rm -f luminai-data-engine luminai-core-backend luminai-frontend 2>/dev/null || true
-            docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+            if ! docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans; then
+              echo "❌ docker-compose up failed! Diagnostics:"
+              echo "=== Host Memory Status ==="
+              free -h || true
+              echo "=== Docker ps -a ==="
+              docker ps -a || true
+              echo "=== Core Backend Inspection ==="
+              docker inspect luminai-core-backend --format='Status: {{.State.Status}} ExitCode: {{.State.ExitCode}} OOMKilled: {{.State.OOMKilled}} Error: {{.State.Error}}' || true
+              echo "=== Core Backend Logs (last 250 lines) ==="
+              docker logs --tail 250 luminai-core-backend || true
+              echo "=== Data Engine Logs (last 100 lines) ==="
+              docker logs --tail 100 luminai-data-engine || true
+              exit 1
+            fi
             
             echo "✅ Deployment successful! Active containers:"
             docker-compose ps
