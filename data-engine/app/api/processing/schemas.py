@@ -58,7 +58,6 @@ async def validate_schema_endpoint(
                 detail=f"Could not retrieve object '{clean_key}' from bucket '{bucket}': {exc}",
             )
     elif request.file_path is not None:
-        import os
         import tempfile
         from pathlib import Path
 

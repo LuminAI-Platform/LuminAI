@@ -18,6 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
+  public Map<String, Object> getCurrentUser(Jwt jwt) {
+    return getCurrentUser(jwt, null);
+  }
+
   @GetMapping("/me")
   public Map<String, Object> getCurrentUser(
       @AuthenticationPrincipal Jwt jwt, Authentication authentication) {

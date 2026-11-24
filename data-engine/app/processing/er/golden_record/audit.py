@@ -217,14 +217,7 @@ def rollback_golden_record(
     with engine.begin() as conn:
         conn.execute(
             update_sql,
-            {
-                "golden_id": golden_id,
-                "version": new_version,
-                "cluster_size": snapshot["cluster_size"],
-                "source_record_ids": snapshot["source_record_ids"],
-                "attributes": snapshot["attributes"],
-                "updated_at": now_utc,
-            },
+            update_params,
         )
         conn.execute(
             insert_history_sql,

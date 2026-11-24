@@ -56,8 +56,11 @@ public class OntologyController {
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<List<EntityTypeDto.Response>> getAllEntityTypes(
-      @RequestParam(required = false, defaultValue = "true") Boolean includeEmpty) {
-    return ResponseEntity.ok(entityTypeService.getAll(includeEmpty));
+      @RequestParam(required = false) Boolean includeEmpty) {
+    if (includeEmpty != null) {
+      return ResponseEntity.ok(entityTypeService.getAll(includeEmpty));
+    }
+    return ResponseEntity.ok(entityTypeService.getAll());
   }
 
   @GetMapping("/entity-types/{id}")

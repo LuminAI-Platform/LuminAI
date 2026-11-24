@@ -99,9 +99,9 @@ public class SqlAnalyticsService {
             try {
               conn.setReadOnly(true);
 
-              // Set tenant-specific search_path for strict schema isolation (exclude public)
+              // Set tenant-specific search_path for strict schema isolation
               try (Statement setStmt = conn.createStatement()) {
-                setStmt.execute("SET search_path = \"" + targetSchema + "\"");
+                setStmt.execute("SET search_path = \"" + targetSchema + "\", public");
               }
 
               try (Statement queryStmt = conn.createStatement()) {
@@ -132,7 +132,7 @@ public class SqlAnalyticsService {
               try {
                 conn.setReadOnly(originalReadOnly);
                 try (Statement resetStmt = conn.createStatement()) {
-                  resetStmt.execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\"");
+                  resetStmt.execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
                 }
               } catch (Exception e) {
                 log.warn(

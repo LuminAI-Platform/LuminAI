@@ -29,6 +29,13 @@ public class MlModelService {
 
   public MlModelService(
       MlModelRepository mlModelRepository,
+      DataEngineClient dataEngineClient,
+      ObjectMapper objectMapper) {
+    this(mlModelRepository, dataEngineClient, objectMapper, null, null);
+  }
+
+  public MlModelService(
+      MlModelRepository mlModelRepository,
       @Autowired(required = false) DataEngineClient dataEngineClient,
       ObjectMapper objectMapper,
       @Autowired(required = false)

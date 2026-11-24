@@ -47,6 +47,10 @@ public class DataEngineController {
     return ResponseEntity.ok(dataEngineClient.checkHealth());
   }
 
+  public ResponseEntity<Map<String, Object>> getMetrics() {
+    return getMetrics("7d", null);
+  }
+
   @Operation(
       summary = "Get Data Engine Metrics",
       description =

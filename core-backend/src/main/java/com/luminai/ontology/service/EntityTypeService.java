@@ -36,6 +36,13 @@ public class EntityTypeService {
     this(repository, claimsExtractor, null, null);
   }
 
+  public EntityTypeService(
+      EntityTypeRepository repository,
+      JwtClaimsExtractor claimsExtractor,
+      Neo4jGraphRepository neo4jGraphRepository) {
+    this(repository, claimsExtractor, neo4jGraphRepository, null);
+  }
+
   @Autowired
   public EntityTypeService(
       EntityTypeRepository repository,

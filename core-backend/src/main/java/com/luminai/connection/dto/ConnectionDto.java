@@ -27,7 +27,12 @@ public final class ConnectionDto {
       String host,
       Integer port,
       String database,
-      String username) {}
+      String username) {
+
+    public CreateRequest(String name, Connection.Type type, String config, String credentialsRef) {
+      this(name, type, config, credentialsRef, null, null, null, null, null);
+    }
+  }
 
   /** Request body for updating an existing connection. */
   public record UpdateRequest(

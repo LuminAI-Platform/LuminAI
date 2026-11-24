@@ -61,7 +61,7 @@ public class TenantResolutionService {
   @Cacheable(
       value = CacheConfig.CACHE_TENANT_RESOLUTION,
       key = "#keycloakId",
-      unless = "#result == null || !#result.isPresent()")
+      unless = "#result == null")
   @Transactional(readOnly = true)
   public Optional<ResolvedTenant> resolveForKeycloakUser(String keycloakId) {
     if (!StringUtils.hasText(keycloakId)) {

@@ -72,6 +72,9 @@ public class DashboardController {
       @Parameter(description = "Optional connection ID to filter telemetry")
           @RequestParam(required = false)
           java.util.UUID connectionId) {
-    return ResponseEntity.ok(dashboardService.getTimeSeries(range, connectionId));
+    if (connectionId != null) {
+      return ResponseEntity.ok(dashboardService.getTimeSeries(range, connectionId));
+    }
+    return ResponseEntity.ok(dashboardService.getTimeSeries(range));
   }
 }
