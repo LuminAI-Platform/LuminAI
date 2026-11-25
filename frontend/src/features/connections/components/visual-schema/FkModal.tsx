@@ -1,10 +1,9 @@
 import React from "react";
-import { BodyPortal } from "../../../../components/ui/BodyPortal";
-import {
-  type SourceColumn,
-  type ForeignKeyDefinition,
-} from "./visualSchemaTypes";
+import { Dialog } from "../../../../components/ui/Dialog";
+import { Button } from "../../../../components/ui/Button";
 import { Select } from "../../../../components/ui/dropdown";
+import { Icons, ICON_SIZES } from "../../../../lib/icons";
+import type { SourceColumn, ForeignKeyDefinition } from "./visualSchemaTypes";
 
 interface FkModalProps {
   activeCol: SourceColumn;
@@ -48,200 +47,168 @@ export const FkModal: React.FC<FkModalProps> = ({
   onRemove,
 }) => {
   return (
-    <BodyPortal>
-      <div
-        id="fk-modal-backdrop"
-        className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150"
-      >
-        <div
-          id="fk-modal-container"
-          className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 w-full max-w-md shadow-2xl space-y-4"
-        >
-          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-300">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-xs font-semibold text-zinc-100">
-                  Target Relationship Link (Foreign Key)
-                </h3>
-                <p className="text-[10px] text-zinc-400">
-                  Define cross-entity graph link for column{" "}
-                  <span className="font-mono text-purple-300 font-bold">
-                    {activeCol.name}
-                  </span>
-                </p>
-              </div>
-            </div>
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      variant="form"
+      title="Target relationship link"
+      description={
+        <>
+          Define cross-entity graph link for column{" "}
+          <span className="font-mono font-semibold text-primary">
+            {activeCol.name}
+          </span>
+        </>
+      }
+      icon={
+        <div className="w-9 h-9 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-primary shrink-0">
+          <Icons.KnowledgeGraph size={ICON_SIZES.card} aria-hidden="true" />
+        </div>
+      }
+      footerStart={
+        foreignKeys[activeCol.id] ? (
+          <Button
+            id="fk-modal-remove-btn"
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={() => onRemove(activeCol.id)}
+          >
+            Remove link
+          </Button>
+        ) : undefined
+      }
+      footer={
+        <>
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            id="fk-modal-apply-btn"
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={onSave}
+          >
+            Apply relationship link
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="fk-target-entity-select"
+            className="text-xs font-medium text-text"
+          >
+            Target entity type
+          </label>
+          <Select
+            id="fk-target-entity-select"
+            value={isCustomEntity ? "CUSTOM" : fkTargetEntity}
+            onChange={(val) => {
+              if (val === "CUSTOM") {
+                setIsCustomEntity(true);
+              } else {
+                setIsCustomEntity(false);
+                setFkTargetEntity(val);
+              }
+            }}
+            options={[
+              ...availableEntities.map((ent) => ({ value: ent, label: ent })),
+              { value: "CUSTOM", label: "+ Custom Entity Type…" },
+            ]}
+            ariaLabel="Target entity type"
+            size="sm"
+          />
+          {isCustomEntity && (
+            <input
+              id="fk-custom-entity-input"
+              type="text"
+              placeholder="e.g. Vendor, Merchant, Organization"
+              value={fkTargetEntity}
+              onChange={(e) => setFkTargetEntity(e.target.value)}
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-text focus:outline-none focus:border-border-focus"
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="fk-relation-type-select"
+            className="text-xs font-medium text-text"
+          >
+            Relationship edge type
+          </label>
+          <Select
+            id="fk-relation-type-select"
+            value={isCustomRel ? "CUSTOM" : fkRelType}
+            onChange={(val) => {
+              if (val === "CUSTOM") {
+                setIsCustomRel(true);
+              } else {
+                setIsCustomRel(false);
+                setFkRelType(val);
+              }
+            }}
+            options={[
+              ...availableRelationshipTypes.map((rel) => ({
+                value: rel,
+                label: rel,
+              })),
+              { value: "CUSTOM", label: "+ Custom Relationship…" },
+            ]}
+            ariaLabel="Relationship edge type"
+            size="sm"
+          />
+          {isCustomRel && (
+            <input
+              id="fk-custom-relation-input"
+              type="text"
+              placeholder="e.g. PURCHASED_BY, ISSUED_TO"
+              value={fkRelType}
+              onChange={(e) =>
+                setFkRelType(e.target.value.toUpperCase().replace(/\s+/g, "_"))
+              }
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-text font-mono uppercase focus:outline-none focus:border-border-focus"
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-text">
+            Graph traversal direction
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={onClose}
-              className="text-zinc-500 hover:text-zinc-300 text-sm cursor-pointer p-1"
+              id="fk-direction-outgoing"
+              onClick={() => setFkDirection("OUTGOING")}
+              className={`px-3 py-2 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                fkDirection === "OUTGOING"
+                  ? "bg-primary-tint border-primary text-primary"
+                  : "bg-surface border-border text-text-secondary hover:bg-surface-hover"
+              }`}
             >
-              ✕
+              Outgoing ({targetEntity} → {fkTargetEntity})
             </button>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-medium text-zinc-300 mb-1">
-                Target Entity Type
-              </label>
-              <div className="space-y-1.5">
-                <Select
-                  id="fk-target-entity-select"
-                  value={isCustomEntity ? "CUSTOM" : fkTargetEntity}
-                  onChange={(val) => {
-                    if (val === "CUSTOM") {
-                      setIsCustomEntity(true);
-                    } else {
-                      setIsCustomEntity(false);
-                      setFkTargetEntity(val);
-                    }
-                  }}
-                  options={[
-                    ...availableEntities.map((ent) => ({
-                      value: ent,
-                      label: ent,
-                    })),
-                    { value: "CUSTOM", label: "+ Custom Entity Type…" },
-                  ]}
-                  ariaLabel="Target Entity Type"
-                  size="sm"
-                />
-                {isCustomEntity && (
-                  <input
-                    id="fk-custom-entity-input"
-                    type="text"
-                    placeholder="e.g. Vendor, Merchant, Organization"
-                    value={fkTargetEntity}
-                    onChange={(e) => setFkTargetEntity(e.target.value)}
-                    className="w-full bg-zinc-950 border border-purple-500/50 rounded-lg px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-zinc-300 mb-1">
-                Relationship Edge Type (Neo4j Cypher Label)
-              </label>
-              <div className="space-y-1.5">
-                <Select
-                  id="fk-relation-type-select"
-                  value={isCustomRel ? "CUSTOM" : fkRelType}
-                  onChange={(val) => {
-                    if (val === "CUSTOM") {
-                      setIsCustomRel(true);
-                    } else {
-                      setIsCustomRel(false);
-                      setFkRelType(val);
-                    }
-                  }}
-                  options={[
-                    ...availableRelationshipTypes.map((rel) => ({
-                      value: rel,
-                      label: rel,
-                    })),
-                    { value: "CUSTOM", label: "+ Custom Relationship…" },
-                  ]}
-                  ariaLabel="Relationship Edge Type"
-                  size="sm"
-                />
-                {isCustomRel && (
-                  <input
-                    id="fk-custom-relation-input"
-                    type="text"
-                    placeholder="e.g. PURCHASED_BY, ISSUED_TO"
-                    value={fkRelType}
-                    onChange={(e) =>
-                      setFkRelType(
-                        e.target.value.toUpperCase().replace(/\s+/g, "_"),
-                      )
-                    }
-                    className="w-full bg-zinc-950 border border-purple-500/50 rounded-lg px-3 py-1.5 text-xs text-zinc-200 font-mono uppercase focus:outline-none focus:border-purple-500"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-zinc-300 mb-1">
-                Graph Traversal Direction
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  id="fk-direction-outgoing"
-                  onClick={() => setFkDirection("OUTGOING")}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
-                    fkDirection === "OUTGOING"
-                      ? "bg-purple-600/30 border-purple-500 text-purple-200 shadow-xs"
-                      : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
-                  }`}
-                >
-                  Outgoing ({targetEntity} → {fkTargetEntity})
-                </button>
-                <button
-                  type="button"
-                  id="fk-direction-incoming"
-                  onClick={() => setFkDirection("INCOMING")}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
-                    fkDirection === "INCOMING"
-                      ? "bg-purple-600/30 border-purple-500 text-purple-200 shadow-xs"
-                      : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
-                  }`}
-                >
-                  Incoming ({fkTargetEntity} → {targetEntity})
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
-            {foreignKeys[activeCol.id] ? (
-              <button
-                type="button"
-                id="fk-modal-remove-btn"
-                onClick={() => onRemove(activeCol.id)}
-                className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer font-medium"
-              >
-                Remove Link
-              </button>
-            ) : (
-              <div />
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-3 py-1.5 text-xs rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                id="fk-modal-apply-btn"
-                onClick={onSave}
-                className="px-4 py-1.5 text-xs font-medium rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/20 cursor-pointer transition-all"
-              >
-                Apply Relationship Link
-              </button>
-            </div>
+            <button
+              type="button"
+              id="fk-direction-incoming"
+              onClick={() => setFkDirection("INCOMING")}
+              className={`px-3 py-2 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                fkDirection === "INCOMING"
+                  ? "bg-primary-tint border-primary text-primary"
+                  : "bg-surface border-border text-text-secondary hover:bg-surface-hover"
+              }`}
+            >
+              Incoming ({fkTargetEntity} → {targetEntity})
+            </button>
           </div>
         </div>
       </div>
-    </BodyPortal>
+    </Dialog>
   );
 };

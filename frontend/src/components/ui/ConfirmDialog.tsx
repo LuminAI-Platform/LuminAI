@@ -1,7 +1,7 @@
-import React from "react";
-import { Modal } from "./Modal";
+import React, { useRef } from "react";
+import { Dialog } from "./Dialog";
 import { Button } from "./Button";
-import { ICON_MAP, ICON_SIZES } from "../../lib/icons";
+import { Icons, ICON_SIZES } from "../../lib/icons";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -12,6 +12,7 @@ export interface ConfirmDialogProps {
   cancelText?: string;
   isDestructive?: boolean;
   isLoading?: boolean;
+  errorMessage?: string | null;
   onConfirm: () => void;
 }
 
@@ -24,42 +25,44 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   cancelText = "Cancel",
   isDestructive = true,
   isLoading = false,
+  errorMessage,
   onConfirm,
 }) => {
-  return (
-    <Modal open={open} onOpenChange={onOpenChange} maxWidth="sm">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              isDestructive
-                ? "bg-error-bg text-error border border-error-border"
-                : "bg-primary-tint text-primary border border-primary-border"
-            }`}
-          >
-            {isDestructive ? (
-              <ICON_MAP.status.failed
-                size={ICON_SIZES.header}
-                aria-hidden="true"
-              />
-            ) : (
-              <ICON_MAP.status.completedWithIssues
-                size={ICON_SIZES.header}
-                aria-hidden="true"
-              />
-            )}
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-text">{title}</h4>
-            <p className="text-xs text-text-secondary mt-1 leading-normal">
-              {description}
-            </p>
-          </div>
-        </div>
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
-        <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-border">
+  const iconCircle = (
+    <div
+      className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border ${
+        isDestructive
+          ? "bg-error-bg text-error border-error-border"
+          : "bg-surface-subtle text-text-secondary border-border"
+      }`}
+    >
+      {isDestructive ? (
+        <Icons.Trash2 size={ICON_SIZES.card} aria-hidden="true" />
+      ) : (
+        <Icons.Info size={ICON_SIZES.card} aria-hidden="true" />
+      )}
+    </div>
+  );
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      variant={isDestructive ? "destructive" : "confirm"}
+      title={title}
+      description={description}
+      icon={iconCircle}
+      preventClose={isLoading}
+      initialFocusRef={isDestructive ? cancelBtnRef : undefined}
+      statusMessage={isLoading ? `${confirmText}...` : undefined}
+      footer={
+        <>
           <Button
-            variant="ghost"
+            ref={cancelBtnRef}
+            type="button"
+            variant="secondary"
             size="sm"
             disabled={isLoading}
             onClick={() => onOpenChange(false)}
@@ -67,15 +70,26 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             {cancelText}
           </Button>
           <Button
-            variant={isDestructive ? "danger" : "primary"}
+            type="button"
+            variant={isDestructive ? "destructive" : "primary"}
             size="sm"
             isLoading={isLoading}
+            disabled={isLoading}
             onClick={onConfirm}
           >
             {confirmText}
           </Button>
+        </>
+      }
+    >
+      {errorMessage ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-error-border bg-error-bg px-3 py-2.5 text-xs text-error"
+        >
+          {errorMessage}
         </div>
-      </div>
-    </Modal>
+      ) : null}
+    </Dialog>
   );
 };

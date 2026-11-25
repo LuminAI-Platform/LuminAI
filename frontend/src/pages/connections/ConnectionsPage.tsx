@@ -99,11 +99,7 @@ export const ConnectionsPage: React.FC = () => {
   })();
 
   const handleRequestDelete = (source: UnifiedSource) => {
-    setDeleteTarget({
-      id: source.id,
-      name: source.name,
-      type: source.category === "database" ? "connection" : "file",
-    });
+    setDeleteTarget(source);
   };
 
   const statusSummaryText = `${
