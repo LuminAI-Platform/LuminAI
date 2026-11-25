@@ -35,8 +35,9 @@ public class DataEngineClient {
     this.baseUrl = baseUrl;
     org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory =
         new org.springframework.http.client.SimpleClientHttpRequestFactory();
-    requestFactory.setConnectTimeout(java.time.Duration.ofMillis(3000));
-    requestFactory.setReadTimeout(java.time.Duration.ofMillis(3000));
+    requestFactory.setConnectTimeout(java.time.Duration.ofMillis(5000));
+    requestFactory.setReadTimeout(
+        java.time.Duration.ofMillis(120000)); // 120s — allows full dataset cleaning pipeline
 
     RestClient.Builder builder = restClientBuilder.baseUrl(baseUrl).requestFactory(requestFactory);
     if (apiKey != null && !apiKey.isBlank()) {
