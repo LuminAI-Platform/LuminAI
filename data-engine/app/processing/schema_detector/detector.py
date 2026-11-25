@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import polars as pl
 
+from app.processing.engine.dataframe_utils import parse_csv_bytes_with_fallback
+from app.processing.engine.type_inference import NULL_SENTINELS
 from app.processing.schema_detector.models import (
     MAX_NULL_PERCENTAGE_THRESHOLD,
     ColumnType,
@@ -56,6 +58,20 @@ class SchemaDetector:
             dist["null"] = 100.0
             return ColumnType.STRING, dist
 
+        # Disambiguate binary digits (0/1) vs true booleans using column-wide context:
+        # if non-binary numeric values exist or all non-nulls are raw int/float (never bool),
+        # treat 0/1 as NUMBER instead of splitting votes into STRING.
+        has_non_binary_number = any(
+            self._try_parse_number(v)
+            and str(v).strip().lower() not in ("0", "1", "0.0", "1.0")
+            for v in non_null_values
+        )
+        all_raw_numbers = all(
+            isinstance(v, (int, float)) and not isinstance(v, bool)
+            for v in non_null_values
+        )
+        allow_binary_digits = not has_non_binary_number and not all_raw_numbers
+
         # Count occurrences of each category
         counts = {
             ColumnType.BOOLEAN: 0,
@@ -68,7 +84,7 @@ class SchemaDetector:
 
         for v in non_null_values:
             # Check high-specificity patterns first
-            if self._try_parse_boolean(v):
+            if self._try_parse_boolean(v, allow_binary_digits=allow_binary_digits):
                 counts[ColumnType.BOOLEAN] += 1
             elif self._try_parse_email(v):
                 counts[ColumnType.EMAIL] += 1
@@ -189,17 +205,32 @@ class SchemaDetector:
             sample_series = df[col_name].head(5000)
             raw_values = sample_series.to_list()
 
-            # Null count across whole dataframe
-            is_str_col = df.schema[col_name] in (pl.Utf8, pl.String)
-            if is_str_col:
-                null_count = df.select(
-                    (
-                        pl.col(col_name).is_null()
-                        | (pl.col(col_name).str.strip_chars() == "")
-                    ).sum()
-                ).item()
+            # Null & null-sentinel count across whole dataframe
+            col_dtype = df.schema[col_name]
+            if col_dtype in (pl.Utf8, pl.String):
+                null_count = int(
+                    df.select(
+                        (
+                            pl.col(col_name).is_null()
+                            | pl.col(col_name)
+                            .str.strip_chars()
+                            .str.to_lowercase()
+                            .is_in(list(NULL_SENTINELS))
+                        ).sum()
+                    ).item()
+                )
+            elif col_dtype.is_float():
+                null_count = int(
+                    df.select(
+                        (pl.col(col_name).is_null() | pl.col(col_name).is_nan()).sum()
+                    ).item()
+                )
+            elif col_dtype == pl.Object:
+                null_count = sum(
+                    1 for v in df[col_name].to_list() if self._is_null_or_empty(v)
+                )
             else:
-                null_count = df.select(pl.col(col_name).is_null().sum()).item()
+                null_count = int(df.select(pl.col(col_name).is_null().sum()).item())
 
             null_pct = round((null_count / total_rows) * 100.0, 2)
 
@@ -295,16 +326,13 @@ class SchemaDetector:
         """Parse raw file bytes (CSV, JSON, NDJSON, Parquet, or Excel) and validate schema."""
         ext = file_name.split(".")[-1].lower() if "." in file_name else "csv"
         bio = io.BytesIO(data)
+        parse_warnings: List[str] = []
 
         try:
             if ext in ("csv", "txt", "tsv"):
                 separator = "\t" if ext == "tsv" else ","
-                df = pl.read_csv(
-                    bio,
-                    separator=separator,
-                    infer_schema_length=5000,
-                    ignore_errors=True,
-                    truncate_ragged_lines=True,
+                df, parse_warnings = parse_csv_bytes_with_fallback(
+                    data, separator=separator, infer_schema_length=5000
                 )
             elif ext in ("json", "ndjson", "jsonl"):
                 try:
@@ -318,7 +346,9 @@ class SchemaDetector:
                 df = pl.read_excel(bio)
             else:
                 # Default CSV fallback
-                df = pl.read_csv(bio, ignore_errors=True, infer_schema_length=5000)
+                df, parse_warnings = parse_csv_bytes_with_fallback(
+                    data, separator=",", infer_schema_length=5000
+                )
         except Exception as exc:
             return PreflightValidationReport(
                 is_valid=False,
@@ -329,7 +359,9 @@ class SchemaDetector:
                 error_message=f"Failed to parse file '{file_name}': {str(exc)}",
             )
 
-        return self.validate_dataframe(df, max_null_pct=max_null_pct)
+        report = self.validate_dataframe(df, max_null_pct=max_null_pct)
+        report.warnings.extend(parse_warnings)
+        return report
 
 
 # Singleton factory helper

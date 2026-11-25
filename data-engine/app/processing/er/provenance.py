@@ -38,10 +38,23 @@ def track_field_provenance(
     golden_id = str(golden_record.get("golden_id", ""))
     exclude_keys = {
         "golden_id",
+        "id",
         "tenant_id",
+        "version",
         "cluster_size",
+        "source_count",
         "source_record_ids",
+        "entity_type",
+        "canonical_name",
+        "quality_state",
+        "quality_score",
+        "confidence_score",
+        "conflicts",
+        "_conflicts",
+        "_provenance",
+        "_field_provenance",
         "created_at",
+        "updated_at",
     }
 
     resolved_tenant_id = tenant_id
@@ -202,9 +215,10 @@ def persist_provenance_records(
                     prop_name = str(
                         r.get("property_name") or r.get("attribute_name") or "unknown"
                     )
-                    val = str(
-                        r.get("contributed_value") or r.get("attribute_value") or ""
-                    )
+                    raw_contrib = r.get("contributed_value")
+                    if raw_contrib is None:
+                        raw_contrib = r.get("attribute_value")
+                    val = "" if raw_contrib is None else str(raw_contrib)
 
                     params.append(
                         {

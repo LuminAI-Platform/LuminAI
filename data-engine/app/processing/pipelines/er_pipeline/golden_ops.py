@@ -92,6 +92,20 @@ def synthesize_and_persist_golden_records(
         all_provenance_entries: List[Dict[str, Any]] = []
         producer = EntityResolvedProducer()
 
+        # Index Golden Records once by source_record_id -> O(1) lookup per cluster instead of O(C * G)
+        golden_dicts = golden_records_df.to_dicts()
+        gr_by_source_id: Dict[str, Dict[str, Any]] = {}
+        for gr in golden_dicts:
+            s_ids = gr.get("source_record_ids") or []
+            if isinstance(s_ids, str):
+                try:
+                    import json as _json
+                    s_ids = _json.loads(s_ids)
+                except Exception:
+                    s_ids = []
+            for sid in s_ids:
+                gr_by_source_id[str(sid)] = gr
+
         for cluster in clusters:
             cluster_records = cluster
             if not cluster_records:
@@ -99,12 +113,9 @@ def synthesize_and_persist_golden_records(
 
             golden_rec = next(
                 (
-                    gr
-                    for gr in golden_records_df.to_dicts()
-                    if any(
-                        str(r.get("id")) in gr.get("source_record_ids", [])
-                        for r in cluster_records
-                    )
+                    gr_by_source_id[str(r.get("id"))]
+                    for r in cluster_records
+                    if str(r.get("id")) in gr_by_source_id
                 ),
                 None,
             )

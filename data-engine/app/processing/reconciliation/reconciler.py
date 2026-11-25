@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import text
 
 from app.config import get_settings
+from app.db.tenant import (
+    reset_pg_search_path,
+    resolve_table_schema,
+    resolve_tenant_pg_context,
+    set_pg_search_path,
+)
 from app.processing.reconciliation.hashing import (
     compute_record_hash,
     compute_store_aggregate_checksum,
@@ -53,25 +59,61 @@ class CrossStoreReconciler:
         try:
             engine = get_engine()
             with engine.connect() as conn:
-                result = conn.execute(query, {"tenant_id": self.tenant_id})
-                for row in result:
-                    gid = str(row.golden_id)
-                    attrs_raw = row.attributes
-                    attrs = (
-                        json.loads(attrs_raw)
-                        if isinstance(attrs_raw, str)
-                        else (attrs_raw or {})
-                    )
-                    rec_hash = compute_record_hash(attrs)
-                    records.append(
-                        StoreEntityRecord(
-                            entity_id=gid,
-                            tenant_id=self.tenant_id,
-                            entity_type=self.entity_type,
-                            attributes_hash=rec_hash,
-                            raw_data=attrs,
+                tenant_ctx = resolve_tenant_pg_context(conn, self.tenant_id)
+                found_schema, cols = resolve_table_schema(
+                    conn,
+                    "golden_records",
+                    preferred_schemas=[tenant_ctx["schema_name"], "tenant_default", "public"],
+                )
+                is_flyway = "canonical_name" in cols
+                set_pg_search_path(conn, found_schema)
+                try:
+                    if is_flyway:
+                        pg_query = text(
+                            """
+                            SELECT id::text AS golden_id, tenant_id::text AS tenant_id, properties AS attributes
+                            FROM golden_records
+                            WHERE tenant_id::text IN (:t_raw, :t_slug, :t_uuid)
+                            ORDER BY id ASC
+                            """
                         )
+                    else:
+                        pg_query = text(
+                            """
+                            SELECT golden_id, tenant_id, attributes
+                            FROM golden_records
+                            WHERE tenant_id::text IN (:t_raw, :t_slug, :t_uuid)
+                            ORDER BY golden_id ASC
+                            """
+                        )
+                    result = conn.execute(
+                        pg_query,
+                        {
+                            "t_raw": tenant_ctx["tenant_raw"],
+                            "t_slug": tenant_ctx["tenant_slug"],
+                            "t_uuid": tenant_ctx["tenant_uuid"],
+                        },
                     )
+                    for row in result:
+                        gid = str(row.golden_id)
+                        attrs_raw = row.attributes
+                        attrs = (
+                            json.loads(attrs_raw)
+                            if isinstance(attrs_raw, str)
+                            else (attrs_raw or {})
+                        )
+                        rec_hash = compute_record_hash(attrs)
+                        records.append(
+                            StoreEntityRecord(
+                                entity_id=gid,
+                                tenant_id=self.tenant_id,
+                                entity_type=self.entity_type,
+                                attributes_hash=rec_hash,
+                                raw_data=attrs,
+                            )
+                        )
+                finally:
+                    reset_pg_search_path(conn)
             logger.info(
                 "Fetched %d records from PostgreSQL for tenant %s",
                 len(records),

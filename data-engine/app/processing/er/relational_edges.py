@@ -16,7 +16,14 @@ from typing import Any, Optional, Union
 
 from sqlalchemy import text
 
-from app.db.session import get_session_factory
+from app.db.tenant import (
+    is_postgres_conn,
+    reset_pg_search_path,
+    resolve_table_schema,
+    resolve_tenant_pg_context,
+    set_pg_search_path,
+    to_uuid_str,
+)
 from app.kafka.producers import EntityResolvedProducer
 
 logger = logging.getLogger(__name__)
@@ -291,39 +298,52 @@ def persist_relational_edges(
         return persisted_count
 
     try:
-        session_factory = get_session_factory()
-        with session_factory() as s:
-            s.execute(create_sql)
-            for edge in edges:
-                s.execute(
-                    insert_sql,
-                    {
-                        "id": edge["id"],
-                        "tenant_id": edge["tenant_id"],
-                        "relationship_type": edge["relationship_type"],
-                        "source_entity_id": edge["source_entity_id"],
-                        "target_entity_id": edge["target_entity_id"],
-                        "properties": edge.get("properties", "{}"),
-                        "confidence": float(edge.get("confidence", 1.0)),
-                        "created_at": datetime.now(timezone.utc),
-                    },
-                )
-                persisted_count += 1
-            s.commit()
-    except Exception as exc:
-        logger.warning(
-            "Primary DB persistence failed (%s); writing to local SQLite fallback",
-            exc,
-        )
-        try:
-            from app.db.session import get_sqlite_engine
+        from app.db.session import get_engine
 
-            engine = get_sqlite_engine("sqlite_fallback.db")
-            with engine.begin() as conn:
-                conn.execute(create_sql)
-                for edge in edges:
-                    conn.execute(
-                        insert_sql,
+        engine = get_engine()
+        with engine.begin() as s:
+            tenant_ctx = resolve_tenant_pg_context(s, tenant_id)
+            found_schema, cols = resolve_table_schema(
+                s,
+                "relationships",
+                preferred_schemas=[tenant_ctx["schema_name"], "tenant_default", "public"],
+            )
+            set_pg_search_path(s, found_schema or tenant_ctx["schema_name"])
+            try:
+                if is_postgres_conn(s) and cols:
+                    # Existing PostgreSQL table (may be Flyway V2 UUID-typed columns)
+                    pg_insert = text("""
+                        INSERT INTO relationships (
+                            id, tenant_id, relationship_type, source_entity_id, target_entity_id,
+                            properties, confidence, created_at
+                        ) VALUES (
+                            :id, :tenant_id, :relationship_type, :source_entity_id, :target_entity_id,
+                            :properties, :confidence, :created_at
+                        )
+                        ON CONFLICT (id) DO UPDATE SET
+                            properties = EXCLUDED.properties,
+                            confidence = EXCLUDED.confidence
+                    """)
+                    now_ts = datetime.now(timezone.utc)
+                    params = [
+                        {
+                            "id": to_uuid_str(edge["id"]),
+                            "tenant_id": tenant_ctx["tenant_uuid"],
+                            "relationship_type": edge["relationship_type"],
+                            "source_entity_id": to_uuid_str(edge["source_entity_id"]),
+                            "target_entity_id": to_uuid_str(edge["target_entity_id"]),
+                            "properties": edge.get("properties", "{}"),
+                            "confidence": float(edge.get("confidence", 1.0)),
+                            "created_at": now_ts,
+                        }
+                        for edge in edges
+                    ]
+                    s.execute(pg_insert, params)
+                    persisted_count = len(params)
+                else:
+                    s.execute(create_sql)
+                    now_ts = datetime.now(timezone.utc)
+                    params = [
                         {
                             "id": edge["id"],
                             "tenant_id": edge["tenant_id"],
@@ -332,10 +352,43 @@ def persist_relational_edges(
                             "target_entity_id": edge["target_entity_id"],
                             "properties": edge.get("properties", "{}"),
                             "confidence": float(edge.get("confidence", 1.0)),
-                            "created_at": datetime.now(timezone.utc),
-                        },
-                    )
-                    persisted_count += 1
+                            "created_at": now_ts,
+                        }
+                        for edge in edges
+                    ]
+                    s.execute(insert_sql, params)
+                    persisted_count = len(params)
+            finally:
+                reset_pg_search_path(s)
+    except Exception as exc:
+        logger.warning(
+            "Primary DB persistence failed (%s); writing to local SQLite er_staging fallback",
+            exc,
+        )
+        try:
+            import os
+            from app.db.session import get_sqlite_engine
+
+            sqlite_path = os.path.join("storage", "sqlite", "er_staging.db")
+            engine = get_sqlite_engine(sqlite_path)
+            with engine.begin() as conn:
+                conn.execute(create_sql)
+                now_ts = datetime.now(timezone.utc)
+                params = [
+                    {
+                        "id": edge["id"],
+                        "tenant_id": edge["tenant_id"],
+                        "relationship_type": edge["relationship_type"],
+                        "source_entity_id": edge["source_entity_id"],
+                        "target_entity_id": edge["target_entity_id"],
+                        "properties": edge.get("properties", "{}"),
+                        "confidence": float(edge.get("confidence", 1.0)),
+                        "created_at": now_ts,
+                    }
+                    for edge in edges
+                ]
+                conn.execute(insert_sql, params)
+                persisted_count = len(params)
         except Exception as sqlite_exc:
             logger.error("SQLite fallback edge persistence also failed: %s", sqlite_exc)
 

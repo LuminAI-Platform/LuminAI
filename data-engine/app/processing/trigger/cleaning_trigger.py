@@ -61,12 +61,20 @@ def execute_cleaning_pipeline(
         or batch_metadata.get("bucket_name")
     )
 
+    entity_type = (
+        batch_metadata.get("entity_type")
+        or batch_metadata.get("entityType")
+        or batch_metadata.get("targetEntityType")
+    )
+
     tags: dict[str, str] = {
         "tenant_id": str(tenant_id),
         "source_id": str(source_id),
         "trigger": "kafka_batch_complete",
         "luminai_run_id": str(active_run_id),
     }
+    if entity_type:
+        tags["entity_type"] = str(entity_type)
     if object_key:
         tags["object_key"] = str(object_key)
     if bucket:

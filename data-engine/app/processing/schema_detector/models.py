@@ -81,6 +81,7 @@ class PreflightValidationReport:
     error_message: Optional[str] = None
     suggested_entity_type: Optional[str] = None
     entity_confidence: float = 0.0
+    warnings: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)

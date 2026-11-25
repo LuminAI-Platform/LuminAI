@@ -121,8 +121,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     PIPELINE_PATH_PREFIXES = (
         "/process/trigger",
+        "/process/clean",
         "/process/er/trigger",
+        "/process/resolve",
         "/process/reconciliation",
+        "/process/dataset/clean",
+        "/analytics/ml/train",
+        "/analytics/sql/execute",
+        "/analytics/pipelines/execute",
+        "/analytics/eda/report",
+        "/analytics/cleaning/execute",
     )
 
     def __init__(self, app: Any, limiter: SlidingWindowRateLimiter | None = None):
@@ -150,14 +158,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        # 4. Resolve client identifier (Tenant ID > X-Forwarded-For > Client IP)
+        # 4. Resolve client identifier safely (never trust spoofable headers in protected/prod mode)
         client_ip = request.client.host if request.client else "unknown"
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
+        if getattr(settings, "trust_proxy_headers", False):
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                client_ip = forwarded.split(",")[0].strip()
 
-        tenant_id = request.headers.get("X-Tenant-ID")
-        client_key = f"tenant:{tenant_id}" if tenant_id else f"ip:{client_ip}"
+        raw_tenant_header = request.headers.get("X-Tenant-ID")
+        api_key_hdr = request.headers.get("X-API-Key")
+        auth_hdr = request.headers.get("Authorization", "")
+        bearer_tok = auth_hdr[7:].strip() if auth_hdr.startswith("Bearer ") else ""
+        has_valid_api_key = bool(settings.api_key) and (
+            (api_key_hdr and api_key_hdr == settings.api_key)
+            or (bearer_tok and bearer_tok == settings.api_key)
+        )
+
+        if raw_tenant_header and (has_valid_api_key or (not settings.is_auth_enabled and not settings.is_production)):
+            client_key = f"tenant:{raw_tenant_header.strip()}"
+        else:
+            client_key = f"ip:{client_ip}"
 
         # 5. Determine rate tier based on path
         is_pipeline = any(

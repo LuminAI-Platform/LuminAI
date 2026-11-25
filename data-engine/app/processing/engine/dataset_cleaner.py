@@ -297,14 +297,36 @@ class DatasetCleaner:
             if len(raw_dob) >= 4:
                 blocks.setdefault(f"dob:{raw_dob[:10]}", []).append(idx)
 
-        # Build candidate pairs from inverted blocks
+        # Build candidate pairs from inverted blocks (sub-block / window large blocks instead of skipping)
         candidate_pairs_map: Dict[int, Set[int]] = {i: set() for i in range(len(records_data))}
+        max_exact_block = 200
+        sorted_window = 20
+
         for bkey, idx_list in blocks.items():
-            if 1 < len(idx_list) < 200:
+            if len(idx_list) <= 1:
+                continue
+            if len(idx_list) < max_exact_block:
                 for a_pos in range(len(idx_list)):
                     ia = idx_list[a_pos]
                     for b_pos in range(a_pos + 1, len(idx_list)):
                         ib = idx_list[b_pos]
+                        candidate_pairs_map[min(ia, ib)].add(max(ia, ib))
+            else:
+                # For large blocks (>= 200), compare sorted-neighborhood sliding windows so duplicates are never skipped
+                ordered = sorted(
+                    idx_list,
+                    key=lambda idx: (
+                        str(records_data[idx].get("email") or records_data[idx].get("contact_email") or "").strip().lower(),
+                        str(records_data[idx].get("name") or records_data[idx].get("full_name") or "").strip().lower(),
+                        str(records_data[idx].get("dob") or records_data[idx].get("date_of_birth") or "").strip(),
+                        idx,
+                    ),
+                )
+                for a_pos in range(len(ordered)):
+                    ia = ordered[a_pos]
+                    upper = min(len(ordered), a_pos + sorted_window + 1)
+                    for b_pos in range(a_pos + 1, upper):
+                        ib = ordered[b_pos]
                         candidate_pairs_map[min(ia, ib)].add(max(ia, ib))
 
         # Evaluate blocked candidate pairs

@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 import polars as pl
 from pydantic import BaseModel, Field
 
+from app.processing.engine.dataframe_utils import records_to_polars_df
 from app.processing.engine.pipeline_builder import (
     PipelineBuilderEngine,
     TransformationStep,
@@ -44,11 +45,11 @@ async def execute_pipeline(request: PipelineExecuteRequest) -> Dict[str, Any]:
         )
 
     try:
-        input_df = pl.DataFrame(request.records)
+        input_df = records_to_polars_df(request.records)
         sec_dfs: Dict[str, pl.DataFrame] = {}
         if request.secondary_datasets:
             for k, rows in request.secondary_datasets.items():
-                sec_dfs[k] = pl.DataFrame(rows)
+                sec_dfs[k] = records_to_polars_df(rows)
 
         steps = [
             TransformationStep(

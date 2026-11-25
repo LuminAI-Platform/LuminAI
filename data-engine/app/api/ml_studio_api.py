@@ -22,13 +22,21 @@ class TrainModelRequest(BaseModel):
     model_name: str = Field(..., description="Descriptive name for the model experiment.")
     dataset_name: str = Field(default="dataset", description="Name of the training dataset.")
     dataset_version: int = Field(default=1, description="Snapshot version of the dataset.")
-    target_column: str = Field(..., description="Target label or numeric column to predict.")
+    target_column: Optional[str] = Field(
+        default=None,
+        description="Target label or numeric column to predict (optional for CLUSTERING).",
+    )
     records: List[Dict[str, Any]] = Field(..., description="Training sample records.")
     feature_columns: Optional[List[str]] = Field(default=None, description="Feature columns to use.")
     algorithm: str = Field(default="Random Forest", description="Algorithm name.")
-    task_type: str = Field(default="CLASSIFICATION", description="CLASSIFICATION or REGRESSION.")
+    task_type: str = Field(default="CLASSIFICATION", description="CLASSIFICATION, REGRESSION, or CLUSTERING.")
     test_size: float = Field(default=0.2, description="Test split fraction.")
     hyperparameters: Optional[Dict[str, Any]] = Field(default=None, description="Algorithm hyperparameters.")
+
+
+class PredictModelRequest(BaseModel):
+    run_id: str = Field(..., description="Experiment run ID whose trained artifact will be used.")
+    records: List[Dict[str, Any]] = Field(..., description="Records to score.")
 
 
 class RegisterModelRequest(BaseModel):
@@ -41,7 +49,7 @@ class RegisterModelRequest(BaseModel):
 
 @router.post("/train", summary="Train and evaluate a machine learning model")
 async def train_model_endpoint(request: TrainModelRequest) -> Dict[str, Any]:
-    """Trains a model on dataset records, computes validation metrics, and logs the experiment."""
+    """Trains a model on dataset records, computes validation metrics, persists artifact, and logs the experiment."""
     try:
         outcome = MachineLearningEngine.train_and_evaluate(
             records=request.records,
@@ -51,7 +59,9 @@ async def train_model_endpoint(request: TrainModelRequest) -> Dict[str, Any]:
             task_type=request.task_type,
             test_size=request.test_size,
             hyperparameters=request.hyperparameters,
+            include_artifact=True,
         )
+        artifact = outcome.pop("_artifact", None)
 
         # Log into experiment tracker
         logged_run = ModelRegistryService.log_experiment(
@@ -62,15 +72,36 @@ async def train_model_endpoint(request: TrainModelRequest) -> Dict[str, Any]:
             dataset_name=request.dataset_name,
             dataset_version=request.dataset_version,
             features=[f["feature"] for f in outcome["feature_importances"]],
-            target_column=request.target_column,
+            target_column=request.target_column or "",
             metrics=outcome["metrics"],
             confusion_matrix=outcome.get("confusion_matrix"),
             feature_importances=outcome.get("feature_importances"),
             hyperparameters=request.hyperparameters,
         )
 
+        if artifact is not None:
+            outcome["artifact_path"] = ModelRegistryService.save_artifact(
+                logged_run.run_id, artifact
+            )
+
         outcome["run_id"] = logged_run.run_id
         return outcome
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post("/predict", summary="Score records using a trained ML model artifact")
+async def predict_model_endpoint(request: PredictModelRequest) -> Dict[str, Any]:
+    """Runs inference on new records using the persisted model & preprocessing pipeline."""
+    artifact = ModelRegistryService.load_artifact(request.run_id)
+    if artifact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model artifact for run '{request.run_id}' not found.",
+        )
+    try:
+        predictions = MachineLearningEngine.predict_from_artifact(artifact, request.records)
+        return {"run_id": request.run_id, "predictions": predictions, "count": len(predictions)}
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 

@@ -8,6 +8,8 @@ import os
 
 import polars as pl
 
+from app.processing.engine.dataframe_utils import parse_csv_bytes_with_fallback
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,13 +39,11 @@ def parse_raw_data_to_dataframe(
         df = pl.read_excel(bio)
     else:
         separator = "\t" if ext == ".tsv" else ","
-        df = pl.read_csv(
-            bio,
-            separator=separator,
-            infer_schema_length=10000,
-            ignore_errors=True,
-            truncate_ragged_lines=True,
+        df, csv_warnings = parse_csv_bytes_with_fallback(
+            data, separator=separator, infer_schema_length=10000
         )
+        for w in csv_warnings:
+            logger.warning("s3://%s/%s: %s", bucket, object_key, w)
 
     # Clean column names (strip whitespace)
     clean_cols = [c.strip() for c in df.columns]

@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, status
-import polars as pl
 from pydantic import BaseModel, Field
 
+from app.processing.engine.dataframe_utils import records_to_polars_df
 from app.processing.engine.profiler import DataProfiler
 from app.processing.engine.quality_framework import DataQualityFramework
 
@@ -35,7 +35,7 @@ async def profile_dataset_endpoint(request: ProfileDatasetRequest) -> Dict[str, 
         )
 
     try:
-        df = pl.DataFrame(request.records)
+        df = records_to_polars_df(request.records)
         profiler = DataProfiler()
         profile_report = profiler.profile_dataset(df)
 
@@ -62,7 +62,7 @@ async def preview_dataset_endpoint(request: PreviewDatasetRequest) -> Dict[str, 
         return {"columns": [], "rows": [], "total_rows": 0}
 
     try:
-        df = pl.DataFrame(request.records)
+        df = records_to_polars_df(request.records)
         preview_df = df.head(request.limit)
 
         columns = [{"name": col, "type": str(df.schema[col])} for col in df.columns]

@@ -9,11 +9,14 @@ Supports:
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import joblib
 
 
 @dataclass
@@ -60,16 +63,40 @@ class ModelRegistryService:
     _experiments: Dict[str, List[ExperimentRun]] = {}
     _registered_models: Dict[str, List[RegisteredModel]] = {}
 
+    @staticmethod
+    def _safe_id(raw_id: str) -> str:
+        cleaned = re.sub(r"[^a-zA-Z0-9._-]", "_", str(raw_id or "default")).strip("._")
+        return cleaned or "default"
+
+    @classmethod
+    def save_artifact(cls, run_id: str, artifact: Dict[str, Any]) -> str:
+        """Persist trained scikit-learn model and preprocessor bundle to disk."""
+        cls._storage_dir.mkdir(parents=True, exist_ok=True)
+        safe_run = cls._safe_id(run_id)
+        artifact_path = cls._storage_dir / f"{safe_run}.joblib"
+        joblib.dump(artifact, artifact_path)
+        return str(artifact_path)
+
+    @classmethod
+    def load_artifact(cls, run_id: str) -> Optional[Dict[str, Any]]:
+        """Load persisted model and preprocessor bundle by run ID."""
+        safe_run = cls._safe_id(run_id)
+        artifact_path = cls._storage_dir / f"{safe_run}.joblib"
+        if not artifact_path.exists():
+            return None
+        return joblib.load(artifact_path)
+
     @classmethod
     def _save_data(cls, tenant_id: str):
         try:
             cls._storage_dir.mkdir(parents=True, exist_ok=True)
-            exp_file = cls._storage_dir / f"experiments_{tenant_id}.json"
+            safe_tenant = cls._safe_id(tenant_id)
+            exp_file = cls._storage_dir / f"experiments_{safe_tenant}.json"
             runs = cls._experiments.get(tenant_id, [])
             with open(exp_file, "w", encoding="utf-8") as f:
                 json.dump([asdict(r) for r in runs], f, indent=2)
 
-            mod_file = cls._storage_dir / f"models_{tenant_id}.json"
+            mod_file = cls._storage_dir / f"models_{safe_tenant}.json"
             models = cls._registered_models.get(tenant_id, [])
             with open(mod_file, "w", encoding="utf-8") as f:
                 json.dump([asdict(m) for m in models], f, indent=2)
@@ -78,9 +105,10 @@ class ModelRegistryService:
 
     @classmethod
     def _ensure_loaded(cls, tenant_id: str):
+        safe_tenant = cls._safe_id(tenant_id)
         if tenant_id not in cls._experiments:
             cls._experiments[tenant_id] = []
-            exp_file = cls._storage_dir / f"experiments_{tenant_id}.json"
+            exp_file = cls._storage_dir / f"experiments_{safe_tenant}.json"
             if exp_file.exists():
                 try:
                     with open(exp_file, "r", encoding="utf-8") as f:
@@ -90,7 +118,7 @@ class ModelRegistryService:
                     pass
         if tenant_id not in cls._registered_models:
             cls._registered_models[tenant_id] = []
-            mod_file = cls._storage_dir / f"models_{tenant_id}.json"
+            mod_file = cls._storage_dir / f"models_{safe_tenant}.json"
             if mod_file.exists():
                 try:
                     with open(mod_file, "r", encoding="utf-8") as f:

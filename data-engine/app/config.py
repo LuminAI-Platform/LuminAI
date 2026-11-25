@@ -65,10 +65,11 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str | None = None
     otel_sample_rate: float = 1.0
 
-    # Rate Limiting Configuration
+    # Rate Limiting & Proxy Configuration
     rate_limit_enabled: bool = True
     rate_limit_default_per_minute: int = 120
     rate_limit_pipeline_per_minute: int = 30
+    trust_proxy_headers: bool = False
 
     # CORS Configuration
     cors_origins: list[str] | str = [

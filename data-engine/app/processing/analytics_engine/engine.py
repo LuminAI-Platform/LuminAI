@@ -326,6 +326,7 @@ class DuckDBAnalyticsEngine:
                     raise ValueError(f"Invalid column name '{c}' for export.")
 
         df = self.load_table_dataframe(table_name, tenant_id)
+        df = self._normalize_dataframe(df, table_name)
 
         if df.is_empty():
             return df

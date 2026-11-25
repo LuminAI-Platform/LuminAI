@@ -86,36 +86,127 @@ class CleaningEngine:
         step: CleaningStepConfig,
         preview_limit: int = 50,
     ) -> CleaningPreviewResult:
-        """Executes a single cleaning operation in-memory and returns visual before/after diffs."""
+        """Executes a single cleaning operation in-memory and returns accurate before/after diffs."""
         t0 = time.perf_counter()
         initial_h = df.height
-        initial_dicts = df.head(preview_limit).to_dicts()
-        q_before = self.quality_framework.assess_dataset(initial_dicts).dimension_scores.overall_score if initial_dicts else 100.0
+        all_before = df.to_dicts()
+        initial_sample = all_before[:preview_limit]
+        q_before = (
+            self.quality_framework.assess_dataset(initial_sample).dimension_scores.overall_score
+            if initial_sample
+            else 100.0
+        )
 
-        transformed_df, affected_count = self._apply_single_step(df, step)
+        op = step.operation.lower().strip()
+        row_id_col = "__luminai_preview_idx__"
+        is_row_removing_non_dedup = op == "remove_missing" or (
+            op == "handle_outliers" and str(step.parameters.get("action", "cap")).lower().strip() == "remove"
+        )
+
+        if is_row_removing_non_dedup and initial_h > 0:
+            indexed_df = df.with_row_index(row_id_col)
+            transformed_with_idx, affected_count = self._apply_single_step(indexed_df, step)
+            kept_indices = set(transformed_with_idx[row_id_col].to_list())
+            transformed_df = transformed_with_idx.drop(row_id_col)
+        else:
+            kept_indices = set()
+            transformed_df, affected_count = self._apply_single_step(df, step)
+
         post_h = transformed_df.height
         post_dicts = transformed_df.head(preview_limit).to_dicts()
-        q_after = self.quality_framework.assess_dataset(post_dicts).dimension_scores.overall_score if post_dicts else 100.0
+        q_after = (
+            self.quality_framework.assess_dataset(post_dicts).dimension_scores.overall_score
+            if post_dicts
+            else 100.0
+        )
 
-        # Build sample diffs
         diffs: List[OperationDiffSample] = []
         col = step.column
-        if col and col in df.columns and col in transformed_df.columns:
-            for idx, (orig_r, new_r) in enumerate(zip(initial_dicts, post_dicts)):
+        reason = step.description or f"Applied {step.operation}"
+
+        if is_row_removing_non_dedup:
+            target_cols = step.parameters.get("columns", [col] if col else []) if op == "remove_missing" else ([col] if col else [])
+            display_col = ", ".join(c for c in target_cols if c) or (df.columns[0] if df.columns else "row")
+            for idx, orig_r in enumerate(all_before):
+                if idx not in kept_indices:
+                    orig_val = orig_r.get(target_cols[0]) if len(target_cols) == 1 else {c: orig_r.get(c) for c in target_cols if c in orig_r}
+                    diffs.append(
+                        OperationDiffSample(
+                            row_index=idx,
+                            column=display_col,
+                            original_value=orig_val,
+                            proposed_value="<ROW_REMOVED>",
+                            reason=reason,
+                        )
+                    )
+                    if len(diffs) >= 10:
+                        break
+        elif op == "deduplicate":
+            subset = [c for c in (step.parameters.get("subset") or []) if c in df.columns]
+            keep_mode = str(step.parameters.get("keep", "first")).lower()
+            cols_to_key = subset or df.columns
+            seen_pos: Dict[tuple, int] = {}
+            dropped_rows: List[Tuple[int, Dict[str, Any]]] = []
+            for idx, orig_r in enumerate(all_before):
+                key = tuple(orig_r.get(c) for c in cols_to_key)
+                if key in seen_pos:
+                    if keep_mode == "last":
+                        dropped_rows.append((seen_pos[key], all_before[seen_pos[key]]))
+                        seen_pos[key] = idx
+                    else:
+                        dropped_rows.append((idx, orig_r))
+                else:
+                    seen_pos[key] = idx
+            display_col = ", ".join(subset) if subset else ", ".join(cols_to_key[:3])
+            for idx, d_row in dropped_rows[:10]:
+                orig_val = d_row.get(subset[0]) if len(subset) == 1 else {c: d_row.get(c) for c in (subset or cols_to_key[:3])}
+                diffs.append(
+                    OperationDiffSample(
+                        row_index=idx,
+                        column=display_col or "row",
+                        original_value=orig_val,
+                        proposed_value="<ROW_REMOVED_DUPLICATE>",
+                        reason=reason,
+                    )
+                )
+        elif col and col in df.columns:
+            # Handle flag strategies writing to _is_missing_{col} or _is_outlier_{col}
+            act = str(step.parameters.get("strategy" if op == "fill_missing" else "action", "")).lower().strip()
+            target_col = (
+                f"_is_missing_{col}"
+                if op == "fill_missing" and act == "flag" and f"_is_missing_{col}" in transformed_df.columns
+                else f"_is_outlier_{col}"
+                if op == "handle_outliers" and act == "flag" and f"_is_outlier_{col}" in transformed_df.columns
+                else col
+            )
+            for idx, (orig_r, new_r) in enumerate(zip(initial_sample, post_dicts)):
                 ov = orig_r.get(col)
-                nv = new_r.get(col)
-                if ov != nv:
+                nv = new_r.get(target_col)
+                if target_col != col:
+                    if bool(nv):
+                        diffs.append(
+                            OperationDiffSample(
+                                row_index=idx,
+                                column=target_col,
+                                original_value=ov,
+                                proposed_value=nv,
+                                reason=reason,
+                            )
+                        )
+                elif ov != nv and not (
+                    isinstance(ov, float) and isinstance(nv, float) and ov != ov and nv != nv
+                ):
                     diffs.append(
                         OperationDiffSample(
                             row_index=idx,
                             column=col,
                             original_value=ov,
                             proposed_value=nv,
-                            reason=step.description or f"Applied {step.operation}",
+                            reason=reason,
                         )
                     )
-                    if len(diffs) >= 10:
-                        break
+                if len(diffs) >= 10:
+                    break
 
         elapsed = round((time.perf_counter() - t0) * 1000.0, 2)
         return CleaningPreviewResult(

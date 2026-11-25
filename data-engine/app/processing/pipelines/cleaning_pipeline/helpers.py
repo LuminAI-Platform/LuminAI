@@ -168,40 +168,72 @@ def _parse_date_string(value: str | None) -> str:
 
 
 def _parse_currency_string(value: str | None) -> dict[str, object]:
-    """
-    Parses currency string to extract float amount and ISO currency code.
-    Defaults to 0.0 and 'USD'.
-    """
-    if not value or not isinstance(value, str) or value.strip() == "":
-        return {"amount": 0.0, "currency": "USD"}
+    """Parse currency string into ``{"amount": float | None, "currency": str | None}``.
 
-    value = value.strip().replace(",", "")
+    Never fabricates ``0.0`` or ``"USD"`` when input is missing or unparseable.
+    """
+    if value is None or isinstance(value, bool):
+        return {"amount": None, "currency": None}
+    if isinstance(value, (int, float)):
+        import math
+        fval = float(value)
+        return {"amount": fval if math.isfinite(fval) else None, "currency": "USD" if math.isfinite(fval) else None}
+    if not isinstance(value, str):
+        return {"amount": None, "currency": None}
+
+    raw = value.strip()
+    if not raw or raw.lower() in ("null", "none", "n/a", "na", "-", "?", "undefined", "#n/a"):
+        return {"amount": None, "currency": None}
+
+    cleaned = raw.replace(",", "")
+    sign = -1.0 if cleaned.startswith("-") else 1.0
+    if cleaned[0] in ("+", "-"):
+        cleaned = cleaned[1:].strip()
 
     symbol_map = {
         "$": "USD",
         "€": "EUR",
         "£": "GBP",
         "¥": "JPY",
+        "₹": "INR",
+        "₵": "GHS",
     }
+    iso_codes = ("USD", "EUR", "GBP", "JPY", "INR", "GHS", "NGN", "KES", "ZAR", "CAD", "AUD", "CHF")
 
-    currency_code = "USD"
+    currency_code: str | None = None
     for sym, code in symbol_map.items():
-        if value.startswith(sym):
+        if cleaned.startswith(sym):
             currency_code = code
-            value = value[len(sym) :].strip()
+            cleaned = cleaned[len(sym):].strip()
             break
-        elif value.endswith(sym):
+        elif cleaned.endswith(sym):
             currency_code = code
-            value = value[: -len(sym)].strip()
+            cleaned = cleaned[: -len(sym)].strip()
             break
+
+    if currency_code is None:
+        upper_cleaned = cleaned.upper()
+        for iso in iso_codes:
+            if upper_cleaned.startswith(iso + " ") or upper_cleaned.startswith(iso):
+                rest = cleaned[len(iso):].strip()
+                if rest and any(ch.isdigit() for ch in rest):
+                    currency_code = iso
+                    cleaned = rest
+                    break
+            elif upper_cleaned.endswith(" " + iso) or upper_cleaned.endswith(iso):
+                rest = cleaned[: -len(iso)].strip()
+                if rest and any(ch.isdigit() for ch in rest):
+                    currency_code = iso
+                    cleaned = rest
+                    break
+
+    match = re.fullmatch(r"[-+]?(?:\d+(?:\.\d+)?|\.\d+)", cleaned)
+    if not match:
+        return {"amount": None, "currency": None}
 
     try:
-        match = re.search(r"[-+]?\d*\.\d+|[-+]?\d+", value)
-        if match:
-            amount = float(match.group())
-        else:
-            amount = 0.0
+        amount = sign * float(match.group())
     except ValueError:
-        amount = 0.0
+        return {"amount": None, "currency": None}
 
-    return {"amount": amount, "currency": currency_code}
+    return {"amount": amount, "currency": currency_code or "USD"}
