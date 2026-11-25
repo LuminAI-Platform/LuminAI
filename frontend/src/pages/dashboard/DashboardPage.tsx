@@ -1,12 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Icons,
-  RefreshCw,
-  ArrowRight,
-  AlertCircle,
-  ICON_SIZES,
-} from "../../lib/icons";
+import { Icons, RefreshCw, AlertCircle, ICON_SIZES } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { EntityBreakdownChart } from "./components/EntityBreakdownChart";
 import { PipelineTimelineChart } from "./components/PipelineTimelineChart";
@@ -193,14 +187,6 @@ export const DashboardPage: React.FC = () => {
                 Recent batch jobs, schema normalizations, and entity updates
               </p>
             </div>
-            <Link
-              to="/connections/pipelines"
-              className="text-xs text-text-secondary hover:text-text font-medium inline-flex items-center gap-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded px-1.5 py-0.5 transition-colors"
-              aria-label="View all runs in Pipeline Monitor"
-            >
-              <span>Pipeline Monitor</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
 
           <ActivityFeed
@@ -213,7 +199,7 @@ export const DashboardPage: React.FC = () => {
           />
         </div>
 
-        <DashboardQuickActions />
+        <DashboardQuickActions summary={summary} />
       </div>
     </div>
   );

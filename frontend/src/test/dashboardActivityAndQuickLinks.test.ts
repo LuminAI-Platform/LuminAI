@@ -34,8 +34,12 @@ import {
 import {
   getActivityTargetRoute,
   formatRelativeTime,
+  formatActivitySubtitle,
+  getActivityTitleInfo,
+  resolveActivityStatus,
 } from "../pages/dashboard/components/activityFeedUtils";
 import { DashboardQuickActions } from "../pages/dashboard/components/DashboardQuickActions";
+import type { DashboardSummary } from "../pages/dashboard/dashboardTypes";
 
 describe("Dashboard ActivityFeed Component", () => {
   it("renders empty state with 'No activity yet' and 'Connect a data source' button when empty", () => {
@@ -101,9 +105,72 @@ describe("Dashboard ActivityFeed Component", () => {
     expect(html).toContain("focus-visible:ring-2");
     expect(html).toContain("focus-visible:ring-primary");
 
-    // Status badges
+    // Status badges & secondary tag
     expect(html).toContain("Running");
     expect(html).toContain("Completed");
+    expect(html).toContain("File ingestion");
+
+    // Never says "successfully" when quarantined/rejected are not both 0
+    expect(html).not.toContain("successfully");
+    expect(html).toContain("12,000 records processed");
+  });
+
+  it("shows dataset name, Untitled dataset fallback with run ID, counts subtitle, and all 5 status badges", () => {
+    const items: ActivityItem[] = [
+      {
+        id: "run-1111aaaa",
+        type: "PIPELINE_RUN",
+        title: "Data Run",
+        datasetName: "orders_2026.csv",
+        description: "Processed 500 records successfully.",
+        recordsLoaded: 480,
+        recordsQuarantined: 12,
+        recordsRejected: 8,
+        timestamp: "2026-11-24T10:00:00Z",
+        status: "SUCCESS",
+      },
+      {
+        id: "run-2222bbbb",
+        type: "PIPELINE_RUN",
+        title: "Data Run",
+        description: "Pipeline execution initiated.",
+        timestamp: "2026-11-24T09:00:00Z",
+        status: "QUEUED",
+      },
+      {
+        id: "run-3333cccc",
+        type: "PIPELINE_RUN",
+        title: "invoices.csv",
+        description: "Schema mismatch",
+        timestamp: "2026-11-24T08:00:00Z",
+        status: "FAILED",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      React.createElement(ActivityFeed, {
+        activities: items,
+        isLoading: false,
+      }),
+    );
+
+    expect(html).toContain("orders_2026.csv");
+    expect(html).toContain("Loaded 480 - Quarantined 12 - Rejected 8");
+    expect(html).toContain("Completed with issues");
+    expect(html).not.toContain("successfully");
+
+    expect(html).toContain("Untitled dataset");
+    expect(html).toContain("#2222bbbb");
+    expect(html).toContain("Queued");
+    expect(html).toContain("Failed");
+    expect(html).toContain("<time");
+
+    expect(resolveActivityStatus(items[0])).toBe("COMPLETED_WITH_ISSUES");
+    expect(resolveActivityStatus(items[1])).toBe("QUEUED");
+    expect(getActivityTitleInfo(items[1]).title).toBe("Untitled dataset");
+    expect(formatActivitySubtitle(items[0])).toBe(
+      "Loaded 480 - Quarantined 12 - Rejected 8",
+    );
   });
 
   it("limits display to 6 items and provides 'View all runs' link to Pipeline Monitor", () => {
@@ -147,52 +214,45 @@ describe("Dashboard ActivityFeed Component", () => {
   });
 
   it("resolves correct target routes for various activity types", () => {
+    const base = {
+      title: "Run",
+      description: "",
+      timestamp: "",
+      status: "SUCCESS",
+    };
     expect(
       getActivityTargetRoute({
+        ...base,
         id: "run-98765432",
         type: "PIPELINE_RUN",
-        title: "Run",
-        description: "",
-        timestamp: "",
-        status: "SUCCESS",
       }),
     ).toEqual({
       to: "/connections/pipelines",
       hash: "pipeline-job-98765432",
     });
-
     expect(
       getActivityTargetRoute({
+        ...base,
         id: "conn-111",
         type: "CONNECTION_CREATE",
-        title: "Conn",
-        description: "",
-        timestamp: "",
-        status: "SUCCESS",
       }),
-    ).toEqual({ to: "/connections" });
-
+    ).toEqual({
+      to: "/connections",
+    });
+    expect(
+      getActivityTargetRoute({ ...base, id: "sync-222", type: "ENTITY_SYNC" }),
+    ).toEqual({
+      to: "/explorer",
+    });
     expect(
       getActivityTargetRoute({
-        id: "sync-222",
-        type: "ENTITY_SYNC",
-        title: "Sync",
-        description: "",
-        timestamp: "",
-        status: "SUCCESS",
-      }),
-    ).toEqual({ to: "/explorer" });
-
-    expect(
-      getActivityTargetRoute({
+        ...base,
         id: "onto-333",
         type: "ONTOLOGY_UPDATE",
-        title: "Onto",
-        description: "",
-        timestamp: "",
-        status: "SUCCESS",
       }),
-    ).toEqual({ to: "/ontology" });
+    ).toEqual({
+      to: "/ontology",
+    });
   });
 
   it("formats relative time correctly", () => {
@@ -208,16 +268,32 @@ describe("Dashboard ActivityFeed Component", () => {
 });
 
 describe("DashboardQuickActions Component", () => {
-  it("renders 4 quick-link cards with keyboard accessible focus rings", () => {
+  it("renders 4 quick-link cards matching sidebar names, sentence case, and optional API counts", () => {
+    const mockSummary: DashboardSummary = {
+      totalEntities: 1420,
+      totalConnections: 4,
+      totalPipelines: 18,
+      entityBreakdown: {},
+      recentActivity: [],
+      dataQualityScore: 98,
+      pipelineHealth: { running: 0, completed: 18, failed: 0 },
+      lastSyncAt: null,
+    };
+
     const html = renderToStaticMarkup(
-      React.createElement(DashboardQuickActions),
+      React.createElement(DashboardQuickActions, { summary: mockSummary }),
     );
 
-    // Cards titles
+    // Sentence case heading, no "Direct Shortcuts"
+    expect(html).toContain("Quick navigation");
+    expect(html).not.toContain("Direct Shortcuts");
+
+    // Card titles matching sidebarConfig.tsx
     expect(html).toContain("Data Connections");
     expect(html).toContain("Pipeline Monitor");
     expect(html).toContain("Knowledge Graph");
-    expect(html).toContain("Data Model &amp; Ontology");
+    expect(html).toContain("Ontology Manager");
+    expect(html).not.toContain("Data Model &amp; Ontology");
 
     // Routes
     expect(html).toContain('href="/connections"');
@@ -225,12 +301,17 @@ describe("DashboardQuickActions Component", () => {
     expect(html).toContain('href="/graph"');
     expect(html).toContain('href="/ontology"');
 
+    // Muted counts from API summary
+    expect(html).toContain("4 sources");
+    expect(html).toContain("18 runs");
+    expect(html).toContain("1,420 entities");
+
     // Accessibility focus rings
     expect(html).toContain('tabindex="0"');
     expect(html).toContain("focus-visible:ring-2");
     expect(html).toContain("focus-visible:ring-primary");
 
-    // Category pills
+    // Category pills in sentence case
     expect(html).toContain("Ingestion");
     expect(html).toContain("Telemetry");
     expect(html).toContain("Relationships");

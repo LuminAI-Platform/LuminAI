@@ -2,21 +2,27 @@ import React from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Activity,
-  Play,
   Database,
   Network,
   Clock,
   CheckCircle2,
   XCircle,
   AlertCircle,
+  AlertTriangle,
+  Loader2,
   ArrowRight,
   ICON_SIZES,
 } from "../../../lib/icons";
 import { Badge, type BadgeVariant } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import {
+  formatExactTimestamp,
   formatRelativeTime,
+  formatActivitySubtitle,
   getActivityTargetRoute,
+  getActivityTitleInfo,
+  resolveActivityStatus,
+  type ResolvedActivityStatus,
 } from "./activityFeedUtils";
 
 export interface ActivityItem {
@@ -27,6 +33,16 @@ export interface ActivityItem {
   timestamp: string;
   status: string;
   link?: string;
+  runId?: string;
+  datasetName?: string | null;
+  connectorName?: string | null;
+  connectorType?: string | null;
+  pipelineType?: string | null;
+  recordsLoaded?: number | null;
+  recordsOutput?: number | null;
+  recordsQuarantined?: number | null;
+  recordsRejected?: number | null;
+  recordsFailed?: number | null;
 }
 
 interface ActivityFeedProps {
@@ -36,39 +52,57 @@ interface ActivityFeedProps {
   showViewAll?: boolean;
 }
 
-const TYPE_ICONS: Record<string, React.ReactNode> = {
-  PIPELINE_RUN: <Play className="w-3.5 h-3.5 text-text-secondary" />,
-  ENTITY_SYNC: <Network className="w-3.5 h-3.5 text-text-secondary" />,
-  CONNECTION_CREATE: <Database className="w-3.5 h-3.5 text-text-secondary" />,
-  ONTOLOGY_UPDATE: <Activity className="w-3.5 h-3.5 text-text-secondary" />,
-  DEFAULT: <Activity className="w-3.5 h-3.5 text-text-secondary" />,
-};
-
-const STATUS_BADGES: Record<
-  string,
-  { label: string; variant: BadgeVariant; icon?: React.ReactNode }
+const STATUS_CONFIG: Record<
+  ResolvedActivityStatus,
+  { label: string; variant: BadgeVariant; icon: React.ReactNode }
 > = {
-  SUCCESS: {
+  COMPLETED: {
     label: "Completed",
     variant: "success",
-    icon: <CheckCircle2 className="w-3 h-3" />,
+    icon: <CheckCircle2 className="w-3.5 h-3.5 text-success" />,
   },
-  RUNNING: {
-    label: "Running",
+  COMPLETED_WITH_ISSUES: {
+    label: "Completed with issues",
     variant: "warning",
-    icon: <Clock className="w-3 h-3 animate-spin" />,
+    icon: <AlertTriangle className="w-3.5 h-3.5 text-warning" />,
   },
   FAILED: {
     label: "Failed",
     variant: "danger",
-    icon: <XCircle className="w-3 h-3" />,
+    icon: <XCircle className="w-3.5 h-3.5 text-error" />,
+  },
+  RUNNING: {
+    label: "Running",
+    variant: "primary",
+    icon: <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />,
+  },
+  QUEUED: {
+    label: "Queued",
+    variant: "nodata",
+    icon: <Clock className="w-3.5 h-3.5 text-nodata" />,
   },
   INFO: {
     label: "Info",
     variant: "info",
-    icon: <AlertCircle className="w-3 h-3" />,
+    icon: <AlertCircle className="w-3.5 h-3.5 text-text-secondary" />,
   },
 };
+
+function getRowIcon(
+  item: ActivityItem,
+  statusKey: ResolvedActivityStatus,
+): React.ReactNode {
+  if (item.type === "PIPELINE_RUN") {
+    return STATUS_CONFIG[statusKey].icon;
+  }
+  if (item.type === "ENTITY_SYNC") {
+    return <Network className="w-3.5 h-3.5 text-text-secondary" />;
+  }
+  if (item.type === "CONNECTION_CREATE") {
+    return <Database className="w-3.5 h-3.5 text-text-secondary" />;
+  }
+  return <Activity className="w-3.5 h-3.5 text-text-secondary" />;
+}
 
 /**
  * Live Audit & Activity Stream showing recent executions and audit events.
@@ -132,9 +166,14 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
         aria-label="Recent activity events"
       >
         {displayItems.map((item) => {
-          const icon = TYPE_ICONS[item.type] ?? TYPE_ICONS.DEFAULT;
-          const statusConfig = STATUS_BADGES[item.status] ?? STATUS_BADGES.INFO;
+          const statusKey = resolveActivityStatus(item);
+          const statusConfig = STATUS_CONFIG[statusKey];
+          const icon = getRowIcon(item, statusKey);
           const route = getActivityTargetRoute(item);
+          const { title, runIdLabel, secondaryTag } =
+            getActivityTitleInfo(item);
+          const subtitle = formatActivitySubtitle(item);
+          const exactTime = formatExactTimestamp(item.timestamp);
 
           return (
             <Link
@@ -142,27 +181,51 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
               to={route.to}
               hash={route.hash}
               className="group py-3 px-2.5 flex items-start justify-between gap-3.5 hover:bg-surface-subtle active:bg-surface-muted/60 rounded-lg transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface select-none"
-              aria-label={`${item.title} - ${item.status}: ${item.description}`}
+              aria-label={`${title}${runIdLabel ? ` ${runIdLabel}` : ""} - ${statusConfig.label}: ${subtitle}`}
               tabIndex={0}
             >
-              <div className="flex items-start gap-3 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-surface-subtle border border-border flex items-center justify-center shrink-0 mt-0.5 group-hover:border-primary/40 group-hover:text-primary transition-colors">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div
+                  className="w-7 h-7 rounded-lg bg-surface-subtle border border-border flex items-center justify-center shrink-0 mt-0.5 group-hover:border-primary/40 transition-colors"
+                  aria-hidden="true"
+                >
                   {icon}
                 </div>
-                <div className="min-w-0">
-                  <h4 className="text-xs font-semibold text-text group-hover:text-primary transition-colors truncate">
-                    {item.title}
-                  </h4>
-                  <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">
-                    {item.description}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <h4
+                      className="text-xs font-semibold text-text group-hover:text-primary transition-colors truncate max-w-full"
+                      title={title}
+                    >
+                      {title}
+                    </h4>
+                    {runIdLabel && (
+                      <span className="text-[10px] font-mono text-text-muted shrink-0">
+                        {runIdLabel}
+                      </span>
+                    )}
+                    {secondaryTag && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-surface-subtle border border-border text-text-secondary shrink-0">
+                        {secondaryTag}
+                      </span>
+                    )}
+                  </div>
+                  {subtitle && (
+                    <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">
+                      {subtitle}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5 shrink-0">
-                <span className="text-[10px] text-text-muted">
+                <time
+                  dateTime={item.timestamp}
+                  title={exactTime}
+                  className="text-[10px] text-text-muted whitespace-nowrap"
+                >
                   {formatRelativeTime(item.timestamp)}
-                </span>
+                </time>
                 <Badge variant={statusConfig.variant} withDot>
                   {statusConfig.label}
                 </Badge>
