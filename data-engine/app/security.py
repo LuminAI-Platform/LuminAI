@@ -204,7 +204,9 @@ def get_keycloak_validator(
     settings: Settings = Depends(get_settings),
 ) -> KeycloakTokenValidator:
     """Return a cached KeycloakTokenValidator instance keyed by realm configuration."""
-    cache_key = f"{settings.keycloak_jwks_url}:{settings.keycloak_public_key or ''}"
+    cache_key = (
+        f"{settings.keycloak_jwks_url}:{settings.keycloak_issuer}:{settings.keycloak_public_key or ''}"
+    )
     if cache_key not in _validators:
         _validators[cache_key] = KeycloakTokenValidator(settings)
     return _validators[cache_key]

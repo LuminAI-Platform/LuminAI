@@ -38,6 +38,10 @@ RUN groupadd -g 10001 nonroot && \
 # Copy virtualenv and application artifacts with nonroot ownership
 COPY --from=builder --chown=nonroot:nonroot /app /app
 
+# Pre-create storage subdirectories with nonroot ownership so mounted Docker volumes inherit UID/GID 10001 permissions
+RUN mkdir -p /app/storage/ml_registry /app/storage/sqlite /app/storage/checkpoints /app/storage/raw && \
+    chown -R nonroot:nonroot /app/storage
+
 # Configure execution environment
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
