@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, status
-import polars as pl
 from pydantic import BaseModel, Field
 
 from app.processing.engine.cleaning_engine import CleaningEngine, CleaningStepConfig
+from app.processing.engine.dataframe_utils import records_to_polars_df
 
 router = APIRouter(prefix="/analytics/cleaning", tags=["cleaning-engine"])
 
@@ -43,7 +43,7 @@ async def preview_cleaning_operation(request: PreviewStepRequest) -> Dict[str, A
         )
 
     try:
-        df = pl.DataFrame(request.records)
+        df = records_to_polars_df(request.records)
         engine = CleaningEngine()
         step_config = CleaningStepConfig(
             step_id=request.step.step_id or "preview-step",
@@ -71,7 +71,7 @@ async def execute_cleaning_recipe(request: ExecuteRecipeRequest) -> Dict[str, An
         )
 
     try:
-        df = pl.DataFrame(request.records)
+        df = records_to_polars_df(request.records)
         engine = CleaningEngine(tenant_id=request.tenant_id)
         steps = [
             CleaningStepConfig(

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, status
-import polars as pl
 from pydantic import BaseModel, Field
 
+from app.processing.engine.dataframe_utils import records_to_polars_df
 from app.processing.engine.eda_engine import EdaEngine
 
 router = APIRouter(prefix="/analytics/eda", tags=["eda-analytics"])
@@ -28,7 +28,7 @@ async def generate_eda_report_endpoint(request: EdaRequest) -> Dict[str, Any]:
         )
 
     try:
-        df = pl.DataFrame(request.records)
+        df = records_to_polars_df(request.records)
         report = EdaEngine.generate_eda_report(df)
         report["tenant_id"] = request.tenant_id
         report["dataset_name"] = request.dataset_name

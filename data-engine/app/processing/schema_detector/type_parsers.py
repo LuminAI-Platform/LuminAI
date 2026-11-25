@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import math
 import re
 from datetime import datetime
 from typing import Any
 
 import polars as pl
 
+from app.processing.engine.type_inference import NULL_SENTINELS
 from app.processing.schema_detector.models import (
     BOOLEAN_TERMS,
     COMMON_DATE_FORMATS,
@@ -16,38 +18,49 @@ from app.processing.schema_detector.models import (
 
 
 def is_null_or_empty(val: Any) -> bool:
-    """Check if a value represents null, empty string, or whitespace."""
+    """Check if a value represents null, NaN, empty/whitespace, or a null sentinel."""
     if val is None:
         return True
-    if isinstance(val, str) and val.strip() == "":
+    if isinstance(val, float) and math.isnan(val):
         return True
+    if isinstance(val, str):
+        return val.strip().lower() in NULL_SENTINELS
     return False
 
 
 def try_parse_number(val: Any) -> bool:
-    """Check if a value can be parsed as a numeric value (int, float, or currency)."""
-    if isinstance(val, (int, float)) and not isinstance(val, bool):
+    """Check if a value can be parsed as a finite numeric value (int, float, or currency)."""
+    if isinstance(val, bool):
+        return False
+    if isinstance(val, int):
         return True
+    if isinstance(val, float):
+        return math.isfinite(val)
     if not isinstance(val, str):
         return False
     s = val.strip()
+    if not s:
+        return False
     s_clean = re.sub(r"^[\$€£¥₹]\s*|\s*[\$€£¥₹]$", "", s)
     s_clean = s_clean.replace(",", "")
     try:
-        float(s_clean)
-        return True
+        parsed = float(s_clean)
+        return math.isfinite(parsed)
     except ValueError:
         return False
 
 
-def try_parse_boolean(val: Any) -> bool:
+def try_parse_boolean(val: Any, allow_binary_digits: bool = True) -> bool:
     """Check if a value represents a boolean term."""
     if isinstance(val, bool):
         return True
     if isinstance(val, (int, float)):
-        return val in (0, 1)
+        return allow_binary_digits and not (isinstance(val, float) and math.isnan(val)) and val in (0, 1)
     if isinstance(val, str):
-        return val.strip().lower() in BOOLEAN_TERMS
+        norm = val.strip().lower()
+        if not allow_binary_digits and norm in ("0", "1"):
+            return False
+        return norm in BOOLEAN_TERMS
     return False
 
 

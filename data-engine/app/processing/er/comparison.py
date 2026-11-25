@@ -18,6 +18,29 @@ from app.processing.er.semantic import semantic_name_similarity
 
 logger = logging.getLogger(__name__)
 
+# Domain identifier columns whose mismatch strictly forbids merging
+DOMAIN_IDENTIFIER_FIELDS: tuple[str, ...] = (
+    "mrn",
+    "ssn",
+    "national_id",
+    "tax_id",
+    "id_number",
+)
+_NULL_SENTINEL_UPPER = {"", "NULL", "NONE", "N/A", "NA", "-", "?", "0", "UNKNOWN"}
+
+
+def _has_value(val: Any) -> bool:
+    """Return True if value is non-null and not empty whitespace."""
+    return val is not None and str(val).strip() != ""
+
+
+def _norm_domain_id(val: Any) -> str | None:
+    if val is None:
+        return None
+    s = str(val).strip().upper()
+    return None if s in _NULL_SENTINEL_UPPER else s
+
+
 # Default weights for attribute similarity score weighting
 DEFAULT_WEIGHTS: dict[str, float] = {
     "name": 0.50,
@@ -112,6 +135,13 @@ def calculate_pair_similarity_score(
             if k in rec and rec[k] is not None:
                 return rec[k]
         return None
+
+    # Contradiction Guard: differing verified domain identifiers forbid matching
+    for id_field in DOMAIN_IDENTIFIER_FIELDS:
+        id_a = _norm_domain_id(_get_val(record_a, id_field, "a"))
+        id_b = _norm_domain_id(_get_val(record_b, id_field, "b"))
+        if id_a is not None and id_b is not None and id_a != id_b:
+            return {"confidence_score": 0.0, "identifier_conflict": 1.0}
 
     for attr, weight in w_map.items():
         val_a = _get_val(record_a, attr, "a")
@@ -247,7 +277,7 @@ def _evaluate_candidate_chunk(
             col_b = chunk[col_b_name].to_list()
             attr_scores = _vectorized_attribute_similarity(col_a, col_b, attr)
             for i in range(n_rows):
-                if col_a[i] is not None or col_b[i] is not None:
+                if _has_value(col_a[i]) or _has_value(col_b[i]):
                     active_weight_list[i] += weight
                     weighted_sum_list[i] += weight * attr_scores[i]
         else:
@@ -255,10 +285,28 @@ def _evaluate_candidate_chunk(
 
         new_columns.append(pl.Series(f"score_{attr}", attr_scores, dtype=pl.Float64))
 
+    # Contradiction Guard across vectorized domain identifier columns
+    conflict_flags = [False] * n_rows
+    for id_field in DOMAIN_IDENTIFIER_FIELDS:
+        id_col_a = _find_col(cols_set, id_field, "a")
+        id_col_b = _find_col(cols_set, id_field, "b")
+        if id_col_a is not None and id_col_b is not None:
+            vals_a = chunk[id_col_a].to_list()
+            vals_b = chunk[id_col_b].to_list()
+            for i in range(n_rows):
+                na = _norm_domain_id(vals_a[i])
+                nb = _norm_domain_id(vals_b[i])
+                if na is not None and nb is not None and na != nb:
+                    conflict_flags[i] = True
+
     confidence_scores = [
-        round(weighted_sum_list[i] / active_weight_list[i], 4)
-        if active_weight_list[i] > 0
-        else 0.0
+        0.0
+        if conflict_flags[i]
+        else (
+            round(weighted_sum_list[i] / active_weight_list[i], 4)
+            if active_weight_list[i] > 0
+            else 0.0
+        )
         for i in range(n_rows)
     ]
     new_columns.append(

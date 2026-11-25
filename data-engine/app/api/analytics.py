@@ -7,6 +7,7 @@ GET  /analytics/reconciliation  →  Retrieve Cross-Store Reconciliation health 
 
 import asyncio
 import io
+import re
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -315,11 +316,12 @@ async def export_query_results(request: ExportRequest) -> StreamingResponse:
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
 
-    clean_name = (
+    raw_name = (
         request.entity_type.lower()
         if request.entity_type and request.entity_type != "*"
         else request.table
     )
+    clean_name = re.sub(r"[^a-zA-Z0-9._-]", "_", raw_name).strip("._-") or "export"
     fmt = request.format.lower().strip()
 
     if fmt == "parquet":

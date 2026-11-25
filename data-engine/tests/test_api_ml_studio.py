@@ -4,8 +4,18 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.main import app
+from app.processing.ml.ml_registry import ModelRegistryService
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def isolated_ml_registry(tmp_path, monkeypatch):
+    """Isolate file-backed ML registry state per test to prevent cross-run version drift."""
+    monkeypatch.setattr(ModelRegistryService, "_storage_dir", tmp_path / "ml_registry")
+    monkeypatch.setattr(ModelRegistryService, "_experiments", {})
+    monkeypatch.setattr(ModelRegistryService, "_registered_models", {})
+    yield
 
 
 @pytest.fixture

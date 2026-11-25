@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional
 import polars as pl
 
 from app.processing.engine.date_cleaner import DateCleaner
+from app.processing.engine.stats_utils import compute_numeric_summary
 from app.processing.engine.text_cleaner import TextCleaner
 from app.processing.engine.type_inference import InferredType, TypeInferenceEngine
 
@@ -147,6 +148,7 @@ class DataProfiler:
         total_fields = total_rows * total_cols
         total_missing = 0
         total_invalids = 0
+        invalid_row_indices: set[int] = set()
         anomalies: List[str] = []
         quality_issues: List[Dict[str, Any]] = []
 
@@ -178,8 +180,11 @@ class DataProfiler:
                 or any(k in col_name.lower() for k in ("date", "dob", "birth", "joined", "timestamp", "created"))
             )
 
-            for v in non_null_vals:
+            for row_idx, v in enumerate(raw_vals):
+                if self.type_engine.is_null_value(v):
+                    continue
                 s_val = str(v)
+                row_invalid = False
                 # Check mojibake
                 _, did_mojibake = TextCleaner.repair_mojibake(s_val)
                 if did_mojibake:
@@ -189,6 +194,7 @@ class DataProfiler:
                 if is_date_col:
                     dres = DateCleaner.clean_date(v, field_name=col_name)
                     if not dres.is_valid:
+                        row_invalid = True
                         invalid_count += 1
                         if len(sample_invalids) < 5 and v not in sample_invalids:
                             sample_invalids.append(v)
@@ -199,37 +205,39 @@ class DataProfiler:
                 if inferred_type in (InferredType.INTEGER, InferredType.FLOAT):
                     conv = self.type_engine.convert_value(v, InferredType.FLOAT)
                     if conv.success and conv.converted_value is not None:
-                        numeric_vals.append(float(conv.converted_value))
+                        num_f = float(conv.converted_value)
+                        if math.isfinite(num_f):
+                            numeric_vals.append(num_f)
+                        else:
+                            row_invalid = True
+                            invalid_count += 1
+                            if len(sample_invalids) < 5 and v not in sample_invalids:
+                                sample_invalids.append(v)
                     else:
+                        row_invalid = True
                         invalid_count += 1
                         if len(sample_invalids) < 5 and v not in sample_invalids:
                             sample_invalids.append(v)
 
+                if row_invalid:
+                    invalid_row_indices.add(row_idx)
+
             total_invalids += invalid_count
 
-            # Outlier detection (IQR method)
+            # Outlier detection (IQR method) & exact sample statistics
             outlier_count = 0
             min_val, max_val, mean_val, median_val, std_val = None, None, None, None, None
             q1_val, q3_val = None, None
-            if numeric_vals:
-                sorted_nums = sorted(numeric_vals)
-                n = len(sorted_nums)
-                min_val = sorted_nums[0]
-                max_val = sorted_nums[-1]
-                mean_val = round(sum(sorted_nums) / n, 2)
-                median_val = sorted_nums[n // 2]
-                variance = sum((x - mean_val) ** 2 for x in sorted_nums) / n
-                std_val = round(math.sqrt(variance), 2)
-
-                if n >= 4:
-                    q1 = sorted_nums[n // 4]
-                    q3 = sorted_nums[(3 * n) // 4]
-                    q1_val = round(q1, 2)
-                    q3_val = round(q3, 2)
-                    iqr = q3 - q1
-                    lower_bound = q1 - 1.5 * iqr
-                    upper_bound = q3 + 1.5 * iqr
-                    outlier_count = sum(1 for x in sorted_nums if x < lower_bound or x > upper_bound)
+            summary = compute_numeric_summary(numeric_vals)
+            if summary:
+                min_val = round(float(summary["min"]), 2)
+                max_val = round(float(summary["max"]), 2)
+                mean_val = round(float(summary["mean"]), 2)
+                median_val = round(float(summary["median"]), 2)
+                std_val = round(float(summary["std_dev"]), 2)
+                q1_val = round(float(summary["q1"]), 2)
+                q3_val = round(float(summary["q3"]), 2)
+                outlier_count = int(summary["outlier_count"])
 
             # Sample non-null values
             sample_vals = [str(x) for x in non_null_vals[:5]]
@@ -324,6 +332,9 @@ class DataProfiler:
         est_mem = df.estimated_size()
         schema_dict = {col: str(df.schema[col]) for col in df.columns}
 
+        invalid_records = len(invalid_row_indices)
+        valid_records = max(0, total_rows - invalid_records)
+
         return DatasetProfileReport(
             stage=stage,
             total_rows=total_rows,
@@ -331,8 +342,8 @@ class DataProfiler:
             columns=col_profiles,
             total_missing_values=total_missing,
             duplicate_row_count=dup_rows,
-            valid_record_count=max(0, total_rows - total_invalids),
-            invalid_record_count=min(total_rows, total_invalids),
+            valid_record_count=valid_records,
+            invalid_record_count=invalid_records,
             estimated_memory_bytes=est_mem,
             dataset_size_bytes=est_mem,
             schema_info=schema_dict,

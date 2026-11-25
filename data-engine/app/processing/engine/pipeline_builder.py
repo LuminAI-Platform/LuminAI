@@ -169,12 +169,21 @@ class PipelineBuilderEngine:
             if val is not None:
                 return df.with_columns(pl.lit(val).alias(col_name))
             if expression:
-                m = re.match(r"^(\w+)\s*([\+\-\*\/])\s*([0-9\.]+|\w+)$", expression.strip())
+                m = re.match(
+                    r"^(\w+)\s*([\+\-\*\/])\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|\w+)$",
+                    expression.strip(),
+                )
                 if m:
                     c1, op, c2 = m.groups()
                     if c1 in df.columns:
                         expr1 = pl.col(c1)
-                        expr2 = pl.col(c2) if c2 in df.columns else (pl.lit(float(c2)) if c2.replace(".", "", 1).isdigit() else None)
+                        if c2 in df.columns:
+                            expr2 = pl.col(c2)
+                        else:
+                            try:
+                                expr2 = pl.lit(float(c2))
+                            except ValueError:
+                                expr2 = None
                         if expr2 is not None:
                             if op == "+":
                                 return df.with_columns((expr1 + expr2).alias(col_name))
@@ -189,10 +198,14 @@ class PipelineBuilderEngine:
         elif st == "JOIN":
             right_key = params.get("right_dataset")
             on_col = params.get("on")
-            how = params.get("how", "inner").lower()
-            if secondary_datasets and right_key in secondary_datasets and on_col:
+            how = str(params.get("how", "inner")).lower().strip()
+            if how in ("outer", "full_outer"):
+                how = "full"
+            if secondary_datasets and right_key in secondary_datasets:
                 right_df = secondary_datasets[right_key]
-                if on_col in df.columns and on_col in right_df.columns:
+                if how == "cross":
+                    return df.join(right_df, how="cross")
+                if on_col and on_col in df.columns and on_col in right_df.columns:
                     return df.join(right_df, on=on_col, how=how)
             return df
 

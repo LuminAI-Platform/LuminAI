@@ -225,7 +225,12 @@ def deduplicated_ingestion_data(
             )
             return cached
 
-    result = deduplicate_dataset(context=context, cleaned_df=cleaned_ingestion_data)
+    result = deduplicate_dataset(
+        context=context,
+        cleaned_df=cleaned_ingestion_data,
+        tenant_id=run_tags.get("tenant_id", "acme"),
+        entity_type=run_tags.get("entity_type") or "Person",
+    )
 
     if run_id:
         cp_mgr.save_checkpoint(run_id, "deduplicated_ingestion_data", result)

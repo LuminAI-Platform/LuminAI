@@ -61,9 +61,12 @@ async def clean_dataset_sync(request: DatasetCleanRequest) -> Dict[str, Any]:
         }
 
     try:
-        df = pl.DataFrame(request.rows)
+        from app.processing.engine.dataframe_utils import records_to_polars_df
+
+        df = records_to_polars_df(request.rows)
     except Exception:
         import pandas as pd
+
         df = pl.from_pandas(pd.DataFrame(request.rows))
 
     result = cleaner.process_dataframe(df, entity_type_hint=request.entity_type)
@@ -197,17 +200,10 @@ async def get_pipeline_status(run_id: str) -> StatusResponse:
     if rec.completed_at:
         logs.append(f"[{rec.completed_at}] Pipeline completed with status '{rec.status}'.")
 
-    # Real/derived DAMA dimension quality scores
+    # Return actual recorded DAMA dimension quality scores when present (never fabricate fake scores)
     meta = getattr(rec, "metadata", {}) or {}
-    quality_scores = meta.get(
-        "quality_scores",
-        {
-            "completeness": 96.5,
-            "uniqueness": 98.2,
-            "consistency": 94.8,
-            "timeliness": 99.1,
-        },
-    )
+    raw_scores = meta.get("quality_scores")
+    quality_scores: Dict[str, float] = raw_scores if isinstance(raw_scores, dict) else {}
 
     return StatusResponse(
         run_id=rec.run_id,

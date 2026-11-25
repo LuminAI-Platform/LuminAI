@@ -2,25 +2,30 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import logging
 import os
-import re
 import uuid
+from datetime import datetime, timezone
 
 import polars as pl
-from sqlalchemy import inspect, text
+from sqlalchemy import text
+
+from app.db.tenant import (
+    reset_pg_search_path,
+    resolve_table_schema,
+    resolve_tenant_pg_context,
+    safe_schema_name,
+    set_pg_search_path,
+    to_uuid_str,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _safe_schema_name(tenant_id: str) -> str:
     """Sanitize tenant identifier to prevent search_path injection."""
-    cleaned = str(tenant_id).replace("-", "_").strip()
-    if not re.match(r"^[a-zA-Z0-9_]+$", cleaned):
-        raise ValueError(f"Invalid tenant identifier: {tenant_id}")
-    return f"tenant_{cleaned}" if not cleaned.startswith("tenant_") else cleaned
+    return safe_schema_name(tenant_id)
 
 
 def _get_active_engine():
@@ -69,62 +74,35 @@ def persist_golden_records(
     if golden_records_df.height == 0:
         return 0
 
-    from app.processing.er.classification import _to_uuid_str
-
     engine = _get_active_engine()
     now_utc = datetime.now(timezone.utc)
     persisted_count = 0
 
-    schema_name = _safe_schema_name(tenant_id)
-
     with engine.connect() as conn:
-        try:
-            conn.execute(
-                text(f'SET search_path TO "{schema_name}", tenant_default, public;')
-            )
-        except Exception:
-            pass
-        inspector = inspect(conn)
-        cols = set()
-        try:
-            cols = {
-                c["name"]
-                for c in inspector.get_columns("golden_records", schema=schema_name)
-            }
-        except Exception:
-            pass
-        if not cols:
-            try:
-                cols = {
-                    c["name"]
-                    for c in inspector.get_columns(
-                        "golden_records", schema="tenant_default"
-                    )
-                }
-            except Exception:
-                pass
-        if not cols:
-            try:
-                cols = {c["name"] for c in inspector.get_columns("golden_records")}
-            except Exception:
-                cols = set()
-        try:
-            conn.execute(text("RESET search_path;"))
-        except Exception:
-            pass
+        tenant_ctx = resolve_tenant_pg_context(conn, tenant_id)
+        schema_name = tenant_ctx["schema_name"]
+        resolved_tenant_uuid = tenant_ctx["tenant_uuid"]
+        found_schema, cols = resolve_table_schema(
+            conn, "golden_records", preferred_schemas=[schema_name, "tenant_default", "public"]
+        )
+        _, hist_cols = resolve_table_schema(
+            conn, "golden_record_history", preferred_schemas=[schema_name, "tenant_default", "public"]
+        )
 
     is_postgres_schema = "canonical_name" in cols
+    has_history_table = bool(hist_cols)
+    target_schema = found_schema or schema_name
 
     all_rows = golden_records_df.to_dicts()
     total_records = len(all_rows)
 
+    insert_history_sql = text("""
+        INSERT INTO golden_record_history (id, golden_id, tenant_id, version, cluster_size, source_record_ids, attributes, action, created_at)
+        VALUES (:id, :golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :action, :created_at)
+    """)
+
     with engine.begin() as conn:
-        try:
-            conn.execute(
-                text(f'SET search_path TO "{schema_name}", tenant_default, public;')
-            )
-        except Exception:
-            pass
+        set_pg_search_path(conn, target_schema)
 
         if is_postgres_schema:
             insert_record_sql = text("""
@@ -134,7 +112,7 @@ def persist_golden_records(
             update_record_sql = text("""
                 UPDATE golden_records
                 SET version = :version, source_count = :source_count, canonical_name = :canonical_name,
-                    properties = :properties, updated_at = :updated_at
+                    properties = :properties, confidence_score = :confidence_score, updated_at = :updated_at
                 WHERE id = :id
             """)
 
@@ -145,8 +123,13 @@ def persist_golden_records(
 
                 for row in chunk:
                     raw_gid = str(row.get("golden_id") or row.get("id") or uuid.uuid4())
-                    gid_uuid = _to_uuid_str(raw_gid)
-                    rec_tenant = _to_uuid_str(str(row.get("tenant_id") or tenant_id))
+                    gid_uuid = to_uuid_str(raw_gid)
+                    row_tenant_raw = str(row.get("tenant_id") or tenant_id)
+                    rec_tenant = (
+                        resolved_tenant_uuid
+                        if row_tenant_raw == tenant_id
+                        else to_uuid_str(row_tenant_raw)
+                    )
                     c_size = int(row.get("cluster_size", row.get("source_count", 1)))
                     c_name = str(
                         row.get("canonical_name")
@@ -155,7 +138,18 @@ def persist_golden_records(
                         or "Unnamed Entity"
                     )
                     e_type = str(row.get("entity_type") or "Entity")
-                    c_score = float(row.get("confidence_score", 1.0))
+                    try:
+                        c_score = float(row.get("confidence_score") if row.get("confidence_score") is not None else 1.0)
+                    except (ValueError, TypeError):
+                        c_score = 1.0
+                    try:
+                        q_score = float(row.get("quality_score") if row.get("quality_score") is not None else 1.0)
+                    except (ValueError, TypeError):
+                        q_score = 1.0
+                    q_state = str(row.get("quality_state") or "VERIFIED")
+                    s_ids_val = row.get("source_record_ids", [])
+                    s_ids_json = s_ids_val if isinstance(s_ids_val, str) else json.dumps(s_ids_val)
+                    conflicts_val = row.get("conflicts")
 
                     attr_dict = {
                         k: v
@@ -168,6 +162,9 @@ def persist_golden_records(
                             "version",
                             "cluster_size",
                             "source_record_ids",
+                            "quality_state",
+                            "quality_score",
+                            "conflicts",
                             "created_at",
                             "updated_at",
                             "entity_type",
@@ -176,15 +173,30 @@ def persist_golden_records(
                             "source_count",
                         }
                     }
+                    # Preserve audit, quality, conflict, and original golden_id metadata in properties JSONB
+                    props_dict = {
+                        **attr_dict,
+                        "_raw_golden_id": raw_gid,
+                        "_quality_state": q_state,
+                        "_quality_score": q_score,
+                        "_source_record_ids": s_ids_val if not isinstance(s_ids_val, str) else json.loads(s_ids_val),
+                    }
+                    if conflicts_val is not None:
+                        props_dict["_conflicts"] = conflicts_val
+
                     chunk_prepared.append(
                         {
                             "id": gid_uuid,
+                            "raw_gid": raw_gid,
                             "tenant_id": rec_tenant,
+                            "tenant_raw": row_tenant_raw,
                             "entity_type": e_type,
                             "canonical_name": c_name,
                             "confidence_score": c_score,
                             "source_count": c_size,
-                            "properties": json.dumps(attr_dict),
+                            "source_record_ids_json": s_ids_json,
+                            "properties": json.dumps(props_dict),
+                            "attributes_json": json.dumps(attr_dict),
                         }
                     )
                     chunk_gids.append(gid_uuid)
@@ -194,7 +206,7 @@ def persist_golden_records(
                     in_placeholders = [f":gid_{i}" for i in range(len(chunk_gids))]
                     params = {f"gid_{i}": gid for i, gid in enumerate(chunk_gids)}
                     batch_select_sql = text(
-                        f"SELECT id, version FROM golden_records WHERE id IN ({','.join(in_placeholders)})"
+                        f"SELECT id::text AS id, version FROM golden_records WHERE id::text IN ({','.join(in_placeholders)})"
                     )
                     existing_rows = (
                         conn.execute(batch_select_sql, params).mappings().fetchall()
@@ -204,11 +216,12 @@ def persist_golden_records(
 
                 records_to_insert = []
                 records_to_update = []
+                history_to_insert = []
 
                 for item in chunk_prepared:
                     gid = item["id"]
                     if gid in existing_map:
-                        new_version = existing_map[gid] + 1
+                        new_version = max(1, existing_map[gid]) + 1
                         records_to_update.append(
                             {
                                 "id": gid,
@@ -216,10 +229,13 @@ def persist_golden_records(
                                 "source_count": item["source_count"],
                                 "canonical_name": item["canonical_name"],
                                 "properties": item["properties"],
+                                "confidence_score": item["confidence_score"],
                                 "updated_at": now_utc,
                             }
                         )
+                        history_action = "UPDATED"
                     else:
+                        new_version = 1
                         records_to_insert.append(
                             {
                                 "id": gid,
@@ -234,11 +250,29 @@ def persist_golden_records(
                                 "updated_at": now_utc,
                             }
                         )
+                        history_action = "CREATED"
+
+                    if has_history_table:
+                        history_to_insert.append(
+                            {
+                                "id": str(uuid.uuid4()),
+                                "golden_id": item["raw_gid"],
+                                "tenant_id": item["tenant_raw"],
+                                "version": new_version,
+                                "cluster_size": item["source_count"],
+                                "source_record_ids": item["source_record_ids_json"],
+                                "attributes": item["attributes_json"],
+                                "action": history_action,
+                                "created_at": now_utc,
+                            }
+                        )
 
                 if records_to_insert:
                     conn.execute(insert_record_sql, records_to_insert)
                 if records_to_update:
                     conn.execute(update_record_sql, records_to_update)
+                if history_to_insert:
+                    conn.execute(insert_history_sql, history_to_insert)
                 persisted_count += len(chunk)
         else:
             # Declarative SQLite / SQLAlchemy schema
@@ -426,10 +460,7 @@ def persist_golden_records(
 
                 persisted_count += len(chunk)
 
-            try:
-                conn.execute(text("RESET search_path;"))
-            except Exception:
-                pass
+        reset_pg_search_path(conn)
 
     logger.info(
         "Persisted %d Golden Records in batches of %d (with versioning & audit trail)",

@@ -88,13 +88,28 @@ class KeycloakTokenValidator:
     def validate_token(self, token: str) -> Dict[str, Any]:
         """Validate and decode a JWT token string, returning its claims payload."""
         # 1. Dev / Sandbox mock token parity (matching Core Backend SecurityConfig.java)
-        is_mock_token = (
-            token in ("mock-access-token-123", "mock-token", "sandbox-token")
+        # Never treat well-formed 3-segment JWTs as mock tokens, and never match arbitrary substrings.
+        is_jwt_shape = token.count(".") == 2
+        exact_mock_tokens = {
+            "mock-access-token-123",
+            "mock-token",
+            "sandbox-token",
+            "bearer-sandbox-bypass",
+        }
+        prod_blocked_aliases = exact_mock_tokens | {"user-sandbox-session"}
+        is_mock_token = not is_jwt_shape and (
+            token in exact_mock_tokens
             or token.startswith("mock-")
-            or token.startswith("sandbox")
-            or "sandbox" in token
+            or token.startswith("sandbox-")
         )
-        if is_mock_token:
+        is_prod_blocked_alias = not is_jwt_shape and (
+            is_mock_token
+            or token in prod_blocked_aliases
+            or token.startswith("bearer-sandbox")
+        )
+        if (not self.settings.mock_auth_allowed and is_prod_blocked_alias) or (
+            self.settings.mock_auth_allowed and is_mock_token
+        ):
             if not self.settings.mock_auth_allowed:
                 logger.warning(
                     "Security alert: Rejected mock/sandbox token in production environment: %s",
@@ -265,7 +280,7 @@ async def get_current_identity(
 
     # 2. Service API Key via X-API-Key header
     if api_key_header:
-        if secrets.compare_digest(api_key_header, settings.api_key):
+        if settings.api_key and secrets.compare_digest(api_key_header, settings.api_key):
             if settings.is_production and settings.api_key == "luminai-internal-secret-key":
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -290,7 +305,12 @@ async def get_current_identity(
         token = bearer_credentials.credentials.strip()
 
         # Check if the bearer token matches the internal API key directly
-        if secrets.compare_digest(token, settings.api_key):
+        if settings.api_key and secrets.compare_digest(token, settings.api_key):
+            if settings.is_production and settings.api_key == "luminai-internal-secret-key":
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Default internal secret key cannot be used in production.",
+                )
             return AuthIdentity(
                 user_id="service-account",
                 username="service-core-backend",
@@ -308,6 +328,9 @@ async def get_current_identity(
             or claims.get("tenant")
             or claims.get("organization")
         )
+        is_mock_identity = (
+            token.count(".") != 2 and claims.get("sub") == "sandbox-admin-id"
+        )
 
         return AuthIdentity(
             user_id=claims.get("sub"),
@@ -316,9 +339,7 @@ async def get_current_identity(
             roles=roles,
             tenant_id=tenant_id,
             is_service=False,
-            auth_method="mock_token"
-            if "sandbox" in str(claims.get("sub"))
-            else "keycloak_jwt",
+            auth_method="mock_token" if is_mock_identity else "keycloak_jwt",
         )
 
     # 4. No credentials provided

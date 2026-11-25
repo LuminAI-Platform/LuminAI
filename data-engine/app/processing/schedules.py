@@ -12,7 +12,7 @@ from dagster import AssetSelection, ScheduleDefinition, define_asset_job
 cleaning_pipeline_job = define_asset_job(
     name="hourly_cleaning_pipeline_job",
     selection=AssetSelection.assets(
-        "cleaning_raw",
+        "raw_ingestion_data",
         "cleaned_ingestion_data",
         "deduplicated_ingestion_data",
         "validated_ingestion_data",
