@@ -405,3 +405,79 @@ def test_er_comparison_empty_strings_contradiction_and_provenance():
     )
     attrs = {e["attribute_name"] for e in prov}
     assert attrs == {"name", "children_count"}
+
+
+def test_keycloak_issuer_decoupling_and_prod_compose_config():
+    """Verify KEYCLOAK_ISSUER_URI decouples JWT issuer from internal JWKS URL and prod compose sets safeguards."""
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+    import jwt
+    import yaml
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from fastapi import HTTPException
+    from app.config import Settings
+    from app.security import get_keycloak_validator
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
+
+    s_prod = Settings(
+        environment="production",
+        keycloak_url="http://keycloak:8180",
+        keycloak_issuer_uri="https://auth.prod.example.com/realms/luminai/",
+        keycloak_realm="luminai",
+        keycloak_public_key=public_pem,
+    )
+    assert s_prod.keycloak_jwks_url == "http://keycloak:8180/realms/luminai/protocol/openid-connect/certs"
+    assert s_prod.keycloak_issuer == "https://auth.prod.example.com/realms/luminai"
+
+    now = datetime.now(timezone.utc)
+    ext_token = jwt.encode(
+        {
+            "sub": "u1",
+            "preferred_username": "alice",
+            "iss": "https://auth.prod.example.com/realms/luminai",
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(minutes=15)).timestamp()),
+        },
+        private_key,
+        algorithm="RS256",
+    )
+    validator = get_keycloak_validator(s_prod)
+    claims = validator.validate_token(ext_token)
+    assert claims["sub"] == "u1"
+
+    bad_iss_token = jwt.encode(
+        {
+            "sub": "u1",
+            "iss": "http://keycloak:8180/realms/luminai",
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(minutes=15)).timestamp()),
+        },
+        private_key,
+        algorithm="RS256",
+    )
+    try:
+        validator.validate_token(bad_iss_token)
+        assert False, "Expected InvalidIssuerError HTTPException"
+    except HTTPException as exc:
+        assert exc.status_code == 401
+
+    root = Path(__file__).resolve().parents[2]
+    prod_cfg = yaml.safe_load((root / "docker-compose.prod.yml").read_text(encoding="utf-8"))
+    de = prod_cfg["services"]["data-engine"]
+    env = de["environment"]
+    assert "ENVIRONMENT" in env
+    assert "AUTH_ENABLED" in env
+    assert "KEYCLOAK_ISSUER_URI" in env
+    assert "data_engine_storage:/app/storage" in de["volumes"]
+    assert "data_engine_storage" in prod_cfg["volumes"]
+    assert de["deploy"]["resources"]["limits"]["memory"] == "1024m"

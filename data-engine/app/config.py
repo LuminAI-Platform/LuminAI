@@ -233,6 +233,7 @@ class Settings(BaseSettings):
     )
     api_key: str = "luminai-internal-secret-key"
     keycloak_url: str = "http://localhost:8080"
+    keycloak_issuer_uri: str | None = None
     keycloak_realm: str = "luminai"
     keycloak_client_id: str = "luminai-spa"
     keycloak_audience: str | None = None
@@ -252,6 +253,8 @@ class Settings(BaseSettings):
 
     @property
     def keycloak_issuer(self) -> str:
+        if self.keycloak_issuer_uri:
+            return self.keycloak_issuer_uri.rstrip("/")
         url = self.keycloak_url.rstrip("/")
         return f"{url}/realms/{self.keycloak_realm}"
 
