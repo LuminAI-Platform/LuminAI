@@ -1,5 +1,5 @@
 import React from "react";
-import { Database, Layers, ShieldCheck, Icons } from "../../../lib/icons";
+import { Database, Layers, ShieldCheck, ICON_MAP } from "../../../lib/icons";
 import type { Dataset } from "../../../features/datasets/types";
 
 interface DatasetKpiSummaryProps {
@@ -66,7 +66,10 @@ export const DatasetKpiSummary: React.FC<DatasetKpiSummaryProps> = ({
       <div className="p-4 rounded-xl border border-border bg-surface flex flex-col gap-1">
         <div className="flex items-center justify-between text-text-secondary text-xs font-medium">
           <span>Active Tiers</span>
-          <Icons.PipelineMonitor className="w-4 h-4 text-blue-400" />
+          <ICON_MAP.nav.datasetCatalog
+            className="w-4 h-4 text-blue-400"
+            aria-hidden="true"
+          />
         </div>
         <span className="text-2xl font-bold text-text">
           {activeTierCount} {activeTierCount === 1 ? "Tier" : "Tiers"}

@@ -1,7 +1,12 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { Icons, ArrowRight, ICON_SIZES } from "../../../lib/icons";
+import { ICON_MAP, ArrowRight, ICON_SIZES } from "../../../lib/icons";
 import type { DashboardSummary } from "../dashboardTypes";
+
+const DataConnectionsIcon = ICON_MAP.nav.dataConnections;
+const PipelineMonitorIcon = ICON_MAP.nav.pipelineMonitor;
+const KnowledgeGraphIcon = ICON_MAP.nav.knowledgeGraph;
+const OntologyManagerIcon = ICON_MAP.nav.ontologyManager;
 
 interface QuickLinkItem {
   to: string;
@@ -18,7 +23,7 @@ const QUICK_ACTIONS: QuickLinkItem[] = [
     title: "Data Connections",
     description: "Connect external databases or upload flat files (CSV, JSON).",
     category: "Ingestion",
-    icon: <Icons.DataConnections size={ICON_SIZES.card} aria-hidden="true" />,
+    icon: <DataConnectionsIcon size={ICON_SIZES.card} aria-hidden="true" />,
     getCountLabel: (s) =>
       typeof s.totalConnections === "number"
         ? `${s.totalConnections.toLocaleString()} ${s.totalConnections === 1 ? "source" : "sources"}`
@@ -30,7 +35,7 @@ const QUICK_ACTIONS: QuickLinkItem[] = [
     description:
       "Observe real-time ingest streams, cleaning stages & throughput.",
     category: "Telemetry",
-    icon: <Icons.PipelineMonitor size={ICON_SIZES.card} aria-hidden="true" />,
+    icon: <PipelineMonitorIcon size={ICON_SIZES.card} aria-hidden="true" />,
     getCountLabel: (s) =>
       typeof s.totalPipelines === "number"
         ? `${s.totalPipelines.toLocaleString()} ${s.totalPipelines === 1 ? "run" : "runs"}`
@@ -41,7 +46,7 @@ const QUICK_ACTIONS: QuickLinkItem[] = [
     title: "Knowledge Graph",
     description: "Explore interconnected records and semantic relationships.",
     category: "Relationships",
-    icon: <Icons.KnowledgeGraph size={ICON_SIZES.card} aria-hidden="true" />,
+    icon: <KnowledgeGraphIcon size={ICON_SIZES.card} aria-hidden="true" />,
     getCountLabel: (s) =>
       typeof s.totalEntities === "number"
         ? `${s.totalEntities.toLocaleString()} ${s.totalEntities === 1 ? "entity" : "entities"}`
@@ -53,7 +58,7 @@ const QUICK_ACTIONS: QuickLinkItem[] = [
     description:
       "Manage entity types, field properties, and relationship schemas.",
     category: "Schema",
-    icon: <Icons.OntologyManager size={ICON_SIZES.card} aria-hidden="true" />,
+    icon: <OntologyManagerIcon size={ICON_SIZES.card} aria-hidden="true" />,
   },
 ];
 

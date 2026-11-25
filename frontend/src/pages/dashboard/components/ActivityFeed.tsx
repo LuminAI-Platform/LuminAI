@@ -1,19 +1,7 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Activity,
-  Database,
-  Network,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  AlertTriangle,
-  Loader2,
-  ArrowRight,
-  ICON_SIZES,
-} from "../../../lib/icons";
-import { Badge, type BadgeVariant } from "../../../components/ui/Badge";
+import { ICON_MAP, ArrowRight, ICON_SIZES } from "../../../lib/icons";
+import { Badge } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import {
   formatExactTimestamp,
@@ -22,8 +10,11 @@ import {
   getActivityTargetRoute,
   getActivityTitleInfo,
   resolveActivityStatus,
-  type ResolvedActivityStatus,
 } from "./activityFeedUtils";
+import {
+  ACTIVITY_STATUS_CONFIG,
+  getActivityRowIcon,
+} from "./activityFeedIcons";
 
 export interface ActivityItem {
   id: string;
@@ -52,57 +43,8 @@ interface ActivityFeedProps {
   showViewAll?: boolean;
 }
 
-const STATUS_CONFIG: Record<
-  ResolvedActivityStatus,
-  { label: string; variant: BadgeVariant; icon: React.ReactNode }
-> = {
-  COMPLETED: {
-    label: "Completed",
-    variant: "success",
-    icon: <CheckCircle2 className="w-3.5 h-3.5 text-success" />,
-  },
-  COMPLETED_WITH_ISSUES: {
-    label: "Completed with issues",
-    variant: "warning",
-    icon: <AlertTriangle className="w-3.5 h-3.5 text-warning" />,
-  },
-  FAILED: {
-    label: "Failed",
-    variant: "danger",
-    icon: <XCircle className="w-3.5 h-3.5 text-error" />,
-  },
-  RUNNING: {
-    label: "Running",
-    variant: "primary",
-    icon: <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />,
-  },
-  QUEUED: {
-    label: "Queued",
-    variant: "nodata",
-    icon: <Clock className="w-3.5 h-3.5 text-nodata" />,
-  },
-  INFO: {
-    label: "Info",
-    variant: "info",
-    icon: <AlertCircle className="w-3.5 h-3.5 text-text-secondary" />,
-  },
-};
-
-function getRowIcon(
-  item: ActivityItem,
-  statusKey: ResolvedActivityStatus,
-): React.ReactNode {
-  if (item.type === "PIPELINE_RUN") {
-    return STATUS_CONFIG[statusKey].icon;
-  }
-  if (item.type === "ENTITY_SYNC") {
-    return <Network className="w-3.5 h-3.5 text-text-secondary" />;
-  }
-  if (item.type === "CONNECTION_CREATE") {
-    return <Database className="w-3.5 h-3.5 text-text-secondary" />;
-  }
-  return <Activity className="w-3.5 h-3.5 text-text-secondary" />;
-}
+const DatabaseSyncIcon = ICON_MAP.activity.databaseSync;
+const ActivityIcon = ICON_MAP.nav.pipelineMonitor;
 
 /**
  * Live Audit & Activity Stream showing recent executions and audit events.
@@ -136,7 +78,11 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
         data-testid="activity-feed-empty"
       >
         <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center text-text-muted shadow-2xs">
-          <Activity className="w-5 h-5 text-text-secondary" />
+          <ActivityIcon
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
         </div>
         <div className="flex flex-col gap-1 max-w-sm">
           <h4 className="text-sm font-semibold text-text">No activity yet</h4>
@@ -149,7 +95,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
           to="/connections"
           className="mt-1 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover border border-primary text-primary-text font-semibold text-xs shadow-xs transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
-          <Database className="w-3.5 h-3.5" />
+          <DatabaseSyncIcon size={ICON_SIZES.inline} aria-hidden="true" />
           <span>Connect a data source</span>
         </Link>
       </div>
@@ -167,8 +113,8 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
       >
         {displayItems.map((item) => {
           const statusKey = resolveActivityStatus(item);
-          const statusConfig = STATUS_CONFIG[statusKey];
-          const icon = getRowIcon(item, statusKey);
+          const statusConfig = ACTIVITY_STATUS_CONFIG[statusKey];
+          const icon = getActivityRowIcon(item, statusKey);
           const route = getActivityTargetRoute(item);
           const { title, runIdLabel, secondaryTag } =
             getActivityTitleInfo(item);
