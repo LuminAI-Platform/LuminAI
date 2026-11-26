@@ -81,18 +81,35 @@ export function useMappingConfig({
       return;
     }
 
-    const isLarge = selectedFile.size > 2 * 1024 * 1024;
-    const isCsv = !selectedFile.name.toLowerCase().endsWith(".json");
-    const previewBlob =
-      isLarge && isCsv ? selectedFile.slice(0, 2 * 1024 * 1024) : selectedFile;
+    const MAX_PREVIEW_BYTES = 2 * 1024 * 1024;
+    const isLarge = selectedFile.size > MAX_PREVIEW_BYTES;
+    const isJson = selectedFile.name.toLowerCase().endsWith(".json");
+    const previewBlob = isLarge
+      ? selectedFile.slice(0, MAX_PREVIEW_BYTES)
+      : selectedFile;
 
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       try {
-        const result = selectedFile.name.endsWith(".json")
-          ? parseJSON(text)
+        const parsed = isJson
+          ? parseJSON(text, isLarge)
           : parseCSV(text, isLarge);
+
+        const result =
+          isLarge && isJson && parsed.rows.length === 0
+            ? {
+                columns: ["file_name", "size_mb", "preview_status"],
+                rows: [
+                  {
+                    file_name: selectedFile.name,
+                    size_mb: (selectedFile.size / (1024 * 1024)).toFixed(2),
+                    preview_status:
+                      "Large JSON file (>2 MB) — full parsing will run on the backend during upload.",
+                  },
+                ],
+              }
+            : parsed;
         setParsedData(result);
         const configs: ColumnConfig[] = result.columns.map((colName) => ({
           name: colName,

@@ -79,7 +79,7 @@ export const ModelWorkbenchPage: React.FC = () => {
         try {
           const cleanRes = await apiFetch(
             `/api/v1/connections/${selectedDataset.sourceConnectionId}/clean-preview`,
-            { headers: { "X-Suppress-Toast": "true" } },
+            { headers: { "X-Suppress-Toast": "true" }, timeoutMs: 120_000 },
           );
           const cleanJson = await cleanRes.json();
           if (Array.isArray(cleanJson?.rows)) records = cleanJson.rows;
@@ -87,7 +87,7 @@ export const ModelWorkbenchPage: React.FC = () => {
           try {
             const rawRes = await apiFetch(
               `/api/v1/connections/${selectedDataset.sourceConnectionId}/preview/file`,
-              { headers: { "X-Suppress-Toast": "true" } },
+              { headers: { "X-Suppress-Toast": "true" }, timeoutMs: 30_000 },
             );
             const rawJson = await rawRes.json();
             if (Array.isArray(rawJson)) records = rawJson;

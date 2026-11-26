@@ -75,10 +75,12 @@ export const ConnectionsModals: React.FC<ConnectionsModalsProps> = ({
         <CleanDataModal
           cleanPreviewFile={connData.cleanPreviewFile}
           cleanData={connData.cleanData}
+          cleanDataError={connData.cleanDataError}
           isCleanDataLoading={connData.isCleanDataLoading}
           cleanSearchFilter={connData.cleanSearchFilter}
           setCleanSearchFilter={connData.setCleanSearchFilter}
-          onClose={() => connData.setCleanPreviewFile(null)}
+          onRetry={connData.retryCleanData}
+          onClose={connData.closeCleanPreview}
         />
       )}
 
