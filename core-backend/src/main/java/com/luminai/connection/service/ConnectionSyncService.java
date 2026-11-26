@@ -50,6 +50,12 @@ public class ConnectionSyncService {
   private final DataEngineClient dataEngineClient;
   private final ObjectMapper objectMapper;
   private final boolean kafkaListenerEnabled;
+  private org.springframework.cache.CacheManager cacheManager;
+
+  @Autowired(required = false)
+  public void setCacheManager(org.springframework.cache.CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
+  }
 
   @Autowired
   public ConnectionSyncService(
@@ -131,6 +137,7 @@ public class ConnectionSyncService {
 
     try {
       bindTenantContext(tenantId, tenantSlug);
+      ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, conn.id());
       emitProgress(
           tenantId, runIdStr, "ingest", 10, "Starting sync for connector '" + conn.name() + "'");
 
@@ -357,6 +364,7 @@ public class ConnectionSyncService {
     run.setCompletedAt(completedAt);
     saveRunQuietly(run);
 
+    ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, conn.id());
     updateConnectionSyncTimestamp(conn.id(), tenantId, completedAt);
 
     long elapsedSec = Math.max(1L, Duration.between(syncStart, completedAt).getSeconds());

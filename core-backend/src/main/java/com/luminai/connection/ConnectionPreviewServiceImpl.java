@@ -43,7 +43,7 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
   private final ObjectMapper objectMapper;
 
   @Value("${minio.bucket:luminai-raw}")
-  private String bucket;
+  private String bucket = "luminai-raw";
 
   public ConnectionPreviewServiceImpl(
       ConnectionRepository connectionRepository,
@@ -255,20 +255,21 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
         return rows;
       }
 
-      String[] headers = headerLine.split(",");
-      for (int i = 0; i < headers.length; i++) {
-        headers[i] = headers[i].trim().replaceAll("^\"|\"$", "");
+      List<String> headers =
+          com.luminai.connection.util.ConnectionFileParser.parseCsvLine(headerLine);
+      for (int i = 0; i < headers.size(); i++) {
+        headers.set(i, headers.get(i).trim());
       }
 
       String line;
       int count = 0;
       while ((line = reader.readLine()) != null && count < MAX_ROWS) {
         if (line.isBlank()) continue;
-        String[] values = line.split(",", -1);
+        List<String> values = com.luminai.connection.util.ConnectionFileParser.parseCsvLine(line);
         Map<String, Object> row = new LinkedHashMap<>();
-        for (int h = 0; h < headers.length; h++) {
-          String val = h < values.length ? values[h].trim().replaceAll("^\"|\"$", "") : "";
-          row.put(headers[h], val);
+        for (int h = 0; h < headers.size(); h++) {
+          String val = h < values.size() ? values.get(h).trim() : "";
+          row.put(headers.get(h), val);
         }
         rows.add(row);
         count++;
@@ -281,19 +282,25 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
 
   private List<Map<String, Object>> parseJsonPreview(InputStream inputStream) {
     List<Map<String, Object>> rows = new ArrayList<>(MAX_ROWS);
-    try {
-      JsonNode node = objectMapper.readTree(inputStream);
-      if (node.isArray()) {
-        int count = 0;
-        for (JsonNode element : node) {
-          if (count >= MAX_ROWS) break;
-          if (element.isObject()) {
+    try (com.fasterxml.jackson.core.JsonParser parser =
+        objectMapper.getFactory().createParser(inputStream)) {
+      com.fasterxml.jackson.core.JsonToken firstToken = parser.nextToken();
+      if (firstToken == com.fasterxml.jackson.core.JsonToken.START_ARRAY) {
+        while (parser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY
+            && parser.currentToken() != null
+            && rows.size() < MAX_ROWS) {
+          if (parser.currentToken() == com.fasterxml.jackson.core.JsonToken.START_OBJECT) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> map = objectMapper.convertValue(element, Map.class);
+            Map<String, Object> map = objectMapper.readValue(parser, Map.class);
             rows.add(map);
-            count++;
+          } else {
+            parser.skipChildren();
           }
         }
+      } else if (firstToken == com.fasterxml.jackson.core.JsonToken.START_OBJECT) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = objectMapper.readValue(parser, Map.class);
+        rows.add(map);
       }
     } catch (Exception e) {
       log.warn("Failed to parse JSON preview: {}", e.getMessage());

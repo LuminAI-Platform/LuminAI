@@ -30,11 +30,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectionService {
 
   private static final Logger log = LoggerFactory.getLogger(ConnectionService.class);
+  private static final int MAX_LIST_SAMPLE_ROWS = 10;
 
   private final ConnectionRepository repository;
   private final PipelineRunRepository pipelineRunRepository;
   private CredentialsVaultService credentialsVaultService;
   private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+  @Autowired(required = false)
+  private org.springframework.cache.CacheManager cacheManager;
 
   public ConnectionService(
       ConnectionRepository repository,
@@ -51,6 +55,11 @@ public class ConnectionService {
   @Autowired(required = false)
   public void setObjectMapper(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
+  }
+
+  @Autowired(required = false)
+  public void setCacheManager(org.springframework.cache.CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
   }
 
   /** Create a new connection registry entry for the authenticated tenant. */
@@ -151,7 +160,7 @@ public class ConnectionService {
             .collect(Collectors.groupingBy(PipelineRun::getConnectionId));
 
     return connections.stream()
-        .map(conn -> toResponse(conn, runsByConn.getOrDefault(conn.getId(), List.of())))
+        .map(conn -> toResponse(conn, runsByConn.getOrDefault(conn.getId(), List.of()), true))
         .toList();
   }
 
@@ -179,6 +188,7 @@ public class ConnectionService {
     }
 
     Connection updated = repository.save(connection);
+    ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, id);
     log.info(
         "Updated connection '{}' (id={}) for tenant {}",
         updated.getName(),
@@ -191,6 +201,11 @@ public class ConnectionService {
   }
 
   private ConnectionDto.Response toResponse(Connection entity, List<PipelineRun> runs) {
+    return toResponse(entity, runs, false);
+  }
+
+  private ConnectionDto.Response toResponse(
+      Connection entity, List<PipelineRun> runs, boolean compactList) {
     long rowsSynced = 0;
     boolean isSyncing = false;
     Instant latestCompleted = entity.getLastSyncAt();
@@ -215,13 +230,15 @@ public class ConnectionService {
     }
 
     Connection.Status status = isSyncing ? Connection.Status.SYNCING : entity.getStatus();
+    String configPayload =
+        compactList ? summarizeConfigForList(entity.getConfig()) : entity.getConfig();
 
     return new ConnectionDto.Response(
         entity.getId(),
         entity.getTenantId(),
         entity.getName(),
         entity.getType(),
-        entity.getConfig(),
+        configPayload,
         entity.getCredentialsRef(),
         status,
         latestCompleted,
@@ -230,6 +247,45 @@ public class ConnectionService {
         entity.getCreatedBy(),
         entity.getCreatedAt(),
         entity.getUpdatedAt());
+  }
+
+  private String summarizeConfigForList(String rawConfig) {
+    if (rawConfig == null || rawConfig.isBlank()) {
+      return rawConfig;
+    }
+    try {
+      com.fasterxml.jackson.databind.ObjectMapper mapper =
+          objectMapper != null ? objectMapper : new com.fasterxml.jackson.databind.ObjectMapper();
+      com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(rawConfig);
+      if (!root.isObject()) {
+        return rawConfig;
+      }
+      boolean modified = false;
+      com.fasterxml.jackson.databind.node.ObjectNode obj =
+          (com.fasterxml.jackson.databind.node.ObjectNode) root;
+      modified |= trimSampleRowsArray(obj.get("sampleRows"));
+      if (obj.has("tables") && obj.get("tables").isArray()) {
+        for (com.fasterxml.jackson.databind.JsonNode tbl : obj.get("tables")) {
+          if (tbl.isObject()) {
+            modified |= trimSampleRowsArray(tbl.get("sampleRows"));
+          }
+        }
+      }
+      return modified ? mapper.writeValueAsString(obj) : rawConfig;
+    } catch (Exception e) {
+      return rawConfig;
+    }
+  }
+
+  private static boolean trimSampleRowsArray(com.fasterxml.jackson.databind.JsonNode node) {
+    if (node instanceof com.fasterxml.jackson.databind.node.ArrayNode arr
+        && arr.size() > MAX_LIST_SAMPLE_ROWS) {
+      while (arr.size() > MAX_LIST_SAMPLE_ROWS) {
+        arr.remove(arr.size() - 1);
+      }
+      return true;
+    }
+    return false;
   }
 
   private static long extractRowsSynced(String config) {
@@ -253,6 +309,7 @@ public class ConnectionService {
     if (deleted == 0) {
       throw new ResourceNotFoundException("Connection", id);
     }
+    ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, id);
     log.info("Deleted connection (id={}) for tenant {}", id, tenantId);
   }
 

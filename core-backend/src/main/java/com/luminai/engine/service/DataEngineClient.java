@@ -206,16 +206,54 @@ public class DataEngineClient {
           .body(MAP_TYPE);
     } catch (Exception e) {
       log.warn("Data Engine direct dataset cleaning failed ({}): {}", baseUrl, e.getMessage());
-      return Map.of(
-          "status",
-          "ERROR",
-          "available",
-          false,
+      boolean timedOut = isTimeoutException(e);
+      int statusCode = timedOut ? 504 : extractHttpStatusCode(e, 503);
+      String errorMessage =
+          timedOut
+              ? "Data Engine timed out while processing dataset ("
+                  + (e.getMessage() != null ? e.getMessage() : "read timeout")
+                  + ")"
+              : (e.getMessage() != null ? e.getMessage() : "Connection failed");
+
+      Map<String, Object> errorBody = new HashMap<>();
+      errorBody.put("status", "ERROR");
+      errorBody.put("available", false);
+      errorBody.put("timedOut", timedOut);
+      errorBody.put("statusCode", statusCode);
+      errorBody.put(
           "message",
-          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").",
-          "error",
-          e.getMessage() != null ? e.getMessage() : "Connection failed");
+          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").");
+      errorBody.put("error", errorMessage);
+      return errorBody;
     }
+  }
+
+  private static boolean isTimeoutException(Throwable throwable) {
+    Throwable cur = throwable;
+    while (cur != null) {
+      if (cur instanceof java.net.SocketTimeoutException
+          || cur instanceof java.util.concurrent.TimeoutException
+          || cur instanceof java.net.http.HttpTimeoutException) {
+        return true;
+      }
+      String msg = cur.getMessage();
+      if (msg != null && msg.toLowerCase().contains("timed out")) {
+        return true;
+      }
+      cur = cur.getCause();
+    }
+    return false;
+  }
+
+  private static int extractHttpStatusCode(Throwable throwable, int defaultStatus) {
+    Throwable cur = throwable;
+    while (cur != null) {
+      if (cur instanceof org.springframework.web.client.RestClientResponseException respEx) {
+        return respEx.getStatusCode().value();
+      }
+      cur = cur.getCause();
+    }
+    return defaultStatus;
   }
 
   public Map<String, Object> resolveEntities(Object requestPayload) {

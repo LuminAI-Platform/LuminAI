@@ -8,6 +8,7 @@ import uuid
 from typing import Any, Optional
 
 import app.processing.trigger as trig
+from app.config import get_settings
 from app.logging import bind_context
 from app.processing.checks import (
     cleaning_max_null_percentage_check,
@@ -80,6 +81,23 @@ def execute_cleaning_pipeline(
     if bucket:
         tags["bucket"] = str(bucket)
 
+    settings = get_settings()
+    raw_total_rows = batch_metadata.get("total_rows") or batch_metadata.get("totalRows")
+    raw_file_size = batch_metadata.get("file_size_bytes") or batch_metadata.get("fileSizeBytes")
+    if raw_total_rows is not None:
+        tags["source_total_rows"] = str(raw_total_rows)
+    if raw_file_size is not None:
+        tags["file_size_bytes"] = str(raw_file_size)
+
+    explicit_max_rows = batch_metadata.get("max_rows")
+    if explicit_max_rows is not None:
+        tags["max_rows"] = str(int(explicit_max_rows))
+    elif object_key and settings.pipeline_max_ingest_rows > 0:
+        tags["max_rows"] = str(settings.pipeline_max_ingest_rows)
+
+    if object_key and settings.pipeline_max_download_bytes > 0:
+        tags["max_bytes"] = str(settings.pipeline_max_download_bytes)
+
     start_time = time.perf_counter()
     try:
         with trace_span(
@@ -142,6 +160,9 @@ def execute_cleaning_pipeline(
                     dagster_run_id=dagster_run_id,
                     message=f"Cleaning pipeline completed: {len(step_names)} assets materialized successfully.",
                 )
+                from app.processing.checkpoint import get_checkpoint_manager
+
+                get_checkpoint_manager().clear_checkpoints(active_run_id)
                 logger.info(
                     "✅ Cleaning pipeline completed — tenant=%s, source=%s, run_id=%s, dagster_run_id=%s (took %.2fs)",
                     tenant_id,

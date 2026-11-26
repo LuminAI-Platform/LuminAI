@@ -65,5 +65,19 @@ class CacheConfigTest {
     Object searchOut = serializer.deserialize(searchBytes);
     assertInstanceOf(SearchResponseDto.Response.class, searchOut);
     assertEquals(1, ((SearchResponseDto.Response) searchOut).items().size());
+
+    Map<String, Object> cleanPreviewPayload = new java.util.LinkedHashMap<>();
+    cleanPreviewPayload.put("connectionId", UUID.randomUUID().toString());
+    cleanPreviewPayload.put("status", "COMPLETED");
+    cleanPreviewPayload.put("totalRawRecords", 1000);
+    cleanPreviewPayload.put("dataQualityScore", 94.2);
+    cleanPreviewPayload.put("columns", List.of("id", "name"));
+    cleanPreviewPayload.put(
+        "rows", List.of(Map.of("id", "1", "name", "Alice", "qualityState", "VERIFIED")));
+
+    byte[] cleanBytes = serializer.serialize(cleanPreviewPayload);
+    Object cleanOut = serializer.deserialize(cleanBytes);
+    assertInstanceOf(Map.class, cleanOut);
+    assertEquals("COMPLETED", ((Map<?, ?>) cleanOut).get("status"));
   }
 }

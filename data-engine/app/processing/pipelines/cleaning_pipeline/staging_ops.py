@@ -18,6 +18,40 @@ from app.telemetry import trace_span
 logger = logging.getLogger(__name__)
 
 
+def _insert_staging_rows_batched(
+    engine,
+    insert_sql: str,
+    validated_df: pl.DataFrame,
+    tenant_id: str,
+    source_id: str,
+    batch_size: int = 500,
+) -> int:
+    """Insert staged rows in fixed-size batches to avoid buffering large parameter lists in RAM."""
+    inserted = 0
+    batch: list[dict] = []
+    now_ts = datetime.now(timezone.utc)
+    with engine.begin() as conn:
+        for row in validated_df.iter_rows(named=True):
+            batch.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "tenant_id": tenant_id,
+                    "source_id": source_id,
+                    "raw_id": str(row.get("id", "")),
+                    "data": json.dumps(row),
+                    "staged_at": now_ts,
+                }
+            )
+            if len(batch) >= batch_size:
+                conn.execute(text(insert_sql), batch)
+                inserted += len(batch)
+                batch.clear()
+        if batch:
+            conn.execute(text(insert_sql), batch)
+            inserted += len(batch)
+    return inserted
+
+
 def stage_records(
     context: AssetExecutionContext,
     validated_df: pl.DataFrame,
@@ -104,24 +138,12 @@ def stage_records(
                 conn.execute(text("SELECT 1"))
 
             ensure_tables_exist(engine)
-            with engine.begin() as conn:
-                params = []
-                for row in validated_df.iter_rows(named=True):
-                    params.append(
-                        {
-                            "id": str(uuid.uuid4()),
-                            "tenant_id": tenant_id,
-                            "source_id": source_id,
-                            "raw_id": str(row.get("id", "")),
-                            "data": json.dumps(row),
-                            "staged_at": datetime.now(timezone.utc),
-                        }
-                    )
-                if params:
-                    conn.execute(text(insert_sql), params)
+            inserted_cnt = _insert_staging_rows_batched(
+                engine, insert_sql, validated_df, tenant_id, source_id
+            )
             context.log.info(
                 "💾 Successfully wrote %d records to PostgreSQL staging_records table",
-                len(params),
+                inserted_cnt,
             )
             db_success = True
         except Exception as e:
@@ -137,24 +159,12 @@ def stage_records(
                 sqlite_db_path = os.path.join("storage", "sqlite", "staging.db")
                 sqlite_engine = get_sqlite_engine(sqlite_db_path)
                 ensure_tables_exist(sqlite_engine)
-                with sqlite_engine.begin() as conn:
-                    params = []
-                    for row in validated_df.iter_rows(named=True):
-                        params.append(
-                            {
-                                "id": str(uuid.uuid4()),
-                                "tenant_id": tenant_id,
-                                "source_id": source_id,
-                                "raw_id": str(row.get("id", "")),
-                                "data": json.dumps(row),
-                                "staged_at": datetime.now(timezone.utc),
-                            }
-                        )
-                    if params:
-                        conn.execute(text(insert_sql), params)
+                inserted_cnt = _insert_staging_rows_batched(
+                    sqlite_engine, insert_sql, validated_df, tenant_id, source_id
+                )
                 context.log.info(
                     "💾 Successfully wrote %d records to SQLite staging_records table at %s",
-                    len(params),
+                    inserted_cnt,
                     sqlite_db_path,
                 )
             except Exception as sqle:

@@ -76,6 +76,20 @@ public class ConnectionProducer {
       List<Map<String, Object>> rows,
       boolean batchComplete,
       String objectKey) {
+    int inferredTotal = rows != null ? rows.size() : 0;
+    publishRows(
+        tenantId, connectionId, source, rows, batchComplete, objectKey, inferredTotal, null);
+  }
+
+  public void publishRows(
+      UUID tenantId,
+      UUID connectionId,
+      String source,
+      List<Map<String, Object>> rows,
+      boolean batchComplete,
+      String objectKey,
+      int actualTotalRows,
+      Long fileSizeBytes) {
 
     if ((rows == null || rows.isEmpty()) && (objectKey == null || objectKey.isBlank())) {
       log.warn(
@@ -84,7 +98,7 @@ public class ConnectionProducer {
       return;
     }
 
-    int rowCount = rows != null ? rows.size() : 0;
+    int rowCount = Math.max(actualTotalRows, rows != null ? rows.size() : 0);
     List<Map<String, Object>> safeRows = rows != null ? rows : List.of();
 
     IngestEvent event =
@@ -97,7 +111,8 @@ public class ConnectionProducer {
             rowCount,
             safeRows,
             batchComplete,
-            objectKey);
+            objectKey,
+            fileSizeBytes);
 
     String messageKey = tenantId.toString();
 
@@ -167,7 +182,31 @@ public class ConnectionProducer {
       int totalRows,
       List<Map<String, Object>> rows,
       @com.fasterxml.jackson.annotation.JsonProperty("batch_complete") boolean batchComplete,
-      @com.fasterxml.jackson.annotation.JsonProperty("object_key") String objectKey) {
+      @com.fasterxml.jackson.annotation.JsonProperty("object_key") String objectKey,
+      @com.fasterxml.jackson.annotation.JsonProperty("file_size_bytes") Long fileSizeBytes) {
+
+    public IngestEvent(
+        String eventId,
+        String tenantId,
+        String connectionId,
+        String source,
+        String ingestedAt,
+        int totalRows,
+        List<Map<String, Object>> rows,
+        boolean batchComplete,
+        String objectKey) {
+      this(
+          eventId,
+          tenantId,
+          connectionId,
+          source,
+          ingestedAt,
+          totalRows,
+          rows,
+          batchComplete,
+          objectKey,
+          null);
+    }
 
     public IngestEvent(
         String eventId,
@@ -187,6 +226,7 @@ public class ConnectionProducer {
           totalRows,
           rows,
           batchComplete,
+          null,
           null);
     }
 
@@ -198,7 +238,7 @@ public class ConnectionProducer {
         String ingestedAt,
         int totalRows,
         List<Map<String, Object>> rows) {
-      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null);
+      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null, null);
     }
   }
 }

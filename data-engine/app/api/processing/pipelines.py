@@ -74,8 +74,13 @@ def clean_dataset_sync(
 
         df = pl.from_pandas(pd.DataFrame(request.rows))
 
-    result = cleaner.process_dataframe(df, entity_type_hint=request.entity_type)
-    return result.to_api_response()
+    include_golden = bool(request.options.get("include_golden_records", True))
+    result = cleaner.process_dataframe(
+        df,
+        entity_type_hint=request.entity_type,
+        build_golden_records=include_golden,
+    )
+    return result.to_api_response(include_golden_records=include_golden)
 
 
 @router.post(
