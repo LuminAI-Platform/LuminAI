@@ -37,7 +37,9 @@ export const RelationshipFields: React.FC<RelationshipFieldsProps> = ({
             type="text"
             value={form.name}
             onChange={(e) => {
-              const nextName = e.target.value.toUpperCase().replace(/\s+/g, "_");
+              const nextName = e.target.value
+                .toUpperCase()
+                .replace(/\s+/g, "_");
               set("name", nextName);
               set("label", nextName.replace(/_/g, " ").trim());
             }}

@@ -208,7 +208,9 @@ export async function apiFetch(
               timeoutMs > 0
                 ? setTimeout(() => {
                     retryTimedOut = true;
-                    retryController.abort(new ApiTimeoutError(timeoutMs, String(url)));
+                    retryController.abort(
+                      new ApiTimeoutError(timeoutMs, String(url)),
+                    );
                   }, timeoutMs)
                 : undefined;
 
@@ -241,7 +243,10 @@ export async function apiFetch(
               throw retryFetchErr;
             } finally {
               if (retryTimeoutId) clearTimeout(retryTimeoutId);
-              resolvedInit.signal?.removeEventListener("abort", abortFromParent);
+              resolvedInit.signal?.removeEventListener(
+                "abort",
+                abortFromParent,
+              );
             }
 
             if (retryResponse.ok) {

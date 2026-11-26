@@ -210,9 +210,7 @@ export function useGraphData() {
   });
 
   const hasLoadedGraph =
-    !isLoading &&
-    !activeError &&
-    graphData.nodes.length > 0;
+    !isLoading && !activeError && graphData.nodes.length > 0;
 
   const selectEntity = useCallback(
     (id: string | null, label?: string | null) => {
