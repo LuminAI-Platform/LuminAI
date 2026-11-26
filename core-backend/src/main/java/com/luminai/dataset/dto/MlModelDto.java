@@ -1,5 +1,6 @@
 package com.luminai.dataset.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.luminai.dataset.model.MlModel;
 import java.time.Instant;
 import java.util.UUID;
@@ -10,14 +11,14 @@ public record MlModelDto(
     String name,
     String algorithm,
     String taskType,
-    UUID trainingDatasetId,
+    @JsonProperty("datasetId") UUID trainingDatasetId,
     Integer datasetVersion,
     String features,
     String targetColumn,
     String hyperparameters,
     String metrics,
     String status,
-    String modelArtifactPath,
+    @JsonProperty("artifactPath") String modelArtifactPath,
     Instant createdAt,
     Instant updatedAt) {
 

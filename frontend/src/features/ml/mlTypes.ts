@@ -34,6 +34,7 @@ export interface MlModelDto {
 
 export interface MlExperiment {
   run_id: string;
+  model_id?: string;
   experiment_name: string;
   model_name?: string;
   metrics?: Record<string, number>;

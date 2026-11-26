@@ -7,6 +7,7 @@ import com.luminai.connection.model.GoldenRecord;
 import com.luminai.connection.model.ProvenanceEntry;
 import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.explorer.dto.EntityDetailDto;
+import com.luminai.explorer.dto.MatchReasonDto;
 import com.luminai.explorer.dto.ProvenanceItem;
 import com.luminai.explorer.dto.SearchResponseDto;
 import java.util.*;
@@ -205,8 +206,8 @@ public class ExplorerSearchService {
                 comp,
                 qual,
                 isDup,
-                List.of("Primary key match", "Cross-system attribute resolution"),
-                List.of("CRM", "ERP")));
+                buildMatchReasons(gr, conf, sources),
+                List.of()));
       }
       Map<String, Map<String, Long>> facets =
           Map.of(
@@ -326,8 +327,8 @@ public class ExplorerSearchService {
                 comp,
                 qual,
                 isDup,
-                List.of("Primary key resolution", "Cross-system attribute alignment"),
-                List.of("CRM", "ERP")));
+                buildMatchReasons(gr, conf, sources),
+                List.of()));
       }
     }
 
@@ -427,7 +428,35 @@ public class ExplorerSearchService {
         comp,
         qual,
         isDup,
-        List.of("Primary key resolution", "Cross-system attribute alignment"));
+        buildMatchReasons(gr, entityConfidence, sources));
+  }
+
+  private List<MatchReasonDto> buildMatchReasons(
+      GoldenRecord gr, double confidence, int sourceCount) {
+    List<MatchReasonDto> reasons = new ArrayList<>();
+    if (gr.getProvenance() != null && !gr.getProvenance().isEmpty()) {
+      Set<String> seenFields = new LinkedHashSet<>();
+      for (ProvenanceEntry pe : gr.getProvenance()) {
+        if (pe.getFieldName() != null && seenFields.add(pe.getFieldName())) {
+          reasons.add(
+              new MatchReasonDto(
+                  pe.getFieldName(),
+                  pe.getAction() != null ? pe.getAction() : "Entity Resolution",
+                  confidence,
+                  "Matched via " + pe.getFieldName()));
+          if (reasons.size() >= 4) break;
+        }
+      }
+    }
+    if (reasons.isEmpty() && sourceCount > 1) {
+      reasons.add(
+          new MatchReasonDto(
+              "canonicalName",
+              "Entity Resolution",
+              confidence,
+              "Merged from " + sourceCount + " source records"));
+    }
+    return reasons;
   }
 
   /** Retrieves field-level provenance lineage for an entity. */

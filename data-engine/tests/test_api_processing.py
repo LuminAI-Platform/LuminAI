@@ -163,3 +163,13 @@ class TestStatusEndpoint:
         assert status_data["run_id"] == run_id
         assert status_data["status"] in ("queued", "running", "completed", "failed")
         assert "entity resolution" in status_data["message"].lower()
+
+    def test_trigger_preserves_caller_supplied_run_id(self):
+        """Passing run_id in TriggerRequest reuses that ID in Data Engine tracker."""
+        custom_id = "run-sync-12345"
+        resp = client.post(
+            "/process/trigger",
+            json={"source_id": "src-sync", "tenant_id": "acme", "run_id": custom_id},
+        )
+        assert resp.status_code == 202
+        assert resp.json()["run_id"] == custom_id

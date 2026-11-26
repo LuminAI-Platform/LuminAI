@@ -247,6 +247,31 @@ def extract_roles_from_claims(
     return sorted(list(roles_set))
 
 
+def resolve_effective_tenant(
+    identity: AuthIdentity, requested_tenant_id: Optional[str] = None
+) -> Optional[str]:
+    """Enforce tenant isolation for end-user JWT calls while preserving service-to-service calls."""
+    if (
+        identity.is_service
+        or identity.auth_method in ("api_key", "dev_bypass")
+        or not identity.tenant_id
+    ):
+        return requested_tenant_id
+    if (
+        requested_tenant_id is not None
+        and requested_tenant_id.strip()
+        and requested_tenant_id != identity.tenant_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Tenant mismatch: token scoped to '{identity.tenant_id}' "
+                f"cannot access tenant '{requested_tenant_id}'"
+            ),
+        )
+    return identity.tenant_id
+
+
 async def get_current_identity(
     api_key_header: Optional[str] = Security(api_key_header_scheme),
     bearer_credentials: Optional[HTTPAuthorizationCredentials] = Security(

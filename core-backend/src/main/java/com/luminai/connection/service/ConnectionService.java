@@ -33,12 +33,24 @@ public class ConnectionService {
 
   private final ConnectionRepository repository;
   private final PipelineRunRepository pipelineRunRepository;
+  private CredentialsVaultService credentialsVaultService;
+  private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
   public ConnectionService(
       ConnectionRepository repository,
       @Autowired(required = false) PipelineRunRepository pipelineRunRepository) {
     this.repository = repository;
     this.pipelineRunRepository = pipelineRunRepository;
+  }
+
+  @Autowired(required = false)
+  public void setCredentialsVaultService(CredentialsVaultService credentialsVaultService) {
+    this.credentialsVaultService = credentialsVaultService;
+  }
+
+  @Autowired(required = false)
+  public void setObjectMapper(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+    this.objectMapper = objectMapper;
   }
 
   /** Create a new connection registry entry for the authenticated tenant. */
@@ -56,10 +68,56 @@ public class ConnectionService {
             null);
 
     Connection saved = repository.save(connection);
+
+    // Persist encrypted database/API credentials in vault when supplied on creation
+    if (credentialsVaultService != null && hasInlineCredentials(request)) {
+      String credsJson = buildCredentialsJson(request);
+      String vaultRef =
+          credentialsVaultService.storeCredentials(tenantId, saved.getId(), credsJson);
+      if (saved.getCredentialsRef() == null || saved.getCredentialsRef().isBlank()) {
+        saved.setCredentialsRef(vaultRef);
+        saved = repository.save(saved);
+      }
+    }
+
     log.info(
         "Created connection '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
 
     return toResponse(saved, List.of());
+  }
+
+  private boolean hasInlineCredentials(ConnectionDto.CreateRequest request) {
+    return (request.password() != null && !request.password().isBlank())
+        || (request.username() != null && !request.username().isBlank())
+        || (request.host() != null && !request.host().isBlank());
+  }
+
+  private String buildCredentialsJson(ConnectionDto.CreateRequest request) {
+    Map<String, Object> creds = new java.util.LinkedHashMap<>();
+    if (request.config() != null && !request.config().isBlank() && objectMapper != null) {
+      try {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cfg = objectMapper.readValue(request.config(), Map.class);
+        if (cfg.containsKey("host")) creds.put("host", cfg.get("host"));
+        if (cfg.containsKey("port")) creds.put("port", cfg.get("port"));
+        if (cfg.containsKey("database")) creds.put("database", cfg.get("database"));
+        if (cfg.containsKey("username")) creds.put("username", cfg.get("username"));
+      } catch (Exception ignored) {
+      }
+    }
+    if (request.host() != null) creds.put("host", request.host());
+    if (request.port() != null) creds.put("port", request.port());
+    if (request.database() != null) creds.put("database", request.database());
+    if (request.username() != null) creds.put("username", request.username());
+    if (request.password() != null) creds.put("password", request.password());
+
+    try {
+      com.fasterxml.jackson.databind.ObjectMapper mapper =
+          objectMapper != null ? objectMapper : new com.fasterxml.jackson.databind.ObjectMapper();
+      return mapper.writeValueAsString(creds);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to serialize connector credentials", e);
+    }
   }
 
   /** Get a connection by ID, scoped to the authenticated tenant. */

@@ -11,9 +11,11 @@ import time
 from typing import Any, Dict, List, Optional
 
 import duckdb
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 import polars as pl
 from pydantic import BaseModel, Field
+
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter(prefix="/analytics/sql", tags=["sql-studio"])
 
@@ -127,8 +129,12 @@ def validate_read_only(query: str) -> str:
 
 
 @router.post("/execute", response_model=SqlQueryResponse, summary="Execute interactive analytical SQL query")
-async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
+def execute_sql_query(
+    request: SqlQueryRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> SqlQueryResponse:
     """Executes a validated read-only SQL query against in-memory DuckDB tables."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     try:
         normalized_query = validate_read_only(request.query)
     except ValueError as exc:
@@ -167,7 +173,7 @@ async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
         if request.dataset_id and (not request.tables or "dataset" not in request.tables):
             from app.processing.minio_client import get_minio_client
             m_client = get_minio_client()
-            ds_key = f"{request.tenant_id}/raw/{request.dataset_id}"
+            ds_key = f"{effective_tenant}/raw/{request.dataset_id}"
             try:
                 ds_df = m_client.load_dataframe("luminai-raw", ds_key)
                 conn.register("dataset", ds_df.to_arrow())
@@ -175,7 +181,7 @@ async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
                 if not request.tables:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Failed to load dataset '{request.dataset_id}' for tenant '{request.tenant_id}': {load_exc}",
+                        detail=f"Failed to load dataset '{request.dataset_id}' for tenant '{effective_tenant}': {load_exc}",
                     ) from load_exc
 
         # Execute query

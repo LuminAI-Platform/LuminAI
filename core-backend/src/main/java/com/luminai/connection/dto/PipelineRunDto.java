@@ -1,6 +1,8 @@
 package com.luminai.connection.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.connection.model.PipelineRun;
 import java.time.Duration;
 import java.time.Instant;
@@ -83,15 +85,65 @@ public record PipelineRunDto(
         createdAt);
   }
 
+  private static final ObjectMapper METADATA_MAPPER = new ObjectMapper();
+
   private static List<StageMetricDto> generateDefaultStages(
       long in, long out, long failed, long duration) {
+    if (in == 0 && out == 0 && failed == 0 && duration == 0) {
+      return List.of();
+    }
     List<StageMetricDto> stages = new ArrayList<>();
-    long durSlice = Math.max(1, duration / 4);
+    long durSlice = duration > 0 ? duration / 4 : 0L;
     stages.add(new StageMetricDto("ingest", "Data Ingestion", in, in, 0, durSlice));
     stages.add(new StageMetricDto("clean", "Cleaning & Normalization", in, in, 0, durSlice));
     stages.add(new StageMetricDto("dedupe", "Deduplication", in, out + failed, failed, durSlice));
     stages.add(new StageMetricDto("resolve", "Entity Resolution", out + failed, out, 0, durSlice));
     return stages;
+  }
+
+  private static JsonNode parseMetadata(String rawMetadata) {
+    if (rawMetadata == null || rawMetadata.isBlank() || "{}".equals(rawMetadata.trim())) {
+      return null;
+    }
+    try {
+      return METADATA_MAPPER.readTree(rawMetadata);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static Long readLongField(JsonNode node, String field) {
+    if (node != null && node.has(field) && node.get(field).isNumber()) {
+      return node.get(field).asLong();
+    }
+    return null;
+  }
+
+  private static List<StageMetricDto> readStagesFromMetadata(JsonNode meta) {
+    if (meta == null || !meta.has("stages") || !meta.get("stages").isArray()) {
+      return null;
+    }
+    List<StageMetricDto> result = new ArrayList<>();
+    for (JsonNode s : meta.get("stages")) {
+      if (!s.isObject()) continue;
+      String stage =
+          s.has("stage")
+              ? s.get("stage").asText("stage")
+              : (s.has("id") ? s.get("id").asText("stage") : "stage");
+      String label =
+          s.has("label")
+              ? s.get("label").asText(stage)
+              : (s.has("name") ? s.get("name").asText(stage) : stage);
+      long recIn = s.has("recordsIn") ? s.get("recordsIn").asLong(0L) : 0L;
+      long recOut = s.has("recordsOut") ? s.get("recordsOut").asLong(0L) : 0L;
+      long dropped =
+          s.has("dropped")
+              ? s.get("dropped").asLong(0L)
+              : (s.has("recordsFailed") ? s.get("recordsFailed").asLong(0L) : 0L);
+      long dur = s.has("durationSeconds") ? s.get("durationSeconds").asLong(0L) : 0L;
+      result.add(new StageMetricDto(stage, label, recIn, recOut, dropped, dur));
+    }
+    return result.isEmpty() ? null : result;
   }
 
   public static PipelineRunDto fromEntity(
@@ -118,8 +170,18 @@ public record PipelineRunDto(
     }
 
     long failed = run.getRecordsFailed();
-    long quarantined = failed > 0 ? failed / 2 : 0;
-    long rejected = failed - quarantined;
+    JsonNode meta = parseMetadata(run.getMetadata());
+    Long metaQuarantined = readLongField(meta, "quarantined");
+    Long metaRejected = readLongField(meta, "rejected");
+    long quarantined = metaQuarantined != null ? Math.max(0L, metaQuarantined) : 0L;
+    long rejected =
+        metaRejected != null ? Math.max(0L, metaRejected) : Math.max(0L, failed - quarantined);
+    List<StageMetricDto> parsedStages = readStagesFromMetadata(meta);
+    List<StageMetricDto> stages =
+        parsedStages != null
+            ? parsedStages
+            : generateDefaultStages(
+                run.getRecordsInput(), run.getRecordsOutput(), failed, duration);
 
     return new PipelineRunDto(
         run.getId(),
@@ -135,7 +197,7 @@ public record PipelineRunDto(
         quarantined,
         rejected,
         null,
-        generateDefaultStages(run.getRecordsInput(), run.getRecordsOutput(), failed, duration),
+        stages,
         throughput,
         run.getStartedAt(),
         run.getCompletedAt(),

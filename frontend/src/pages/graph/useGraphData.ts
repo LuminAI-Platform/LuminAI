@@ -148,7 +148,7 @@ export function useGraphData() {
               : 0,
       };
     },
-    enabled: Boolean(activeEntityId),
+    enabled: true,
     retry: false,
   });
 
@@ -190,7 +190,7 @@ export function useGraphData() {
 
   const isLoading = activeEntityId
     ? isGraphLoading || isGraphFetching
-    : isCatalogLoading;
+    : isCatalogLoading || (isGraphLoading && graphData.nodes.length === 0);
 
   const viewState = deriveGraphViewState({
     isLoading,
@@ -210,10 +210,7 @@ export function useGraphData() {
   });
 
   const hasLoadedGraph =
-    Boolean(activeEntityId) &&
-    !isLoading &&
-    !activeError &&
-    graphData.nodes.length > 0;
+    !isLoading && !activeError && graphData.nodes.length > 0;
 
   const selectEntity = useCallback(
     (id: string | null, label?: string | null) => {

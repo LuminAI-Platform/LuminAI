@@ -62,12 +62,18 @@ export const ModelExperimentTable: React.FC<ModelExperimentTableProps> = ({
                   {metricDisplay}
                 </td>
                 <td className="py-3 px-4 text-right">
-                  <button
-                    onClick={() => onPromote(exp.run_id)}
-                    className="text-xs text-primary hover:underline font-sans cursor-pointer"
-                  >
-                    Promote to Champion
-                  </button>
+                  {exp.model_id ? (
+                    <button
+                      onClick={() => onPromote(exp.model_id!)}
+                      className="text-xs text-primary hover:underline font-sans cursor-pointer"
+                    >
+                      Promote to Champion
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-text-secondary font-sans">
+                      Unregistered
+                    </span>
+                  )}
                 </td>
               </tr>
             );

@@ -402,6 +402,20 @@ public class DataEngineClient {
     }
   }
 
+  /**
+   * Re-queues a failed or stalled pipeline job by POSTing to the Data Engine retry endpoint.
+   *
+   * <p>Previously {@code retryJob} in {@link com.luminai.engine.controller.DataEngineController}
+   * called {@link #getJobStatus} (a GET) instead of a retry, so clicking "Retry" in the UI had no
+   * effect — it only returned the same failed status. This method issues the correct POST.
+   *
+   * @param jobId the job ID to retry
+   * @return the Data Engine response (typically {@code {"status":"QUEUED","jobId":"..."}})
+   */
+  public Map<String, Object> retryPipelineJob(String jobId) {
+    return postJson("/process/retry/" + jobId, Map.of());
+  }
+
   private Map<String, Object> postJson(String uri, Object payload) {
     try {
       return restClient

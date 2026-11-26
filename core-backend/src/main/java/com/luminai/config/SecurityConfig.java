@@ -77,24 +77,7 @@ public class SecurityConfig {
             oauth2 -> {
               DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
               defaultResolver.setAllowUriQueryParameter(true);
-              oauth2.bearerTokenResolver(
-                  request -> {
-                    String token = defaultResolver.resolve(request);
-                    if (token != null) {
-                      return token;
-                    }
-                    // Support ?token= and ?access_token= query parameters sent by browser
-                    // EventSource (SSE)
-                    String queryToken = request.getParameter("token");
-                    if (queryToken != null && !queryToken.isBlank()) {
-                      return queryToken;
-                    }
-                    String queryAccessToken = request.getParameter("access_token");
-                    if (queryAccessToken != null && !queryAccessToken.isBlank()) {
-                      return queryAccessToken;
-                    }
-                    return null;
-                  });
+              oauth2.bearerTokenResolver(defaultResolver);
               oauth2.jwt(
                   jwt ->
                       jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
@@ -292,7 +275,17 @@ public class SecurityConfig {
               "https://*.luminai.dev"));
     }
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-    config.setAllowedHeaders(List.of("*"));
+    config.setAllowedHeaders(
+        List.of(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+            "X-API-Key",
+            "X-Tenant-ID",
+            "X-Suppress-Toast",
+            "Cache-Control"));
     config.setAllowCredentials(true);
     config.setMaxAge(3600L);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

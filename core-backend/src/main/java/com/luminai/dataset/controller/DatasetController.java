@@ -122,7 +122,13 @@ public class DatasetController {
         body != null && body.get("records") instanceof List<?> l
             ? (List<java.util.Map<String, Object>>) l
             : java.util.List.of();
-    return ResponseEntity.ok(datasetService.generateEdaReport(id, records));
+    java.util.Map<String, Object> result = datasetService.generateEdaReport(id, records);
+    if (result != null
+        && ("ERROR".equalsIgnoreCase(String.valueOf(result.get("status")))
+            || result.containsKey("error"))) {
+      return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_GATEWAY).body(result);
+    }
+    return ResponseEntity.ok(result);
   }
 
   @PostMapping("/cleaning/preview")

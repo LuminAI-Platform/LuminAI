@@ -131,7 +131,11 @@ export function computeGraphBadge(params: {
   if (params.hasError) {
     return { label: "Graph unavailable", variant: "error" };
   }
-  if (params.hasActiveEntity && !params.isLoading && params.nodeCount > 0) {
+  if (
+    (params.hasActiveEntity || params.nodeCount > 0) &&
+    !params.isLoading &&
+    params.nodeCount > 0
+  ) {
     return {
       label: `Graph loaded - ${params.nodeCount} nodes, ${params.edgeCount} edges`,
       variant: "emerald",
@@ -155,7 +159,7 @@ export function deriveGraphViewState(params: {
   if (params.isLoading) return "loading";
   if (params.hasError) return "error";
 
-  if (!params.activeEntityId) {
+  if (!params.activeEntityId && params.nodeCount === 0) {
     if (params.catalogTotal === 0) return "empty_catalog";
     return "idle";
   }

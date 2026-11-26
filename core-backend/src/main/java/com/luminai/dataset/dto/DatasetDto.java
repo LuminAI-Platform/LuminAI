@@ -2,8 +2,11 @@ package com.luminai.dataset.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonRawValue;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.dataset.model.Dataset;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -39,24 +42,11 @@ public record DatasetDto(
             ? "CSV"
             : (loc.toLowerCase().endsWith(".json") ? "JSON" : "PARQUET");
 
-    Double score;
-    if (entity.getQualityStatus() == Dataset.QualityStatus.VERIFIED) {
-      score = 95.0;
-    } else if (entity.getQualityStatus() == Dataset.QualityStatus.NEEDS_REVIEW) {
-      score = 72.0;
-    } else if (entity.getQualityStatus() == Dataset.QualityStatus.REJECTED) {
-      score = 30.0;
-    } else {
-      score = 88.0;
-    }
-
     String profSummary = entity.getProfilingSummary();
-    if (profSummary == null || profSummary.isBlank() || "{}".equals(profSummary.trim())) {
-      profSummary =
-          String.format(
-              "{\"completeness\":%.1f,\"validity\":%.1f,\"uniqueness\":%.1f,\"consistency\":%.1f,\"timeliness\":%.1f,\"columns\":{}}",
-              score, score - 2.0, score + 1.0, score - 1.0, 99.0);
+    if (profSummary == null || profSummary.isBlank()) {
+      profSummary = "{}";
     }
+    Double score = extractRealQualityScore(profSummary);
 
     String schema = entity.getSchemaMetadata();
     if (schema == null || schema.isBlank()) {
@@ -85,5 +75,36 @@ public record DatasetDto(
         entity.getCreatedBy(),
         entity.getCreatedAt(),
         entity.getUpdatedAt());
+  }
+
+  private static final ObjectMapper SUMMARY_MAPPER = new ObjectMapper();
+
+  private static Double extractRealQualityScore(String profSummary) {
+    if (profSummary == null || profSummary.isBlank() || "{}".equals(profSummary.trim())) {
+      return null;
+    }
+    try {
+      JsonNode root = SUMMARY_MAPPER.readTree(profSummary);
+      if (root == null || !root.isObject()) {
+        return null;
+      }
+      for (String key : List.of("overallScore", "overall_score", "qualityScore", "score")) {
+        if (root.has(key) && root.get(key).isNumber()) {
+          return root.get(key).asDouble();
+        }
+      }
+      double sum = 0.0;
+      int count = 0;
+      for (String dim :
+          List.of("completeness", "validity", "uniqueness", "consistency", "timeliness")) {
+        if (root.has(dim) && root.get(dim).isNumber()) {
+          sum += root.get(dim).asDouble();
+          count++;
+        }
+      }
+      return count > 0 ? Math.round((sum / count) * 100.0) / 100.0 : null;
+    } catch (Exception e) {
+      return null;
+    }
   }
 }

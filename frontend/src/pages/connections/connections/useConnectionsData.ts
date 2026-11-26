@@ -34,7 +34,8 @@ export function useConnectionsData() {
   const isEngineOffline = useCallback(() => {
     if (!isOnline) return true;
     const metrics = queryClient.getQueryData<EngineMetricsResponse>([
-      "engine-metrics",
+      "engine",
+      "metrics",
     ]);
     if (!metrics) return false;
     return deriveEngineStatus(metrics, false) === "offline";

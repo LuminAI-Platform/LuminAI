@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.processing.engine.dataframe_utils import records_to_polars_df
 from app.processing.engine.profiler import DataProfiler
 from app.processing.engine.quality_framework import DataQualityFramework
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter(prefix="/analytics/datasets", tags=["datasets-profiling"])
 
@@ -26,8 +27,12 @@ class PreviewDatasetRequest(BaseModel):
 
 
 @router.post("/profile", summary="Profile dataset and compute quality assessment")
-async def profile_dataset_endpoint(request: ProfileDatasetRequest) -> Dict[str, Any]:
+def profile_dataset_endpoint(
+    request: ProfileDatasetRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> Dict[str, Any]:
     """Generates comprehensive column statistics, anomalies, and quality scores."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     if not request.records:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -44,7 +49,7 @@ async def profile_dataset_endpoint(request: ProfileDatasetRequest) -> Dict[str, 
 
         return {
             "dataset_name": request.dataset_name,
-            "tenant_id": request.tenant_id,
+            "tenant_id": effective_tenant,
             "profile": profile_report.to_dict(),
             "quality": quality_assessment.to_dict(),
         }
@@ -56,7 +61,7 @@ async def profile_dataset_endpoint(request: ProfileDatasetRequest) -> Dict[str, 
 
 
 @router.post("/preview", summary="Generate dataset schema and sample rows preview")
-async def preview_dataset_endpoint(request: PreviewDatasetRequest) -> Dict[str, Any]:
+def preview_dataset_endpoint(request: PreviewDatasetRequest) -> Dict[str, Any]:
     """Inspects dataset structure, inferred types, and returns sample rows."""
     if not request.records:
         return {"columns": [], "rows": [], "total_rows": 0}

@@ -481,3 +481,8 @@ def test_keycloak_issuer_decoupling_and_prod_compose_config():
     assert "data_engine_storage:/app/storage" in de["volumes"]
     assert "data_engine_storage" in prod_cfg["volumes"]
     assert de["deploy"]["resources"]["limits"]["memory"] == "1024m"
+    kc = prod_cfg["services"]["keycloak"]
+    assert kc["command"][0] == "start", "Production Keycloak must run 'start', not 'start-dev'"
+    assert "01234567890123456789012345678901" not in (
+        prod_cfg["services"]["core-backend"]["environment"].get("VAULT_ENCRYPTION_KEY") or ""
+    )

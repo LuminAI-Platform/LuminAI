@@ -1,7 +1,5 @@
 package com.luminai.connection.producer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -41,12 +39,9 @@ public class ConnectionProducer {
   static final String TOPIC = "ingest.raw";
 
   private final KafkaTemplate<String, Object> kafkaTemplate;
-  private final ObjectMapper objectMapper;
 
-  public ConnectionProducer(
-      KafkaTemplate<String, Object> kafkaTemplate, ObjectMapper objectMapper) {
+  public ConnectionProducer(KafkaTemplate<String, Object> kafkaTemplate) {
     this.kafkaTemplate = kafkaTemplate;
-    this.objectMapper = objectMapper;
   }
 
   /**
@@ -104,11 +99,13 @@ public class ConnectionProducer {
             batchComplete,
             objectKey);
 
-    String payload = serialize(event);
     String messageKey = tenantId.toString();
 
+    // Pass the event object directly — KafkaTemplate<String, Object> with JsonSerializer
+    // will serialize it once. Serializing to String here caused double-encode: the JSON
+    // string would be re-serialized as a quoted JSON string literal, breaking consumers.
     kafkaTemplate
-        .send(TOPIC, messageKey, payload)
+        .send(TOPIC, messageKey, event)
         .whenComplete(
             (result, ex) -> {
               if (ex != null) {
@@ -202,18 +199,6 @@ public class ConnectionProducer {
         int totalRows,
         List<Map<String, Object>> rows) {
       this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
-  private String serialize(IngestEvent event) {
-    try {
-      return objectMapper.writeValueAsString(event);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to serialize IngestEvent to JSON: " + e.getMessage(), e);
     }
   }
 }

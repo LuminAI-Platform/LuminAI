@@ -50,8 +50,8 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.label.trim()) {
-      setError("Name and label are required.");
+    if (!form.name.trim()) {
+      setError("Internal name is required.");
       return;
     }
     if (!form.sourceEntityTypeId || !form.targetEntityTypeId) {
@@ -67,8 +67,22 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
         : "/api/v1/ontology/relationship-types";
       const res = await apiFetch(url, {
         method,
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name.trim(),
+          description: form.description,
+          sourceEntityTypeId: form.sourceEntityTypeId,
+          targetEntityTypeId: form.targetEntityTypeId,
+          cardinality: form.cardinality,
+        }),
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(
+          errBody.message ||
+            errBody.detail ||
+            `Failed to save relationship type (HTTP ${res.status}).`,
+        );
+      }
       const saved = (await res.json()) as RelationshipType;
       onSaved(saved);
     } catch (err: unknown) {

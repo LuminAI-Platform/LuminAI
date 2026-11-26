@@ -12,7 +12,7 @@ Endpoints:
 
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 import polars as pl
 
@@ -26,6 +26,7 @@ from app.api.processing.models import (
 from app.processing.engine import DatasetCleaner
 from app.processing.run_tracker import get_run_tracker
 from app.processing.trigger import DagsterTrigger
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter()
 
@@ -44,9 +45,13 @@ class DatasetCleanRequest(BaseModel):
     summary="Synchronously clean, standardize, and evaluate dataset",
     response_model=Dict[str, Any],
 )
-async def clean_dataset_sync(request: DatasetCleanRequest) -> Dict[str, Any]:
+def clean_dataset_sync(
+    request: DatasetCleanRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> Dict[str, Any]:
     """Execute full data cleaning, profiling, ER, and DAMA quality assessment synchronously."""
-    cleaner = DatasetCleaner(tenant_id=request.tenant_id, source_id=request.source_id)
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
+    cleaner = DatasetCleaner(tenant_id=effective_tenant, source_id=request.source_id)
     if not request.rows:
         return {
             "connectionId": request.source_id,
@@ -85,23 +90,25 @@ async def clean_dataset_sync(request: DatasetCleanRequest) -> Dict[str, Any]:
     status_code=202,
     include_in_schema=False,
 )
-async def trigger_pipeline(
+def trigger_pipeline(
     request: TriggerRequest,
     background_tasks: BackgroundTasks,
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> TriggerResponse:
     """Queue a data cleaning pipeline for a given source connector."""
-    run_id = str(uuid.uuid4())
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
+    run_id = request.run_id.strip() if request.run_id and request.run_id.strip() else str(uuid.uuid4())
     tracker = get_run_tracker()
     tracker.init_run(
         run_id=run_id,
         pipeline_name="cleaning_pipeline",
-        tenant_id=request.tenant_id,
+        tenant_id=effective_tenant,
         source_id=request.source_id,
         total_steps=5,
-        message=f"Cleaning pipeline queued for source '{request.source_id}' (tenant: {request.tenant_id}).",
+        message=f"Cleaning pipeline queued for source '{request.source_id}' (tenant: {effective_tenant}).",
         metadata={
             "options": request.options,
-            "tenant_id": request.tenant_id,
+            "tenant_id": effective_tenant,
             "source_id": request.source_id,
         },
     )
@@ -109,7 +116,7 @@ async def trigger_pipeline(
     trigger = DagsterTrigger()
     background_tasks.add_task(
         trigger.trigger_cleaning_pipeline,
-        request.tenant_id,
+        effective_tenant,
         request.source_id,
         {"run_id": run_id, "auto_er": True, **request.options},
         run_id=run_id,
@@ -134,27 +141,29 @@ async def trigger_pipeline(
     status_code=202,
     include_in_schema=False,
 )
-async def trigger_er_pipeline(
+def trigger_er_pipeline(
     request: ErTriggerRequest,
     background_tasks: BackgroundTasks,
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> TriggerResponse:
     """Queue an Entity Resolution pipeline run (Blocking -> Scored -> Classified -> Golden Records)."""
-    run_id = str(uuid.uuid4())
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
+    run_id = request.run_id.strip() if request.run_id and request.run_id.strip() else str(uuid.uuid4())
     tracker = get_run_tracker()
     tracker.init_run(
         run_id=run_id,
         pipeline_name="er_pipeline",
-        tenant_id=request.tenant_id,
+        tenant_id=effective_tenant,
         source_id=request.source_id,
         total_steps=5,
-        message=f"Entity Resolution pipeline queued for tenant '{request.tenant_id}'.",
-        metadata={"tenant_id": request.tenant_id, "source_id": request.source_id},
+        message=f"Entity Resolution pipeline queued for tenant '{effective_tenant}'.",
+        metadata={"tenant_id": effective_tenant, "source_id": request.source_id},
     )
 
     trigger = DagsterTrigger()
     background_tasks.add_task(
         trigger.trigger_er_pipeline,
-        request.tenant_id,
+        effective_tenant,
         request.source_id,
         run_id=run_id,
     )
@@ -176,7 +185,7 @@ async def trigger_er_pipeline(
     response_model=StatusResponse,
     include_in_schema=False,
 )
-async def get_pipeline_status(run_id: str) -> StatusResponse:
+def get_pipeline_status(run_id: str) -> StatusResponse:
     """Retrieve the current progress and status of an active pipeline run."""
     tracker = get_run_tracker()
     rec = tracker.get_status(run_id)
@@ -231,7 +240,7 @@ async def get_pipeline_status(run_id: str) -> StatusResponse:
     summary="Retry a failed pipeline run from failed step",
     status_code=200,
 )
-async def retry_pipeline_run(
+def retry_pipeline_run(
     run_id: str,
     background_tasks: BackgroundTasks,
 ) -> RetryResponse:

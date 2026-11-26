@@ -26,7 +26,7 @@ public final class SearchResponseDto {
       double completenessScore,
       double qualityScore,
       boolean possibleDuplicate,
-      List<String> matchReasons,
+      List<MatchReasonDto> matchReasons,
       List<String> sourceSystems) {
 
     public SearchItem(
@@ -52,8 +52,15 @@ public final class SearchResponseDto {
           Math.min(100.0, 75.0 + (sourceCount * 5.0)),
           confidenceScore <= 1.0 ? confidenceScore * 100.0 : confidenceScore,
           confidenceScore < 0.85,
-          List.of("Exact primary key match", "High phonetic similarity"),
-          List.of("CRM", "ERP"));
+          sourceCount > 1
+              ? List.of(
+                  new MatchReasonDto(
+                      "canonicalName",
+                      "Entity Resolution",
+                      confidenceScore,
+                      "Merged across " + sourceCount + " source records"))
+              : List.of(),
+          List.of());
     }
   }
 

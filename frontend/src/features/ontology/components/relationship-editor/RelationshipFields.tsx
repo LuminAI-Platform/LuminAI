@@ -36,9 +36,13 @@ export const RelationshipFields: React.FC<RelationshipFieldsProps> = ({
             id="rel-name"
             type="text"
             value={form.name}
-            onChange={(e) =>
-              set("name", e.target.value.toUpperCase().replace(/\s+/g, "_"))
-            }
+            onChange={(e) => {
+              const nextName = e.target.value
+                .toUpperCase()
+                .replace(/\s+/g, "_");
+              set("name", nextName);
+              set("label", nextName.replace(/_/g, " ").trim());
+            }}
             placeholder="HAS_PRODUCT"
             className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 font-mono placeholder:text-zinc-600 transition-colors uppercase"
           />
@@ -51,16 +55,19 @@ export const RelationshipFields: React.FC<RelationshipFieldsProps> = ({
             htmlFor="rel-label"
             className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider"
           >
-            Display Label *
+            Display Label
           </label>
           <input
             id="rel-label"
             type="text"
-            value={form.label}
-            onChange={(e) => set("label", e.target.value)}
+            value={form.label || form.name.replace(/_/g, " ").trim()}
+            readOnly
             placeholder="Has Product"
-            className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 outline-none focus:border-blue-500/60 placeholder:text-zinc-600 transition-colors"
+            className="px-3 py-2.5 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-400 outline-none cursor-not-allowed placeholder:text-zinc-600 transition-colors"
           />
+          <span className="text-[10px] text-zinc-600">
+            Auto-formatted from name
+          </span>
         </div>
       </div>
 
