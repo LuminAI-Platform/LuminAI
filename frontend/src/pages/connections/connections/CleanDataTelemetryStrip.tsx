@@ -39,7 +39,9 @@ export const CleanDataTelemetryStrip: React.FC<
             Clean Records
           </span>
           <span className="font-mono text-success font-bold">
-            {cleanData?.totalCleanRecords ?? recordsCount}
+            {cleanData?.totalCleanRecords != null
+              ? cleanData.totalCleanRecords
+              : "—"}
           </span>
         </div>
         <div>

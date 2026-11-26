@@ -13,25 +13,31 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
+  RefreshCw,
 } from "../../../lib/icons";
+import { Button } from "../../../components/ui/Button";
 import { CleanDataTelemetryStrip } from "./CleanDataTelemetryStrip";
 import { CleanDataFilterBar } from "./CleanDataFilterBar";
 
 interface CleanDataModalProps {
   cleanPreviewFile: IngestedFile;
   cleanData: CleanDataResponse | null;
+  cleanDataError?: string | null;
   isCleanDataLoading: boolean;
   cleanSearchFilter: string;
   setCleanSearchFilter: (v: string) => void;
+  onRetry?: () => void;
   onClose: () => void;
 }
 
 export const CleanDataModal: React.FC<CleanDataModalProps> = ({
   cleanPreviewFile,
   cleanData,
+  cleanDataError = null,
   isCleanDataLoading,
   cleanSearchFilter,
   setCleanSearchFilter,
+  onRetry,
   onClose,
 }) => {
   const [selectedTableFilter, setSelectedTableFilter] =
@@ -190,6 +196,36 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
                 <span className="text-xs">
                   Computing semantic clean view from parquet engine...
                 </span>
+              </div>
+            ) : cleanDataError ? (
+              <div
+                role="alert"
+                className="h-full flex flex-col items-center justify-center gap-3 px-6 text-center"
+              >
+                <div className="w-10 h-10 rounded-full bg-error-bg border border-error-border text-error flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                </div>
+                <div className="max-w-md space-y-1">
+                  <p className="text-sm font-semibold text-text">
+                    Failed to load clean records
+                  </p>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    {cleanDataError}
+                  </p>
+                </div>
+                {onRetry && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={onRetry}
+                    leftIcon={
+                      <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+                    }
+                  >
+                    Retry
+                  </Button>
+                )}
               </div>
             ) : !cleanData || cleanData.rows.length === 0 ? (
               <div className="h-full flex items-center justify-center text-text-secondary text-xs">
