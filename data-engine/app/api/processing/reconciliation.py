@@ -5,7 +5,7 @@ Endpoints:
   POST /edges/generate   → Generate directional relational graph edges via foreign keys.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.processing.models import (
     ReconciliationRequest,
@@ -17,6 +17,7 @@ from app.processing.reconciliation import (
     run_cross_store_reconciliation,
 )
 from app.processing.trigger import DagsterTrigger
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter()
 
@@ -26,12 +27,14 @@ router = APIRouter()
     response_model=ReconciliationReport,
     summary="Execute Cross-Store Data Reconciliation",
 )
-async def execute_reconciliation(
+def execute_reconciliation(
     request: ReconciliationRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> ReconciliationReport:
     """Execute cross-store reconciliation comparing PostgreSQL, Neo4j, and OpenSearch."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     report = run_cross_store_reconciliation(
-        tenant_id=request.tenant_id,
+        tenant_id=effective_tenant,
         entity_type=request.entity_type,
         pg_records=request.pg_records,
         neo4j_records=request.neo4j_records,
@@ -45,13 +48,15 @@ async def execute_reconciliation(
     response_model=RelationalEdgeTriggerResponse,
     summary="Generate cross-entity relational edges using foreign keys",
 )
-async def generate_relational_edges_endpoint(
+def generate_relational_edges_endpoint(
     payload: RelationalEdgeTriggerRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> RelationalEdgeTriggerResponse:
     """Generate directional relational graph edges linking entities via foreign keys."""
+    effective_tenant = resolve_effective_tenant(identity, payload.tenant_id) or payload.tenant_id
     trigger = DagsterTrigger()
     edges = trigger.generate_relational_edges(
-        tenant_id=payload.tenant_id,
+        tenant_id=effective_tenant,
         records=payload.records,
         foreign_keys=payload.foreign_keys,
         source_id=payload.source_id,
@@ -60,7 +65,7 @@ async def generate_relational_edges_endpoint(
         persist_to_db=payload.persist_to_db,
     )
     return RelationalEdgeTriggerResponse(
-        tenant_id=payload.tenant_id,
+        tenant_id=effective_tenant,
         edges_count=len(edges),
         edges=edges,
     )

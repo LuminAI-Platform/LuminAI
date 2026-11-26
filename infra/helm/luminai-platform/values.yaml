@@ -64,5 +64,5 @@ keycloak:
   # separate, gitignored values-secrets.yaml file. See templates/keycloak-secret.yaml.
   adminPassword: ""
   args:
-    - "start-dev"
+    - "start"
     - "--import-realm"

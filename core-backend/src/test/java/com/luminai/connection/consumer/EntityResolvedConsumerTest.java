@@ -25,6 +25,7 @@ class EntityResolvedConsumerTest {
   @Mock private PipelineRunRepository pipelineRunRepository;
   @Mock private com.luminai.connection.repository.ConnectionRepository connectionRepository;
   @Mock private com.luminai.auth.repository.TenantRepository tenantRepository;
+  @Mock private com.luminai.connection.service.PipelineSseService pipelineSseService;
   @Mock private Acknowledgment acknowledgment;
 
   private EntityResolvedConsumer consumer;
@@ -35,6 +36,7 @@ class EntityResolvedConsumerTest {
   void setUp() {
     consumer =
         new EntityResolvedConsumer(pipelineRunRepository, connectionRepository, tenantRepository);
+    consumer.setPipelineSseService(pipelineSseService);
     connectionId = UUID.randomUUID();
 
     existingRun = new PipelineRun();
@@ -64,6 +66,11 @@ class EntityResolvedConsumerTest {
     assertThat(saved.getStatus()).isEqualTo(PipelineRunStatus.COMPLETED);
     assertThat(saved.getMetadata()).contains("90");
     assertThat(saved.getCompletedAt()).isNotNull();
+    verify(pipelineSseService)
+        .emitProgress(any(), eq(existingRun.getId().toString()), eq("resolve"), eq(100), any());
+    verify(pipelineSseService)
+        .emitComplete(
+            any(), eq(existingRun.getId().toString()), eq(100L), eq(90L), eq(0L), anyString());
     verify(acknowledgment).acknowledge();
   }
 

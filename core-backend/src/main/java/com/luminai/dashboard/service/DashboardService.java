@@ -199,9 +199,25 @@ public class DashboardService {
     }
 
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
-    long currentEntities = goldenRecordRepository.count();
-
     Instant startWindow = today.minusDays(days - 1).atStartOfDay().toInstant(ZoneOffset.UTC);
+
+    long entitiesBeforeWindow = 0L;
+    Map<String, Long> newEntitiesByDate = new HashMap<>();
+    try {
+      entitiesBeforeWindow = goldenRecordRepository.countByCreatedAtBefore(startWindow);
+      List<Instant> createdSince = goldenRecordRepository.findCreatedAtSince(startWindow);
+      if (createdSince != null) {
+        for (Instant ts : createdSince) {
+          if (ts != null) {
+            String dateStr = ts.atZone(ZoneOffset.UTC).toLocalDate().toString();
+            newEntitiesByDate.put(dateStr, newEntitiesByDate.getOrDefault(dateStr, 0L) + 1L);
+          }
+        }
+      }
+    } catch (Exception e) {
+      log.debug("Entity creation history query unavailable: {}", e.getMessage());
+    }
+
     Map<String, Long> runsByDate = new HashMap<>();
     try {
       List<Instant> runTimestamps =
@@ -217,10 +233,12 @@ public class DashboardService {
     }
 
     List<TimeSeriesPointDto> points = new ArrayList<>();
+    long cumulativeEntities = entitiesBeforeWindow;
     for (int i = days - 1; i >= 0; i--) {
       String dateStr = today.minusDays(i).toString();
+      cumulativeEntities += newEntitiesByDate.getOrDefault(dateStr, 0L);
       long dayRuns = runsByDate.getOrDefault(dateStr, 0L);
-      points.add(new TimeSeriesPointDto(dateStr, currentEntities, dayRuns));
+      points.add(new TimeSeriesPointDto(dateStr, cumulativeEntities, dayRuns));
     }
 
     return points;

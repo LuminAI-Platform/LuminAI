@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ColumnConfig } from "../DataPreviewTable";
+import { showToastNotification } from "../../../../components/ui/ToastProvider";
 import {
   type ColumnMappingConfig,
   sanitizeEntityName,
@@ -40,7 +41,11 @@ export function useMappingConfig({
 
   const handleFile = (selectedFile: File) => {
     if (selectedFile.size > 500 * 1024 * 1024) {
-      alert("File size exceeds 500 MB limit.");
+      showToastNotification(
+        "error",
+        "File Too Large",
+        "File size exceeds 500 MB limit.",
+      );
       return;
     }
     setFile(selectedFile);
@@ -122,7 +127,11 @@ export function useMappingConfig({
         setMappings(initialMappings);
         setStep(2);
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Failed to parse file.");
+        showToastNotification(
+          "error",
+          "Parse Failed",
+          err instanceof Error ? err.message : "Failed to parse file.",
+        );
       }
     };
     reader.readAsText(previewBlob);

@@ -171,6 +171,11 @@ export function useDbConnectorDiscovery({
         body: JSON.stringify({
           name: name.trim(),
           type: resolvedType,
+          host: host.trim(),
+          port: Number(port),
+          database: databaseName.trim(),
+          username: username.trim(),
+          password,
           config: JSON.stringify({
             host: host.trim(),
             port: Number(port),

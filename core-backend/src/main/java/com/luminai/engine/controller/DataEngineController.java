@@ -31,9 +31,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class DataEngineController {
 
   private final DataEngineClient dataEngineClient;
+  private com.luminai.connection.service.PipelineSseService pipelineSseService;
 
   public DataEngineController(DataEngineClient dataEngineClient) {
     this.dataEngineClient = dataEngineClient;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setPipelineSseService(
+      com.luminai.connection.service.PipelineSseService pipelineSseService) {
+    this.pipelineSseService = pipelineSseService;
   }
 
   @Operation(
@@ -97,7 +104,9 @@ public class DataEngineController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> cleanData(@RequestBody Object requestPayload) {
     Object securePayload = enforceTenantPayload(requestPayload);
-    return ResponseEntity.ok(dataEngineClient.cleanData(securePayload));
+    Map<String, Object> res = dataEngineClient.cleanData(securePayload);
+    emitEngineProgress(res, "clean", 10, "Cleaning pipeline queued");
+    return ResponseEntity.ok(res);
   }
 
   @Operation(
@@ -109,7 +118,9 @@ public class DataEngineController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> resolveEntities(@RequestBody Object requestPayload) {
     Object securePayload = enforceTenantPayload(requestPayload);
-    return ResponseEntity.ok(dataEngineClient.resolveEntities(securePayload));
+    Map<String, Object> res = dataEngineClient.resolveEntities(securePayload);
+    emitEngineProgress(res, "resolve", 10, "Entity resolution pipeline queued");
+    return ResponseEntity.ok(res);
   }
 
   @Operation(
@@ -131,10 +142,49 @@ public class DataEngineController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER')")
   public ResponseEntity<Map<String, Object>> retryJob(@PathVariable String jobId) {
     try {
-      return ResponseEntity.ok(dataEngineClient.getJobStatus(jobId));
+      Map<String, Object> result = dataEngineClient.retryPipelineJob(jobId);
+      if (result == null
+          || "ERROR".equalsIgnoreCase(String.valueOf(result.get("status")))
+          || result.containsKey("error")) {
+        String errMsg =
+            result != null && result.get("error") != null
+                ? String.valueOf(result.get("error"))
+                : "Retry failed";
+        if (pipelineSseService != null) {
+          pipelineSseService.emitError(
+              TenantContext.getTenantUuid(), jobId, "retry", errMsg, "error");
+        }
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(Map.of("status", "FAILED", "jobId", jobId, "error", errMsg));
+      }
+      Map<String, Object> response = new HashMap<>(result);
+      response.putIfAbsent("jobId", jobId);
+      response.putIfAbsent("message", "Pipeline retry submitted.");
+      if (pipelineSseService != null) {
+        pipelineSseService.emitProgress(
+            TenantContext.getTenantUuid(),
+            jobId,
+            "retry",
+            15,
+            String.valueOf(response.get("message")));
+      }
+      return ResponseEntity.ok(response);
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
           .body(Map.of("status", "FAILED", "jobId", jobId, "error", e.getMessage()));
+    }
+  }
+
+  private void emitEngineProgress(
+      Map<String, Object> engineResponse, String step, int progress, String message) {
+    if (pipelineSseService == null || engineResponse == null) return;
+    Object rawRunId =
+        engineResponse.get("run_id") != null
+            ? engineResponse.get("run_id")
+            : engineResponse.get("jobId");
+    if (rawRunId != null && !String.valueOf(rawRunId).isBlank()) {
+      pipelineSseService.emitProgress(
+          TenantContext.getTenantUuid(), String.valueOf(rawRunId), step, progress, message);
     }
   }
 

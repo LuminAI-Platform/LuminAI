@@ -125,12 +125,14 @@ export const ModelWorkbenchPage: React.FC = () => {
   });
 
   const handlePromoteRun = async (idOrRunId?: string) => {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const candidate = idOrRunId || lastTrainedResult?.model_id;
     const targetId =
-      idOrRunId ||
-      lastTrainedResult?.model_id ||
-      lastTrainedResult?.run_id ||
-      registeredModels[0]?.id;
-    if (targetId) {
+      candidate && uuidRegex.test(candidate)
+        ? candidate
+        : lastTrainedResult?.model_id;
+    if (targetId && uuidRegex.test(targetId)) {
       promoteMutation.mutate({ id: targetId, status: "CHAMPION" });
     }
   };

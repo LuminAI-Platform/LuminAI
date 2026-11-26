@@ -30,10 +30,17 @@ public class DatasetService {
   private final DatasetVersionRepository versionRepository;
   private final DataEngineClient dataEngineClient;
   private LineageService lineageService;
+  private com.luminai.connection.repository.ConnectionPreviewService connectionPreviewService;
 
   @Autowired(required = false)
   public void setLineageService(LineageService lineageService) {
     this.lineageService = lineageService;
+  }
+
+  @Autowired(required = false)
+  public void setConnectionPreviewService(
+      com.luminai.connection.repository.ConnectionPreviewService connectionPreviewService) {
+    this.connectionPreviewService = connectionPreviewService;
   }
 
   public DatasetService(
@@ -329,10 +336,29 @@ public class DatasetService {
       return Map.of("status", "ERROR", "error", "Data Engine client is offline");
     }
 
+    List<Map<String, Object>> records = sampleRecords;
+    if ((records == null || records.isEmpty())
+        && dataset.getSourceConnectionId() != null
+        && connectionPreviewService != null) {
+      records = connectionPreviewService.previewFile(dataset.getSourceConnectionId());
+      if (records == null || records.isEmpty()) {
+        records =
+            connectionPreviewService.previewTable(
+                dataset.getSourceConnectionId(), dataset.getName());
+      }
+    }
+    if (records == null || records.isEmpty()) {
+      return Map.of(
+          "status",
+          "ERROR",
+          "error",
+          "No sample records available for dataset '" + dataset.getName() + "' to profile");
+    }
+
     Map<String, Object> edaReq = new java.util.LinkedHashMap<>();
     edaReq.put("tenant_id", slug != null ? slug : "acme");
     edaReq.put("dataset_name", dataset.getName());
-    edaReq.put("records", sampleRecords != null ? sampleRecords : List.of());
+    edaReq.put("records", records);
     return dataEngineClient.generateEdaReport(edaReq);
   }
 

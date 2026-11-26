@@ -91,10 +91,28 @@ class SqlAnalyticsServiceTest {
     assertEquals(2, result.columns().size());
     assertEquals(1, result.totalRows());
 
-    // Verify SET search_path was executed for tenant schema
-    verify(setStatement, atLeastOnce()).execute("SET search_path = \"tenant_acme\", public");
+    // Verify SET search_path was executed for tenant schema without public fallback
+    verify(setStatement, atLeastOnce()).execute("SET search_path = \"tenant_acme\"");
     // Verify search_path was restored to default
     verify(setStatement, atLeastOnce())
-        .execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
+        .execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\"");
+  }
+
+  @Test
+  @DisplayName("executeQuery rejects quoted cross-schema qualifiers, system tables, and set_config")
+  void testRejectQuotedCrossSchemaAndSystemFunctions() {
+    SqlQueryRequest quotedCrossSchema =
+        new SqlQueryRequest("SELECT * FROM \"public\".users", null, 10);
+    assertThrows(
+        IllegalArgumentException.class, () -> sqlAnalyticsService.executeQuery(quotedCrossSchema));
+
+    SqlQueryRequest systemTable = new SqlQueryRequest("SELECT * FROM vault_credentials", null, 10);
+    assertThrows(
+        IllegalArgumentException.class, () -> sqlAnalyticsService.executeQuery(systemTable));
+
+    SqlQueryRequest setConfigCall =
+        new SqlQueryRequest("SELECT set_config('search_path', 'public', false)", null, 10);
+    assertThrows(
+        IllegalArgumentException.class, () -> sqlAnalyticsService.executeQuery(setConfigCall));
   }
 }

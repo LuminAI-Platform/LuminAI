@@ -24,7 +24,7 @@ public final class EntityDetailDto {
       double completenessScore,
       double qualityScore,
       boolean possibleDuplicate,
-      List<String> matchReasons) {
+      List<MatchReasonDto> matchReasons) {
 
     public Response(
         UUID id,
@@ -51,7 +51,14 @@ public final class EntityDetailDto {
           Math.min(100.0, 75.0 + (sourceCount * 5.0)),
           confidenceScore <= 1.0 ? confidenceScore * 100.0 : confidenceScore,
           confidenceScore < 0.85 || sourceCount > 1,
-          List.of("Primary key resolution", "Cross-system attribute alignment"));
+          sourceCount > 1
+              ? List.of(
+                  new MatchReasonDto(
+                      "canonicalName",
+                      "Entity Resolution",
+                      confidenceScore,
+                      "Merged across " + sourceCount + " source records"))
+              : List.of());
     }
   }
 }

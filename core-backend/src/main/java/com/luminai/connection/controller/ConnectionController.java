@@ -52,6 +52,7 @@ public class ConnectionController {
   private final ConnectionCleanPreviewService cleanPreviewService;
   private final ConnectionUploadService uploadService;
   private com.luminai.connection.repository.PipelineRunRepository pipelineRunRepository;
+  private com.luminai.connection.service.ConnectionSyncService connectionSyncService;
 
   @Autowired(required = false)
   private Neo4jGraphRepository neo4jGraphRepository;
@@ -116,6 +117,13 @@ public class ConnectionController {
     if (this.cleanPreviewService != null && dataEngineClient != null) {
       this.cleanPreviewService.setDataEngineClient(dataEngineClient);
     }
+  }
+
+  @Autowired
+  public void configureSyncService(
+      @Autowired(required = false)
+          com.luminai.connection.service.ConnectionSyncService connectionSyncService) {
+    this.connectionSyncService = connectionSyncService;
   }
 
   @PostMapping
@@ -204,27 +212,11 @@ public class ConnectionController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> syncConnection(
       @PathVariable UUID id, @RequestBody(required = false) Map<String, Object> body) {
-    ConnectionDto.Response conn = connectionService.getById(id);
-    UUID tenantId = TenantContext.getTenantUuid();
-    UUID runTenantId = tenantId != null ? tenantId : conn.tenantId();
-
-    com.luminai.connection.model.PipelineRun run = new com.luminai.connection.model.PipelineRun();
-    run.setTenantId(runTenantId);
-    run.setConnectionId(conn.id());
-    run.setPipelineType("CONNECTOR_SYNC");
-    run.setStatus(com.luminai.connection.model.PipelineRun.PipelineRunStatus.RUNNING);
-    run.setStartedAt(java.time.Instant.now());
-    run.setRecordsInput(100);
-    run.setRecordsOutput(100);
-    run.setRecordsFailed(0);
-    run.setMetadata("{\"connectorName\":\"" + conn.name() + "\",\"syncScope\":\"manual\"}");
-
-    com.luminai.connection.model.PipelineRun saved =
-        pipelineRunRepository != null ? pipelineRunRepository.save(run) : run;
-    UUID runId = saved.getId() != null ? saved.getId() : UUID.randomUUID();
-
-    log.info("Triggered sync for connector '{}' (id={}), runId={}", conn.name(), id, runId);
-    return ResponseEntity.ok(Map.of("runId", runId.toString(), "status", "RUNNING"));
+    if (connectionSyncService != null) {
+      return ResponseEntity.ok(connectionSyncService.triggerSync(id, body));
+    }
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+        .body(Map.of("status", "FAILED", "error", "ConnectionSyncService is not configured"));
   }
 
   @PostMapping("/test")
@@ -318,6 +310,8 @@ public class ConnectionController {
         return ResponseEntity.ok(schemas);
       } catch (Exception e) {
         log.warn("Database schema discovery failed: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("message", "Database schema discovery failed: " + e.getMessage()));
       }
     } else if (config != null && config.containsKey("host") && postgresConnectorService != null) {
       try {

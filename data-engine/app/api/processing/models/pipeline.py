@@ -24,6 +24,10 @@ class TriggerRequest(BaseModel):
         description="Optional pipeline configuration overrides.",
         examples=[{"max_rows": 1000}],
     )
+    run_id: Optional[str] = Field(
+        default=None,
+        description="Optional caller-supplied pipeline run ID to synchronize tracking.",
+    )
 
 
 class ErTriggerRequest(BaseModel):
@@ -38,6 +42,10 @@ class ErTriggerRequest(BaseModel):
         default="default-source",
         description="Source identifier for tracking.",
         examples=["crm-data"],
+    )
+    run_id: Optional[str] = Field(
+        default=None,
+        description="Optional caller-supplied pipeline run ID to synchronize tracking.",
     )
 
 

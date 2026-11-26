@@ -13,7 +13,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
 
-  @Query("SELECT k FROM ApiKey k WHERE k.keyHash = :keyHash AND k.isActive = true")
+  // JOIN FETCH ensures tenant is loaded within this transaction.
+  // Without it, accessing key.getTenant().getSlug() in the auth filter
+  // (outside the transaction) throws LazyInitializationException on every API-key request.
+  @Query(
+      "SELECT k FROM ApiKey k JOIN FETCH k.tenant WHERE k.keyHash = :keyHash AND k.isActive = true")
   Optional<ApiKey> findByKeyHashAndIsActiveTrue(@Param("keyHash") String keyHash);
 
   @Query(

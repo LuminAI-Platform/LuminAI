@@ -21,7 +21,7 @@ router = APIRouter()
     response_model=SchemaValidationResponse,
     summary="Validate ingest schema, auto-detect column types, and suggest ontology mappings",
 )
-async def validate_schema_endpoint(
+def validate_schema_endpoint(
     request: SchemaValidationRequest,
 ) -> SchemaValidationResponse:
     """

@@ -23,6 +23,35 @@ export async function trainModel(
   return res.json();
 }
 
+function parseJsonField<T>(val: unknown, fallback: T): T {
+  if (val && typeof val === "object") return val as T;
+  if (typeof val === "string" && val.trim()) {
+    try {
+      return JSON.parse(val) as T;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+function normalizeMlModel(raw: Record<string, unknown>): MlModelDto {
+  const m = raw as unknown as MlModelDto & {
+    trainingDatasetId?: string;
+    modelArtifactPath?: string;
+  };
+  return {
+    ...m,
+    datasetId: m.datasetId ?? m.trainingDatasetId,
+    artifactPath: m.artifactPath ?? m.modelArtifactPath,
+    metrics: parseJsonField<Record<string, number>>(m.metrics, {}),
+    hyperparameters: parseJsonField<Record<string, unknown> | undefined>(
+      m.hyperparameters,
+      undefined,
+    ),
+  };
+}
+
 export async function listModels(status?: string): Promise<MlModelDto[]> {
   const url = status
     ? `/api/v1/ml/models?status=${encodeURIComponent(status)}`
@@ -31,7 +60,8 @@ export async function listModels(status?: string): Promise<MlModelDto[]> {
   if (!res.ok) {
     throw new Error("Failed to load registered models");
   }
-  return res.json();
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(normalizeMlModel) : [];
 }
 
 export async function getModel(id: string): Promise<MlModelDto> {
@@ -39,7 +69,7 @@ export async function getModel(id: string): Promise<MlModelDto> {
   if (!res.ok) {
     throw new Error(`Failed to load model ${id}`);
   }
-  return res.json();
+  return normalizeMlModel(await res.json());
 }
 
 export async function promoteModel(
@@ -57,7 +87,7 @@ export async function promoteModel(
       err.detail || err.message || "Failed to update model status",
     );
   }
-  return res.json();
+  return normalizeMlModel(await res.json());
 }
 
 export async function listExperiments(): Promise<MlExperiment[]> {

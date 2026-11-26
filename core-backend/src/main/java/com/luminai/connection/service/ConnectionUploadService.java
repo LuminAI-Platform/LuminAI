@@ -39,9 +39,15 @@ public class ConnectionUploadService {
   private PipelineRunRepository pipelineRunRepository;
   private final ObjectMapper objectMapper;
   private DatasetRegistrationHelper datasetRegistrationHelper;
+  private PipelineSseService pipelineSseService;
 
   public void setPipelineRunRepository(PipelineRunRepository pipelineRunRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setPipelineSseService(PipelineSseService pipelineSseService) {
+    this.pipelineSseService = pipelineSseService;
   }
 
   @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -112,6 +118,7 @@ public class ConnectionUploadService {
     int totalRows = parseResult.totalRecords();
 
     // 1. Update Connection in database with parsed sample rows & metadata
+    String savedRunId = null;
     if (connectionRepository != null) {
       try {
         Optional<Connection> connOpt = connectionRepository.findByIdAndTenantId(id, tenantId);
@@ -158,7 +165,8 @@ public class ConnectionUploadService {
                   "{\"fileName\":\""
                       + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "Upload")
                       + "\"}");
-              pipelineRunRepository.save(run);
+              PipelineRun savedRun = pipelineRunRepository.save(run);
+              savedRunId = savedRun.getId() != null ? savedRun.getId().toString() : id.toString();
               log.info("Recorded initial PipelineRun for connection '{}'", id);
             } catch (Exception pe) {
               log.warn("Could not save initial PipelineRun: {}", pe.getMessage());
@@ -179,6 +187,16 @@ public class ConnectionUploadService {
       } catch (Exception e) {
         log.warn("Failed to update connection with file config: {}", e.getMessage());
       }
+    }
+
+    String sseRunId = savedRunId != null ? savedRunId : id.toString();
+    if (pipelineSseService != null) {
+      pipelineSseService.emitProgress(
+          tenantId,
+          sseRunId,
+          "ingest",
+          40,
+          "Parsed " + totalRows + " rows from '" + file.getOriginalFilename() + "'");
     }
 
     // 2. Stream parsed rows into Kafka in chunked batches
@@ -216,6 +234,12 @@ public class ConnectionUploadService {
       } catch (Exception e) {
         log.warn("Kafka publishing skipped: {}", e.getMessage());
       }
+    }
+
+    if (pipelineSseService != null) {
+      pipelineSseService.emitProgress(
+          tenantId, sseRunId, "publish", 100, "File uploaded and queued for downstream processing");
+      pipelineSseService.emitComplete(tenantId, sseRunId, totalRows, totalRows, 0L, "1s");
     }
 
     return ResponseEntity.ok(
@@ -360,6 +384,7 @@ public class ConnectionUploadService {
               tables.size(),
               connectionId);
 
+          String savedZipRunId = null;
           if (pipelineRunRepository != null) {
             try {
               PipelineRun run = new PipelineRun();
@@ -380,11 +405,27 @@ public class ConnectionUploadService {
                       + "\",\"tablesCount\":"
                       + tables.size()
                       + "}");
-              pipelineRunRepository.save(run);
+              PipelineRun savedZipRun = pipelineRunRepository.save(run);
+              savedZipRunId =
+                  savedZipRun.getId() != null
+                      ? savedZipRun.getId().toString()
+                      : connectionId.toString();
               log.info("Recorded PipelineRun for archive connection '{}'", connectionId);
             } catch (Exception pe) {
               log.warn("Could not save initial PipelineRun for archive: {}", pe.getMessage());
             }
+          }
+
+          if (pipelineSseService != null) {
+            String sseRunId = savedZipRunId != null ? savedZipRunId : connectionId.toString();
+            pipelineSseService.emitProgress(
+                tenantId,
+                sseRunId,
+                "ingest",
+                100,
+                "Extracted " + tables.size() + " tables (" + totalExtractedRows + " rows)");
+            pipelineSseService.emitComplete(
+                tenantId, sseRunId, totalExtractedRows, totalExtractedRows, 0L, "1s");
           }
 
           if (datasetRegistrationHelper != null) {
