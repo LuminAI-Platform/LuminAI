@@ -1,23 +1,21 @@
-import React from "react";
-import { BodyPortal } from "../../../components/ui/BodyPortal";
-import {
-  type IngestedFile,
-  type CleanDataResponse,
-  formatColumnHeader,
-  renderCleanCellValue,
-} from "./connectionsTypes";
-import {
-  ShieldCheck,
-  Download,
-  X,
-  Loader2,
-  CheckCircle2,
-  AlertTriangle,
-  RefreshCw,
-} from "../../../lib/icons";
+import React, { useMemo, useState, useEffect } from "react";
+import * as RadixDialog from "@radix-ui/react-dialog";
+import type { IngestedFile, CleanDataResponse } from "./connectionsTypes";
+import { AlertTriangle, RefreshCw, ICON_SIZES } from "../../../lib/icons";
 import { Button } from "../../../components/ui/Button";
+import { BrandLoader } from "../../../components/ui/BrandLoader";
+import { CleanDataModalHeader } from "./CleanDataModalHeader";
 import { CleanDataTelemetryStrip } from "./CleanDataTelemetryStrip";
-import { CleanDataFilterBar } from "./CleanDataFilterBar";
+import { CleanDataFilterBar, type CleanStateTab } from "./CleanDataFilterBar";
+import { CleanDataTable } from "./CleanDataTable";
+import { CleanDataRowPanel } from "./CleanDataRowPanel";
+import {
+  exportCleanRowsToCsv,
+  extractBusinessColumns,
+  getRowQualityState,
+  getRowReasons,
+  sortCleanRows,
+} from "./cleanDataUtils";
 
 interface CleanDataModalProps {
   cleanPreviewFile: IngestedFile;
@@ -40,131 +38,134 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
   onRetry,
   onClose,
 }) => {
-  const [selectedTableFilter, setSelectedTableFilter] =
-    React.useState<string>("ALL");
+  const [selectedTableFilter, setSelectedTableFilter] = useState<string>("ALL");
   const [selectedStateFilter, setSelectedStateFilter] =
-    React.useState<string>("ALL");
+    useState<CleanStateTab>("ALL");
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
 
-  const availableTables = React.useMemo(() => {
+  useEffect(() => {
+    setSelectedTableFilter("ALL");
+    setSelectedStateFilter("ALL");
+    setHiddenColumns(new Set());
+    setSortColumn(null);
+    setSelectedRowIndex(null);
+  }, [cleanPreviewFile.id]);
+
+  const rows = useMemo(() => cleanData?.rows ?? [], [cleanData]);
+  const businessColumns = useMemo(
+    () => extractBusinessColumns(cleanData?.columns ?? []),
+    [cleanData?.columns],
+  );
+  const visibleColumns = useMemo(
+    () => businessColumns.filter((c) => !hiddenColumns.has(c)),
+    [businessColumns, hiddenColumns],
+  );
+  const availableTables = useMemo(() => {
     const set = new Set<string>();
-    (cleanData?.rows || []).forEach((r) => {
+    rows.forEach((r) => {
       if (r._table) set.add(String(r._table));
     });
     return Array.from(set);
-  }, [cleanData]);
-
-  const filteredRows = (cleanData?.rows || []).filter((r) => {
-    if (selectedTableFilter !== "ALL" && r._table !== selectedTableFilter) {
-      return false;
-    }
-    if (selectedStateFilter !== "ALL") {
-      const stateStr = String(
-        r.quality_state || r.record_state || r.qualityState || r.status || "",
-      ).toUpperCase();
-      if (!stateStr.includes(selectedStateFilter)) {
-        return false;
-      }
-    }
-    if (!cleanSearchFilter) return true;
-    const q = cleanSearchFilter.toLowerCase();
-    return Object.values(r).some((val) =>
-      String(val).toLowerCase().includes(q),
-    );
-  });
-
-  const exportCleanCsv = () => {
-    const rowsToExport =
-      filteredRows.length > 0 ? filteredRows : (cleanData?.rows ?? []);
-    if (!cleanData || rowsToExport.length === 0) return;
-    const cols = cleanData.columns;
-    const headerRow = cols
-      .map((c) => `"${String(c).replace(/"/g, '""')}"`)
-      .join(",");
-    const bodyRows = rowsToExport.map((row) =>
-      cols
-        .map((c) => {
-          const v = row[c] ?? "";
-          const s = String(v).replace(/"/g, '""');
-          return `"${s}"`;
-        })
-        .join(","),
-    );
-    const blob = new Blob([[headerRow, ...bodyRows].join("\n")], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `clean_${cleanPreviewFile.name.replace(/\.[^/.]+$/, "")}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  }, [rows]);
 
   const verifiedCount =
     cleanData?.verifiedRecords ??
-    (cleanData?.rows || []).filter(
-      (r) =>
-        String(r.quality_state || r.record_state || "").toUpperCase() ===
-        "VERIFIED",
-    ).length;
-
+    rows.filter((r) => getRowQualityState(r) === "VERIFIED").length;
   const needsReviewCount =
     cleanData?.needsReviewRecords ??
-    (cleanData?.rows || []).filter((r) =>
-      String(r.quality_state || r.record_state || "")
-        .toUpperCase()
-        .includes("REVIEW"),
-    ).length;
-
+    rows.filter((r) => getRowQualityState(r) === "NEEDS_REVIEW").length;
   const rejectedCount =
     cleanData?.rejectedRecords ??
-    (cleanData?.rows || []).filter((r) =>
-      String(r.quality_state || r.record_state || "")
-        .toUpperCase()
-        .includes("REJECT"),
-    ).length;
+    rows.filter((r) => getRowQualityState(r) === "QUARANTINED").length;
+
+  const filteredRows = useMemo(() => {
+    const filtered = rows.filter((r) => {
+      if (selectedTableFilter !== "ALL" && r._table !== selectedTableFilter) {
+        return false;
+      }
+      if (
+        selectedStateFilter !== "ALL" &&
+        getRowQualityState(r) !== selectedStateFilter
+      ) {
+        return false;
+      }
+      if (!cleanSearchFilter.trim()) return true;
+      const q = cleanSearchFilter.trim().toLowerCase();
+      return Object.values(r).some((val) =>
+        String(val ?? "")
+          .toLowerCase()
+          .includes(q),
+      );
+    });
+    return sortCleanRows(filtered, sortColumn, sortDir);
+  }, [
+    rows,
+    selectedTableFilter,
+    selectedStateFilter,
+    cleanSearchFilter,
+    sortColumn,
+    sortDir,
+  ]);
+
+  const showReasonColumn =
+    selectedStateFilter === "QUARANTINED" ||
+    selectedStateFilter === "NEEDS_REVIEW" ||
+    filteredRows.some((r) => getRowReasons(r).length > 0);
+
+  const handleSort = (col: string) => {
+    if (sortColumn === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortColumn(col);
+      setSortDir("asc");
+    }
+    setSelectedRowIndex(null);
+  };
+
+  const handleToggleColumn = (col: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) next.delete(col);
+      else next.add(col);
+      return next;
+    });
+  };
+
+  const selectedRow =
+    selectedRowIndex !== null ? (filteredRows[selectedRowIndex] ?? null) : null;
+  const hasIssues = rejectedCount > 0 || needsReviewCount > 0;
+  const portalContainer =
+    typeof document !== "undefined" ? document.body : undefined;
 
   return (
-    <BodyPortal>
-      <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-        <div className="bg-surface border border-border rounded-lg w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-sm animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-5 py-3.5 border-b border-border bg-surface flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-success-bg border border-success-border flex items-center justify-center text-success">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-text flex items-center gap-2">
-                  Semantic Clean Data View
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success-bg border border-success-border text-success">
-                    Golden Records & Quality
-                  </span>
-                </h3>
-                <p className="text-[11px] text-text-secondary">
-                  Source: {cleanPreviewFile.name} · Cleaned, deduplicated, and
-                  standardized
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exportCleanCsv}
-                disabled={!cleanData || cleanData.rows.length === 0}
-                className="px-2.5 py-1 rounded-lg bg-surface-subtle hover:bg-surface-hover text-text border border-border text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-40"
-              >
-                <Download className="w-3.5 h-3.5" /> Export CSV
-              </button>
-              <button
-                onClick={onClose}
-                className="p-1 rounded-lg text-text-secondary hover:text-text hover:bg-surface-hover transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
+    <RadixDialog.Root
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <RadixDialog.Portal container={portalContainer}>
+        <RadixDialog.Overlay className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-xs animate-dialog-backdrop" />
+        <RadixDialog.Content
+          aria-modal="true"
+          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[99999] bg-surface border border-border rounded-xl w-[calc(100vw-32px)] max-w-6xl h-[86vh] flex flex-col overflow-hidden shadow-lg focus:outline-none animate-dialog-content"
+        >
+          <CleanDataModalHeader
+            sourceName={cleanPreviewFile.name}
+            filteredCount={filteredRows.length}
+            canExport={!isCleanDataLoading && filteredRows.length > 0}
+            onExport={() =>
+              cleanData &&
+              exportCleanRowsToCsv(
+                cleanData.columns,
+                filteredRows,
+                cleanPreviewFile.name,
+              )
+            }
+            onClose={onClose}
+          />
           <CleanDataTelemetryStrip
             cleanData={cleanData}
             recordsCount={cleanPreviewFile.recordsCount}
@@ -174,36 +175,44 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
             cleanSearchFilter={cleanSearchFilter}
             onSearchChange={setCleanSearchFilter}
           />
-
           <CleanDataFilterBar
             selectedStateFilter={selectedStateFilter}
-            onSelectStateFilter={setSelectedStateFilter}
+            onSelectStateFilter={(tab) => {
+              setSelectedStateFilter(tab);
+              setSelectedRowIndex(null);
+            }}
             verifiedCount={verifiedCount}
             needsReviewCount={needsReviewCount}
             rejectedCount={rejectedCount}
             availableTables={availableTables}
             selectedTableFilter={selectedTableFilter}
-            onSelectTableFilter={setSelectedTableFilter}
-            totalRowsCount={(cleanData?.rows || []).length}
-            rows={cleanData?.rows || []}
+            onSelectTableFilter={(tbl) => {
+              setSelectedTableFilter(tbl);
+              setSelectedRowIndex(null);
+            }}
+            totalRowsCount={rows.length}
+            rows={rows}
+            allColumns={businessColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={handleToggleColumn}
+            onResetColumns={() => setHiddenColumns(new Set())}
           />
 
-          {/* Content Table */}
-          <div className="flex-1 overflow-auto bg-surface min-h-0">
+          <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
             {isCleanDataLoading ? (
-              <div className="h-full flex flex-col items-center justify-center gap-3 text-text-secondary">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-secondary">
+                <BrandLoader variant="inline" size={24} />
                 <span className="text-xs">
-                  Computing semantic clean view from parquet engine...
+                  Loading cleaned records from the data engine...
                 </span>
               </div>
             ) : cleanDataError ? (
               <div
                 role="alert"
-                className="h-full flex flex-col items-center justify-center gap-3 px-6 text-center"
+                className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center"
               >
                 <div className="w-10 h-10 rounded-full bg-error-bg border border-error-border text-error flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                  <AlertTriangle size={ICON_SIZES.header} aria-hidden="true" />
                 </div>
                 <div className="max-w-md space-y-1">
                   <p className="text-sm font-semibold text-text">
@@ -220,82 +229,75 @@ export const CleanDataModal: React.FC<CleanDataModalProps> = ({
                     size="sm"
                     onClick={onRetry}
                     leftIcon={
-                      <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+                      <RefreshCw size={ICON_SIZES.inline} aria-hidden="true" />
                     }
                   >
                     Retry
                   </Button>
                 )}
               </div>
-            ) : !cleanData || cleanData.rows.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-text-secondary text-xs">
-                No clean records returned for this dataset.
+            ) : !cleanData || filteredRows.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-text-secondary text-xs px-6 text-center">
+                {rows.length === 0
+                  ? "No clean records returned for this dataset."
+                  : "No loaded records match the current filter."}
               </div>
             ) : (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 bg-surface-subtle border-b border-border z-10 shadow-xs">
-                  <tr>
-                    <th className="py-2.5 px-3 font-mono text-[10px] uppercase text-text-secondary w-12 text-center">
-                      #
-                    </th>
-                    {cleanData.columns.map((col) => (
-                      <th
-                        key={col}
-                        className="py-2.5 px-3 font-semibold text-text uppercase tracking-wider text-[11px] whitespace-nowrap"
-                      >
-                        {formatColumnHeader(col)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredRows.slice(0, 200).map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className="hover:bg-surface-hover transition-colors"
-                    >
-                      <td className="py-2 px-3 font-mono text-[10px] text-text-secondary text-center select-none">
-                        {idx + 1}
-                      </td>
-                      {cleanData.columns.map((col) => (
-                        <td key={col} className="py-2 px-3 whitespace-nowrap">
-                          {renderCleanCellValue(col, row[col])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <CleanDataTable
+                  rows={filteredRows}
+                  visibleColumns={visibleColumns}
+                  showReasonColumn={showReasonColumn}
+                  sortColumn={sortColumn}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  selectedRowIndex={selectedRowIndex}
+                  onSelectRow={(idx) =>
+                    setSelectedRowIndex((cur) => (cur === idx ? null : idx))
+                  }
+                  resetScrollKey={`${cleanPreviewFile.id}-${selectedStateFilter}`}
+                />
+                {selectedRow && (
+                  <CleanDataRowPanel
+                    row={selectedRow}
+                    businessColumns={businessColumns}
+                    onClose={() => setSelectedRowIndex(null)}
+                  />
+                )}
+              </>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-5 py-2.5 bg-surface border-t border-border text-[11px] text-text-secondary flex items-center justify-between shrink-0">
+          <div className="px-6 py-3 bg-surface border-t border-border text-xs text-text-secondary flex flex-wrap items-center justify-between gap-2 shrink-0">
             <span>
-              Showing {Math.min(filteredRows.length, 200)} of{" "}
-              {cleanData?.rows?.length || 0} records
+              Showing {Math.min(filteredRows.length, 200).toLocaleString()} of{" "}
+              {rows.length.toLocaleString()} loaded records
             </span>
-            {!cleanData || cleanData.status === "FAILED" ? (
-              <span className="flex items-center gap-1.5 text-text-secondary font-medium">
-                Audit data unavailable
+            {cleanData?.audit?.auditedAt ? (
+              <span className="text-text-secondary">
+                {cleanData.audit.standard
+                  ? `${cleanData.audit.standard} audited`
+                  : "Audited"}{" "}
+                · {cleanData.audit.auditedAt}
               </span>
-            ) : rejectedCount > 0 || needsReviewCount > 0 ? (
-              <span className="flex items-center gap-1.5 text-warning font-medium">
-                <AlertTriangle className="w-3.5 h-3.5 text-warning" />
-                DAMA/ISO 25012 Audited · {rejectedCount} Quarantined ·{" "}
-                {needsReviewCount} Require Review
-              </span>
-            ) : (cleanData.rows?.length ?? 0) > 0 ? (
-              <span className="flex items-center gap-1.5 text-success font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5" /> DAMA/ISO 25012 Audited
-                · All Records Verified
+            ) : cleanData ? (
+              <span
+                className={`inline-flex items-center gap-1.5 font-medium ${
+                  hasIssues ? "text-warning" : "text-text-secondary"
+                }`}
+              >
+                {hasIssues && (
+                  <AlertTriangle size={ICON_SIZES.inline} aria-hidden="true" />
+                )}
+                {rejectedCount.toLocaleString()} quarantined ·{" "}
+                {needsReviewCount.toLocaleString()} need review
               </span>
             ) : (
-              <span className="text-text-secondary">No audited records</span>
+              <span className="text-text-muted">Summary unavailable</span>
             )}
           </div>
-        </div>
-      </div>
-    </BodyPortal>
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
   );
 };

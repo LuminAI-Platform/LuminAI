@@ -18,10 +18,11 @@ export interface IngestedFile {
 
 export interface CleanDataResponse {
   connectionId: string;
+  runId?: string;
   totalRawRecords: number;
   totalCleanRecords: number;
   duplicatesMerged: number;
-  compressionRatio: string;
+  compressionRatio?: string;
   dataQualityScore: number;
   status: string;
   columns: string[];
@@ -30,6 +31,11 @@ export interface CleanDataResponse {
   needsReviewRecords?: number;
   rejectedRecords?: number;
   qualityBreakdown?: Record<string, number>;
+  qualityExplanation?: string;
+  audit?: {
+    standard?: string;
+    auditedAt?: string;
+  };
   profilingDelta?: {
     before?: Record<string, unknown>;
     after?: Record<string, unknown>;
