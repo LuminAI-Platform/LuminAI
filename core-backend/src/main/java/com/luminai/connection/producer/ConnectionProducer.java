@@ -77,7 +77,8 @@ public class ConnectionProducer {
       boolean batchComplete,
       String objectKey) {
     int inferredTotal = rows != null ? rows.size() : 0;
-    publishRows(tenantId, connectionId, source, rows, batchComplete, objectKey, inferredTotal, null);
+    publishRows(
+        tenantId, connectionId, source, rows, batchComplete, objectKey, inferredTotal, null);
   }
 
   public void publishRows(

@@ -230,7 +230,8 @@ public class ConnectionService {
     }
 
     Connection.Status status = isSyncing ? Connection.Status.SYNCING : entity.getStatus();
-    String configPayload = compactList ? summarizeConfigForList(entity.getConfig()) : entity.getConfig();
+    String configPayload =
+        compactList ? summarizeConfigForList(entity.getConfig()) : entity.getConfig();
 
     return new ConnectionDto.Response(
         entity.getId(),

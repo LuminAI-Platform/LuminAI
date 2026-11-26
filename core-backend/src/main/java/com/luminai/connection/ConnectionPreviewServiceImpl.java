@@ -265,8 +265,7 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
       int count = 0;
       while ((line = reader.readLine()) != null && count < MAX_ROWS) {
         if (line.isBlank()) continue;
-        List<String> values =
-            com.luminai.connection.util.ConnectionFileParser.parseCsvLine(line);
+        List<String> values = com.luminai.connection.util.ConnectionFileParser.parseCsvLine(line);
         Map<String, Object> row = new LinkedHashMap<>();
         for (int h = 0; h < headers.size(); h++) {
           String val = h < values.size() ? values.get(h).trim() : "";

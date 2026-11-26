@@ -126,8 +126,7 @@ public class ConnectionCleanPreviewService {
     List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
     String configuredEntityType = null;
 
-    Optional<Connection> connOpt =
-        existingOpt.filter(c -> currentTenant.equals(c.getTenantId()));
+    Optional<Connection> connOpt = existingOpt.filter(c -> currentTenant.equals(c.getTenantId()));
     if (connOpt.isEmpty() && connectionRepository != null) {
       connOpt = connectionRepository.findByIdAndTenantId(id, currentTenant);
     }
@@ -291,8 +290,7 @@ public class ConnectionCleanPreviewService {
     return null;
   }
 
-  private void writeCachedPreview(
-      UUID tenantId, UUID connectionId, Map<String, Object> response) {
+  private void writeCachedPreview(UUID tenantId, UUID connectionId, Map<String, Object> response) {
     if (cacheManager == null || response == null) return;
     try {
       Cache cache = cacheManager.getCache(CacheConfig.CACHE_CLEAN_PREVIEW);
