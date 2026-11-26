@@ -4,6 +4,7 @@ export * from "./brandLoaderUtils";
 export * from "./Input";
 export * from "./Badge";
 export * from "./Card";
+export * from "./Dialog";
 export * from "./Modal";
 export * from "./Table";
 export * from "./Skeleton";

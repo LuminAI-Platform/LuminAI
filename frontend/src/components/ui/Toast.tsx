@@ -11,12 +11,18 @@ import { Tooltip } from "./Tooltip";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastItem {
   id: string;
   type: ToastType;
   title: string;
   description?: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 interface ToastProps {
@@ -87,6 +93,18 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
           <p className="text-[11px] text-text-secondary mt-1 leading-normal break-words">
             {toast.description}
           </p>
+        )}
+        {toast.action && (
+          <button
+            type="button"
+            onClick={() => {
+              toast.action?.onClick();
+              onDismiss(toast.id);
+            }}
+            className="mt-2 inline-flex items-center text-xs font-semibold text-primary hover:underline cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {toast.action.label}
+          </button>
         )}
       </div>
       <Tooltip label="Dismiss notification" side="top">

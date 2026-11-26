@@ -2,6 +2,7 @@ import React from "react";
 
 export type BadgeVariant =
   | "default"
+  | "primary"
   | "success"
   | "warning"
   | "danger"
@@ -35,6 +36,13 @@ const BADGE_STYLES: Record<
     bg: "bg-surface-subtle",
     text: "text-primary",
     border: "border-border",
+    dot: "bg-primary",
+  },
+  // Running / Active primary blue tint
+  primary: {
+    bg: "bg-primary-tint",
+    text: "text-primary font-medium",
+    border: "border-primary-border",
     dot: "bg-primary",
   },
   // Success (Active, Online, Healthy, Connected)

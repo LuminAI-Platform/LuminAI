@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { GitCommit, Loader2 } from "../../../lib/icons";
+import { GitCommit, ICON_SIZES } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
-import { Modal } from "../../../components/ui/Modal";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Button } from "../../../components/ui/Button";
 
 interface PublishVersionModalProps {
   open: boolean;
@@ -40,7 +41,7 @@ export const PublishVersionModal: React.FC<PublishVersionModalProps> = ({
       return;
     }
     if (!/^v?[0-9]+\.[0-9]+\.[0-9]+$/.test(version.trim())) {
-      setError("Version must follow semantic format (e.g. v1.0.0 or 1.0.0)");
+      setError("Version must follow semantic format (e.g. v1.0.0 or 1.0.0).");
       return;
     }
 
@@ -75,7 +76,7 @@ export const PublishVersionModal: React.FC<PublishVersionModalProps> = ({
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to publish version",
+        err instanceof Error ? err.message : "Failed to publish version.",
       );
     } finally {
       setPublishing(false);
@@ -83,83 +84,98 @@ export const PublishVersionModal: React.FC<PublishVersionModalProps> = ({
   };
 
   return (
-    <Modal
+    <Dialog
       open={open}
-      onOpenChange={(o) => !o && onClose()}
-      maxWidth="lg"
-      hideHeader={true}
-    >
-      <div className="flex flex-col bg-zinc-950 text-zinc-100 p-6 select-none">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <GitCommit className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-100">
-              Publish Ontology Version Snapshot
-            </h2>
-            <p className="text-[11px] text-zinc-500">
-              Create an immutable schema snapshot for version control and
-              migration tracking
-            </p>
-          </div>
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !publishing) onClose();
+      }}
+      variant="form"
+      title="Publish ontology version"
+      description="Create a schema snapshot for version control and migration tracking."
+      icon={
+        <div className="w-9 h-9 rounded-full bg-success-bg border border-success-border flex items-center justify-center text-success shrink-0">
+          <GitCommit size={ICON_SIZES.card} aria-hidden="true" />
         </div>
-
+      }
+      preventClose={publishing}
+      statusMessage={publishing ? "Publishing ontology version..." : undefined}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={publishing}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="publish-ontology-version-form"
+            variant="primary"
+            size="sm"
+            isLoading={publishing}
+            disabled={publishing}
+          >
+            {publishing ? "Publishing..." : "Publish snapshot"}
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="publish-ontology-version-form"
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4"
+      >
         {error && (
-          <div className="mb-4 p-3 bg-red-950/30 border border-red-500/20 text-red-400 text-xs rounded-xl">
+          <div
+            role="alert"
+            className="px-3 py-2.5 bg-error-bg border border-error-border text-error text-xs rounded-lg"
+          >
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-              Release Semver Tag
-            </label>
-            <input
-              type="text"
-              value={version}
-              onChange={(e) => setVersion(e.target.value)}
-              placeholder="e.g. v1.0.0"
-              className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:border-emerald-500 font-mono"
-            />
-            <span className="text-[10px] text-zinc-500 mt-1 block">
-              Format: vMAJOR.MINOR.PATCH (e.g. v1.0.0, v1.1.0)
-            </span>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="publish-version-tag"
+            className="text-xs font-medium text-text"
+          >
+            Release semver tag
+          </label>
+          <input
+            id="publish-version-tag"
+            type="text"
+            disabled={publishing}
+            value={version}
+            onChange={(e) => setVersion(e.target.value)}
+            placeholder="e.g. v1.0.0"
+            className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-text focus:outline-none focus:border-border-focus font-mono disabled:opacity-50"
+          />
+          <span className="text-[11px] text-text-muted">
+            Format: vMAJOR.MINOR.PATCH (e.g. v1.0.0, v1.1.0)
+          </span>
+        </div>
 
-          <div>
-            <label className="text-[11px] font-semibold text-zinc-400 block mb-1">
-              Changelog Summary
-            </label>
-            <textarea
-              rows={3}
-              value={changelog}
-              onChange={(e) => setChangelog(e.target.value)}
-              placeholder="Describe model changes, added entities or property modifications..."
-              className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 focus:outline-none focus:border-emerald-500 resize-none"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text border border-border hover:bg-surface-subtle rounded-lg transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={publishing}
-              className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-primary-text bg-primary hover:bg-primary-hover border border-primary rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {publishing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Publish Snapshot
-            </button>
-          </div>
-        </form>
-      </div>
-    </Modal>
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="publish-version-changelog"
+            className="text-xs font-medium text-text"
+          >
+            Changelog summary
+          </label>
+          <textarea
+            id="publish-version-changelog"
+            rows={3}
+            disabled={publishing}
+            value={changelog}
+            onChange={(e) => setChangelog(e.target.value)}
+            placeholder="Describe model changes, added entities or property modifications..."
+            className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-text focus:outline-none focus:border-border-focus resize-none disabled:opacity-50"
+          />
+        </div>
+      </form>
+    </Dialog>
   );
 };

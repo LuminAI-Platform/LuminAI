@@ -12,18 +12,28 @@ export function useConnectionsSourceOps({
 }: UseConnectionsSourceOpsProps) {
   const toast = useToast();
 
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    name: string;
-    type: "file" | "connection";
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UnifiedSource | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<UnifiedSource | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [testingSourceId, setTestingSourceId] = useState<string | null>(null);
   const [togglingSourceId, setTogglingSourceId] = useState<string | null>(null);
 
-  const handleTestConnection = async (source: UnifiedSource) => {
+  const openDeleteTarget = (source: UnifiedSource | null) => {
+    setDeleteError(null);
+    setDeleteTarget(source);
+  };
+
+  const openEditTarget = (source: UnifiedSource | null) => {
+    setEditError(null);
+    setEditTarget(source);
+  };
+
+  const handleTestConnection = async (
+    source: UnifiedSource,
+  ): Promise<{ ok: boolean; message: string }> => {
     setTestingSourceId(source.id);
     try {
       const res = await apiFetch("/api/v1/connections/discover", {
@@ -39,15 +49,14 @@ export function useConnectionsSourceOps({
       }
       const schemas = await res.json();
       const count = Array.isArray(schemas) ? schemas.length : 0;
-      toast.success(
-        "Connection verified",
-        `${source.name} responded (${count} schema${count === 1 ? "" : "s"} discovered).`,
-      );
+      const message = `${source.name} responded (${count} schema${count === 1 ? "" : "s"} discovered).`;
+      toast.success("Connection verified", message);
+      return { ok: true, message };
     } catch (err: unknown) {
-      toast.error(
-        "Connection test failed",
-        err instanceof Error ? err.message : `Could not reach ${source.name}.`,
-      );
+      const message =
+        err instanceof Error ? err.message : `Could not reach ${source.name}.`;
+      toast.error("Connection test failed", message);
+      return { ok: false, message };
     } finally {
       setTestingSourceId(null);
     }
@@ -88,9 +97,11 @@ export function useConnectionsSourceOps({
   const handleSaveEdit = async (newName: string) => {
     if (!editTarget || !newName.trim()) return;
     setIsSavingEdit(true);
+    setEditError(null);
     try {
       const res = await apiFetch(`/api/v1/connections/${editTarget.id}`, {
         method: "PUT",
+        headers: { "X-Suppress-Toast": "true" },
         body: JSON.stringify({ name: newName.trim() }),
       });
       if (!res.ok) {
@@ -101,8 +112,7 @@ export function useConnectionsSourceOps({
       setEditTarget(null);
       await loadConnectors(false);
     } catch (err: unknown) {
-      toast.error(
-        "Update failed",
+      setEditError(
         err instanceof Error ? err.message : "Failed to save changes.",
       );
     } finally {
@@ -113,22 +123,30 @@ export function useConnectionsSourceOps({
   const executeDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
+    setDeleteError(null);
     try {
-      if (deleteTarget.type === "connection") {
+      if (deleteTarget.category === "database") {
         const res = await apiFetch(`/api/v1/connections/${deleteTarget.id}`, {
           method: "DELETE",
+          headers: { "X-Suppress-Toast": "true" },
         });
         if (!res.ok) {
-          throw new Error("Failed to delete connection.");
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || "Failed to delete connection.");
         }
       } else {
         try {
-          await apiFetch(`/api/v1/connections/${deleteTarget.id}`, {
+          const res = await apiFetch(`/api/v1/connections/${deleteTarget.id}`, {
             method: "DELETE",
+            headers: { "X-Suppress-Toast": "true" },
           });
+          if (!res.ok && res.status !== 404) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || "Failed to delete connection.");
+          }
         } catch (err: unknown) {
           const status = (err as { status?: number })?.status;
-          if (status && status !== 404) {
+          if (status !== 404) {
             throw err;
           }
         }
@@ -145,15 +163,14 @@ export function useConnectionsSourceOps({
         }
       }
       toast.success(
-        "Source deleted",
-        `"${deleteTarget.name}" has been removed.`,
+        "Connection deleted",
+        `"${deleteTarget.name}" has been permanently removed.`,
       );
       setDeleteTarget(null);
       await loadConnectors(false);
     } catch (err: unknown) {
-      toast.error(
-        "Delete failed",
-        err instanceof Error ? err.message : "Failed to delete resource.",
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete connection.",
       );
     } finally {
       setIsDeleting(false);
@@ -162,9 +179,11 @@ export function useConnectionsSourceOps({
 
   return {
     deleteTarget,
-    setDeleteTarget,
+    setDeleteTarget: openDeleteTarget,
+    deleteError,
     editTarget,
-    setEditTarget,
+    setEditTarget: openEditTarget,
+    editError,
     isDeleting,
     isSavingEdit,
     testingSourceId,

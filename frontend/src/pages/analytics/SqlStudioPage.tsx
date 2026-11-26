@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import {
-  Table,
+  ICON_MAP,
   Play,
   Save,
   Database,
@@ -72,7 +72,11 @@ export const SqlStudioPage: React.FC = () => {
         title="Interactive SQL Studio"
         description="High-performance analytical SQL query engine powered by DuckDB over versioned datasets and staging records."
         icon={
-          <Table size={ICON_SIZES.header} className="text-text-secondary" />
+          <ICON_MAP.nav.sqlAnalytics
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
         }
         actions={
           <div className="flex items-center gap-2">

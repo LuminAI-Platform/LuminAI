@@ -5,6 +5,7 @@ export type ButtonVariant =
   | "primary"
   | "secondary"
   | "danger"
+  | "destructive"
   | "ghost"
   | "outline";
 export type ButtonSize = "xs" | "sm" | "md" | "lg";
@@ -19,11 +20,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 /**
  * Button Design System Rules:
- * - Make navy the only filled button color.
+ * - Make navy the only filled button color (plus solid destructive in destructive dialogs).
  * - Keep one primary button per screen, and style the rest as outlined.
  */
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  // Navy is the ONLY filled button color
+  // Navy is the primary filled button color
   primary:
     "bg-primary hover:bg-primary-hover text-primary-text border border-primary shadow-xs active:scale-[0.98]",
   // Secondary is styled as outlined
@@ -32,6 +33,9 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   // Danger is styled as outlined with red border/text
   danger:
     "bg-transparent hover:bg-error-bg text-error border border-error/40 hover:border-error active:scale-[0.98]",
+  // Solid destructive button for irreversible confirmation dialogs
+  destructive:
+    "bg-error hover:opacity-90 text-text-contrast border border-error shadow-xs active:scale-[0.98]",
   ghost:
     "bg-transparent hover:bg-surface-subtle text-text-secondary hover:text-text",
   outline:
@@ -48,28 +52,36 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
 /**
  * Reusable Production Button Component
  */
-export const Button: React.FC<ButtonProps> = ({
-  children,
-  variant = "primary",
-  size = "md",
-  isLoading = false,
-  leftIcon,
-  rightIcon,
-  disabled,
-  className = "",
-  ...props
-}) => {
-  const isDisabled = disabled || isLoading;
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      children,
+      variant = "primary",
+      size = "md",
+      isLoading = false,
+      leftIcon,
+      rightIcon,
+      disabled,
+      className = "",
+      ...props
+    },
+    ref,
+  ) => {
+    const isDisabled = disabled || isLoading;
 
-  return (
-    <button
-      disabled={isDisabled}
-      className={`inline-flex items-center justify-center font-medium transition-colors duration-150 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
-      {...props}
-    >
-      {isLoading ? <BrandLoader variant="inline" size={18} /> : leftIcon}
-      <span>{children}</span>
-      {!isLoading && rightIcon}
-    </button>
-  );
-};
+    return (
+      <button
+        ref={ref}
+        disabled={isDisabled}
+        className={`inline-flex items-center justify-center font-medium transition-colors duration-150 cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+        {...props}
+      >
+        {isLoading ? <BrandLoader variant="inline" size={18} /> : leftIcon}
+        <span>{children}</span>
+        {!isLoading && rightIcon}
+      </button>
+    );
+  },
+);
+
+Button.displayName = "Button";

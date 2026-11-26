@@ -8,17 +8,7 @@ import {
   fetchSavedQueries,
 } from "../../features/datasets/datasetApi";
 import { listModels } from "../../features/ml/mlApi";
-import {
-  GitBranch,
-  Plug,
-  Wand2,
-  GitMerge,
-  Shapes,
-  Table,
-  Cpu,
-  ArrowRight,
-  ICON_SIZES,
-} from "../../lib/icons";
+import { ICON_MAP, Wand2, ArrowRight, ICON_SIZES } from "../../lib/icons";
 
 interface ProjectCategory {
   key:
@@ -42,7 +32,7 @@ const PROJECTS: ProjectCategory[] = [
     badge: "RAW",
     description:
       "External systems, relational databases, event streams, and file syncs preserving exact raw inputs.",
-    icon: Plug,
+    icon: ICON_MAP.nav.dataConnections,
     link: "/connections",
   },
   {
@@ -60,7 +50,7 @@ const PROJECTS: ProjectCategory[] = [
     badge: "CURATED",
     description:
       "Deterministic & probabilistic entity resolution, deduplication, and Golden Record compilation.",
-    icon: GitMerge,
+    icon: ICON_MAP.nav.fusionReview,
     link: "/connections/merge-review",
   },
   {
@@ -69,7 +59,7 @@ const PROJECTS: ProjectCategory[] = [
     badge: "ONTOLOGY",
     description:
       "Governed real-world object types, relationship links, and operational schema versions.",
-    icon: Shapes,
+    icon: ICON_MAP.nav.ontologyManager,
     link: "/ontology",
   },
   {
@@ -78,7 +68,7 @@ const PROJECTS: ProjectCategory[] = [
     badge: "ANALYTICAL",
     description:
       "Interactive SQL studio, time-series rollups, saved query reports, and dashboards.",
-    icon: Table,
+    icon: ICON_MAP.nav.sqlAnalytics,
     link: "/analytics/sql",
   },
   {
@@ -87,7 +77,7 @@ const PROJECTS: ProjectCategory[] = [
     badge: "MODEL_READY",
     description:
       "Feature stores, model training, cross-validation metrics, and Champion/Challenger registry.",
-    icon: Cpu,
+    icon: ICON_MAP.nav.mlStudio,
     link: "/datascience/models",
   },
 ];
@@ -172,7 +162,11 @@ export const ProjectsLineagePage: React.FC = () => {
         title="Projects & Data Lineage Architecture"
         description="Structured unidirectional data flow from Source Ingestion through Ontology and Analytics to the Model Registry."
         icon={
-          <GitBranch size={ICON_SIZES.header} className="text-text-secondary" />
+          <ICON_MAP.nav.projectsLineage
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
         }
       />
 

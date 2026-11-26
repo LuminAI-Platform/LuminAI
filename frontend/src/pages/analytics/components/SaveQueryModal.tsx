@@ -1,5 +1,5 @@
 import React from "react";
-import { BodyPortal } from "../../../components/ui/BodyPortal";
+import { Dialog } from "../../../components/ui/Dialog";
 import { Button } from "../../../components/ui/Button";
 
 interface SaveQueryModalProps {
@@ -23,46 +23,78 @@ export const SaveQueryModal: React.FC<SaveQueryModalProps> = ({
   onSave,
   isSaving,
 }) => {
-  if (!isOpen) return null;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!queryName.trim() || !canSave || isSaving) return;
+    onSave();
+  };
 
   return (
-    <BodyPortal>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9990] flex items-center justify-center p-4">
-        <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-xl">
-          <h3 className="text-base font-bold text-text">Save SQL Query</h3>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-secondary">
-              Query Name
-            </label>
-            <input
-              type="text"
-              value={queryName}
-              onChange={(e) => setQueryName(e.target.value)}
-              placeholder="Enter a descriptive query name"
-              className="p-2 text-xs bg-surface-subtle border border-border rounded-lg text-text focus:outline-hidden focus:border-primary"
-            />
-          </div>
-          {errorMessage && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
-              {errorMessage}
-            </p>
-          )}
-          <div className="flex items-center justify-end gap-2 mt-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={!queryName.trim() || !canSave}
-              isLoading={isSaving}
-              onClick={onSave}
-            >
-              Save
-            </Button>
-          </div>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isSaving) onClose();
+      }}
+      variant="form"
+      title="Save SQL query"
+      description="Store this query in your workspace library for reuse."
+      preventClose={isSaving}
+      statusMessage={isSaving ? "Saving SQL query..." : undefined}
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={isSaving}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="save-sql-query-form"
+            variant="primary"
+            size="sm"
+            disabled={!queryName.trim() || !canSave || isSaving}
+            isLoading={isSaving}
+          >
+            {isSaving ? "Saving..." : "Save query"}
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="save-sql-query-form"
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3"
+      >
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="save-query-name-input"
+            className="text-xs font-medium text-text"
+          >
+            Query name
+          </label>
+          <input
+            id="save-query-name-input"
+            type="text"
+            disabled={isSaving}
+            value={queryName}
+            onChange={(e) => setQueryName(e.target.value)}
+            placeholder="Enter a descriptive query name"
+            className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg text-text placeholder:text-text-muted focus:outline-none focus:border-border-focus disabled:opacity-50"
+          />
         </div>
-      </div>
-    </BodyPortal>
+        {errorMessage && (
+          <p
+            role="alert"
+            className="text-xs text-error bg-error-bg border border-error-border rounded-lg px-3 py-2.5"
+          >
+            {errorMessage}
+          </p>
+        )}
+      </form>
+    </Dialog>
   );
 };

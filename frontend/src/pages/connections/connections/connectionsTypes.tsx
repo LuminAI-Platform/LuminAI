@@ -5,6 +5,7 @@ export type SourceStatus = "Connected" | "Syncing" | "Failed" | "Paused";
 export interface IngestedFile {
   id: string;
   name: string;
+  fileName?: string;
   size: string;
   recordsCount: number;
   status: SourceStatus | "Synced";
@@ -41,8 +42,11 @@ export interface DatabaseConnector {
   name: string;
   status: SourceStatus | string;
   pipelines: number;
+  configuredPipelines?: number;
   type: string;
   desc: string;
+  host?: string;
+  createdAt?: string;
   lastSyncedAt?: string;
   rowsSynced?: number;
   schemaDriftWarning?: string;
@@ -55,12 +59,16 @@ export interface UnifiedSource {
   typeLabel: string;
   rawType: string;
   status: SourceStatus;
+  createdAt?: string;
   lastSyncAt?: string;
   rowsSynced?: number;
   schemaDriftWarning?: string;
+  host?: string;
+  fileName?: string;
   desc?: string;
   size?: string;
   pipelines?: number;
+  configuredPipelines?: number;
   fileRef?: IngestedFile;
   connectorRef?: DatabaseConnector;
 }

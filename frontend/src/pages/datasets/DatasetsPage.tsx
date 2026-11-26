@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
-import { Search, RefreshCw, Plus, Database, ICON_SIZES } from "../../lib/icons";
+import { Search, RefreshCw, Plus, ICON_MAP, ICON_SIZES } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { fetchDatasets } from "../../features/datasets/datasetApi";
 import type { Dataset } from "../../features/datasets/types";
@@ -44,7 +44,7 @@ export const DatasetsPage: React.FC = () => {
         title="Dataset Management & Catalog"
         description="Governed dataset catalog spanning Raw, Working, Prepared, Curated, and Model-Ready tiers."
         icon={
-          <Database
+          <ICON_MAP.nav.datasetCatalog
             size={ICON_SIZES.header}
             className="text-text-secondary"
             aria-hidden="true"

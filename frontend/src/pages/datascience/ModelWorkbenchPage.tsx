@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { apiFetch } from "../../lib/api";
 import {
-  Cpu,
+  ICON_MAP,
   Play,
   Award,
   BarChart3,
@@ -147,7 +147,13 @@ export const ModelWorkbenchPage: React.FC = () => {
         breadcrumbs={[{ label: "Data Science" }, { label: "Model Workbench" }]}
         title="Data Science Studio & Model Registry"
         description="End-to-end machine learning experimentation, model evaluation, and governed Model Registry."
-        icon={<Cpu size={ICON_SIZES.header} className="text-text-secondary" />}
+        icon={
+          <ICON_MAP.nav.mlStudio
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
+        }
       />
 
       <div className="border-b border-border flex items-center gap-4 text-xs font-medium">

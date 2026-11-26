@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { BodyPortal } from "../../../components/ui/BodyPortal";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Button } from "../../../components/ui/Button";
+import { Icons, ICON_SIZES } from "../../../lib/icons";
 import { apiFetch } from "../../../lib/api";
 import type {
   RelationshipCardinality,
@@ -97,116 +99,58 @@ export const RelationshipTypeForm: React.FC<RelationshipTypeFormProps> = ({
   };
 
   return (
-    <BodyPortal>
-      <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-950/60">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 text-zinc-300 flex items-center justify-center">
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-100">
-                  {form.id ? "Edit Relationship Type" : "New Relationship Type"}
-                </h2>
-                <p className="text-[10px] text-zinc-500 mt-0.5">
-                  Define a typed edge between two entity classes
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="rel-form-close-btn"
-              onClick={onClose}
-              className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-all cursor-pointer"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Form body */}
-          <RelationshipFields
-            form={form}
-            set={set}
-            entityOptions={entityOptions}
-            error={error}
-            onSubmit={handleSubmit}
-          />
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800/80 bg-zinc-950/60">
-            <button
-              type="button"
-              id="rel-form-cancel-btn"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-all cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              id="rel-form-save-btn"
-              onClick={handleSubmit}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 border border-purple-500/40 rounded-lg shadow-lg shadow-purple-500/10 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? (
-                <svg
-                  className="animate-spin"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M21 12a9 9 0 1 1-6.22-8.56" />
-                </svg>
-              ) : (
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-              {saving
-                ? "Saving…"
-                : form.id
-                  ? "Update Relationship"
-                  : "Create Relationship"}
-            </button>
-          </div>
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open && !saving) onClose();
+      }}
+      variant="form"
+      title={form.id ? "Edit relationship type" : "New relationship type"}
+      description="Define a typed edge between two entity classes."
+      icon={
+        <div className="w-9 h-9 rounded-full bg-surface-subtle border border-border text-primary flex items-center justify-center shrink-0">
+          <Icons.KnowledgeGraph size={ICON_SIZES.card} aria-hidden="true" />
         </div>
-      </div>
-    </BodyPortal>
+      }
+      preventClose={saving}
+      statusMessage={saving ? "Saving relationship type..." : undefined}
+      footer={
+        <>
+          <Button
+            type="button"
+            id="rel-form-cancel-btn"
+            variant="secondary"
+            size="sm"
+            disabled={saving}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            id="rel-form-save-btn"
+            variant="primary"
+            size="sm"
+            isLoading={saving}
+            disabled={saving}
+            onClick={handleSubmit}
+          >
+            {saving
+              ? "Saving..."
+              : form.id
+                ? "Update relationship"
+                : "Create relationship"}
+          </Button>
+        </>
+      }
+    >
+      <RelationshipFields
+        form={form}
+        set={set}
+        entityOptions={entityOptions}
+        error={error}
+        onSubmit={handleSubmit}
+      />
+    </Dialog>
   );
 };

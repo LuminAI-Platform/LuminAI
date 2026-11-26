@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
+import {
+  mergeActivityWithRuns,
+  type PipelineRunSummary,
+} from "./components/activityFeedUtils";
 import type {
   DashboardSummary,
   EngineMetricsResponse,
@@ -95,10 +99,24 @@ export function useDashboardData() {
   } = useQuery<ActivityItem[]>({
     queryKey: ["dashboard", "activity"],
     queryFn: async () => {
-      const res = await apiFetch("/api/v1/dashboard/activity?limit=25", {
-        headers: { "X-Suppress-Toast": "true" },
-      });
-      return res.json();
+      const [actRes, runsRes] = await Promise.allSettled([
+        apiFetch("/api/v1/dashboard/activity?limit=25", {
+          headers: { "X-Suppress-Toast": "true" },
+        }),
+        apiFetch("/api/v1/pipelines/runs?page=0&size=25", {
+          headers: { "X-Suppress-Toast": "true" },
+        }),
+      ]);
+      if (actRes.status !== "fulfilled") throw actRes.reason;
+      const items = (await actRes.value.json()) as ActivityItem[];
+      if (runsRes.status !== "fulfilled") return items;
+      const runsPayload = (await runsRes.value.json()) as
+        | PipelineRunSummary[]
+        | { content?: PipelineRunSummary[] };
+      const runs = Array.isArray(runsPayload)
+        ? runsPayload
+        : (runsPayload?.content ?? []);
+      return mergeActivityWithRuns(items, runs);
     },
     refetchInterval: (query) => {
       if (typeof document !== "undefined" && document.hidden) {

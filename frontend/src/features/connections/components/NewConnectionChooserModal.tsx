@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Modal } from "../../../components/ui/Modal";
-import { Database, Upload, ArrowRight } from "../../../lib/icons";
+import { Dialog } from "../../../components/ui/Dialog";
+import { Database, Upload, ArrowRight, ICON_SIZES } from "../../../lib/icons";
 import { useConnectionModalStore } from "../../../stores/connectionModalStore";
 
 /**
@@ -23,16 +23,16 @@ export const NewConnectionChooserModal: React.FC = () => {
   };
 
   return (
-    <Modal
+    <Dialog
       open={chooserOpen}
       onOpenChange={(open) => {
         if (!open) closeChooser();
       }}
+      variant="form"
       title="New connection"
       description="Choose a data source type to connect to LuminAI."
-      maxWidth="md"
     >
-      <div className="p-5 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <button
           type="button"
           onClick={() => handleChoose("new-db")}
@@ -40,7 +40,7 @@ export const NewConnectionChooserModal: React.FC = () => {
         >
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-primary shrink-0">
-              <Database className="w-5 h-5" aria-hidden="true" />
+              <Database size={ICON_SIZES.header} aria-hidden="true" />
             </div>
             <div>
               <div className="text-sm font-semibold text-text">Database</div>
@@ -51,7 +51,8 @@ export const NewConnectionChooserModal: React.FC = () => {
             </div>
           </div>
           <ArrowRight
-            className="w-4 h-4 text-text-secondary group-hover:text-text transition-colors shrink-0"
+            size={ICON_SIZES.dropdown}
+            className="text-text-secondary group-hover:text-text transition-colors shrink-0"
             aria-hidden="true"
           />
         </button>
@@ -63,7 +64,7 @@ export const NewConnectionChooserModal: React.FC = () => {
         >
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-primary shrink-0">
-              <Upload className="w-5 h-5" aria-hidden="true" />
+              <Upload size={ICON_SIZES.header} aria-hidden="true" />
             </div>
             <div>
               <div className="text-sm font-semibold text-text">File upload</div>
@@ -74,7 +75,8 @@ export const NewConnectionChooserModal: React.FC = () => {
             </div>
           </div>
           <ArrowRight
-            className="w-4 h-4 text-text-secondary group-hover:text-text transition-colors shrink-0"
+            size={ICON_SIZES.dropdown}
+            className="text-text-secondary group-hover:text-text transition-colors shrink-0"
             aria-hidden="true"
           />
         </button>
@@ -83,6 +85,6 @@ export const NewConnectionChooserModal: React.FC = () => {
           Connect a source, map it in Schema Studio, then run a pipeline.
         </p>
       </div>
-    </Modal>
+    </Dialog>
   );
 };
