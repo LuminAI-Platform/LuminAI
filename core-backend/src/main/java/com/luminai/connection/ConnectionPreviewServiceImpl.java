@@ -43,7 +43,7 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
   private final ObjectMapper objectMapper;
 
   @Value("${minio.bucket:luminai-raw}")
-  private String bucket;
+  private String bucket = "luminai-raw";
 
   public ConnectionPreviewServiceImpl(
       ConnectionRepository connectionRepository,
