@@ -47,6 +47,7 @@ public class CacheConfig implements CachingConfigurer {
   public static final String CACHE_ONTOLOGY = "ontology_cache";
   public static final String CACHE_DASHBOARD = "dashboard_cache";
   public static final String CACHE_TENANT_RESOLUTION = "tenant_resolution";
+  public static final String CACHE_CLEAN_PREVIEW = "clean_preview";
 
   GenericJackson2JsonRedisSerializer createRedisSerializer() {
     ObjectMapper mapper = new ObjectMapper();
@@ -103,6 +104,7 @@ public class CacheConfig implements CachingConfigurer {
             .withCacheConfiguration(CACHE_ONTOLOGY, config.entryTtl(Duration.ofMinutes(5)))
             .withCacheConfiguration(CACHE_DASHBOARD, config.entryTtl(Duration.ofSeconds(30)))
             .withCacheConfiguration(CACHE_TENANT_RESOLUTION, config.entryTtl(Duration.ofMinutes(5)))
+            .withCacheConfiguration(CACHE_CLEAN_PREVIEW, config.entryTtl(Duration.ofMinutes(10)))
             .build();
       }
     } catch (Exception exc) {
@@ -117,7 +119,8 @@ public class CacheConfig implements CachingConfigurer {
         CACHE_EXPLORER_ENTITIES,
         CACHE_ONTOLOGY,
         CACHE_DASHBOARD,
-        CACHE_TENANT_RESOLUTION);
+        CACHE_TENANT_RESOLUTION,
+        CACHE_CLEAN_PREVIEW);
   }
 
   @Override

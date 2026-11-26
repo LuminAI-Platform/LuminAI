@@ -73,11 +73,40 @@ class DatasetCleaner:
                 df = pl.from_pandas(pdf)
         return self.process_dataframe(df, entity_type_hint, mandatory_fields)
 
+    @staticmethod
+    def _classify_column_role(col_name: str) -> str:
+        """Classify column handling role once per DataFrame schema instead of per cell."""
+        col_lower = col_name.lower().replace("_", "").replace("-", "")
+        if "date" in col_lower or col_lower in (
+            "dob",
+            "birth",
+            "birthday",
+            "birthdate",
+            "joinedat",
+            "createdat",
+            "admitted",
+        ):
+            return "date"
+        if col_lower in ("name", "fullname", "patientname", "customername", "personname", "contactname"):
+            return "name"
+        if col_lower in ("mrn", "nationalid", "ssn", "taxid", "idnumber", "customerid"):
+            return "identifier"
+        if col_lower in ("gender", "sex"):
+            return "gender"
+        if col_lower in ("country", "nation", "nationality"):
+            return "country"
+        if col_lower in ("city", "town", "region"):
+            return "city"
+        if col_lower in ("status", "riskrating", "risklevel", "priority"):
+            return "status"
+        return "text"
+
     def process_dataframe(
         self,
         df: pl.DataFrame,
         entity_type_hint: Optional[str] = None,
         mandatory_fields: Optional[Set[str]] = None,
+        build_golden_records: bool = True,
     ) -> DatasetCleaningResult:
         """Executes full data cleaning and standardization pipeline on a Polars DataFrame."""
         total_rows = df.height
@@ -86,15 +115,21 @@ class DatasetCleaner:
         # ─── 1. Profiling (Before Cleaning) ───────────────────────────────────
         profile_before = self.profiler.profile_dataset(df, stage="BEFORE_CLEANING")
 
-        # Establish column types and format hints
+        column_roles: Dict[str, str] = {
+            col: self._classify_column_role(col)
+            for col in df.columns
+            if not col.startswith("_")
+        }
+
+        # Establish date format hints only for date-classified columns
         column_date_hints: Dict[str, Optional[str]] = {}
-        for col in df.columns:
-            vals = df[col].to_list()
-            hint = DateCleaner.infer_column_date_format(vals)
-            column_date_hints[col] = hint
+        for col, role in column_roles.items():
+            if role == "date":
+                column_date_hints[col] = DateCleaner.infer_column_date_format(df[col].to_list())
 
         # ─── 2. Row-by-Row Cleaning & Normalization ───────────────────────────
         cleaned_records_list: List[CleanedRecord] = []
+        record_assessments = []
         raw_dicts = df.to_dicts()
 
         for idx, raw_row in enumerate(raw_dicts):
@@ -113,11 +148,8 @@ class DatasetCleaner:
             transformations_count = 0
 
             # Step 2a: Standardize each field
-            for col_name, raw_val in raw_row.items():
-                if col_name.startswith("_"):
-                    continue
-
-                col_lower = col_name.lower().replace("_", "").replace("-", "")
+            for col_name, role in column_roles.items():
+                raw_val = raw_row.get(col_name)
 
                 # 1. Null handling & type inference
                 if self.type_engine.is_null_value(raw_val):
@@ -135,10 +167,7 @@ class DatasetCleaner:
                     transformations_count += 1
 
                 # 3. Date & time cleaning
-                if (
-                    "date" in col_lower
-                    or col_lower in ("dob", "birth", "birthday", "birthdate", "joinedat", "createdat", "admitted")
-                ):
+                if role == "date":
                     d_hint = column_date_hints.get(col_name)
                     d_res = DateCleaner.clean_date(current_val, field_name=col_name, column_format_hint=d_hint)
                     if d_res.is_valid:
@@ -154,7 +183,7 @@ class DatasetCleaner:
                     continue
 
                 # 4. Name standardization
-                if col_lower in ("name", "fullname", "patientname", "customername", "personname", "contactname"):
+                if role == "name":
                     n_res = NameStandardizer.standardize_name(current_val)
                     cleaned_attrs[col_name] = n_res.normalized_name
                     if n_res.normalized_name != current_val:
@@ -165,7 +194,8 @@ class DatasetCleaner:
                     continue
 
                 # 5. Identifier validation
-                if col_lower in ("mrn", "nationalid", "ssn", "taxid", "idnumber", "customerid"):
+                if role == "identifier":
+                    col_lower = col_name.lower().replace("_", "").replace("-", "")
                     id_res = IdentifierCleaner.clean_identifier(current_val, id_type=col_lower)
                     cleaned_attrs[col_name] = id_res.normalized_id or current_val
                     if id_res.transformation:
@@ -176,7 +206,7 @@ class DatasetCleaner:
                     continue
 
                 # 6. Categorical standardization (Gender, Country, City, Status)
-                if col_lower in ("gender", "sex"):
+                if role == "gender":
                     c_res = self.categorical_standardizer.standardize_gender(current_val)
                     cleaned_attrs[col_name] = c_res.canonical_value
                     if c_res.transformation:
@@ -186,7 +216,7 @@ class DatasetCleaner:
                         validation_warnings.append(f"Field '{col_name}': {c_res.review_reason}")
                     continue
 
-                if col_lower in ("country", "nation", "nationality"):
+                if role == "country":
                     c_res = self.categorical_standardizer.standardize_country(current_val)
                     cleaned_attrs[col_name] = c_res.canonical_value
                     if c_res.transformation:
@@ -196,7 +226,7 @@ class DatasetCleaner:
                         validation_warnings.append(f"Field '{col_name}': {c_res.review_reason}")
                     continue
 
-                if col_lower in ("city", "town", "region"):
+                if role == "city":
                     c_res = self.categorical_standardizer.standardize_city(current_val)
                     cleaned_attrs[col_name] = c_res.canonical_value
                     if c_res.transformation:
@@ -206,7 +236,7 @@ class DatasetCleaner:
                         validation_warnings.append(f"Field '{col_name}': {c_res.review_reason}")
                     continue
 
-                if col_lower in ("status", "riskrating", "risklevel", "priority"):
+                if role == "status":
                     c_res = self.categorical_standardizer.standardize_status(current_val)
                     cleaned_attrs[col_name] = c_res.canonical_value
                     if c_res.transformation:
@@ -225,6 +255,7 @@ class DatasetCleaner:
                 record_id=rec_id,
                 mandatory_fields=mandatory_fields,
             )
+            record_assessments.append(qa)
 
             # Combine errors & warnings
             all_errors = list(set(validation_errors + qa.critical_errors))
@@ -276,9 +307,14 @@ class DatasetCleaner:
         ]
 
         # Inverted Blocking Index for high-throughput entity resolution
+        id_cols = MultiStageEntityResolver.classify_identifier_columns(
+            list(records_data[0].keys()) if records_data else []
+        )
+        idents_by_idx: List[Dict[str, str]] = []
         blocks: Dict[str, List[int]] = {}
         for idx, rec in enumerate(records_data):
-            idents = MultiStageEntityResolver.extract_identifiers(rec)
+            idents = MultiStageEntityResolver.extract_identifiers(rec, id_columns=id_cols)
+            idents_by_idx.append(idents)
             for itype, ival in idents.items():
                 if ival:
                     blocks.setdefault(f"id:{itype}:{ival}", []).append(idx)
@@ -342,7 +378,12 @@ class DatasetCleaner:
                 if j in used_indices:
                     continue
 
-                evidence = MultiStageEntityResolver.evaluate_pair(records_data[i], records_data[j])
+                evidence = MultiStageEntityResolver.evaluate_pair(
+                    records_data[i],
+                    records_data[j],
+                    idents_a=idents_by_idx[i],
+                    idents_b=idents_by_idx[j],
+                )
 
                 if evidence.decision in ("CONFIRMED_DUPLICATE", "PROBABLE_DUPLICATE"):
                     current_cluster.append(records_data[j])
@@ -374,12 +415,13 @@ class DatasetCleaner:
             if len(clus) > 1:
                 duplicates_merged_count += (len(clus) - 1)
 
-            gr = self.golden_engine.build_golden_record(
-                cluster_records=clus,
-                tenant_id=self.tenant_id,
-                entity_type=entity_type_hint or "Person",
-            )
-            golden_records.append(gr)
+            if build_golden_records:
+                gr = self.golden_engine.build_golden_record(
+                    cluster_records=clus,
+                    tenant_id=self.tenant_id,
+                    entity_type=entity_type_hint or "Person",
+                )
+                golden_records.append(gr)
 
         # ─── 5. Profiling (After Cleaning) ────────────────────────────────────
         clean_dicts = [r.attributes for r in cleaned_records_list]
@@ -392,8 +434,9 @@ class DatasetCleaner:
         rejected_cnt = sum(1 for r in cleaned_records_list if r.quality_state == "REJECTED")
 
         qa_dataset = DataQualityFramework.evaluate_dataset(
-            records=[r.attributes for r in cleaned_records_list],
+            records=clean_dicts,
             mandatory_fields=mandatory_fields,
+            precomputed_assessments=record_assessments,
         )
 
         delta_report = self.profiler.generate_delta_report(

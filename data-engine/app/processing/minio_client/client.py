@@ -106,29 +106,90 @@ class MinioRawStorageClient:
 
     def get_object_bytes(self, bucket: str, object_key: str) -> bytes:
         """Fetch raw object bytes from MinIO, falling back to local storage."""
+        return self.get_object_bytes_bounded(bucket, object_key)
+
+    @staticmethod
+    def _read_bounded_stream_chunks(chunks, max_bytes: Optional[int], max_lines: Optional[int]) -> bytes:
+        """Collect streamed chunks up to max_bytes and/or max_lines, ending cleanly on a newline boundary."""
+        buf = bytearray()
+        line_count = 0
+        reached_limit = False
+
+        for chunk in chunks:
+            if not chunk:
+                continue
+            buf.extend(chunk)
+            if max_lines is not None and max_lines > 0:
+                line_count = buf.count(b"\n")
+                if line_count >= max_lines:
+                    reached_limit = True
+                    break
+            if max_bytes is not None and max_bytes > 0 and len(buf) >= max_bytes:
+                reached_limit = True
+                break
+
+        raw = bytes(buf[:max_bytes] if (max_bytes and len(buf) > max_bytes) else buf)
+        if reached_limit:
+            last_nl = raw.rfind(b"\n")
+            if last_nl > 0:
+                raw = raw[: last_nl + 1]
+        return raw
+
+    def get_object_bytes_bounded(
+        self,
+        bucket: str,
+        object_key: str,
+        max_bytes: Optional[int] = None,
+        max_lines: Optional[int] = None,
+    ) -> bytes:
+        """Fetch object bytes from MinIO or local storage, stopping early when bounded."""
         safe_bucket = self._safe_bucket(bucket)
         clean_key = self._safe_key(object_key)
         path = f"/{safe_bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
+        ext = os.path.splitext(clean_key)[1].lower()
+        is_line_streamable = ext in ("", ".csv", ".tsv", ".txt", ".ndjson", ".jsonl")
+        effective_lines = max_lines if is_line_streamable else None
 
         try:
             headers = self._build_sigv4_headers("GET", path)
-            # Allow up to 300s (5 minutes) for downloading large 100MB+ datasets from S3/MinIO
+            # Allow up to 300s (5 minutes) for downloading large datasets from S3/MinIO
             with httpx.Client(timeout=300.0) as client:
-                resp = client.get(url, headers=headers)
-                if resp.status_code == 200:
+                if is_line_streamable and (effective_lines is not None or max_bytes is not None):
+                    with client.stream("GET", url, headers=headers) as resp:
+                        if resp.status_code == 200:
+                            data = self._read_bounded_stream_chunks(
+                                resp.iter_bytes(chunk_size=65536),
+                                max_bytes=max_bytes,
+                                max_lines=effective_lines,
+                            )
+                            logger.debug(
+                                "Streamed bounded s3://%s/%s from MinIO (%d bytes)",
+                                safe_bucket,
+                                clean_key,
+                                len(data),
+                            )
+                            return data
+                        logger.debug(
+                            "MinIO GET %s returned %s. Trying local fallback.",
+                            url,
+                            resp.status_code,
+                        )
+                else:
+                    resp = client.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        logger.debug(
+                            "Retrieved s3://%s/%s from MinIO (%d bytes)",
+                            safe_bucket,
+                            clean_key,
+                            len(resp.content),
+                        )
+                        return resp.content
                     logger.debug(
-                        "Retrieved s3://%s/%s from MinIO (%d bytes)",
-                        safe_bucket,
-                        clean_key,
-                        len(resp.content),
+                        "MinIO GET %s returned %s. Trying local fallback.",
+                        url,
+                        resp.status_code,
                     )
-                    return resp.content
-                logger.debug(
-                    "MinIO GET %s returned %s. Trying local fallback.",
-                    url,
-                    resp.status_code,
-                )
         except Exception as exc:
             logger.debug(
                 "MinIO unreachable (%s). Checking local storage fallback.", exc
@@ -143,6 +204,12 @@ class MinioRawStorageClient:
                     clean_key,
                     local_path,
                 )
+                if is_line_streamable and (effective_lines is not None or max_bytes is not None):
+                    return self._read_bounded_stream_chunks(
+                        iter(lambda: f.read(65536), b""),
+                        max_bytes=max_bytes,
+                        max_lines=effective_lines,
+                    )
                 return f.read()
 
         base_dir = os.path.abspath(self.local_fallback_dir)
@@ -156,6 +223,12 @@ class MinioRawStorageClient:
                 logger.debug(
                     "Loaded %s from local fallback: %s", clean_key, alt_local_path
                 )
+                if is_line_streamable and (effective_lines is not None or max_bytes is not None):
+                    return self._read_bounded_stream_chunks(
+                        iter(lambda: f.read(65536), b""),
+                        max_bytes=max_bytes,
+                        max_lines=effective_lines,
+                    )
                 return f.read()
 
         raise FileNotFoundError(
@@ -365,6 +438,23 @@ class MinioRawStorageClient:
         """Download raw object from MinIO / local storage and parse into a Polars DataFrame."""
         data = self.get_object_bytes(bucket, object_key)
         return parse_raw_data_to_dataframe(data, object_key, bucket)
+
+    def load_dataframe_bounded(
+        self,
+        bucket: str,
+        object_key: str,
+        max_rows: Optional[int] = None,
+        max_bytes: Optional[int] = None,
+    ) -> pl.DataFrame:
+        """Stream and parse a bounded row/byte window for memory-safe pipeline runs."""
+        max_lines = (max_rows + 1) if (max_rows is not None and max_rows > 0) else None
+        data = self.get_object_bytes_bounded(
+            bucket,
+            object_key,
+            max_bytes=max_bytes,
+            max_lines=max_lines,
+        )
+        return parse_raw_data_to_dataframe(data, object_key, bucket, max_rows=max_rows)
 
 
 _default_minio_client: Optional[MinioRawStorageClient] = None

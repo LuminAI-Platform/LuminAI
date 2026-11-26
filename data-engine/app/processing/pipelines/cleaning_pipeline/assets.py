@@ -64,14 +64,33 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
     )
 
     if object_key:
+        max_rows_tag = tags.get("max_rows")
+        max_bytes_tag = tags.get("max_bytes")
+        max_rows = int(max_rows_tag) if max_rows_tag and str(max_rows_tag).isdigit() else None
+        max_bytes = int(max_bytes_tag) if max_bytes_tag and str(max_bytes_tag).isdigit() else None
+
         context.log.info(
-            "📥 raw_ingestion_data: retrieving raw data from s3://%s/%s",
+            "📥 raw_ingestion_data: retrieving raw data from s3://%s/%s (max_rows=%s, max_bytes=%s)",
             bucket,
             object_key,
+            max_rows,
+            max_bytes,
         )
         try:
             client = cp.get_minio_client()
-            df = client.load_dataframe(bucket=bucket, object_key=object_key)
+            if (max_rows is not None or max_bytes is not None) and hasattr(
+                client, "load_dataframe_bounded"
+            ):
+                df = client.load_dataframe_bounded(
+                    bucket=bucket,
+                    object_key=object_key,
+                    max_rows=max_rows,
+                    max_bytes=max_bytes,
+                )
+            else:
+                df = client.load_dataframe(bucket=bucket, object_key=object_key)
+                if max_rows is not None and max_rows > 0 and df.height > max_rows:
+                    df = df.head(max_rows)
             context.log.info(
                 "📥 raw_ingestion_data: successfully loaded %d rows, %d cols from s3://%s/%s",
                 df.height,

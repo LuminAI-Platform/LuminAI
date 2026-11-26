@@ -78,9 +78,36 @@ class MultiStageEntityResolver:
     ID_FIELDS_CLEAN = {f.replace("_", "") for f in ID_FIELDS}
 
     @classmethod
-    def extract_identifiers(cls, record: Dict[str, Any]) -> Dict[str, str]:
+    def classify_identifier_columns(cls, columns: List[str]) -> List[tuple[str, str]]:
+        """Pre-map identifier column names to canonical identifier types once per schema."""
+        mapped: List[tuple[str, str]] = []
+        for col in columns:
+            k_clean = col.lower().replace("_", "").replace("-", "")
+            for id_field in cls.ID_FIELDS_CLEAN:
+                if id_field in k_clean:
+                    mapped.append((col, id_field))
+                    break
+        return mapped
+
+    @classmethod
+    def extract_identifiers(
+        cls,
+        record: Dict[str, Any],
+        id_columns: Optional[List[tuple[str, str]]] = None,
+    ) -> Dict[str, str]:
         """Extracts normalized identifiers from record attributes."""
         idents: Dict[str, str] = {}
+        invalid_sentinels = ("NULL", "NONE", "N/A", "-", "?", "0", "UNKNOWN")
+        if id_columns is not None:
+            for col, id_field in id_columns:
+                v = record.get(col)
+                if not v:
+                    continue
+                s_val = str(v).strip().upper()
+                if s_val and s_val not in invalid_sentinels:
+                    idents.setdefault(id_field, s_val)
+            return idents
+
         for k, v in record.items():
             if not v:
                 continue
@@ -88,7 +115,7 @@ class MultiStageEntityResolver:
             for id_field in cls.ID_FIELDS_CLEAN:
                 if id_field in k_clean:
                     s_val = str(v).strip().upper()
-                    if s_val and s_val not in ("NULL", "NONE", "N/A", "-", "?", "0", "UNKNOWN"):
+                    if s_val and s_val not in invalid_sentinels:
                         idents[id_field] = s_val
                         break
         return idents
@@ -99,14 +126,18 @@ class MultiStageEntityResolver:
         rec_a: Dict[str, Any],
         rec_b: Dict[str, Any],
         custom_weights: Optional[Dict[str, float]] = None,
+        idents_a: Optional[Dict[str, str]] = None,
+        idents_b: Optional[Dict[str, str]] = None,
     ) -> MatchEvidence:
         """Evaluates a pair of records across multi-stage matching rules."""
         matched_rules: List[str] = []
         attr_scores: Dict[str, float] = {}
 
         # ─── STAGE 1: Check Strong Identifiers ──────────────────────────────────
-        idents_a = cls.extract_identifiers(rec_a)
-        idents_b = cls.extract_identifiers(rec_b)
+        if idents_a is None:
+            idents_a = cls.extract_identifiers(rec_a)
+        if idents_b is None:
+            idents_b = cls.extract_identifiers(rec_b)
 
         # Contradiction check: if both records have the SAME identifier type (e.g. MRN, SSN, National ID)
         # but DIFFERENT non-empty values, they are DIFFERENT entities!

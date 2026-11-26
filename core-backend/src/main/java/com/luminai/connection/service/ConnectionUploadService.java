@@ -40,9 +40,15 @@ public class ConnectionUploadService {
   private final ObjectMapper objectMapper;
   private DatasetRegistrationHelper datasetRegistrationHelper;
   private PipelineSseService pipelineSseService;
+  private org.springframework.cache.CacheManager cacheManager;
 
   public void setPipelineRunRepository(PipelineRunRepository pipelineRunRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setCacheManager(org.springframework.cache.CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
   }
 
   @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -139,6 +145,7 @@ public class ConnectionUploadService {
           configMap.put("fileSize", file.getSize());
           configMap.put("recordsCount", totalRows);
           configMap.put("rowsCount", totalRows);
+          configMap.remove("goldenRecordsPersisted");
           if (!columns.isEmpty()) {
             configMap.put("columns", columns);
             configMap.put("sampleRows", sampleRows);
@@ -147,6 +154,7 @@ public class ConnectionUploadService {
           connection.setStatus(Connection.Status.ACTIVE);
           connection.setLastSyncAt(Instant.now());
           connectionRepository.save(connection);
+          ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, id);
           log.info("Persisted connection config and sample rows for connection '{}'", id);
 
           if (pipelineRunRepository != null) {
@@ -224,11 +232,19 @@ public class ConnectionUploadService {
     } else {
       try {
         connectionProducer.publishRows(
-            tenantId, id, file.getOriginalFilename(), sampleRows, true, objectKey);
-        log.info(
-            "Dispatched MinIO reference objectKey='{}' ({} records) to Data Engine for connection '{}' (tenant={})",
+            tenantId,
+            id,
+            file.getOriginalFilename(),
+            List.of(),
+            true,
             objectKey,
             totalRows,
+            file.getSize());
+        log.info(
+            "Dispatched MinIO reference objectKey='{}' ({} records, {} bytes) to Data Engine for connection '{}' (tenant={})",
+            objectKey,
+            totalRows,
+            file.getSize(),
             id,
             tenantId);
       } catch (Exception e) {
@@ -371,6 +387,7 @@ public class ConnectionUploadService {
           configMap.put("archive", true);
           configMap.put("recordsCount", totalExtractedRows);
           configMap.put("tables", tables);
+          configMap.remove("goldenRecordsPersisted");
 
           // Populate combined sample rows and columns across all extracted tables
           DatasetRegistrationHelper.populateArchiveCombinedSamples(configMap, tables);
@@ -379,6 +396,7 @@ public class ConnectionUploadService {
           connection.setStatus(Connection.Status.ACTIVE);
           connection.setLastSyncAt(Instant.now());
           connectionRepository.save(connection);
+          ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, connectionId);
           log.info(
               "Persisted connection config with {} archive tables for connection '{}'",
               tables.size(),

@@ -152,6 +152,12 @@ class Settings(BaseSettings):
     analytics_query_timeout_seconds: float = (
         30.0  # Maximum execution time for analytics queries
     )
+    pipeline_max_ingest_rows: int = (
+        5000  # Bounded row cap for in-process Kafka/Dagster cleaning runs
+    )
+    pipeline_max_download_bytes: int = (
+        25 * 1024 * 1024  # 25 MB streaming read cap for large text/CSV ingestion
+    )
 
     @property
     def postgres_dsn(self) -> str:

@@ -126,6 +126,17 @@ public class ConnectionController {
     this.connectionSyncService = connectionSyncService;
   }
 
+  @Autowired
+  public void configureCacheManager(
+      @Autowired(required = false) org.springframework.cache.CacheManager cacheManager) {
+    if (this.cleanPreviewService != null && cacheManager != null) {
+      this.cleanPreviewService.setCacheManager(cacheManager);
+    }
+    if (this.uploadService != null && cacheManager != null) {
+      this.uploadService.setCacheManager(cacheManager);
+    }
+  }
+
   @PostMapping
   @PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
