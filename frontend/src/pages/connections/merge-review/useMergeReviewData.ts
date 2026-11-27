@@ -100,10 +100,36 @@ export function useMergeReviewData() {
     });
   }, [candidatesList, searchTerm]);
 
-  const activeCandidate =
+  const activeCandidateSummary =
     filteredCandidates.find((c) => c.candidateId === selectedCandidateId) ??
     filteredCandidates[0] ??
     null;
+
+  const { data: candidateDetail } = useQuery<CandidateResponse>({
+    queryKey: ["er", "candidate", activeCandidateSummary?.candidateId],
+    enabled: Boolean(activeCandidateSummary?.candidateId),
+    queryFn: async () => {
+      const id = activeCandidateSummary!.candidateId;
+      const res = await apiFetch(`/api/v1/er/candidates/${id}`, {
+        headers: { "X-Suppress-Toast": "true" },
+      });
+      if (!res.ok) {
+        const msg = await parseErrorMessage(
+          res,
+          "Failed to load candidate details",
+        );
+        throw new Error(msg);
+      }
+      return (await res.json()) as CandidateResponse;
+    },
+  });
+
+  const activeCandidate =
+    candidateDetail &&
+    activeCandidateSummary &&
+    candidateDetail.candidateId === activeCandidateSummary.candidateId
+      ? candidateDetail
+      : activeCandidateSummary;
 
   const acceptMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -159,6 +185,7 @@ export function useMergeReviewData() {
       const res = await apiFetch("/api/v1/er/candidates/scan", {
         method: "POST",
         headers: { "X-Suppress-Toast": "true" },
+        timeoutMs: 60_000,
       });
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Duplicate scan failed");
@@ -194,6 +221,41 @@ export function useMergeReviewData() {
     },
   });
 
+  const splitMutation = useMutation({
+    mutationFn: async ({
+      goldenRecordId,
+      sourceRecordIdToExtract,
+    }: {
+      goldenRecordId: string;
+      sourceRecordIdToExtract: string;
+    }) => {
+      const res = await apiFetch(
+        `/api/v1/er/golden-records/${goldenRecordId}/split`,
+        {
+          method: "POST",
+          headers: { "X-Suppress-Toast": "true" },
+          body: JSON.stringify({ sourceRecordIdToExtract }),
+        },
+      );
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Split golden record failed");
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success(
+        "Record split",
+        "Source record extracted into its own Golden Record.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["er", "candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["er", "candidate"] });
+    },
+    onError: (err: Error) => {
+      toast.error("Split failed", err.message);
+    },
+  });
+
   const allPropertyKeys = useMemo(
     () =>
       Array.from(
@@ -226,6 +288,7 @@ export function useMergeReviewData() {
     acceptMutation,
     rejectMutation,
     scanMutation,
+    splitMutation,
     allPropertyKeys,
     loadErrorMessage,
   };
