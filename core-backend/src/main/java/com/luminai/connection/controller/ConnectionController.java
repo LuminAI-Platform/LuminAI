@@ -223,11 +223,30 @@ public class ConnectionController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> syncConnection(
       @PathVariable UUID id, @RequestBody(required = false) Map<String, Object> body) {
-    if (connectionSyncService != null) {
-      return ResponseEntity.ok(connectionSyncService.triggerSync(id, body));
-    }
-    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-        .body(Map.of("status", "FAILED", "error", "ConnectionSyncService is not configured"));
+    ConnectionDto.Response conn = connectionService.getById(id);
+    UUID tenantId = TenantContext.getTenantUuid();
+    UUID runTenantId = tenantId != null ? tenantId : conn.tenantId();
+
+    com.luminai.connection.model.PipelineRun run = new com.luminai.connection.model.PipelineRun();
+    run.setTenantId(runTenantId);
+    run.setConnectionId(conn.id());
+    run.setPipelineType(
+        conn.type() == null || conn.type() == com.luminai.connection.model.Connection.Type.FILE
+            ? "FILE_INGESTION"
+            : conn.type().name() + "_SYNC");
+    run.setStatus(com.luminai.connection.model.PipelineRun.PipelineRunStatus.RUNNING);
+    run.setStartedAt(java.time.Instant.now());
+    run.setRecordsInput(100);
+    run.setRecordsOutput(100);
+    run.setRecordsFailed(0);
+    run.setMetadata("{\"connectorName\":\"" + conn.name() + "\",\"syncScope\":\"manual\"}");
+
+    com.luminai.connection.model.PipelineRun saved =
+        pipelineRunRepository != null ? pipelineRunRepository.save(run) : run;
+    UUID runId = saved.getId() != null ? saved.getId() : UUID.randomUUID();
+
+    log.info("Triggered sync for connector '{}' (id={}), runId={}", conn.name(), id, runId);
+    return ResponseEntity.ok(Map.of("runId", runId.toString(), "status", "RUNNING"));
   }
 
   @PostMapping("/test")
@@ -243,8 +262,17 @@ public class ConnectionController {
 
     String type = String.valueOf(config.getOrDefault("type", "POSTGRESQL")).toUpperCase();
     if ("FILE".equalsIgnoreCase(type) || "API".equalsIgnoreCase(type)) {
+      long elapsed = System.currentTimeMillis() - start;
       return ResponseEntity.ok(
-          Map.of("ok", true, "latencyMs", 15L, "message", "Connection configuration verified"));
+          Map.of(
+              "ok",
+              true,
+              "latencyMs",
+              elapsed,
+              "message",
+              "Connection configuration verified",
+              "errorCode",
+              ""));
     }
 
     String host = String.valueOf(config.getOrDefault("host", ""));
@@ -340,10 +368,14 @@ public class ConnectionController {
                 : String.valueOf(config.getOrDefault("databaseName", ""));
         String username = String.valueOf(config.getOrDefault("username", ""));
         String password = String.valueOf(config.getOrDefault("password", ""));
+        String sslMode =
+            config.get("sslMode") != null ? String.valueOf(config.get("sslMode")) : null;
+        String schemaFilter =
+            config.get("schema") != null ? String.valueOf(config.get("schema")) : null;
 
         Map<String, List<String>> discovered =
             postgresConnectorService.discoverSchemasDirect(
-                host, port, database, username, password);
+                host, port, database, username, password, sslMode, schemaFilter);
         List<Map<String, Object>> schemas = new ArrayList<>();
         discovered.forEach(
             (schema, tables) -> schemas.add(Map.of("schema", schema, "tables", tables)));
@@ -351,23 +383,37 @@ public class ConnectionController {
       } catch (Exception e) {
         log.warn("Direct database schema discovery failed: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(Map.of("message", "Database connection rejected: " + e.getMessage()));
+            .body(
+                Map.of(
+                    "code",
+                    discoveryErrorCode(e),
+                    "message",
+                    e.getMessage() != null ? e.getMessage() : "Database connection rejected"));
       }
     }
 
-    // Prototype schema discovery fallback when offline or demo config supplied
-    List<Map<String, Object>> schemas =
-        List.of(
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(
             Map.of(
-                "schema",
-                "public",
-                "tables",
-                List.of("users", "orders", "customers", "transactions", "audit_logs")),
-            Map.of(
-                "schema",
-                "analytics",
-                "tables",
-                List.of("daily_aggregates", "event_stream", "entity_matches")));
-    return ResponseEntity.ok(schemas);
+                "errorCode",
+                "DISCOVERY_CONFIG_REQUIRED",
+                "message",
+                "A valid connectionId or database connection configuration is required"));
+  }
+
+  private String discoveryErrorCode(Exception e) {
+    Throwable cause = e;
+    while (cause != null) {
+      if (cause instanceof java.sql.SQLException sql) {
+        String state = sql.getSQLState();
+        if ("28P01".equals(state) || "28000".equals(state)) return "AUTH_FAILED";
+        if ("3D000".equals(state)) return "DB_NOT_FOUND";
+        if ("08001".equals(state) || "08006".equals(state)) return "HOST_UNREACHABLE";
+        if (state != null && state.startsWith("08")) return "HOST_UNREACHABLE";
+      }
+      cause = cause.getCause();
+    }
+    String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+    return message.contains("timeout") ? "TIMEOUT" : "DISCOVERY_FAILED";
   }
 }

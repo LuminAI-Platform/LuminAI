@@ -91,6 +91,18 @@ public class ConnectionProducer {
       int actualTotalRows,
       Long fileSizeBytes) {
 
+    publishRows(tenantId, connectionId, source, rows, batchComplete, objectKey, Map.of());
+  }
+
+  public void publishRows(
+      UUID tenantId,
+      UUID connectionId,
+      String source,
+      List<Map<String, Object>> rows,
+      boolean batchComplete,
+      String objectKey,
+      Map<String, Object> batchMetadata) {
+
     if ((rows == null || rows.isEmpty()) && (objectKey == null || objectKey.isBlank())) {
       log.warn(
           "publishRows called with empty rows and no objectKey for connection '{}' — skipping",
@@ -112,7 +124,7 @@ public class ConnectionProducer {
             safeRows,
             batchComplete,
             objectKey,
-            fileSizeBytes);
+            batchMetadata != null ? batchMetadata : Map.of());
 
     String messageKey = tenantId.toString();
 
@@ -183,7 +195,31 @@ public class ConnectionProducer {
       List<Map<String, Object>> rows,
       @com.fasterxml.jackson.annotation.JsonProperty("batch_complete") boolean batchComplete,
       @com.fasterxml.jackson.annotation.JsonProperty("object_key") String objectKey,
-      @com.fasterxml.jackson.annotation.JsonProperty("file_size_bytes") Long fileSizeBytes) {
+      @com.fasterxml.jackson.annotation.JsonProperty("batch_metadata")
+          Map<String, Object> batchMetadata) {
+
+    public IngestEvent(
+        String eventId,
+        String tenantId,
+        String connectionId,
+        String source,
+        String ingestedAt,
+        int totalRows,
+        List<Map<String, Object>> rows,
+        boolean batchComplete,
+        String objectKey) {
+      this(
+          eventId,
+          tenantId,
+          connectionId,
+          source,
+          ingestedAt,
+          totalRows,
+          rows,
+          batchComplete,
+          objectKey,
+          Map.of());
+    }
 
     public IngestEvent(
         String eventId,

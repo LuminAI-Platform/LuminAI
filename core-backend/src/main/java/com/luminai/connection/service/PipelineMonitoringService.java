@@ -72,7 +72,10 @@ public class PipelineMonitoringService {
         PipelineRun run = new PipelineRun();
         run.setTenantId(runTenantId);
         run.setConnectionId(conn.getId());
-        run.setPipelineType("FILE_INGESTION");
+        run.setPipelineType(
+            conn.getType() == Connection.Type.FILE
+                ? "FILE_INGESTION"
+                : conn.getType().name() + "_SYNC");
         run.setStatus(PipelineRun.PipelineRunStatus.COMPLETED);
         run.setRecordsInput(count > 0 ? count : 100);
         run.setRecordsOutput(count > 0 ? count : 100);
