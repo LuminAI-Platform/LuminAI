@@ -163,7 +163,9 @@ export function normalizeSearchResponse(
         : undefined;
 
       let possibleDuplicate: PossibleDuplicateRef | null | undefined;
-      if (
+      if (item.possibleDuplicate === true) {
+        possibleDuplicate = { name: "another record" };
+      } else if (
         item.possibleDuplicate &&
         typeof item.possibleDuplicate === "object"
       ) {
