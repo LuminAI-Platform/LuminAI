@@ -172,7 +172,10 @@ def execute_cleaning_pipeline(
                     duration,
                 )
                 # Automatically trigger Entity Resolution pipeline for complete pipeline orchestration
-                if batch_metadata.get("auto_er", False):
+                auto_er = batch_metadata.get("auto_er")
+                if auto_er is None:
+                    auto_er = bool(batch_metadata.get("batch_complete", False))
+                if auto_er:
                     try:
                         logger.info(
                             "🚀 Auto-triggering Entity Resolution pipeline post-cleaning — tenant=%s, source=%s",
