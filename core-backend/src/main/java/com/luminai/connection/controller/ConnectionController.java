@@ -52,6 +52,7 @@ public class ConnectionController {
   private final ConnectionCleanPreviewService cleanPreviewService;
   private final ConnectionUploadService uploadService;
   private com.luminai.connection.repository.PipelineRunRepository pipelineRunRepository;
+  private com.luminai.connection.service.PostgresIngestionService postgresIngestionService;
 
   @Autowired(required = false)
   private Neo4jGraphRepository neo4jGraphRepository;
@@ -116,6 +117,13 @@ public class ConnectionController {
     if (this.cleanPreviewService != null && dataEngineClient != null) {
       this.cleanPreviewService.setDataEngineClient(dataEngineClient);
     }
+  }
+
+  @Autowired
+  public void configurePostgresIngestionService(
+      @Autowired(required = false)
+          com.luminai.connection.service.PostgresIngestionService postgresIngestionService) {
+    this.postgresIngestionService = postgresIngestionService;
   }
 
   @PostMapping
@@ -204,6 +212,17 @@ public class ConnectionController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> syncConnection(
       @PathVariable UUID id, @RequestBody(required = false) Map<String, Object> body) {
+    if (postgresIngestionService != null) {
+      com.luminai.connection.model.PipelineRun run = postgresIngestionService.sync(id);
+      return ResponseEntity.ok(
+          Map.of(
+              "runId", run.getId().toString(),
+              "status", run.getStatus().name(),
+              "recordsInput", run.getRecordsInput(),
+              "recordsOutput", run.getRecordsOutput(),
+              "recordsFailed", run.getRecordsFailed()));
+    }
+
     ConnectionDto.Response conn = connectionService.getById(id);
     UUID tenantId = TenantContext.getTenantUuid();
     UUID runTenantId = tenantId != null ? tenantId : conn.tenantId();
