@@ -26,9 +26,7 @@ public final class SearchResponseDto {
       Double completenessScore,
       Double qualityScore,
       boolean possibleDuplicate,
-      List<String> matchReasons) {
-
-  }
+      List<String> matchReasons) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Response(
@@ -37,7 +35,5 @@ public final class SearchResponseDto {
       int page,
       int size,
       Map<String, Map<String, Long>> facets,
-      InsightsDto insights) {
-
-  }
+      InsightsDto insights) {}
 }

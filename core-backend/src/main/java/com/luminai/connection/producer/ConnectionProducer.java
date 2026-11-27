@@ -184,7 +184,8 @@ public class ConnectionProducer {
       List<Map<String, Object>> rows,
       @com.fasterxml.jackson.annotation.JsonProperty("batch_complete") boolean batchComplete,
       @com.fasterxml.jackson.annotation.JsonProperty("object_key") String objectKey,
-      @com.fasterxml.jackson.annotation.JsonProperty("batch_metadata") Map<String, Object> batchMetadata) {
+      @com.fasterxml.jackson.annotation.JsonProperty("batch_metadata")
+          Map<String, Object> batchMetadata) {
 
     public IngestEvent(
         String eventId,
@@ -196,7 +197,17 @@ public class ConnectionProducer {
         List<Map<String, Object>> rows,
         boolean batchComplete,
         String objectKey) {
-      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, batchComplete, objectKey, Map.of());
+      this(
+          eventId,
+          tenantId,
+          connectionId,
+          source,
+          ingestedAt,
+          totalRows,
+          rows,
+          batchComplete,
+          objectKey,
+          Map.of());
     }
 
     public IngestEvent(

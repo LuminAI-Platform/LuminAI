@@ -86,11 +86,12 @@ public record PipelineRunDto(
       PipelineRun run, String connectorName, String connectorType) {
     long duration = 0;
     Instant start = run.getStartedAt();
-    boolean terminal = run.getStatus() == PipelineRun.PipelineRunStatus.COMPLETED
-        || run.getStatus() == PipelineRun.PipelineRunStatus.CLEANED
-        || run.getStatus() == PipelineRun.PipelineRunStatus.VALIDATED
-        || run.getStatus() == PipelineRun.PipelineRunStatus.FAILED
-        || run.getStatus() == PipelineRun.PipelineRunStatus.CANCELLED;
+    boolean terminal =
+        run.getStatus() == PipelineRun.PipelineRunStatus.COMPLETED
+            || run.getStatus() == PipelineRun.PipelineRunStatus.CLEANED
+            || run.getStatus() == PipelineRun.PipelineRunStatus.VALIDATED
+            || run.getStatus() == PipelineRun.PipelineRunStatus.FAILED
+            || run.getStatus() == PipelineRun.PipelineRunStatus.CANCELLED;
     Instant end = run.getCompletedAt() != null ? run.getCompletedAt() : Instant.now();
     if (start != null) {
       duration = Math.max(0, Duration.between(start, end).getSeconds());

@@ -15,7 +15,7 @@ export function useDynamicOntology() {
 
   const fetchOntologyTypes = useCallback(async () => {
     try {
-      const res = await apiFetch("/api/v1/ontology/entity-types");
+      const res = await apiFetch("/api/v1/ontology/entity-types?includeEmpty=false");
       if (res.ok) {
         const types = await res.json();
         if (Array.isArray(types) && types.length > 0) {

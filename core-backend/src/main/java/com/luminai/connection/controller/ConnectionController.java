@@ -246,10 +246,14 @@ public class ConnectionController {
       long elapsed = System.currentTimeMillis() - start;
       return ResponseEntity.ok(
           Map.of(
-              "ok", true,
-              "latencyMs", elapsed,
-              "message", "Connection configuration verified",
-              "errorCode", ""));
+              "ok",
+              true,
+              "latencyMs",
+              elapsed,
+              "message",
+              "Connection configuration verified",
+              "errorCode",
+              ""));
     }
 
     String host = String.valueOf(config.getOrDefault("host", ""));
@@ -343,8 +347,10 @@ public class ConnectionController {
                 : String.valueOf(config.getOrDefault("databaseName", ""));
         String username = String.valueOf(config.getOrDefault("username", ""));
         String password = String.valueOf(config.getOrDefault("password", ""));
-        String sslMode = config.get("sslMode") != null ? String.valueOf(config.get("sslMode")) : null;
-        String schemaFilter = config.get("schema") != null ? String.valueOf(config.get("schema")) : null;
+        String sslMode =
+            config.get("sslMode") != null ? String.valueOf(config.get("sslMode")) : null;
+        String schemaFilter =
+            config.get("schema") != null ? String.valueOf(config.get("schema")) : null;
 
         Map<String, List<String>> discovered =
             postgresConnectorService.discoverSchemasDirect(
@@ -356,12 +362,22 @@ public class ConnectionController {
       } catch (Exception e) {
         log.warn("Direct database schema discovery failed: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(Map.of("code", discoveryErrorCode(e), "message", e.getMessage() != null ? e.getMessage() : "Database connection rejected"));
+            .body(
+                Map.of(
+                    "code",
+                    discoveryErrorCode(e),
+                    "message",
+                    e.getMessage() != null ? e.getMessage() : "Database connection rejected"));
       }
     }
 
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-        .body(Map.of("errorCode", "DISCOVERY_CONFIG_REQUIRED", "message", "A valid connectionId or database connection configuration is required"));
+        .body(
+            Map.of(
+                "errorCode",
+                "DISCOVERY_CONFIG_REQUIRED",
+                "message",
+                "A valid connectionId or database connection configuration is required"));
   }
 
   private String discoveryErrorCode(Exception e) {

@@ -104,6 +104,9 @@ export async function runIngestionPipeline({
       rowsCount: parsedData.rows.length,
       columns: parsedData.columns,
       sampleRows: parsedData.rows.slice(0, 100),
+      targetEntityType: primaryTargetEntity || "Entity",
+      auto_er: true,
+      generate_edges: true,
     }),
   };
 

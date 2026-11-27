@@ -65,7 +65,7 @@ export function useExplorerSearch(
     let isMounted = true;
     const fetchOntology = async () => {
       try {
-        const res = await apiFetch("/api/v1/ontology/entity-types", {
+        const res = await apiFetch("/api/v1/ontology/entity-types?includeEmpty=false", {
           headers: { "X-Suppress-Toast": "true" },
         });
         if (res.ok && isMounted) {

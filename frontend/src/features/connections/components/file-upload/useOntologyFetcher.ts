@@ -21,7 +21,7 @@ export function useOntologyFetcher(): OntologyFetchResult {
   useEffect(() => {
     const fetchOntology = async () => {
       try {
-        const res = await apiFetch("/api/v1/ontology/entity-types");
+        const res = await apiFetch("/api/v1/ontology/entity-types?includeEmpty=false");
         if (res.ok) {
           const list = await res.json();
           if (Array.isArray(list) && list.length > 0) {

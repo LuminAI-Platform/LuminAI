@@ -171,13 +171,21 @@ public class PipelineRun {
     this.recordsFailed = recordsFailed;
   }
 
-  public long getRecordsQuarantined() { return recordsQuarantined; }
+  public long getRecordsQuarantined() {
+    return recordsQuarantined;
+  }
 
-  public void setRecordsQuarantined(long recordsQuarantined) { this.recordsQuarantined = recordsQuarantined; }
+  public void setRecordsQuarantined(long recordsQuarantined) {
+    this.recordsQuarantined = recordsQuarantined;
+  }
 
-  public long getRecordsRejected() { return recordsRejected; }
+  public long getRecordsRejected() {
+    return recordsRejected;
+  }
 
-  public void setRecordsRejected(long recordsRejected) { this.recordsRejected = recordsRejected; }
+  public void setRecordsRejected(long recordsRejected) {
+    this.recordsRejected = recordsRejected;
+  }
 
   public String getErrorMessage() {
     return errorMessage;

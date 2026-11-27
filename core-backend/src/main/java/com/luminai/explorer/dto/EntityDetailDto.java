@@ -24,7 +24,5 @@ public final class EntityDetailDto {
       Double completenessScore,
       Double qualityScore,
       boolean possibleDuplicate,
-      List<String> matchReasons) {
-
-  }
+      List<String> matchReasons) {}
 }

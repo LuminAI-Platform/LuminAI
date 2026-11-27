@@ -54,7 +54,16 @@ public class ExplorerController {
         (entityType != null && !entityType.isEmpty()) ? String.join(",", entityType) : null;
 
     return ResponseEntity.ok(
-        searchService.search(query, combinedEntityType, duplicates, missing, review, page, size, sortBy, sortDirection));
+        searchService.search(
+            query,
+            combinedEntityType,
+            duplicates,
+            missing,
+            review,
+            page,
+            size,
+            sortBy,
+            sortDirection));
   }
 
   @GetMapping("/entities/{id}")

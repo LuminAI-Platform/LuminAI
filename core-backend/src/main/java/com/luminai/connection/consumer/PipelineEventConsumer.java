@@ -7,7 +7,6 @@ import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.util.Map;
-import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;

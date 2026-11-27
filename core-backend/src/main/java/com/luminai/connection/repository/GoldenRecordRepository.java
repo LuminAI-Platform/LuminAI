@@ -50,7 +50,8 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
   }
 
   @Query(
-      value = """
+      value =
+          """
           SELECT * FROM golden_records g
           WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%'))
                  OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%')))
@@ -60,7 +61,8 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
             AND (:review IS NULL OR :review = false OR g.confidence_score < 0.85)
             AND (:fieldKey IS NULL OR LOWER(CAST(g.properties AS jsonb)->>:fieldKey) LIKE LOWER(CONCAT('%', :fieldVal, '%')))
           """,
-      countQuery = """
+      countQuery =
+          """
           SELECT count(*) FROM golden_records g
           WHERE (:query IS NULL OR :query = '' OR LOWER(g.canonical_name) LIKE LOWER(CONCAT('%', :query, '%'))
                  OR LOWER(CAST(g.properties AS text)) LIKE LOWER(CONCAT('%', :query, '%')))
@@ -82,7 +84,9 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
       @Param("fieldVal") String fieldVal,
       Pageable pageable);
 
-  @Query(value = """
+  @Query(
+      value =
+          """
       SELECT
         count(*) FILTER (WHERE COALESCE(LOWER(CAST(g.properties AS jsonb) ->> 'possibleDuplicate'), 'false') = 'true'),
         count(*) FILTER (WHERE EXISTS (SELECT 1 FROM jsonb_each_text(CAST(g.properties AS jsonb)) p WHERE p.value IN ('', 'null'))),
@@ -94,7 +98,8 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
         AND (:missing IS NULL OR EXISTS (SELECT 1 FROM jsonb_each_text(CAST(g.properties AS jsonb)) p WHERE p.value IN ('', 'null')) = :missing)
         AND (:review IS NULL OR (COALESCE(g.confidence_score, 1) < 0.85) = :review)
         AND NOT EXISTS (SELECT 1 FROM jsonb_each_text(CAST(:fieldFilters AS jsonb)) f WHERE LOWER(COALESCE(CAST(g.properties AS jsonb) ->> f.key, '')) NOT LIKE CONCAT('%', LOWER(f.value), '%'))
-      """, nativeQuery = true)
+      """,
+      nativeQuery = true)
   List<Object[]> countInsights(
       @Param("query") String query,
       @Param("includeAll") boolean includeAll,

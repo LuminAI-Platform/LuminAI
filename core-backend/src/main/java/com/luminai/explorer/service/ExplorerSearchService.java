@@ -131,46 +131,46 @@ public class ExplorerSearchService {
     String fieldKey = fieldFilters.keySet().stream().findFirst().orElse(null);
     String fieldVal = fieldKey == null ? null : fieldFilters.get(fieldKey);
     try {
-        org.springframework.data.domain.Sort sort;
-        if ("canonicalName".equalsIgnoreCase(sortBy)) {
-          sort =
-              org.springframework.data.domain.Sort.by(
-                  "DESC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.DESC
-                      : org.springframework.data.domain.Sort.Direction.ASC,
-                  "canonical_name");
-        } else if ("confidenceScore".equalsIgnoreCase(sortBy)
-            || "confidence_score".equalsIgnoreCase(sortBy)) {
-          sort =
-              org.springframework.data.domain.Sort.by(
-                  "ASC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.ASC
-                      : org.springframework.data.domain.Sort.Direction.DESC,
-                  "confidence_score");
-        } else {
-          sort =
-              org.springframework.data.domain.Sort.by(
-                  "ASC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.ASC
-                      : org.springframework.data.domain.Sort.Direction.DESC,
-                  "created_at");
-        }
-        org.springframework.data.domain.Pageable pageable =
-            org.springframework.data.domain.PageRequest.of(safePage, safeSize, sort);
-        dbPage =
-            goldenRecordRepository.searchWithFilters(
-                (!cleanQuery.isBlank()) ? cleanQuery : null,
-                includeAllTypes,
-                entityTypes,
-                effectiveDuplicates,
-                effectiveMissing,
-                effectiveReview,
-                fieldKey,
-                fieldVal,
-                pageable);
+      org.springframework.data.domain.Sort sort;
+      if ("canonicalName".equalsIgnoreCase(sortBy)) {
+        sort =
+            org.springframework.data.domain.Sort.by(
+                "DESC".equalsIgnoreCase(sortDirection)
+                    ? org.springframework.data.domain.Sort.Direction.DESC
+                    : org.springframework.data.domain.Sort.Direction.ASC,
+                "canonical_name");
+      } else if ("confidenceScore".equalsIgnoreCase(sortBy)
+          || "confidence_score".equalsIgnoreCase(sortBy)) {
+        sort =
+            org.springframework.data.domain.Sort.by(
+                "ASC".equalsIgnoreCase(sortDirection)
+                    ? org.springframework.data.domain.Sort.Direction.ASC
+                    : org.springframework.data.domain.Sort.Direction.DESC,
+                "confidence_score");
+      } else {
+        sort =
+            org.springframework.data.domain.Sort.by(
+                "ASC".equalsIgnoreCase(sortDirection)
+                    ? org.springframework.data.domain.Sort.Direction.ASC
+                    : org.springframework.data.domain.Sort.Direction.DESC,
+                "created_at");
+      }
+      org.springframework.data.domain.Pageable pageable =
+          org.springframework.data.domain.PageRequest.of(safePage, safeSize, sort);
+      dbPage =
+          goldenRecordRepository.searchWithFilters(
+              (!cleanQuery.isBlank()) ? cleanQuery : null,
+              includeAllTypes,
+              entityTypes,
+              effectiveDuplicates,
+              effectiveMissing,
+              effectiveReview,
+              fieldKey,
+              fieldVal,
+              pageable);
     } catch (Exception e) {
-        log.error("Database search failed; refusing to scan all golden records", e);
-        throw new IllegalStateException("Could not execute filtered entity search", e);
+      log.error("Database search failed; refusing to scan all golden records", e);
+      throw new IllegalStateException("Could not execute filtered entity search", e);
     }
 
     if (dbPage != null) {
@@ -374,7 +374,12 @@ public class ExplorerSearchService {
     SearchResponseDto.InsightsDto insights =
         new SearchResponseDto.InsightsDto(
             matchingItems.stream().filter(SearchResponseDto.SearchItem::possibleDuplicate).count(),
-            matchingItems.stream().filter(i -> i.properties().values().stream().anyMatch(v -> v == null || v.toString().isBlank())).count(),
+            matchingItems.stream()
+                .filter(
+                    i ->
+                        i.properties().values().stream()
+                            .anyMatch(v -> v == null || v.toString().isBlank()))
+                .count(),
             matchingItems.stream().filter(i -> i.confidenceScore() < 0.85).count());
     return new SearchResponseDto.Response(pagedItems, total, safePage, safeSize, facets, insights);
   }
@@ -500,7 +505,6 @@ public class ExplorerSearchService {
         + "</em>"
         + text.substring(end);
   }
-
 
   /** Streams canonical golden records matching filters as an RFC-4180 CSV file. */
   @Transactional(readOnly = true)
