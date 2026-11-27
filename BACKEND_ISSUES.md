@@ -315,6 +315,37 @@ The following capabilities requested for the **Configure database source** dialo
 
 ## 7. Sync Progress Panel & Pipeline Execution Stream (`/api/v1/pipelines`) Missing API Fields & Capabilities
 
+## 8. Backend Fix Status (2026-11-27)
+
+The following backend gaps have now been addressed in the current implementation:
+
+- `POST /api/v1/connections/{id}/sync` runs a real PostgreSQL sync for configured tables instead
+  of creating a synthetic `100/100/0` pipeline run.
+- PostgreSQL rows are extracted in bounded batches and published to Kafka topic `ingest.raw` using
+  the existing `ConnectionProducer`, allowing the data engine ingestion consumer to process them.
+- Pipeline runs now record `INGESTING`, `COMPLETED`, or `FAILED`, with actual input/output/failure
+  counts and timestamps.
+- Backend connection creation stores a supplied database password in the encrypted credentials
+  vault rather than in connector JSON.
+
+The backend implementation still requires the client to submit `CreateRequest.password`, `host`,
+`port`, `database`, and `username` for credential persistence. The current frontend registration
+request does not submit the password, so an already discovered connection may still fail during a
+later sync until that frontend issue is fixed.
+
+## 9. Remaining Frontend Issues
+
+These are intentionally left unresolved for a frontend follow-up:
+
+- The database registration UI clears the password and does not send it in `POST /api/v1/connections`.
+- The database source action menu has no **Sync now** action and does not call
+  `POST /api/v1/connections/{id}/sync`.
+- The registration UI does not expose SSL/TLS mode or schema filtering, even though PostgreSQL
+  discovery accepts those backend parameters.
+- The UI presents MySQL, SQL Server, and Snowflake choices, but the current backend sync
+  implementation is PostgreSQL-specific.
+- Schema discovery still displays table names only; column counts and row estimates are not shown.
+
 The following gaps were identified during a read-only audit of `core-backend` (`PipelineMonitoringController.java`, `PipelineMonitoringService.java`, `PipelineRunDto.java`, `PipelineRun.java`, `PipelineSseController.java`) while improving the Sync Progress panel and Pipeline Execution Stream on `/connections`.
 
 ### 7.1 No `recordsQuarantined` or Distinct `recordsRejected` vs `errorsCount` on `PipelineRunDto`
