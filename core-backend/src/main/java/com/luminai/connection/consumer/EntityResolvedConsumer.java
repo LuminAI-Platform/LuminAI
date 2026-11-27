@@ -77,6 +77,19 @@ public class EntityResolvedConsumer {
         payload);
 
     try {
+      boolean hasBatchSummary =
+          payload.get("resolvedEntities") != null
+              || payload.get("resolved_entities") != null
+              || payload.get("record_count") != null
+              || "COMPLETED".equalsIgnoreCase(String.valueOf(payload.get("status")));
+      if (payload.get("golden_id") != null && !hasBatchSummary) {
+        log.debug(
+            "Ignoring individual resolved-entity event in batch completion consumer (golden_id={})",
+            payload.get("golden_id"));
+        ack.acknowledge();
+        return;
+      }
+
       Object rawConnId =
           payload.get("connectionId") != null
               ? payload.get("connectionId")

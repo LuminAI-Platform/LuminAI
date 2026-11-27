@@ -230,4 +230,79 @@ class ConnectionSyncServiceTest {
         .syncGoldenRecords(
             eq(connId), eq(tenantId), eq("Orders DB"), eq("Order"), eq(returnedGolden), eq(true));
   }
+
+  @Test
+  @DisplayName(
+      "executeSync falls back to direct persistence when Kafka producer throws LinkageError")
+  void executeSyncFallsBackWhenKafkaThrowsLinkageError() {
+    ConnectionSyncService kafkaEnabledSync =
+        new ConnectionSyncService(
+            connectionService,
+            connectionRepository,
+            connectionPreviewService,
+            postgresConnectorService,
+            connectionProducer,
+            pipelineRunRepository,
+            pipelineSseService,
+            dataEngineClient,
+            new ObjectMapper(),
+            true);
+    GoldenRecordPersistenceService persistenceService =
+        org.mockito.Mockito.mock(GoldenRecordPersistenceService.class);
+    kafkaEnabledSync.setGoldenRecordPersistenceService(persistenceService);
+
+    ConnectionDto.Response conn =
+        new ConnectionDto.Response(
+            connId,
+            tenantId,
+            "Shipments File",
+            Connection.Type.FILE,
+            "{\"fileName\":\"shipments.csv\"}",
+            null,
+            Connection.Status.ACTIVE,
+            null,
+            null,
+            Instant.now(),
+            Instant.now());
+
+    List<Map<String, Object>> fileRows = List.of(Map.of("shipment_id", "SHP-1", "origin", "Accra"));
+    when(connectionPreviewService.previewFile(connId)).thenReturn(fileRows);
+    org.mockito.Mockito.doThrow(new UnsatisfiedLinkError("libsnappyjava.so missing"))
+        .when(connectionProducer)
+        .publishRows(eq(tenantId), eq(connId), eq("shipments.csv"), any(), eq(true), any());
+    when(dataEngineClient.cleanDatasetDirect(any()))
+        .thenReturn(
+            Map.of(
+                "status",
+                "COMPLETED",
+                "totalCleanRecords",
+                1,
+                "rejectedRecords",
+                0,
+                "goldenRecords",
+                List.of(
+                    Map.of(
+                        "golden_id",
+                        "gr-shp-1",
+                        "canonical_name",
+                        "SHP-1",
+                        "entity_type",
+                        "Shipment",
+                        "attributes",
+                        fileRows.get(0)))));
+    when(connectionRepository.findByIdAndTenantId(connId, tenantId)).thenReturn(Optional.empty());
+
+    PipelineRun run = new PipelineRun();
+    run.setId(UUID.randomUUID());
+    run.setTenantId(tenantId);
+    run.setConnectionId(connId);
+    run.setStatus(PipelineRunStatus.RUNNING);
+    run.setStartedAt(Instant.now());
+
+    kafkaEnabledSync.executeSync(run, conn, tenantId, "luminex", Map.of());
+
+    assertThat(run.getStatus()).isEqualTo(PipelineRunStatus.COMPLETED);
+    verify(persistenceService)
+        .syncGoldenRecords(eq(connId), eq(tenantId), eq("shipments.csv"), any(), any(), eq(true));
+  }
 }
