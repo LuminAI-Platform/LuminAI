@@ -8,6 +8,7 @@ import com.luminai.connection.model.Connection;
 import com.luminai.connection.repository.ConnectionPreviewService;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.GoldenRecordRepository;
+import com.luminai.connection.repository.SchemaMappingRepository;
 import com.luminai.connection.util.ConnectionFileParser;
 import com.luminai.engine.service.DataEngineClient;
 import com.luminai.graph.repository.Neo4jGraphRepository;
@@ -79,8 +80,17 @@ public class ConnectionCleanPreviewService {
     this.dataEngineClient = client;
   }
 
+  public void setSchemaMappingRepository(SchemaMappingRepository repo) {
+    if (this.persistenceService != null) {
+      this.persistenceService.setSchemaMappingRepository(repo);
+    }
+  }
+
   public void setCacheManager(CacheManager cacheManager) {
     this.cacheManager = cacheManager;
+    if (this.persistenceService != null) {
+      this.persistenceService.setCacheManager(cacheManager);
+    }
   }
 
   public static String cacheKey(UUID tenantId, UUID connectionId) {
@@ -124,22 +134,18 @@ public class ConnectionCleanPreviewService {
     }
 
     List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
-    String configuredEntityType = null;
-
     Optional<Connection> connOpt = existingOpt.filter(c -> currentTenant.equals(c.getTenantId()));
     if (connOpt.isEmpty() && connectionRepository != null) {
       connOpt = connectionRepository.findByIdAndTenantId(id, currentTenant);
     }
 
+    String configuredEntityType =
+        persistenceService.resolveConfiguredEntityType(
+            connOpt.orElse(null), id, currentTenant, null);
+
     if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
       try {
         JsonNode root = objectMapper.readTree(connOpt.get().getConfig());
-        if (root.has("targetEntityType") && !root.get("targetEntityType").asText().isBlank()) {
-          configuredEntityType = root.get("targetEntityType").asText();
-        } else if (root.has("entityType") && !root.get("entityType").asText().isBlank()) {
-          configuredEntityType = root.get("entityType").asText();
-        }
-
         if (rawRows.isEmpty()) {
           rawRows = extractConfigSampleRows(root);
         }
@@ -172,14 +178,14 @@ public class ConnectionCleanPreviewService {
                   "status", "SERVICE_UNAVAILABLE"));
     }
 
+    String resolvedRequestType =
+        (configuredEntityType != null && !configuredEntityType.isBlank())
+            ? configuredEntityType
+            : ConnectionFileParser.inferEntityType(rawRows.get(0), null);
     Map<String, Object> remoteReq = new HashMap<>();
     remoteReq.put("tenant_id", currentTenant.toString());
     remoteReq.put("source_id", id.toString());
-    remoteReq.put(
-        "entity_type",
-        (configuredEntityType != null && !configuredEntityType.isBlank())
-            ? configuredEntityType
-            : "Entity");
+    remoteReq.put("entity_type", resolvedRequestType);
     remoteReq.put("rows", rawRows);
     remoteReq.put("options", Map.of("include_golden_records", false));
 
@@ -214,7 +220,8 @@ public class ConnectionCleanPreviewService {
       @SuppressWarnings("unchecked")
       List<Map<String, Object>> rRows = (List<Map<String, Object>>) engineRes.get("rows");
       if (!rRows.isEmpty()) {
-        persistenceService.persistGoldenRecords(id, currentTenant, rRows);
+        persistenceService.syncGoldenRecords(
+            id, currentTenant, null, configuredEntityType, rRows, false);
       }
     }
 

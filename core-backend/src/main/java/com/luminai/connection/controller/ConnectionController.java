@@ -127,6 +127,15 @@ public class ConnectionController {
   }
 
   @Autowired
+  public void configureSchemaMappingRepository(
+      @Autowired(required = false)
+          com.luminai.connection.repository.SchemaMappingRepository schemaMappingRepository) {
+    if (this.cleanPreviewService != null && schemaMappingRepository != null) {
+      this.cleanPreviewService.setSchemaMappingRepository(schemaMappingRepository);
+    }
+  }
+
+  @Autowired
   public void configureCacheManager(
       @Autowired(required = false) org.springframework.cache.CacheManager cacheManager) {
     if (this.cleanPreviewService != null && cacheManager != null) {

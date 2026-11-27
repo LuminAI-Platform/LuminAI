@@ -159,4 +159,75 @@ class ConnectionSyncServiceTest {
         .emitError(
             eq(tenantId), eq(run.getId().toString()), eq("ingest"), anyString(), eq("error"));
   }
+
+  @Test
+  @DisplayName(
+      "executeSync persists Data Engine goldenRecords with configured targetEntityType when Kafka listener disabled")
+  void executeSyncPersistsGoldenRecordsDirectlyWithConfiguredEntityType() {
+    GoldenRecordPersistenceService persistenceService =
+        org.mockito.Mockito.mock(GoldenRecordPersistenceService.class);
+    syncService.setGoldenRecordPersistenceService(persistenceService);
+
+    ConnectionDto.Response conn =
+        new ConnectionDto.Response(
+            connId,
+            tenantId,
+            "Orders DB",
+            Connection.Type.POSTGRESQL,
+            "{\"tables\":[\"public.orders\"],\"targetEntityType\":\"Order\"}",
+            "vault-key",
+            Connection.Status.ACTIVE,
+            null,
+            null,
+            Instant.now(),
+            Instant.now());
+
+    doAnswer(
+            inv -> {
+              Consumer<List<Map<String, Object>>> consumer = inv.getArgument(4);
+              consumer.accept(List.of(Map.of("order_id", "ORD-101", "amount", 250)));
+              return null;
+            })
+        .when(postgresConnectorService)
+        .extractRows(eq(tenantId), eq(connId), eq("public"), eq("orders"), any());
+
+    List<Map<String, Object>> returnedGolden =
+        List.of(
+            Map.of(
+                "golden_id",
+                "gr-1",
+                "canonical_name",
+                "ORD-101",
+                "entity_type",
+                "Order",
+                "attributes",
+                Map.of("order_id", "ORD-101", "amount", 250)));
+
+    when(dataEngineClient.cleanDatasetDirect(any()))
+        .thenReturn(
+            Map.of(
+                "status",
+                "COMPLETED",
+                "totalCleanRecords",
+                1,
+                "rejectedRecords",
+                0,
+                "goldenRecords",
+                returnedGolden));
+    when(connectionRepository.findByIdAndTenantId(connId, tenantId)).thenReturn(Optional.empty());
+
+    PipelineRun run = new PipelineRun();
+    run.setId(UUID.randomUUID());
+    run.setTenantId(tenantId);
+    run.setConnectionId(connId);
+    run.setStatus(PipelineRunStatus.RUNNING);
+    run.setStartedAt(Instant.now());
+
+    syncService.executeSync(run, conn, tenantId, "luminex", Map.of());
+
+    assertThat(run.getStatus()).isEqualTo(PipelineRunStatus.COMPLETED);
+    verify(persistenceService)
+        .syncGoldenRecords(
+            eq(connId), eq(tenantId), eq("Orders DB"), eq("Order"), eq(returnedGolden), eq(true));
+  }
 }

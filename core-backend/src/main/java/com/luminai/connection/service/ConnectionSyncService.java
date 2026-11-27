@@ -7,10 +7,13 @@ import com.luminai.connection.dto.ConnectionDto;
 import com.luminai.connection.model.Connection;
 import com.luminai.connection.model.PipelineRun;
 import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
+import com.luminai.connection.model.SchemaMapping;
 import com.luminai.connection.producer.ConnectionProducer;
 import com.luminai.connection.repository.ConnectionPreviewService;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.PipelineRunRepository;
+import com.luminai.connection.repository.SchemaMappingRepository;
+import com.luminai.connection.util.ConnectionFileParser;
 import com.luminai.engine.service.DataEngineClient;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,6 +42,7 @@ public class ConnectionSyncService {
 
   private static final Logger log = LoggerFactory.getLogger(ConnectionSyncService.class);
   private static final int BATCH_SIZE = 1000;
+  private static final int SYNC_PERSIST_BATCH_LIMIT = 5000;
 
   private final ConnectionService connectionService;
   private final ConnectionRepository connectionRepository;
@@ -51,10 +55,23 @@ public class ConnectionSyncService {
   private final ObjectMapper objectMapper;
   private final boolean kafkaListenerEnabled;
   private org.springframework.cache.CacheManager cacheManager;
+  private GoldenRecordPersistenceService goldenRecordPersistenceService;
+  private SchemaMappingRepository schemaMappingRepository;
 
   @Autowired(required = false)
   public void setCacheManager(org.springframework.cache.CacheManager cacheManager) {
     this.cacheManager = cacheManager;
+  }
+
+  @Autowired(required = false)
+  public void setGoldenRecordPersistenceService(
+      GoldenRecordPersistenceService goldenRecordPersistenceService) {
+    this.goldenRecordPersistenceService = goldenRecordPersistenceService;
+  }
+
+  @Autowired(required = false)
+  public void setSchemaMappingRepository(SchemaMappingRepository schemaMappingRepository) {
+    this.schemaMappingRepository = schemaMappingRepository;
   }
 
   @Autowired
@@ -143,11 +160,15 @@ public class ConnectionSyncService {
 
       long totalExtracted = 0L;
       List<Map<String, Object>> sampleRows = new ArrayList<>();
+      java.util.concurrent.atomic.AtomicBoolean publishedToKafka =
+          new java.util.concurrent.atomic.AtomicBoolean(connectionProducer != null);
 
       if (isDatabaseConnector(conn.type())) {
-        totalExtracted = extractAndPublishDatabase(conn, tenantId, runIdStr, sampleRows);
+        totalExtracted =
+            extractAndPublishDatabase(conn, tenantId, runIdStr, sampleRows, publishedToKafka);
       } else {
-        totalExtracted = extractAndPublishFileOrApi(conn, tenantId, runIdStr, sampleRows);
+        totalExtracted =
+            extractAndPublishFileOrApi(conn, tenantId, runIdStr, sampleRows, publishedToKafka);
       }
 
       run.setRecordsInput(totalExtracted);
@@ -158,9 +179,9 @@ public class ConnectionSyncService {
           50,
           "Extracted and queued " + totalExtracted + " records for processing");
 
-      // When Kafka listeners are disabled, run synchronous Data Engine cleaning or mark completion
-      // directly so PipelineRun does not stay stuck in RUNNING indefinitely.
-      if (!kafkaListenerEnabled) {
+      // When Kafka listeners are disabled (or no Kafka producer is available), run synchronous
+      // Data Engine cleaning and persist Golden Records directly so runs never stall at INGESTING.
+      if (!kafkaListenerEnabled || !publishedToKafka.get()) {
         completeWithoutKafkaConsumer(
             run, conn, tenantId, tenantSlug, runIdStr, syncStart, totalExtracted, sampleRows);
       } else {
@@ -195,7 +216,8 @@ public class ConnectionSyncService {
       ConnectionDto.Response conn,
       UUID tenantId,
       String runIdStr,
-      List<Map<String, Object>> sampleRowsOut) {
+      List<Map<String, Object>> sampleRowsOut,
+      java.util.concurrent.atomic.AtomicBoolean publishedToKafka) {
     if (postgresConnectorService == null) {
       throw new IllegalStateException("PostgreSQL connector service is unavailable");
     }
@@ -240,23 +262,24 @@ public class ConnectionSyncService {
           chunk -> {
             if (chunk == null || chunk.isEmpty()) return;
             tableCount.addAndGet(chunk.size());
-            if (sampleRowsOut.size() < BATCH_SIZE) {
-              int remaining = BATCH_SIZE - sampleRowsOut.size();
+            if (sampleRowsOut.size() < SYNC_PERSIST_BATCH_LIMIT) {
+              int remaining = SYNC_PERSIST_BATCH_LIMIT - sampleRowsOut.size();
               sampleRowsOut.addAll(chunk.subList(0, Math.min(chunk.size(), remaining)));
             }
             List<Map<String, Object>> previous = pendingChunk.getAndSet(chunk);
-            if (previous != null && connectionProducer != null) {
-              connectionProducer.publishRows(
-                  tenantId, conn.id(), sourceLabel, previous, false, null);
+            if (previous != null) {
+              publishBatchSafely(
+                  tenantId, conn.id(), sourceLabel, previous, false, null, publishedToKafka);
             }
           });
 
       List<Map<String, Object>> tail = pendingChunk.getAndSet(null);
-      if (tail != null && connectionProducer != null) {
-        connectionProducer.publishRows(tenantId, conn.id(), sourceLabel, tail, isFinalTable, null);
-      } else if (isFinalTable && totalRows + tableCount.get() > 0 && connectionProducer != null) {
-        connectionProducer.publishRows(
-            tenantId, conn.id(), sourceLabel, List.of(), true, conn.name());
+      if (tail != null) {
+        publishBatchSafely(
+            tenantId, conn.id(), sourceLabel, tail, isFinalTable, null, publishedToKafka);
+      } else if (isFinalTable && totalRows + tableCount.get() > 0) {
+        publishBatchSafely(
+            tenantId, conn.id(), sourceLabel, List.of(), true, conn.name(), publishedToKafka);
       }
 
       totalRows += tableCount.get();
@@ -276,7 +299,8 @@ public class ConnectionSyncService {
       ConnectionDto.Response conn,
       UUID tenantId,
       String runIdStr,
-      List<Map<String, Object>> sampleRowsOut) {
+      List<Map<String, Object>> sampleRowsOut,
+      java.util.concurrent.atomic.AtomicBoolean publishedToKafka) {
     List<Map<String, Object>> rows =
         connectionPreviewService != null
             ? connectionPreviewService.previewFile(conn.id())
@@ -287,7 +311,7 @@ public class ConnectionSyncService {
           "No source records found for connection '" + conn.name() + "'");
     }
 
-    sampleRowsOut.addAll(rows.subList(0, Math.min(rows.size(), BATCH_SIZE)));
+    sampleRowsOut.addAll(rows.subList(0, Math.min(rows.size(), SYNC_PERSIST_BATCH_LIMIT)));
     String sourceLabel = extractFileName(conn.config(), conn.name());
     String objectKey = extractObjectKey(conn.config());
 
@@ -296,9 +320,8 @@ public class ConnectionSyncService {
       int end = Math.min(i + BATCH_SIZE, total);
       List<Map<String, Object>> chunk = rows.subList(i, end);
       boolean isLast = end == total;
-      if (connectionProducer != null) {
-        connectionProducer.publishRows(tenantId, conn.id(), sourceLabel, chunk, isLast, objectKey);
-      }
+      publishBatchSafely(
+          tenantId, conn.id(), sourceLabel, chunk, isLast, objectKey, publishedToKafka);
     }
 
     emitProgress(
@@ -308,6 +331,30 @@ public class ConnectionSyncService {
         40,
         "Published " + total + " records from '" + sourceLabel + "'");
     return total;
+  }
+
+  private void publishBatchSafely(
+      UUID tenantId,
+      UUID connectionId,
+      String sourceLabel,
+      List<Map<String, Object>> rows,
+      boolean isLast,
+      String objectKey,
+      java.util.concurrent.atomic.AtomicBoolean publishedToKafka) {
+    if (connectionProducer == null) {
+      publishedToKafka.set(false);
+      return;
+    }
+    try {
+      connectionProducer.publishRows(tenantId, connectionId, sourceLabel, rows, isLast, objectKey);
+    } catch (Exception e) {
+      log.warn(
+          "Kafka publish failed for connection '{}' ({}); falling back to direct persistence: {}",
+          connectionId,
+          sourceLabel,
+          e.getMessage());
+      publishedToKafka.set(false);
+    }
   }
 
   private void completeWithoutKafkaConsumer(
@@ -321,39 +368,72 @@ public class ConnectionSyncService {
       List<Map<String, Object>> sampleRows) {
     long cleanedCount = totalExtracted;
     long failedCount = 0L;
+    String resolvedEntityType = resolveSyncEntityType(conn, tenantId, sampleRows);
+    List<Map<String, Object>> rowsToPersist = new ArrayList<>();
 
     if (dataEngineClient != null && !sampleRows.isEmpty()) {
-      Map<String, Object> req = new LinkedHashMap<>();
       String effectiveTenant =
           tenantSlug != null && !tenantSlug.isBlank()
               ? tenantSlug
-              : (tenantId != null ? tenantId.toString() : "acme");
-      req.put("tenant_id", effectiveTenant);
-      req.put("source_id", conn.id().toString());
-      if (runIdStr != null && !runIdStr.isBlank()) {
-        req.put("run_id", runIdStr);
-      }
-      req.put("entity_type", "Entity");
-      req.put("rows", sampleRows);
+              : (tenantId != null ? tenantId.toString() : "default");
+      long engineCleanedTotal = 0L;
+      long engineRejectedTotal = 0L;
+      boolean engineReturnedCounts = false;
 
-      emitProgress(tenantId, runIdStr, "resolve", 75, "Running Data Engine cleaning & resolution");
+      for (int start = 0; start < sampleRows.size(); start += BATCH_SIZE) {
+        int end = Math.min(start + BATCH_SIZE, sampleRows.size());
+        List<Map<String, Object>> batchRows = new ArrayList<>(sampleRows.subList(start, end));
 
-      Map<String, Object> engineRes = dataEngineClient.cleanDatasetDirect(req);
-      if (engineRes != null && "ERROR".equals(engineRes.get("status"))) {
-        String err =
-            engineRes.get("error") != null
-                ? String.valueOf(engineRes.get("error"))
-                : "Data Engine processing failed";
-        throw new IllegalStateException(err);
+        Map<String, Object> req = new LinkedHashMap<>();
+        req.put("tenant_id", effectiveTenant);
+        req.put("source_id", conn.id().toString());
+        if (runIdStr != null && !runIdStr.isBlank()) {
+          req.put("run_id", runIdStr);
+        }
+        req.put("entity_type", resolvedEntityType);
+        req.put("rows", batchRows);
+        req.put("options", Map.of("include_golden_records", true));
+
+        emitProgress(
+            tenantId, runIdStr, "resolve", 75, "Running Data Engine cleaning & resolution");
+
+        Map<String, Object> engineRes = dataEngineClient.cleanDatasetDirect(req);
+        if (engineRes != null && "ERROR".equals(engineRes.get("status"))) {
+          String err =
+              engineRes.get("error") != null
+                  ? String.valueOf(engineRes.get("error"))
+                  : "Data Engine processing failed";
+          throw new IllegalStateException(err);
+        }
+        if (engineRes != null) {
+          if (engineRes.get("totalCleanRecords") instanceof Number n) {
+            engineCleanedTotal += n.longValue();
+            engineReturnedCounts = true;
+          }
+          if (engineRes.get("rejectedRecords") instanceof Number n) {
+            engineRejectedTotal += n.longValue();
+          }
+          extractCleanedOrGoldenRows(engineRes, rowsToPersist);
+        }
       }
-      if (engineRes != null) {
-        if (engineRes.get("totalCleanRecords") instanceof Number n
-            && totalExtracted <= sampleRows.size()) {
-          cleanedCount = n.longValue();
-        }
-        if (engineRes.get("rejectedRecords") instanceof Number n) {
-          failedCount = n.longValue();
-        }
+
+      if (engineReturnedCounts && totalExtracted <= sampleRows.size()) {
+        cleanedCount = engineCleanedTotal;
+      }
+      failedCount = engineRejectedTotal;
+    }
+
+    if (rowsToPersist.isEmpty() && !sampleRows.isEmpty()) {
+      rowsToPersist.addAll(sampleRows);
+    }
+
+    if (goldenRecordPersistenceService != null && !rowsToPersist.isEmpty()) {
+      String sourceName = extractFileName(conn.config(), conn.name());
+      int persisted =
+          goldenRecordPersistenceService.syncGoldenRecords(
+              conn.id(), tenantId, sourceName, resolvedEntityType, rowsToPersist, true);
+      if (persisted > 0 && rowsToPersist == sampleRows) {
+        log.info("Direct sync persisted {} golden records for '{}'", persisted, conn.name());
       }
     }
 
@@ -370,6 +450,65 @@ public class ConnectionSyncService {
     long elapsedSec = Math.max(1L, Duration.between(syncStart, completedAt).getSeconds());
     emitProgress(tenantId, runIdStr, "resolve", 100, "Sync completed");
     emitComplete(tenantId, runIdStr, totalExtracted, cleanedCount, failedCount, elapsedSec + "s");
+  }
+
+  @SuppressWarnings("unchecked")
+  private void extractCleanedOrGoldenRows(
+      Map<String, Object> engineRes, List<Map<String, Object>> out) {
+    if (engineRes.get("goldenRecords") instanceof List<?> grList && !grList.isEmpty()) {
+      for (Object item : grList) {
+        if (item instanceof Map<?, ?> map) {
+          out.add((Map<String, Object>) map);
+        }
+      }
+      return;
+    }
+    if (engineRes.get("rows") instanceof List<?> rowList && !rowList.isEmpty()) {
+      for (Object item : rowList) {
+        if (item instanceof Map<?, ?> map) {
+          out.add((Map<String, Object>) map);
+        }
+      }
+    }
+  }
+
+  private String resolveSyncEntityType(
+      ConnectionDto.Response conn, UUID tenantId, List<Map<String, Object>> sampleRows) {
+    if (conn.config() != null && !conn.config().isBlank()) {
+      try {
+        JsonNode root = objectMapper.readTree(conn.config());
+        for (String key : List.of("targetEntityType", "entityType")) {
+          if (root.has(key)) {
+            String candidate = root.get(key).asText("");
+            if (!candidate.isBlank() && !"Entity".equalsIgnoreCase(candidate.trim())) {
+              return candidate.trim();
+            }
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    }
+    if (schemaMappingRepository != null && tenantId != null) {
+      try {
+        List<SchemaMapping> mappings =
+            schemaMappingRepository.findAllByConnectorIdAndTenantId(conn.id(), tenantId);
+        if (mappings != null) {
+          for (SchemaMapping mapping : mappings) {
+            if (mapping.isActive()
+                && mapping.getTargetEntityType() != null
+                && !mapping.getTargetEntityType().isBlank()
+                && !"Entity".equalsIgnoreCase(mapping.getTargetEntityType().trim())) {
+              return mapping.getTargetEntityType().trim();
+            }
+          }
+        }
+      } catch (Exception ignored) {
+      }
+    }
+    if (sampleRows != null && !sampleRows.isEmpty()) {
+      return ConnectionFileParser.inferEntityType(sampleRows.get(0), null);
+    }
+    return "Entity";
   }
 
   private void updateConnectionSyncTimestamp(UUID connectionId, UUID tenantId, Instant syncedAt) {

@@ -189,4 +189,52 @@ class ExplorerSearchServiceTest {
     assertThat(reviewPage.items().get(0).canonicalName()).isEqualTo("Alpha Freight");
     assertThat(reviewPage.total()).isEqualTo(2);
   }
+
+  @Test
+  @DisplayName(
+      "search and detail strip internal _ keys, populate real sourceSystems and provenance sourceName, and never hardcode Data Ingestion")
+  void searchAndDetailUseRealSourceMetadataWithoutHardcodes() {
+    UUID id = UUID.randomUUID();
+    GoldenRecord gr = GoldenRecord.newStandalone();
+    org.springframework.test.util.ReflectionTestUtils.setField(gr, "id", id);
+    gr.setCanonicalName("Luminex Carrier");
+    gr.setEntityType("Shipment");
+    gr.setConfidenceScore(BigDecimal.valueOf(0.95));
+    gr.getProperties().put("origin", "Tema");
+    gr.getProperties().put("_connection_id", UUID.randomUUID().toString());
+    gr.getProperties().put("_source_name", "shipments_q4.csv");
+    gr.getProperties().put("_source_systems", List.of("shipments_q4.csv"));
+    gr.getProperties().put("_quality_score", 92.5);
+    gr.getProperties().put("_sync_persisted", true);
+    gr.getProvenance()
+        .add(new ProvenanceEntry(UUID.randomUUID(), "origin", null, Instant.now(), "INGESTED"));
+
+    when(goldenRecordRepository.findAll()).thenReturn(List.of(gr));
+    when(goldenRecordRepository.findById(id)).thenReturn(Optional.of(gr));
+
+    SearchResponseDto.Response searchRes = service.search("", null, 0, 12, "createdAt", "DESC");
+    assertThat(searchRes.items()).hasSize(1);
+    assertThat(searchRes.items().get(0).properties()).containsOnlyKeys("origin");
+    assertThat(searchRes.items().get(0).sourceSystems()).containsExactly("shipments_q4.csv");
+    assertThat(searchRes.items().get(0).qualityScore()).isEqualTo(92.5);
+    assertThat(searchRes.facets().get("sourceSystems")).containsEntry("shipments_q4.csv", 1L);
+
+    EntityDetailDto.Response detail = service.getEntityById(id);
+    assertThat(detail.properties()).containsOnlyKeys("origin");
+    assertThat(detail.provenance()).hasSize(1);
+    assertThat(detail.provenance().get(0).sourceName()).isEqualTo("shipments_q4.csv");
+
+    GoldenRecord legacyGr = GoldenRecord.newStandalone();
+    UUID legacyId = UUID.randomUUID();
+    org.springframework.test.util.ReflectionTestUtils.setField(legacyGr, "id", legacyId);
+    legacyGr.setCanonicalName("Legacy Record");
+    legacyGr.getProperties().put("city", "Kumasi");
+    legacyGr
+        .getProvenance()
+        .add(new ProvenanceEntry(UUID.randomUUID(), "city", null, Instant.now(), "MERGE_ACCEPT"));
+    when(goldenRecordRepository.findById(legacyId)).thenReturn(Optional.of(legacyGr));
+
+    EntityDetailDto.Response legacyDetail = service.getEntityById(legacyId);
+    assertThat(legacyDetail.provenance().get(0).sourceName()).isNull();
+  }
 }

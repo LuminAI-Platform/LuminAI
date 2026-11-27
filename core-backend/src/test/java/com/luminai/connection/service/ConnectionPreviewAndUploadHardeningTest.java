@@ -343,4 +343,44 @@ class ConnectionPreviewAndUploadHardeningTest {
     assertThat(result).containsEntry("timedOut", true);
     assertThat(result).containsEntry("statusCode", 504);
   }
+
+  @Test
+  @DisplayName("uploadFile synchronously persists parsed rows to GoldenRecordPersistenceService")
+  void uploadFilePersistsLiveRecordsSynchronously() throws Exception {
+    FileConnectorService fileConnector = mock(FileConnectorService.class);
+    ConnectionProducer producer = mock(ConnectionProducer.class);
+    ConnectionRepository connRepo = mock(ConnectionRepository.class);
+    GoldenRecordPersistenceService persistenceService = mock(GoldenRecordPersistenceService.class);
+
+    Connection conn =
+        new Connection(tenantId, "customers.csv", Connection.Type.FILE, "{}", null, null);
+    ReflectionTestUtils.setField(conn, "id", connId);
+
+    byte[] payload =
+        "company_name,email,country\nLuminex Freight,ops@luminex.com,GH\n"
+            .getBytes(StandardCharsets.UTF_8);
+    MockMultipartFile file = new MockMultipartFile("file", "customers.csv", "text/csv", payload);
+    String expectedKey = tenantId + "/raw/" + connId + "/customers.csv";
+
+    when(connRepo.findById(connId)).thenReturn(Optional.of(conn));
+    when(connRepo.findByIdAndTenantId(connId, tenantId)).thenReturn(Optional.of(conn));
+    when(fileConnector.ingest(tenantId, connId, file)).thenReturn(expectedKey);
+    when(persistenceService.syncGoldenRecords(
+            eq(connId), eq(tenantId), eq("customers.csv"), any(), any(), eq(true)))
+        .thenReturn(1);
+
+    ConnectionUploadService uploadService =
+        new ConnectionUploadService(fileConnector, producer, connRepo, objectMapper);
+    uploadService.setGoldenRecordPersistenceService(persistenceService);
+
+    ResponseEntity<?> response = uploadService.uploadFile(tenantId, connId, file);
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+    ArgumentCaptor<List<Map<String, Object>>> rowsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(persistenceService)
+        .syncGoldenRecords(
+            eq(connId), eq(tenantId), eq("customers.csv"), any(), rowsCaptor.capture(), eq(true));
+    assertThat(rowsCaptor.getValue()).hasSize(1);
+    assertThat(rowsCaptor.getValue().get(0)).containsEntry("company_name", "Luminex Freight");
+  }
 }
