@@ -11,7 +11,12 @@ import polars as pl
 from dagster import AssetExecutionContext
 from sqlalchemy import text
 
-from app.db.tenant import resolve_tenant_pg_context
+from app.db.tenant import (
+    reset_pg_search_path,
+    resolve_table_schema,
+    resolve_tenant_pg_context,
+    set_pg_search_path,
+)
 import app.processing.pipelines.er_pipeline as er_pipe
 from app.processing.pipelines.er_pipeline.helpers import (
     _extract_run_tags,
@@ -32,11 +37,18 @@ def _records_to_df(records: List[Dict[str, Any]]) -> pl.DataFrame:
 
 def _load_records_from_conn(conn, tenant_id: Optional[str], safe_limit: Optional[int]) -> List[Dict[str, Any]]:
     params: Dict[str, Any] = {}
+    is_pg = getattr(getattr(conn, "dialect", None), "name", None) == "postgresql"
     if tenant_id:
         tenant_keys = {str(tenant_id)}
-        if conn.dialect.name == "postgresql":
+        if is_pg:
             ctx = resolve_tenant_pg_context(conn, tenant_id)
             tenant_keys.update({ctx["tenant_slug"], ctx["tenant_uuid"]})
+            found_schema, _ = resolve_table_schema(
+                conn,
+                "staging_records",
+                preferred_schemas=[ctx["schema_name"], "tenant_default", "public"],
+            )
+            set_pg_search_path(conn, found_schema)
         ordered_keys = sorted(tenant_keys)
         placeholders = ", ".join(f":t_{i}" for i in range(len(ordered_keys)))
         for i, val in enumerate(ordered_keys):
@@ -51,14 +63,20 @@ def _load_records_from_conn(conn, tenant_id: Optional[str], safe_limit: Optional
     sql += ";"
 
     records: List[Dict[str, Any]] = []
-    res = conn.execute(text(sql), params)
-    for row in res:
-        data_dict = json.loads(row.data) if isinstance(row.data, str) else dict(row.data)
-        data_dict["id"] = str(row.id)
-        data_dict["raw_id"] = str(row.raw_id)
-        data_dict["source_id"] = str(row.source_id)
-        data_dict["tenant_id"] = str(row.tenant_id)
-        records.append(data_dict)
+    try:
+        res = conn.execute(text(sql), params)
+        for row in res:
+            data_dict = json.loads(row.data) if isinstance(row.data, str) else dict(row.data)
+            data_dict["id"] = str(row.id)
+            data_dict["raw_id"] = str(row.raw_id)
+            data_dict["source_id"] = str(row.source_id)
+            data_dict["tenant_id"] = str(row.tenant_id)
+            if not data_dict.get("entity_type") and data_dict.get("_entity_type"):
+                data_dict["entity_type"] = data_dict["_entity_type"]
+            records.append(data_dict)
+    finally:
+        if is_pg and tenant_id:
+            reset_pg_search_path(conn)
     return records
 
 

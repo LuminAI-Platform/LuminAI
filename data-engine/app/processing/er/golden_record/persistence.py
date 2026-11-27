@@ -19,6 +19,7 @@ from app.db.tenant import (
     set_pg_search_path,
     to_uuid_str,
 )
+from app.processing.engine.golden_record_engine import GoldenRecordEngine
 
 logger = logging.getLogger(__name__)
 
@@ -88,10 +89,20 @@ def persist_golden_records(
         _, hist_cols = resolve_table_schema(
             conn, "golden_record_history", preferred_schemas=[schema_name, "tenant_default", "public"]
         )
+        source_ids_schema, _ = resolve_table_schema(
+            conn, "golden_records_source_ids", preferred_schemas=[found_schema or schema_name]
+        )
 
     is_postgres_schema = "canonical_name" in cols
     has_history_table = bool(hist_cols)
     target_schema = found_schema or schema_name
+    if found_schema and found_schema != schema_name and schema_name != "tenant_default":
+        logger.warning(
+            "Target schema '%s' lacked golden_records; falling back to schema '%s'",
+            schema_name,
+            found_schema,
+        )
+    has_source_ids_table = is_postgres_schema and source_ids_schema == target_schema
 
     all_rows = golden_records_df.to_dicts()
     total_records = len(all_rows)
@@ -116,6 +127,7 @@ def persist_golden_records(
                 WHERE id = :id
             """)
 
+            cleared_sync_cids: set[str] = set()
             for offset in range(0, total_records, batch_size):
                 chunk = all_rows[offset : offset + batch_size]
                 chunk_gids = []
@@ -131,13 +143,10 @@ def persist_golden_records(
                         else to_uuid_str(row_tenant_raw)
                     )
                     c_size = int(row.get("cluster_size", row.get("source_count", 1)))
-                    c_name = str(
-                        row.get("canonical_name")
-                        or row.get("name")
-                        or row.get("full_name")
-                        or "Unnamed Entity"
+                    c_name = GoldenRecordEngine.resolve_canonical_name(row, fallback_id=None)
+                    e_type = GoldenRecordEngine.infer_entity_type(
+                        row, row.get("entity_type") or row.get("entityType")
                     )
-                    e_type = str(row.get("entity_type") or "Entity")
                     try:
                         c_score = float(row.get("confidence_score") if row.get("confidence_score") is not None else 1.0)
                     except (ValueError, TypeError):
@@ -173,14 +182,25 @@ def persist_golden_records(
                             "source_count",
                         }
                     }
-                    # Preserve audit, quality, conflict, and original golden_id metadata in properties JSONB
+                    # Preserve audit, quality, conflict, and source attribution metadata in properties JSONB
+                    s_ids_list = (
+                        s_ids_val
+                        if not isinstance(s_ids_val, str)
+                        else json.loads(s_ids_val)
+                    )
                     props_dict = {
                         **attr_dict,
                         "_raw_golden_id": raw_gid,
                         "_quality_state": q_state,
                         "_quality_score": q_score,
-                        "_source_record_ids": s_ids_val if not isinstance(s_ids_val, str) else json.loads(s_ids_val),
+                        "_source_record_ids": s_ids_list,
                     }
+                    if row.get("_source_name"):
+                        props_dict["_source_name"] = str(row["_source_name"])
+                    if row.get("_source_systems"):
+                        props_dict["_source_systems"] = list(row["_source_systems"])
+                    if row.get("_connection_id"):
+                        props_dict["_connection_id"] = str(row["_connection_id"])
                     if conflicts_val is not None:
                         props_dict["_conflicts"] = conflicts_val
 
@@ -194,12 +214,30 @@ def persist_golden_records(
                             "canonical_name": c_name,
                             "confidence_score": c_score,
                             "source_count": c_size,
+                            "source_record_ids_list": s_ids_list if isinstance(s_ids_list, list) else [],
                             "source_record_ids_json": s_ids_json,
-                            "properties": json.dumps(props_dict),
-                            "attributes_json": json.dumps(attr_dict),
+                            "connection_id": str(row["_connection_id"]) if row.get("_connection_id") else None,
+                            "properties": json.dumps(props_dict, default=str),
+                            "attributes_json": json.dumps(attr_dict, default=str),
                         }
                     )
                     chunk_gids.append(gid_uuid)
+
+                conn_ids_to_upgrade = {
+                    item["connection_id"]
+                    for item in chunk_prepared
+                    if item.get("connection_id") and item["connection_id"] not in cleared_sync_cids
+                }
+                for cid in conn_ids_to_upgrade:
+                    cleared_sync_cids.add(cid)
+                    conn.execute(
+                        text(
+                            "DELETE FROM golden_records WHERE tenant_id = :tid "
+                            "AND properties->>'_connection_id' = :cid "
+                            "AND properties ? '_sync_persisted'"
+                        ),
+                        {"tid": resolved_tenant_uuid, "cid": cid},
+                    )
 
                 existing_map: dict[str, int] = {}
                 if chunk_gids:
@@ -271,6 +309,31 @@ def persist_golden_records(
                     conn.execute(insert_record_sql, records_to_insert)
                 if records_to_update:
                     conn.execute(update_record_sql, records_to_update)
+                if has_source_ids_table:
+                    src_id_rows = []
+                    for item in chunk_prepared:
+                        gid = item["id"]
+                        seen_sids: set[str] = set()
+                        for sid in item.get("source_record_ids_list", []):
+                            if not sid:
+                                continue
+                            sid_uuid = to_uuid_str(sid)
+                            if sid_uuid not in seen_sids:
+                                seen_sids.add(sid_uuid)
+                                src_id_rows.append(
+                                    {"golden_record_id": gid, "source_record_id": sid_uuid}
+                                )
+                    if src_id_rows:
+                        conn.execute(
+                            text(
+                                """
+                                INSERT INTO golden_records_source_ids (golden_record_id, source_record_id)
+                                VALUES (:golden_record_id, :source_record_id)
+                                ON CONFLICT DO NOTHING
+                                """
+                            ),
+                            src_id_rows,
+                        )
                 if history_to_insert:
                     conn.execute(insert_history_sql, history_to_insert)
                 persisted_count += len(chunk)
@@ -305,6 +368,7 @@ def persist_golden_records(
                 VALUES (:id, :golden_id, :tenant_id, :version, :cluster_size, :source_record_ids, :attributes, :action, :created_at)
             """)
 
+            cleared_sync_cids: set[str] = set()
             for offset in range(0, total_records, batch_size):
                 chunk = all_rows[offset : offset + batch_size]
                 chunk_prepared = []

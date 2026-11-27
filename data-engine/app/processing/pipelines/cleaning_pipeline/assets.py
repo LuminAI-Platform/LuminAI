@@ -7,6 +7,7 @@ from dagster import AssetExecutionContext, asset
 
 import app.processing.pipelines.cleaning_pipeline as cp
 from app.processing.checkpoint import get_checkpoint_manager
+from app.processing.engine.golden_record_engine import GoldenRecordEngine
 from app.processing.pipelines.cleaning_pipeline.cleaning_ops import (
     clean_records,
     validate_and_quarantine_records,
@@ -147,6 +148,19 @@ def raw_ingestion_data(context: AssetExecutionContext) -> pl.DataFrame:
                 exc,
             )
 
+    inline_run_id = tags.get("inline_checkpoint_run_id") or run_id
+    if inline_run_id:
+        inline_df = cp_mgr.load_checkpoint(inline_run_id, "inline_ingestion_data")
+        if inline_df is not None and inline_df.height > 0:
+            context.log.info(
+                "📥 raw_ingestion_data: loaded %d inline rows from ingest payload (run=%s)",
+                inline_df.height,
+                inline_run_id,
+            )
+            if run_id:
+                cp_mgr.save_checkpoint(run_id, "raw_ingestion_data", inline_df)
+            return inline_df
+
     settings = cp.get_settings()
     if not settings.synthetic_data_allowed:
         context.log.error(
@@ -195,7 +209,9 @@ def cleaned_ingestion_data(
     """Clean and normalize raw ingestion data using Polars expressions."""
     run_tags = _extract_run_tags(context)
     tenant_id = run_tags.get("tenant_id", "acme")
-    entity_type = run_tags.get("entity_type") or "Person"
+    entity_type = GoldenRecordEngine.infer_entity_type(
+        raw_ingestion_data.columns, run_tags.get("entity_type")
+    )
     run_id = run_tags.get("luminai_run_id") or run_tags.get("dagster/run_id")
     cp_mgr = get_checkpoint_manager()
     if run_id:
@@ -248,7 +264,9 @@ def deduplicated_ingestion_data(
         context=context,
         cleaned_df=cleaned_ingestion_data,
         tenant_id=run_tags.get("tenant_id", "acme"),
-        entity_type=run_tags.get("entity_type") or "Person",
+        entity_type=GoldenRecordEngine.infer_entity_type(
+            cleaned_ingestion_data.columns, run_tags.get("entity_type")
+        ),
     )
 
     if run_id:
@@ -320,7 +338,11 @@ def staged_ingestion_data(
         or run_tags.get("luminai_run_id")
         or str(uuid.uuid4())
     )
-    entity_type = run_tags.get("entity_type") or "Person"
+    entity_type = GoldenRecordEngine.infer_entity_type(
+        validated_ingestion_data.columns, run_tags.get("entity_type")
+    )
+    source_name = run_tags.get("source_name")
+    connection_id = run_tags.get("connection_id") or source_id
     run_id = run_tags.get("luminai_run_id") or run_tags.get("dagster/run_id")
     cp_mgr = get_checkpoint_manager()
     if run_id:
@@ -339,6 +361,8 @@ def staged_ingestion_data(
         source_id=source_id,
         batch_id=batch_id,
         entity_type=entity_type,
+        source_name=source_name,
+        connection_id=connection_id,
     )
 
     if run_id:

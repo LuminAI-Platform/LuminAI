@@ -78,6 +78,146 @@ class GoldenRecordOutput:
 class GoldenRecordEngine:
     """Engine for generating explainable canonical Golden Records with field-level lineage."""
 
+    NAME_CANDIDATE_KEYS: Tuple[str, ...] = (
+        "canonical_name",
+        "canonicalname",
+        "name",
+        "full_name",
+        "fullname",
+        "customer_name",
+        "customername",
+        "client_name",
+        "clientname",
+        "company_name",
+        "companyname",
+        "company",
+        "organization",
+        "organization_name",
+        "org_name",
+        "patient_name",
+        "person_name",
+        "employee_name",
+        "contact_name",
+        "supplier_name",
+        "carrier_name",
+        "account_name",
+        "user_name",
+        "username",
+        "title",
+        "label",
+    )
+
+    IDENTIFIER_NAME_KEYS: Tuple[str, ...] = (
+        "order_id",
+        "shipment_id",
+        "invoice_id",
+        "tracking_number",
+        "tracking_id",
+        "waybill",
+        "awb",
+        "sku",
+        "product_name",
+        "product",
+        "item_name",
+        "item",
+        "customer_id",
+        "account_id",
+        "email",
+        "id",
+        "record_id",
+        "raw_id",
+    )
+
+    @classmethod
+    def resolve_canonical_name(
+        cls,
+        attrs: Dict[str, Any],
+        fallback_id: Optional[str] = None,
+    ) -> str:
+        """Resolve a human-readable canonical name across common domain column aliases."""
+        if not attrs:
+            return str(fallback_id).strip() if fallback_id else "Unnamed Entity"
+
+        lower_map: Dict[str, Any] = {}
+        for k, v in attrs.items():
+            if not k or str(k).startswith("_"):
+                continue
+            lk = str(k).lower().strip()
+            norm_lk = lk.replace("-", "_")
+            lower_map.setdefault(lk, v)
+            lower_map.setdefault(norm_lk, v)
+            lower_map.setdefault(norm_lk.replace("_", ""), v)
+
+        for key in cls.NAME_CANDIDATE_KEYS:
+            val = lower_map.get(key)
+            if val is not None and not TypeInferenceEngine.is_null_value(val):
+                s = str(val).strip()
+                if s and s.lower() not in ("unnamed entity", "null", "none"):
+                    return s
+
+        first = lower_map.get("first_name") or lower_map.get("firstname")
+        last = lower_map.get("last_name") or lower_map.get("lastname")
+        first_str = "" if TypeInferenceEngine.is_null_value(first) else str(first).strip()
+        last_str = "" if TypeInferenceEngine.is_null_value(last) else str(last).strip()
+        combined = f"{first_str} {last_str}".strip()
+        if combined:
+            return combined
+
+        for key in cls.IDENTIFIER_NAME_KEYS:
+            val = lower_map.get(key)
+            if val is not None and not TypeInferenceEngine.is_null_value(val):
+                s = str(val).strip()
+                if s and s.lower() not in ("null", "none"):
+                    return s
+
+        for k, v in attrs.items():
+            if str(k).startswith("_") or v is None or TypeInferenceEngine.is_null_value(v):
+                continue
+            s = str(v).strip()
+            if s and s.lower() not in ("unnamed entity", "null", "none"):
+                return s
+
+        return str(fallback_id).strip() if fallback_id else "Unnamed Entity"
+
+    @staticmethod
+    def infer_entity_type(
+        columns_or_attrs: Any,
+        entity_type_hint: Optional[str] = None,
+    ) -> str:
+        """Preserve explicit entity types or infer an appropriate domain type from column names."""
+        if entity_type_hint and str(entity_type_hint).strip() and str(entity_type_hint).strip().lower() != "entity":
+            return str(entity_type_hint).strip()
+
+        if isinstance(columns_or_attrs, dict):
+            explicit = columns_or_attrs.get("_entity_type") or columns_or_attrs.get("entity_type") or columns_or_attrs.get("entityType")
+            if explicit and str(explicit).strip() and str(explicit).strip().lower() != "entity":
+                return str(explicit).strip()
+            cols = [str(k) for k in columns_or_attrs.keys() if not str(k).startswith("_")]
+        else:
+            cols = [str(c) for c in (columns_or_attrs or []) if not str(c).startswith("_")]
+
+        if not cols:
+            return "Entity"
+
+        keys = " ".join(c.lower() for c in cols)
+        if any(tok in keys for tok in ("shipment", "tracking", "waybill", "awb", "freight", "carrier", "container", "origin", "destination")):
+            return "Shipment"
+        if any(tok in keys for tok in ("student", "academic", "school", "grade", "course")):
+            return "Student"
+        if any(tok in keys for tok in ("patient", "diagnosis", "mrn", "blood_type", "hospital")):
+            return "Patient"
+        if any(tok in keys for tok in ("order", "transaction", "revenue", "sales", "sale", "amount", "payment", "invoice")):
+            return "Transaction"
+        if any(tok in keys for tok in ("company", "organization", "org_name", "industry", "domain", "employees")) and not any(
+            tok in keys for tok in ("first_name", "last_name", "dob", "birth_date", "gender")
+        ):
+            return "Organization"
+        if any(tok in keys for tok in ("sku", "product", "inventory", "price")):
+            return "Product"
+        if any(tok in keys for tok in ("email", "first_name", "last_name", "person", "age", "gender", "dob", "salary", "name", "user")):
+            return "Person"
+        return "Entity"
+
     # Configurable source priority: higher value = higher trust
     DEFAULT_SOURCE_PRIORITY: Dict[str, int] = {
         "ehr": 100,
@@ -235,7 +375,10 @@ class GoldenRecordEngine:
         ]
 
         # Determine canonical entity type
-        inferred_type = entity_type or cluster_records[0].get("entity_type") or "Person"
+        inferred_type = self.infer_entity_type(
+            cluster_records[0],
+            entity_type or cluster_records[0].get("_entity_type") or cluster_records[0].get("entity_type"),
+        )
 
         # Pre-process candidate values per field
         field_candidates: Dict[str, List[Dict[str, Any]]] = {}
@@ -298,14 +441,10 @@ class GoldenRecordEngine:
                 has_critical_error = True
 
         # Extract Canonical Name
-        name_val = (
-            consolidated_attrs.get("name")
-            or consolidated_attrs.get("full_name")
-            or consolidated_attrs.get("canonical_name")
-            or consolidated_attrs.get("title")
-            or source_record_ids[0]
+        canonical_name = self.resolve_canonical_name(
+            consolidated_attrs,
+            fallback_id=source_record_ids[0] if source_record_ids else None,
         )
-        canonical_name = str(name_val).strip()
 
         # Determine Record Quality State
         if has_critical_error:

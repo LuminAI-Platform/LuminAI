@@ -73,7 +73,7 @@ def track_field_provenance(
     provenance_entries: list[dict[str, Any]] = []
 
     for attr, val in golden_record.items():
-        if attr in exclude_keys or val is None or str(val).strip() == "":
+        if attr in exclude_keys or attr.startswith("_") or val is None or str(val).strip() == "":
             continue
 
         str_val = str(val).strip()
@@ -95,7 +95,19 @@ def track_field_provenance(
             else "unknown"
         )
         source_id = (
-            str(contributor.get("source_id", "unknown")) if contributor else "unknown"
+            str(contributor.get("_connection_id") or contributor.get("source_id") or "unknown")
+            if contributor
+            else "unknown"
+        )
+        source_name = (
+            str(
+                contributor.get("_source_name")
+                or contributor.get("source_name")
+                or contributor.get("_table")
+                or source_id
+            )
+            if contributor
+            else source_id
         )
 
         provenance_entries.append(
@@ -107,6 +119,7 @@ def track_field_provenance(
                 "attribute_value": str_val,
                 "source_record_id": source_rec_id,
                 "source_id": source_id,
+                "source_name": source_name,
                 "confidence_score": float(golden_record.get("confidence_score", 1.0)),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -128,13 +141,16 @@ def persist_provenance_records(
     if not rows:
         return 0
 
-    from sqlalchemy import inspect
     from app.db import ensure_tables_exist, get_engine, get_sqlite_engine
+    from app.db.tenant import (
+        reset_pg_search_path,
+        resolve_table_schema,
+        resolve_tenant_pg_context,
+        set_pg_search_path,
+    )
     from app.processing.er.classification import _to_uuid_str
 
     now_utc = datetime.now(timezone.utc)
-
-    schema_name = _safe_schema_name(tenant_id)
 
     # Try PostgreSQL first
     try:
@@ -144,64 +160,34 @@ def persist_provenance_records(
         ensure_tables_exist(pg_engine)
 
         with pg_engine.connect() as conn:
-            try:
-                conn.execute(
-                    text(f'SET search_path TO "{schema_name}", tenant_default, public;')
-                )
-            except Exception:
-                pass
-            inspector = inspect(conn)
-            cols = set()
-            try:
-                cols = {
-                    c["name"]
-                    for c in inspector.get_columns(
-                        "provenance", schema=schema_name
-                    )
-                }
-            except Exception:
-                pass
-            if not cols:
-                try:
-                    cols = {
-                        c["name"]
-                        for c in inspector.get_columns(
-                            "provenance", schema="tenant_default"
-                        )
-                    }
-                except Exception:
-                    pass
-            if not cols:
-                try:
-                    cols = {c["name"] for c in inspector.get_columns("provenance")}
-                except Exception:
-                    cols = set()
-            try:
-                conn.execute(text("RESET search_path;"))
-            except Exception:
-                pass
+            tenant_ctx = resolve_tenant_pg_context(conn, tenant_id)
+            schema_name = tenant_ctx["schema_name"]
+            found_schema, cols = resolve_table_schema(
+                conn, "provenance", preferred_schemas=[schema_name, "tenant_default", "public"]
+            )
+            gr_prov_schema, _ = resolve_table_schema(
+                conn,
+                "golden_records_provenance",
+                preferred_schemas=[found_schema or schema_name],
+            )
+            reset_pg_search_path(conn)
 
         is_postgres_schema = "property_name" in cols
+        has_gr_prov_table = is_postgres_schema and bool(gr_prov_schema)
 
         with pg_engine.begin() as conn:
-            try:
-                conn.execute(
-                    text(f'SET search_path TO "{schema_name}", tenant_default, public;')
-                )
-            except Exception:
-                pass
+            set_pg_search_path(conn, found_schema or schema_name)
 
             if is_postgres_schema:
-                insert_sql = """
-                INSERT INTO provenance (
-                    id, tenant_id, golden_record_id, property_name,
-                    source_connection_id, source_record_id, contributed_value, contributed_at
-                ) VALUES (
-                    :id, :tenant_id, :golden_record_id, :property_name,
-                    :source_connection_id, :source_record_id, :contributed_value, :contributed_at
-                );
-                """
-                params = []
+                gr_prov_params = []
+                connector_params = []
+                known_connectors: set[str] = set()
+                try:
+                    conn_rows = conn.execute(text("SELECT id::text AS id FROM connectors")).fetchall()
+                    known_connectors = {str(cr[0]) for cr in conn_rows}
+                except Exception:
+                    known_connectors = set()
+
                 for r in rows:
                     p_id = _to_uuid_str(r.get("id"))
                     t_id = _to_uuid_str(r.get("tenant_id") or tenant_id)
@@ -220,19 +206,58 @@ def persist_provenance_records(
                         raw_contrib = r.get("attribute_value")
                     val = "" if raw_contrib is None else str(raw_contrib)
 
-                    params.append(
-                        {
-                            "id": p_id,
-                            "tenant_id": t_id,
-                            "golden_record_id": gr_id,
-                            "property_name": prop_name,
-                            "source_connection_id": conn_id,
-                            "source_record_id": src_rec_id,
-                            "contributed_value": val,
-                            "contributed_at": now_utc,
-                        }
+                    if has_gr_prov_table:
+                        gr_prov_params.append(
+                            {
+                                "golden_record_id": gr_id,
+                                "source_record_id": src_rec_id,
+                                "field_name": prop_name,
+                                "occurred_at": now_utc,
+                                "action": "ENTITY_RESOLUTION",
+                            }
+                        )
+                    if not known_connectors or conn_id in known_connectors:
+                        connector_params.append(
+                            {
+                                "id": p_id,
+                                "tenant_id": t_id,
+                                "golden_record_id": gr_id,
+                                "property_name": prop_name,
+                                "source_connection_id": conn_id,
+                                "source_record_id": src_rec_id,
+                                "contributed_value": val,
+                                "contributed_at": now_utc,
+                            }
+                        )
+
+                if gr_prov_params:
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO golden_records_provenance (
+                                golden_record_id, source_record_id, field_name, candidate_id, occurred_at, action
+                            ) VALUES (
+                                :golden_record_id, :source_record_id, :field_name, NULL, :occurred_at, :action
+                            );
+                            """
+                        ),
+                        gr_prov_params,
                     )
-                conn.execute(text(insert_sql), params)
+                if connector_params:
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO provenance (
+                                id, tenant_id, golden_record_id, property_name,
+                                source_connection_id, source_record_id, contributed_value, contributed_at
+                            ) VALUES (
+                                :id, :tenant_id, :golden_record_id, :property_name,
+                                :source_connection_id, :source_record_id, :contributed_value, :contributed_at
+                            );
+                            """
+                        ),
+                        connector_params,
+                    )
             else:
                 insert_sql = """
                 INSERT INTO provenance (id, golden_id, tenant_id, attribute_name, attribute_value, source_record_id, source_id, confidence_score, created_at)
@@ -257,10 +282,7 @@ def persist_provenance_records(
                     )
                 conn.execute(text(insert_sql), params)
 
-            try:
-                conn.execute(text("RESET search_path;"))
-            except Exception:
-                pass
+            reset_pg_search_path(conn)
 
         logger.info(
             "Persisted %d field-level provenance records to PostgreSQL", len(rows)

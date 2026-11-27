@@ -40,8 +40,12 @@ def is_postgres_conn(conn: Connection) -> bool:
 
 
 def set_pg_search_path(conn: Connection, schema_name: Optional[str]) -> None:
-    """Safely configure PostgreSQL ``search_path`` for a tenant schema."""
+    """Safely configure PostgreSQL ``search_path`` for a tenant or shared schema."""
     if not is_postgres_conn(conn) or not schema_name:
+        return
+    cleaned = str(schema_name).replace("-", "_").strip()
+    if cleaned == "public":
+        conn.execute(text("SET search_path TO public, tenant_default;"))
         return
     validated = safe_schema_name(schema_name)
     conn.execute(text(f'SET search_path TO "{validated}", tenant_default, public;'))

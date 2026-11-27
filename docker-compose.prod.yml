@@ -97,6 +97,7 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_SSL_ENABLED: "false"
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_LISTENER_AUTO_STARTUP: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:-true}
       # Neo4j Knowledge Graph parameters
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j
@@ -136,11 +137,13 @@ services:
       - data_engine_storage:/app/storage
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
+      ALLOW_SYNTHETIC_DATA: ${ALLOW_SYNTHETIC_DATA:-false}
       AUTH_ENABLED: ${AUTH_ENABLED:-true}
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       DATABASE_URL: postgresql://${POSTGRES_USER:-luminai_admin}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-luminai}
       REDIS_URL: redis://redis:6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_LISTENER_AUTO_STARTUP: ${SPRING_KAFKA_LISTENER_AUTO_STARTUP:-true}
       KAFKA_ENABLED: "true"
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USERNAME: neo4j

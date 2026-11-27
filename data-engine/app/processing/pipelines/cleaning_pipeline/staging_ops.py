@@ -11,7 +11,12 @@ import polars as pl
 from dagster import AssetExecutionContext
 from sqlalchemy import text
 
-from app.db.tenant import resolve_tenant_pg_context
+from app.db.tenant import (
+    reset_pg_search_path,
+    resolve_table_schema,
+    resolve_tenant_pg_context,
+    set_pg_search_path,
+)
 from app.kafka.producers import IngestValidProducer
 import app.processing.pipelines.cleaning_pipeline as cp
 from app.telemetry import trace_span
@@ -26,6 +31,9 @@ def _replace_and_insert_staging_rows(
     tenant_id: str,
     source_id: str,
     batch_size: int = 500,
+    entity_type: str | None = None,
+    source_name: str | None = None,
+    connection_id: str | None = None,
 ) -> int:
     """Replace prior staged snapshot for (tenant, source_id) and insert rows in fixed-size batches."""
     inserted = 0
@@ -34,46 +42,64 @@ def _replace_and_insert_staging_rows(
 
     with engine.begin() as conn:
         tenant_keys = {str(tenant_id)}
+        target_schema = None
         if conn.dialect.name == "postgresql":
             ctx = resolve_tenant_pg_context(conn, tenant_id)
             tenant_keys.update({ctx["tenant_slug"], ctx["tenant_uuid"]})
-
-        if source_id:
-            placeholders = ", ".join(f":t_{i}" for i in range(len(tenant_keys)))
-            del_params = {f"t_{i}": val for i, val in enumerate(sorted(tenant_keys))}
-            del_params["source_id"] = source_id
-            conn.execute(
-                text(
-                    f"DELETE FROM staging_records WHERE source_id = :source_id AND tenant_id IN ({placeholders});"
-                ),
-                del_params,
+            target_schema, _ = resolve_table_schema(
+                conn,
+                "staging_records",
+                preferred_schemas=[ctx["schema_name"], "tenant_default", "public"],
             )
+            set_pg_search_path(conn, target_schema)
 
-        for idx, row in enumerate(validated_df.iter_rows(named=True)):
-            raw_id = str(row.get("id") or row.get("record_id") or "")
-            det_id = str(
-                uuid.uuid5(
-                    uuid.NAMESPACE_DNS,
-                    f"{tenant_id}:{source_id}:{idx}:{raw_id}",
+        try:
+            if source_id:
+                placeholders = ", ".join(f":t_{i}" for i in range(len(tenant_keys)))
+                del_params = {f"t_{i}": val for i, val in enumerate(sorted(tenant_keys))}
+                del_params["source_id"] = source_id
+                conn.execute(
+                    text(
+                        f"DELETE FROM staging_records WHERE source_id = :source_id AND tenant_id IN ({placeholders});"
+                    ),
+                    del_params,
                 )
-            )
-            batch.append(
-                {
-                    "id": det_id,
-                    "tenant_id": tenant_id,
-                    "source_id": source_id,
-                    "raw_id": raw_id,
-                    "data": json.dumps(row),
-                    "staged_at": now_ts,
-                }
-            )
-            if len(batch) >= batch_size:
+
+            for idx, row in enumerate(validated_df.iter_rows(named=True)):
+                row_payload = dict(row)
+                if entity_type and not row_payload.get("entity_type"):
+                    row_payload["_entity_type"] = entity_type
+                if source_name and not row_payload.get("_source_name"):
+                    row_payload["_source_name"] = source_name
+                if connection_id and not row_payload.get("_connection_id"):
+                    row_payload["_connection_id"] = connection_id
+                raw_id = str(row_payload.get("id") or row_payload.get("record_id") or "")
+                det_id = str(
+                    uuid.uuid5(
+                        uuid.NAMESPACE_DNS,
+                        f"{tenant_id}:{source_id}:{idx}:{raw_id}",
+                    )
+                )
+                batch.append(
+                    {
+                        "id": det_id,
+                        "tenant_id": tenant_id,
+                        "source_id": source_id,
+                        "raw_id": raw_id,
+                        "data": json.dumps(row_payload, default=str),
+                        "staged_at": now_ts,
+                    }
+                )
+                if len(batch) >= batch_size:
+                    conn.execute(text(insert_sql), batch)
+                    inserted += len(batch)
+                    batch.clear()
+            if batch:
                 conn.execute(text(insert_sql), batch)
                 inserted += len(batch)
-                batch.clear()
-        if batch:
-            conn.execute(text(insert_sql), batch)
-            inserted += len(batch)
+        finally:
+            if conn.dialect.name == "postgresql":
+                reset_pg_search_path(conn)
     return inserted
 
 
@@ -84,6 +110,8 @@ def stage_records(
     source_id: str,
     batch_id: str,
     entity_type: str = "Person",
+    source_name: str | None = None,
+    connection_id: str | None = None,
 ) -> pl.DataFrame:
     """Write validated data to Parquet storage and a database staging table, then emit ingest.valid."""
     context.log.info(
@@ -160,7 +188,14 @@ def stage_records(
 
             ensure_tables_exist(engine)
             inserted_cnt = _replace_and_insert_staging_rows(
-                engine, insert_sql, validated_df, tenant_id, source_id
+                engine,
+                insert_sql,
+                validated_df,
+                tenant_id,
+                source_id,
+                entity_type=entity_type,
+                source_name=source_name,
+                connection_id=connection_id,
             )
             context.log.info(
                 "💾 Successfully wrote %d records to PostgreSQL staging_records table",
@@ -180,7 +215,14 @@ def stage_records(
                 sqlite_engine = get_sqlite_engine(sqlite_db_path)
                 ensure_tables_exist(sqlite_engine)
                 inserted_cnt = _replace_and_insert_staging_rows(
-                    sqlite_engine, insert_sql, validated_df, tenant_id, source_id
+                    sqlite_engine,
+                    insert_sql,
+                    validated_df,
+                    tenant_id,
+                    source_id,
+                    entity_type=entity_type,
+                    source_name=source_name,
+                    connection_id=connection_id,
                 )
                 context.log.info(
                     "💾 Successfully wrote %d records to SQLite staging_records table at %s",
