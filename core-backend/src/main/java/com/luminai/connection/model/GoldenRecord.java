@@ -1,6 +1,5 @@
 package com.luminai.connection.model;
 
-import com.luminai.connection.JsonMapConverter;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -10,8 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 /**
  * The canonical, merged view of an entity, composed from one or more source records.
@@ -47,17 +49,19 @@ public class GoldenRecord {
   private UUID id;
 
   @ElementCollection
+  @BatchSize(size = 50)
   @CollectionTable(
       name = "golden_records_source_ids",
       joinColumns = @JoinColumn(name = "golden_record_id"))
   @Column(name = "source_record_id")
   private Set<UUID> sourceRecordIds = new LinkedHashSet<>();
 
-  @Convert(converter = JsonMapConverter.class)
-  @Column(name = "properties", columnDefinition = "text")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "properties", columnDefinition = "jsonb")
   private Map<String, Object> properties = new LinkedHashMap<>();
 
   @ElementCollection
+  @BatchSize(size = 50)
   @CollectionTable(
       name = "golden_records_provenance",
       joinColumns = @JoinColumn(name = "golden_record_id"))

@@ -15,8 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Service providing full-text search, facet aggregations, entity details, and provenance lineage.
@@ -39,9 +43,16 @@ public class ExplorerSearchService {
     this.claimsExtractor = claimsExtractor;
   }
 
+  /** Performs full-text search and facet aggregations without insight flags. */
+  @Transactional(readOnly = true)
+  @Cacheable(
+      value = CacheConfig.CACHE_EXPLORER_SEARCH,
+      key =
+          "T(com.luminai.common.tenant.TenantContext).getTenantSlug() + ':' + #query + ':' + #entityType + ':null:null:null:' + #page + ':' + #size + ':' + #sortBy + ':' + #sortDirection",
+      unless = "#result == null")
   public SearchResponseDto.Response search(
       String query, String entityType, int page, int size, String sortBy, String sortDirection) {
-    return search(query, entityType, null, null, null, page, size, sortBy, sortDirection);
+    return executeSearch(query, entityType, null, null, null, page, size, sortBy, sortDirection);
   }
 
   /** Performs full-text search and facet aggregations across resolved golden records. */
@@ -52,6 +63,20 @@ public class ExplorerSearchService {
           "T(com.luminai.common.tenant.TenantContext).getTenantSlug() + ':' + #query + ':' + #entityType + ':' + #duplicates + ':' + #missing + ':' + #review + ':' + #page + ':' + #size + ':' + #sortBy + ':' + #sortDirection",
       unless = "#result == null")
   public SearchResponseDto.Response search(
+      String query,
+      String entityType,
+      Boolean duplicates,
+      Boolean missing,
+      Boolean review,
+      int page,
+      int size,
+      String sortBy,
+      String sortDirection) {
+    return executeSearch(
+        query, entityType, duplicates, missing, review, page, size, sortBy, sortDirection);
+  }
+
+  private SearchResponseDto.Response executeSearch(
       String query,
       String entityType,
       Boolean duplicates,
@@ -73,7 +98,11 @@ public class ExplorerSearchService {
           }
         }
       }
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
+      if (TransactionSynchronizationManager.isActualTransactionActive()) {
+        log.warn("Database facet grouping failed inside active transaction: {}", e.getMessage());
+        throw e;
+      }
       log.debug(
           "Database facet grouping unavailable, falling back to memory derivation: {}",
           e.getMessage());
@@ -122,42 +151,22 @@ public class ExplorerSearchService {
     Page<GoldenRecord> dbPage = null;
     if (!hasAdvancedFilters) {
       try {
-        org.springframework.data.domain.Sort sort;
-        if ("canonicalName".equalsIgnoreCase(sortBy)) {
-          sort =
-              org.springframework.data.domain.Sort.by(
-                  "DESC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.DESC
-                      : org.springframework.data.domain.Sort.Direction.ASC,
-                  "canonical_name");
-        } else if ("confidenceScore".equalsIgnoreCase(sortBy)
-            || "confidence_score".equalsIgnoreCase(sortBy)) {
-          sort =
-              org.springframework.data.domain.Sort.by(
-                  "ASC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.ASC
-                      : org.springframework.data.domain.Sort.Direction.DESC,
-                  "confidence_score");
-        } else {
-          sort =
-              org.springframework.data.domain.Sort.by(
-                  "ASC".equalsIgnoreCase(sortDirection)
-                      ? org.springframework.data.domain.Sort.Direction.ASC
-                      : org.springframework.data.domain.Sort.Direction.DESC,
-                  "created_at");
-        }
-        org.springframework.data.domain.Pageable pageable =
-            org.springframework.data.domain.PageRequest.of(safePage, safeSize, sort);
+        Sort sort = resolveDbSort(sortBy, sortDirection);
+        Pageable pageable = PageRequest.of(safePage, safeSize, sort);
         dbPage =
             goldenRecordRepository.searchByPropertiesAndType(
-                (!cleanQuery.isBlank()) ? cleanQuery : null,
+                cleanQuery,
                 (entityType != null
                         && !entityType.isBlank()
                         && !"ALL".equalsIgnoreCase(entityType.trim()))
                     ? entityType.trim()
                     : null,
                 pageable);
-      } catch (Exception e) {
+      } catch (RuntimeException e) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+          log.warn("Database pushdown search failed inside active transaction: {}", e.getMessage());
+          throw e;
+        }
         log.debug(
             "Database pushdown search unavailable, falling back to repository scanning: {}",
             e.getMessage());
@@ -168,53 +177,10 @@ public class ExplorerSearchService {
       List<SearchResponseDto.SearchItem> items = new ArrayList<>();
       String qLower = cleanQuery.toLowerCase();
       for (GoldenRecord gr : dbPage.getContent()) {
-        String grType = extractEntityType(gr);
-        String canonicalName = extractCanonicalName(gr);
-        Map<String, Object> props = gr.getProperties() != null ? gr.getProperties() : Map.of();
-        Map<String, List<String>> highlights = new LinkedHashMap<>();
-        if (!qLower.isEmpty()) {
-          if (canonicalName.toLowerCase().contains(qLower)) {
-            highlights.put("canonicalName", List.of(highlightMatch(canonicalName, qLower)));
-          }
-          for (Map.Entry<String, Object> entry : props.entrySet()) {
-            if (entry.getValue() != null) {
-              String valStr = entry.getValue().toString();
-              if (valStr.toLowerCase().contains(qLower)) {
-                highlights.put(entry.getKey(), List.of(highlightMatch(valStr, qLower)));
-              }
-            }
-          }
-        }
-        double conf = gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0;
-        int sources =
-            gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1;
-        double comp = Math.min(100.0, 60.0 + (props.size() * 8.0));
-        double qual = conf <= 1.0 ? conf * 100.0 : conf;
-        boolean isDup = conf < 0.85 || sources > 1;
-
-        items.add(
-            new SearchResponseDto.SearchItem(
-                gr.getId(),
-                canonicalName,
-                grType,
-                conf,
-                sources,
-                props,
-                gr.getCreatedAt(),
-                gr.getUpdatedAt(),
-                highlights.isEmpty() ? null : highlights,
-                comp,
-                qual,
-                isDup,
-                buildMatchReasons(gr, conf, sources),
-                List.of()));
+        RecordMetrics metrics = computeMetrics(gr);
+        items.add(toSearchItem(gr, qLower, metrics, true));
       }
-      Map<String, Map<String, Long>> facets =
-          Map.of(
-              "entityTypes",
-              typeFacets,
-              "sourceSystems",
-              Map.of("CRM", (long) items.size(), "ERP", (long) (items.size() * 0.7)));
+      Map<String, Map<String, Long>> facets = Map.of("entityTypes", typeFacets);
       return new SearchResponseDto.Response(
           items, (int) dbPage.getTotalElements(), safePage, safeSize, facets);
     }
@@ -230,20 +196,7 @@ public class ExplorerSearchService {
     }
 
     String qLower = cleanQuery.toLowerCase();
-    Set<String> allowedTypes = null;
-    if (entityType != null && !entityType.isBlank() && !"ALL".equalsIgnoreCase(entityType.trim())) {
-      allowedTypes = new HashSet<>();
-      for (String t : entityType.split(",")) {
-        String trimmed = t.trim();
-        if (!trimmed.isEmpty() && !"ALL".equalsIgnoreCase(trimmed)) {
-          allowedTypes.add(trimmed.toLowerCase());
-        }
-      }
-      if (allowedTypes.isEmpty()) {
-        allowedTypes = null;
-      }
-    }
-
+    Set<String> allowedTypes = parseAllowedTypes(entityType);
     List<SearchResponseDto.SearchItem> matchingItems = new ArrayList<>();
 
     for (GoldenRecord gr : allRecords) {
@@ -252,21 +205,14 @@ public class ExplorerSearchService {
         continue;
       }
 
-      String canonicalName = extractCanonicalName(gr);
-      Map<String, Object> props = gr.getProperties() != null ? gr.getProperties() : Map.of();
-
-      double conf = gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0;
-      int sources =
-          gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1;
-      double comp = Math.min(100.0, 60.0 + (props.size() * 8.0));
-      double qual = conf <= 1.0 ? conf * 100.0 : conf;
-      boolean isDup = conf < 0.85 || sources > 1;
+      RecordMetrics metrics = computeMetrics(gr);
       boolean hasMissing =
-          comp < 80.0 || props.values().stream().anyMatch(v -> v == null || v.toString().isBlank());
-      boolean needsReview = qual < 85.0 || conf < 0.85;
+          metrics.completeness() < 80.0
+              || metrics.props().values().stream()
+                  .anyMatch(v -> v == null || v.toString().isBlank());
+      boolean needsReview = metrics.quality() < 85.0 || metrics.confidence() < 0.85;
 
-      // Apply insight filters
-      if (Boolean.TRUE.equals(effectiveDuplicates) && !isDup) {
+      if (Boolean.TRUE.equals(effectiveDuplicates) && !metrics.possibleDuplicate()) {
         continue;
       }
       if (Boolean.TRUE.equals(effectiveMissing) && !hasMissing) {
@@ -276,101 +222,168 @@ public class ExplorerSearchService {
         continue;
       }
 
-      // Apply structured field:value filters
-      boolean fieldMatches = true;
-      if (!fieldFilters.isEmpty()) {
-        for (Map.Entry<String, String> ff : fieldFilters.entrySet()) {
-          Object pVal = props.get(ff.getKey());
-          if (pVal == null || !pVal.toString().toLowerCase().contains(ff.getValue())) {
-            fieldMatches = false;
-            break;
-          }
-        }
-      }
-      if (!fieldMatches) {
+      if (!matchesFieldFilters(metrics.props(), fieldFilters)) {
         continue;
       }
 
-      boolean matches = true;
-      Map<String, List<String>> highlights = new LinkedHashMap<>();
-
-      if (!qLower.isEmpty()) {
-        matches = false;
-        if (canonicalName.toLowerCase().contains(qLower)) {
-          matches = true;
-          highlights.put("canonicalName", List.of(highlightMatch(canonicalName, qLower)));
-        }
-
-        for (Map.Entry<String, Object> entry : props.entrySet()) {
-          if (entry.getValue() != null) {
-            String valStr = entry.getValue().toString();
-            if (valStr.toLowerCase().contains(qLower)) {
-              matches = true;
-              highlights.put(entry.getKey(), List.of(highlightMatch(valStr, qLower)));
-            }
-          }
-        }
-      }
-
-      if (matches) {
-        matchingItems.add(
-            new SearchResponseDto.SearchItem(
-                gr.getId(),
-                canonicalName,
-                grType,
-                conf,
-                sources,
-                props,
-                gr.getCreatedAt(),
-                gr.getUpdatedAt(),
-                highlights.isEmpty() ? null : highlights,
-                comp,
-                qual,
-                isDup,
-                buildMatchReasons(gr, conf, sources),
-                List.of()));
+      SearchResponseDto.SearchItem item = toSearchItem(gr, qLower, metrics, false);
+      if (qLower.isEmpty() || item.highlights() != null) {
+        matchingItems.add(item);
       }
     }
 
-    // 3. Sort
-    if ("canonicalName".equalsIgnoreCase(sortBy)) {
-      matchingItems.sort(
-          "DESC".equalsIgnoreCase(sortDirection)
-              ? Comparator.comparing(
-                      SearchResponseDto.SearchItem::canonicalName, String.CASE_INSENSITIVE_ORDER)
-                  .reversed()
-              : Comparator.comparing(
-                  SearchResponseDto.SearchItem::canonicalName, String.CASE_INSENSITIVE_ORDER));
-    } else if ("confidenceScore".equalsIgnoreCase(sortBy)
-        || "confidence_score".equalsIgnoreCase(sortBy)) {
-      matchingItems.sort(
-          "ASC".equalsIgnoreCase(sortDirection)
-              ? Comparator.comparingDouble(SearchResponseDto.SearchItem::confidenceScore)
-              : Comparator.comparingDouble(SearchResponseDto.SearchItem::confidenceScore)
-                  .reversed());
-    } else {
-      matchingItems.sort(
-          "ASC".equalsIgnoreCase(sortDirection)
-              ? Comparator.comparing(
-                  SearchResponseDto.SearchItem::createdAt,
-                  Comparator.nullsLast(Comparator.naturalOrder()))
-              : Comparator.comparing(
-                      SearchResponseDto.SearchItem::createdAt,
-                      Comparator.nullsLast(Comparator.naturalOrder()))
-                  .reversed());
-    }
+    sortItems(matchingItems, sortBy, sortDirection);
 
-    // 4. Paginate
     int total = matchingItems.size();
     int fromIndex = Math.min(safePage * safeSize, total);
     int toIndex = Math.min(fromIndex + safeSize, total);
 
-    List<SearchResponseDto.SearchItem> pagedItems = matchingItems.subList(fromIndex, toIndex);
+    List<SearchResponseDto.SearchItem> pagedItems =
+        new ArrayList<>(matchingItems.subList(fromIndex, toIndex));
 
     Map<String, Map<String, Long>> facets = Map.of("entityTypes", typeFacets);
 
     return new SearchResponseDto.Response(pagedItems, total, safePage, safeSize, facets);
   }
+
+  private Sort resolveDbSort(String sortBy, String sortDirection) {
+    if ("canonicalName".equalsIgnoreCase(sortBy)) {
+      return Sort.by(
+          "DESC".equalsIgnoreCase(sortDirection) ? Sort.Direction.DESC : Sort.Direction.ASC,
+          "canonical_name");
+    }
+    if ("confidenceScore".equalsIgnoreCase(sortBy) || "confidence_score".equalsIgnoreCase(sortBy)) {
+      return Sort.by(
+          "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC,
+          "confidence_score");
+    }
+    return Sort.by(
+        "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC,
+        "created_at");
+  }
+
+  private Set<String> parseAllowedTypes(String entityType) {
+    if (entityType == null || entityType.isBlank() || "ALL".equalsIgnoreCase(entityType.trim())) {
+      return null;
+    }
+    Set<String> allowedTypes = new HashSet<>();
+    for (String t : entityType.split(",")) {
+      String trimmed = t.trim();
+      if (!trimmed.isEmpty() && !"ALL".equalsIgnoreCase(trimmed)) {
+        allowedTypes.add(trimmed.toLowerCase());
+      }
+    }
+    return allowedTypes.isEmpty() ? null : allowedTypes;
+  }
+
+  private boolean matchesFieldFilters(Map<String, Object> props, Map<String, String> fieldFilters) {
+    if (fieldFilters.isEmpty()) {
+      return true;
+    }
+    for (Map.Entry<String, String> ff : fieldFilters.entrySet()) {
+      Object pVal = props.get(ff.getKey());
+      if (pVal == null || !pVal.toString().toLowerCase().contains(ff.getValue())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private void sortItems(
+      List<SearchResponseDto.SearchItem> items, String sortBy, String sortDirection) {
+    if ("canonicalName".equalsIgnoreCase(sortBy)) {
+      Comparator<SearchResponseDto.SearchItem> cmp =
+          Comparator.comparing(
+              SearchResponseDto.SearchItem::canonicalName,
+              Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+      items.sort("DESC".equalsIgnoreCase(sortDirection) ? cmp.reversed() : cmp);
+    } else if ("confidenceScore".equalsIgnoreCase(sortBy)
+        || "confidence_score".equalsIgnoreCase(sortBy)) {
+      Comparator<SearchResponseDto.SearchItem> cmp =
+          Comparator.comparingDouble(SearchResponseDto.SearchItem::confidenceScore);
+      items.sort("ASC".equalsIgnoreCase(sortDirection) ? cmp : cmp.reversed());
+    } else {
+      Comparator<SearchResponseDto.SearchItem> cmp =
+          Comparator.comparing(
+              SearchResponseDto.SearchItem::createdAt,
+              Comparator.nullsLast(Comparator.naturalOrder()));
+      items.sort("ASC".equalsIgnoreCase(sortDirection) ? cmp : cmp.reversed());
+    }
+  }
+
+  private RecordMetrics computeMetrics(GoldenRecord gr) {
+    Map<String, Object> props = gr.getProperties() != null ? gr.getProperties() : Map.of();
+    double conf = gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0;
+    int sourceIdsSize = gr.getSourceRecordIds() != null ? gr.getSourceRecordIds().size() : 0;
+    int sources = Math.max(1, Math.max(gr.getSourceCount(), sourceIdsSize));
+    double comp = Math.min(100.0, 60.0 + (props.size() * 8.0));
+    double qual = conf <= 1.0 ? conf * 100.0 : conf;
+    boolean isDup = conf < 0.85 || sources > 1;
+    return new RecordMetrics(props, conf, sources, comp, qual, isDup);
+  }
+
+  private SearchResponseDto.SearchItem toSearchItem(
+      GoldenRecord gr, String qLower, RecordMetrics metrics, boolean alwaysInclude) {
+    String grType = extractEntityType(gr);
+    String canonicalName = extractCanonicalName(gr);
+    Map<String, List<String>> highlights = new LinkedHashMap<>();
+
+    if (!qLower.isEmpty()) {
+      if (canonicalName.toLowerCase().contains(qLower)) {
+        highlights.put("canonicalName", List.of(highlightMatch(canonicalName, qLower)));
+      }
+      for (Map.Entry<String, Object> entry : metrics.props().entrySet()) {
+        if (entry.getValue() != null) {
+          String valStr = entry.getValue().toString();
+          if (valStr.toLowerCase().contains(qLower)) {
+            highlights.put(entry.getKey(), List.of(highlightMatch(valStr, qLower)));
+          }
+        }
+      }
+    }
+
+    if (!alwaysInclude && !qLower.isEmpty() && highlights.isEmpty()) {
+      return new SearchResponseDto.SearchItem(
+          gr.getId(),
+          canonicalName,
+          grType,
+          metrics.confidence(),
+          metrics.sources(),
+          metrics.props(),
+          gr.getCreatedAt(),
+          gr.getUpdatedAt(),
+          null,
+          metrics.completeness(),
+          metrics.quality(),
+          metrics.possibleDuplicate(),
+          List.of(),
+          List.of());
+    }
+
+    return new SearchResponseDto.SearchItem(
+        gr.getId(),
+        canonicalName,
+        grType,
+        metrics.confidence(),
+        metrics.sources(),
+        metrics.props(),
+        gr.getCreatedAt(),
+        gr.getUpdatedAt(),
+        highlights.isEmpty() ? null : highlights,
+        metrics.completeness(),
+        metrics.quality(),
+        metrics.possibleDuplicate(),
+        buildMatchReasons(gr, metrics.confidence(), metrics.sources()),
+        List.of());
+  }
+
+  private record RecordMetrics(
+      Map<String, Object> props,
+      double confidence,
+      int sources,
+      double completeness,
+      double quality,
+      boolean possibleDuplicate) {}
 
   /** Retrieves full details of a specific Golden Record by ID. */
   @Transactional(readOnly = true)
@@ -408,27 +421,27 @@ public class ExplorerSearchService {
       }
     }
 
-    int sources = gr.getSourceRecordIds() != null ? Math.max(1, gr.getSourceRecordIds().size()) : 1;
-    Map<String, Object> props = gr.getProperties() != null ? gr.getProperties() : Map.of();
-    double comp = Math.min(100.0, 60.0 + (props.size() * 8.0));
-    double qual = entityConfidence <= 1.0 ? entityConfidence * 100.0 : entityConfidence;
-    boolean isDup = entityConfidence < 0.85 || sources > 1;
+    RecordMetrics metrics = computeMetrics(gr);
+    Set<UUID> sourceRecordIds =
+        gr.getSourceRecordIds() != null
+            ? new LinkedHashSet<>(gr.getSourceRecordIds())
+            : new LinkedHashSet<>();
 
     return new EntityDetailDto.Response(
         gr.getId() != null ? gr.getId() : id,
         canonicalName,
         entityType,
         entityConfidence,
-        sources,
-        props,
+        metrics.sources(),
+        metrics.props(),
         gr.getCreatedAt(),
         gr.getUpdatedAt(),
-        gr.getSourceRecordIds(),
+        sourceRecordIds,
         provenanceItems,
-        comp,
-        qual,
-        isDup,
-        buildMatchReasons(gr, entityConfidence, sources));
+        metrics.completeness(),
+        metrics.quality(),
+        metrics.possibleDuplicate(),
+        buildMatchReasons(gr, entityConfidence, metrics.sources()));
   }
 
   private List<MatchReasonDto> buildMatchReasons(
@@ -482,13 +495,11 @@ public class ExplorerSearchService {
         && !"Unnamed Entity".equals(gr.getCanonicalName())) {
       return gr.getCanonicalName();
     }
-    if (gr.getProperties() != null) {
-      Map<String, Object> props = gr.getProperties();
-      if (props.containsKey("canonical_name")) return String.valueOf(props.get("canonical_name"));
-      if (props.containsKey("name")) return String.valueOf(props.get("name"));
-      if (props.containsKey("company_name")) return String.valueOf(props.get("company_name"));
-      if (props.containsKey("full_name")) return String.valueOf(props.get("full_name"));
-      if (props.containsKey("title")) return String.valueOf(props.get("title"));
+    String propName =
+        firstNonBlankProperty(
+            gr.getProperties(), "canonical_name", "name", "company_name", "full_name", "title");
+    if (propName != null) {
+      return propName;
     }
     if (gr.getCanonicalName() != null && !gr.getCanonicalName().isBlank()) {
       return gr.getCanonicalName();
@@ -502,8 +513,9 @@ public class ExplorerSearchService {
         && !"Entity".equals(gr.getEntityType())) {
       return gr.getEntityType();
     }
-    if (gr.getProperties() != null && gr.getProperties().containsKey("entity_type")) {
-      return String.valueOf(gr.getProperties().get("entity_type"));
+    String propType = firstNonBlankProperty(gr.getProperties(), "entity_type");
+    if (propType != null) {
+      return propType;
     }
     if (gr.getEntityType() != null && !gr.getEntityType().isBlank()) {
       return gr.getEntityType();
@@ -511,10 +523,26 @@ public class ExplorerSearchService {
     return "Entity";
   }
 
+  private String firstNonBlankProperty(Map<String, Object> props, String... keys) {
+    if (props == null) {
+      return null;
+    }
+    for (String key : keys) {
+      Object val = props.get(key);
+      if (val != null) {
+        String str = String.valueOf(val).trim();
+        if (!str.isEmpty()) {
+          return str;
+        }
+      }
+    }
+    return null;
+  }
+
   private String highlightMatch(String text, String query) {
     int idx = text.toLowerCase().indexOf(query.toLowerCase());
     if (idx < 0) return text;
-    int end = idx + query.length();
+    int end = Math.min(text.length(), idx + query.length());
     return text.substring(0, idx)
         + "<em>"
         + text.substring(idx, end)
