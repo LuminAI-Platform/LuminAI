@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import { useOptionalToast } from "../../../components/ui/ToastProvider";
 import type { PipelineRunItem } from "./pipeline-analysis/pipelineAnalysisTypes";
 import type {
   LogLevel,
@@ -40,12 +40,12 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
   hasActiveRun: controlledHasActiveRun,
   onOpenRunDetail,
 }) => {
+  const toast = useOptionalToast();
   const [internalErrors, setErrors] = useState<ExecutionError[]>([]);
   const [filter, setFilter] = useState<LogLevel | "ALL">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [isFollowing, setIsFollowing] = useState(true);
   const [paused, setPaused] = useState(false);
-  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
 
@@ -61,6 +61,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
     runsByIdRef,
     fetchBackendLogs,
     clearInternalLogs,
+    restoreInternalLogs,
   } = useExecutionLogStream({
     maxLines,
     isControlled,
@@ -142,9 +143,24 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
     }
   };
 
-  const handleConfirmClear = () => {
-    clearInternalLogs(logs);
-    setConfirmClearOpen(false);
+  const handleClearView = () => {
+    if (logs.length === 0) return;
+    const snapshot = [...logs];
+    clearInternalLogs(snapshot);
+    setLiveAnnouncement("Execution log view cleared.");
+    toast?.show({
+      type: "info",
+      title: "View cleared",
+      description: "Run records stay stored on the server.",
+      duration: 6000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          restoreInternalLogs(snapshot);
+          setLiveAnnouncement("Execution log view restored.");
+        },
+      },
+    });
   };
 
   const handleOpenRunId = (runId: string, triggerEl: HTMLElement | null) => {
@@ -189,7 +205,7 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         paused={paused}
         onTogglePause={() => setPaused((v) => !v)}
         onReconnect={handleReconnect}
-        onRequestClear={() => setConfirmClearOpen(true)}
+        onRequestClear={handleClearView}
         canClear={logs.length > 0}
       />
 
@@ -225,16 +241,6 @@ export const ExecutionLogs: React.FC<ExecutionLogsProps> = ({
         isFollowing={isFollowing}
         onJumpToLatest={handleJumpToLatest}
         onOpenRunDetail={handleOpenRunId}
-      />
-
-      <ConfirmDialog
-        open={confirmClearOpen}
-        onOpenChange={setConfirmClearOpen}
-        title="Clear this view?"
-        description="Clear this view? History is kept. Pipeline run records remain stored on the server."
-        confirmText="Clear view"
-        isDestructive={false}
-        onConfirm={handleConfirmClear}
       />
     </section>
   );

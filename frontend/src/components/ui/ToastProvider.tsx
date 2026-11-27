@@ -134,3 +134,7 @@ export function useToast() {
   }
   return context.toast;
 }
+
+export function useOptionalToast() {
+  return useContext(ToastContext)?.toast ?? null;
+}

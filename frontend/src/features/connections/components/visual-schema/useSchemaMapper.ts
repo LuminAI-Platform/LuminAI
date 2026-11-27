@@ -138,11 +138,13 @@ export function useSchemaMapper({
       createdAt: new Date().toISOString(),
     };
 
-    const cleanConnectorId = connectionId.replace(/^conn_/, "");
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        cleanConnectorId,
-      );
+    // Extract the connector UUID even when connectionId has a table suffix
+    // from ZIP archives (e.g. "conn_<uuid>_orders.csv").
+    const uuidMatch = connectionId.match(
+      /^(?:conn_)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
+    );
+    const cleanConnectorId = uuidMatch ? uuidMatch[1] : "";
+    const isUuid = cleanConnectorId.length > 0;
 
     setSaveError(null);
 

@@ -23,6 +23,16 @@ from app.processing.engine.type_inference import TypeInferenceEngine
 logger = logging.getLogger(__name__)
 
 
+def _extract_json_attrs(val: Any) -> Dict[str, Any]:
+    if not val:
+        return {}
+    try:
+        parsed = json.loads(val) if isinstance(val, str) else val
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
 def compute_completeness(df: pl.DataFrame, total_rows: int) -> float:
     """Completeness: percentage of non-null, non-sentinel attribute values."""
     if total_rows == 0:
@@ -32,20 +42,16 @@ def compute_completeness(df: pl.DataFrame, total_rows: int) -> float:
     non_null_fields = 0
     type_engine = TypeInferenceEngine()
 
-    # If attributes JSON column is present
-    if "attributes" in df.columns:
-        for val in df["attributes"].to_list():
-            if not val:
-                continue
-            try:
-                attrs = json.loads(val) if isinstance(val, str) else (val if isinstance(val, dict) else {})
-                for k, v in attrs.items():
-                    if not k.startswith("_"):
-                        total_fields += 1
-                        if not type_engine.is_null_value(v):
-                            non_null_fields += 1
-            except Exception:
-                pass
+    # If attributes or properties JSON column is present
+    json_col = "attributes" if "attributes" in df.columns else ("properties" if "properties" in df.columns else None)
+    if json_col:
+        for val in df[json_col].to_list():
+            attrs = _extract_json_attrs(val)
+            for k, v in attrs.items():
+                if not k.startswith("_"):
+                    total_fields += 1
+                    if not type_engine.is_null_value(v):
+                        non_null_fields += 1
     else:
         # Direct columns
         for col in df.columns:
@@ -69,17 +75,12 @@ def compute_uniqueness(df: pl.DataFrame, total_rows: int) -> float:
     # Look for unique composite key (e.g. canonical_name + dob or email)
     signatures = []
     for row in df.iter_rows(named=True):
-        attrs = {}
-        if "attributes" in row and row["attributes"]:
-            try:
-                attrs = json.loads(row["attributes"]) if isinstance(row["attributes"], str) else (row["attributes"] if isinstance(row["attributes"], dict) else {})
-            except Exception:
-                pass
-        
+        attrs = _extract_json_attrs(row.get("attributes") or row.get("properties"))
+
         name = str(row.get("canonical_name") or attrs.get("name") or attrs.get("full_name") or row.get("name") or "").strip().lower()
         email = str(attrs.get("email") or row.get("email") or "").strip().lower()
         dob = str(attrs.get("dob") or attrs.get("date_of_birth") or row.get("dob") or "").strip()
-        
+
         if email:
             signatures.append(f"email:{email}")
         elif name and dob:
@@ -102,12 +103,9 @@ def compute_validity(df: pl.DataFrame, total_rows: int) -> float:
     valid_fields = 0
 
     for row in df.iter_rows(named=True):
-        attrs = {}
-        if "attributes" in row and row["attributes"]:
-            try:
-                attrs = json.loads(row["attributes"]) if isinstance(row["attributes"], str) else (row["attributes"] if isinstance(row["attributes"], dict) else {})
-            except Exception:
-                pass
+        raw_json = row.get("attributes") or row.get("properties")
+        if raw_json:
+            attrs = _extract_json_attrs(raw_json)
         else:
             attrs = {k: v for k, v in row.items() if not k.startswith("_")}
 
@@ -138,8 +136,8 @@ def compute_consistency(df: pl.DataFrame, total_rows: int) -> float:
         return 0.0
 
     valid_json_count = 0
-    attrs_col = "attributes"
-    if attrs_col in df.columns:
+    attrs_col = "attributes" if "attributes" in df.columns else ("properties" if "properties" in df.columns else None)
+    if attrs_col:
         for val in df[attrs_col].to_list():
             if val and isinstance(val, str):
                 try:

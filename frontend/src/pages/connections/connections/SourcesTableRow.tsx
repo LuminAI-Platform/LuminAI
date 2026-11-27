@@ -1,17 +1,16 @@
 import React from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  Database,
-  FileText,
-  Layers,
+  ICON_MAP,
+  ICON_SIZES,
   Search,
   ShieldCheck,
   Trash2,
   AlertTriangle,
   Play,
   PenLine,
-  Clock,
 } from "../../../lib/icons";
+import { ConnectorIcon } from "../../../features/connections/components/pipeline-job/ConnectorIcon";
 import { ActionMenu } from "../../../components/ui/dropdown";
 import { Tooltip } from "../../../components/ui/Tooltip";
 import {
@@ -70,13 +69,26 @@ export const SourcesTableRow: React.FC<SourcesTableRowProps> = ({
           },
           {
             label: source.status === "Paused" ? "Resume" : "Pause",
-            icon: <Clock className="w-4 h-4" />,
+            icon:
+              source.status === "Paused" ? (
+                <Play size={ICON_SIZES.dropdown} aria-hidden="true" />
+              ) : (
+                <ICON_MAP.status.paused
+                  size={ICON_SIZES.dropdown}
+                  aria-hidden="true"
+                />
+              ),
             disabled: isBusy,
             onClick: () => onTogglePause(source),
           },
           {
             label: "Open in Schema Studio",
-            icon: <Layers className="w-4 h-4" />,
+            icon: (
+              <ICON_MAP.nav.schemaStudio
+                size={ICON_SIZES.dropdown}
+                aria-hidden="true"
+              />
+            ),
             onClick: () => {
               try {
                 localStorage.setItem("lumin_selected_connection_id", source.id);
@@ -120,7 +132,15 @@ export const SourcesTableRow: React.FC<SourcesTableRowProps> = ({
           },
           {
             label: source.status === "Paused" ? "Resume" : "Pause",
-            icon: <Clock className="w-4 h-4" />,
+            icon:
+              source.status === "Paused" ? (
+                <Play size={ICON_SIZES.dropdown} aria-hidden="true" />
+              ) : (
+                <ICON_MAP.status.paused
+                  size={ICON_SIZES.dropdown}
+                  aria-hidden="true"
+                />
+              ),
             disabled: isBusy,
             onClick: () => onTogglePause(source),
           },
@@ -138,11 +158,10 @@ export const SourcesTableRow: React.FC<SourcesTableRowProps> = ({
       <td className="py-3 px-4">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-text-secondary shrink-0">
-            {source.category === "database" ? (
-              <Database className="w-4 h-4" aria-hidden="true" />
-            ) : (
-              <FileText className="w-4 h-4" aria-hidden="true" />
-            )}
+            <ConnectorIcon
+              type={source.typeLabel || source.category}
+              size={ICON_SIZES.dropdown}
+            />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">

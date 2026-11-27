@@ -11,13 +11,16 @@ import time
 from typing import Any, Dict, List, Optional
 
 import duckdb
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 import polars as pl
 from pydantic import BaseModel, Field
+
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter(prefix="/analytics/sql", tags=["sql-studio"])
 
 # Forbidden SQL statements to enforce safe read-only query semantics
+# Block mutating DDL/DML and file/system-access DuckDB statements and functions
 DISALLOWED_PATTERNS = [
     r"\bDROP\b",
     r"\bDELETE\b",
@@ -34,13 +37,30 @@ DISALLOWED_PATTERNS = [
     r"\bINSTALL\b",
     r"\bLOAD\b",
     r"\bPRAGMA\b",
+    r"\bCALL\b",
+    r"\bSET\b",
+    r"\bRESET\b",
+    r"\bEXPORT\b",
+    r"\bIMPORT\b",
+    r"\bUSE\b",
+    r"\bVACUUM\b",
+    r"\bCHECKPOINT\b",
     r"\bREAD_CSV\b",
+    r"\bREAD_CSV_AUTO\b",
     r"\bREAD_PARQUET\b",
+    r"\bPARQUET_SCAN\b",
     r"\bREAD_JSON\b",
+    r"\bREAD_JSON_AUTO\b",
+    r"\bREAD_NDJSON\b",
+    r"\bREAD_NDJSON_AUTO\b",
     r"\bREAD_TEXT\b",
+    r"\bREAD_BLOB\b",
     r"\bSCAN_PARQUET\b",
     r"\bSCAN_CSV\b",
+    r"\bPOSTGRES_SCAN\b",
+    r"\bSQLITE_SCAN\b",
     r"\bGLOB\b",
+    r"\bGETENV\b",
 ]
 DISALLOWED_REGEX = re.compile("|".join(DISALLOWED_PATTERNS), re.IGNORECASE)
 
@@ -70,30 +90,53 @@ class SqlQueryResponse(BaseModel):
     query: str
 
 
-def validate_read_only(query: str) -> None:
-    """Enforces that only non-mutating SELECT / WITH statements are run."""
+def _strip_comments_and_literals(query: str) -> str:
+    """Strip SQL comments and replace single-quoted string literals with placeholders."""
+    no_line_comments = re.sub(r"--.*$", "", query, flags=re.MULTILINE)
+    no_comments = re.sub(r"/\*.*?\*/", "", no_line_comments, flags=re.DOTALL)
+    return re.sub(r"'(?:''|[^'])*'", "''", no_comments)
+
+
+def validate_read_only(query: str) -> str:
+    """Validate that only a single non-mutating read-only statement is run.
+
+    Returns the normalized query with any single trailing semicolon stripped.
+    """
     cleaned = query.strip()
     if not cleaned:
         raise ValueError("Query cannot be empty.")
 
-    # Remove comments and strings before regex check to prevent bypass
-    cleaned_no_comments = re.sub(r"--.*$", "", cleaned, flags=re.MULTILINE)
-    cleaned_no_comments = re.sub(r"/\*.*?\*/", "", cleaned_no_comments, flags=re.DOTALL)
+    inspected = _strip_comments_and_literals(cleaned).strip()
+    if not inspected:
+        raise ValueError("Query cannot be empty.")
 
-    if DISALLOWED_REGEX.search(cleaned_no_comments):
+    if inspected.endswith(";"):
+        inspected = inspected[:-1].rstrip()
+        cleaned = cleaned[:-1].rstrip()
+
+    if ";" in inspected:
+        raise ValueError("Multi-statement SQL queries are prohibited in SQL Studio.")
+
+    if DISALLOWED_REGEX.search(inspected):
         raise ValueError("Only read-only SELECT queries are permitted in SQL Studio.")
 
-    # Must start with SELECT, WITH, or EXPLAIN
-    first_word = cleaned_no_comments.strip().split()[0].upper()
+    tokens = inspected.split()
+    first_word = tokens[0].upper() if tokens else ""
     if first_word not in ("SELECT", "WITH", "EXPLAIN", "DESCRIBE", "SHOW"):
         raise ValueError(f"Disallowed initial statement '{first_word}'. Only SELECT queries are permitted.")
 
+    return cleaned
+
 
 @router.post("/execute", response_model=SqlQueryResponse, summary="Execute interactive analytical SQL query")
-async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
+def execute_sql_query(
+    request: SqlQueryRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> SqlQueryResponse:
     """Executes a validated read-only SQL query against in-memory DuckDB tables."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     try:
-        validate_read_only(request.query)
+        normalized_query = validate_read_only(request.query)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -115,7 +158,11 @@ async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
                         detail=f"Invalid table identifier '{table_name}'.",
                     )
                 if rows:
-                    df = pl.DataFrame(rows)
+                    try:
+                        df = pl.DataFrame(rows, infer_schema_length=None)
+                    except Exception:
+                        import pandas as pd
+                        df = pl.from_pandas(pd.DataFrame(rows))
                     arrow_table = df.to_arrow()
                     conn.register(table_name, arrow_table)
                 else:
@@ -124,17 +171,21 @@ async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
 
         # If dataset_id is provided and no inline table named "dataset", attempt loading from storage
         if request.dataset_id and (not request.tables or "dataset" not in request.tables):
+            from app.processing.minio_client import get_minio_client
+            m_client = get_minio_client()
+            ds_key = f"{effective_tenant}/raw/{request.dataset_id}"
             try:
-                from app.processing.minio_client import get_minio_client
-                m_client = get_minio_client()
-                ds_key = f"{request.tenant_id}/raw/{request.dataset_id}"
                 ds_df = m_client.load_dataframe("luminai-raw", ds_key)
                 conn.register("dataset", ds_df.to_arrow())
-            except Exception:
-                pass
+            except Exception as load_exc:
+                if not request.tables:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Failed to load dataset '{request.dataset_id}' for tenant '{effective_tenant}': {load_exc}",
+                    ) from load_exc
 
         # Execute query
-        rel = conn.sql(request.query)
+        rel = conn.sql(normalized_query)
         if rel is None:
             return SqlQueryResponse(
                 columns=[],
@@ -154,10 +205,14 @@ async def execute_sql_query(request: SqlQueryRequest) -> SqlQueryResponse:
         rows = fetched_df.to_dicts()
         row_count = len(rows)
 
-        # Count total
-        try:
-            total_count = conn.sql(f"SELECT COUNT(*) FROM ({request.query}) AS _subq").fetchone()[0]
-        except Exception:
+        # Count total rows for selectable queries
+        inspected_head = _strip_comments_and_literals(normalized_query).strip().split()[0].upper()
+        if inspected_head in ("SELECT", "WITH"):
+            try:
+                total_count = int(conn.sql(f"SELECT COUNT(*) FROM ({normalized_query}) AS _subq").fetchone()[0])
+            except Exception:
+                total_count = int(conn.sql(normalized_query).pl().height)
+        else:
             total_count = row_count
 
         execution_time_ms = round((time.perf_counter() - start_time) * 1000.0, 2)

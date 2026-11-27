@@ -78,4 +78,19 @@ class DataEngineControllerTest {
     assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
     assertThat(response.getBody()).containsEntry("cleanedRows", 500);
   }
+
+  @Test
+  @DisplayName("POST /api/v1/engine/process/retry/{jobId} forwards retry and returns 502 on ERROR")
+  void retryJobForwardsRetryAndPropagatesError() {
+    when(dataEngineClient.retryPipelineJob("job-123"))
+        .thenReturn(Map.of("status", "running", "retry_count", 1));
+    ResponseEntity<Map<String, Object>> ok = controller.retryJob("job-123");
+    assertThat(ok.getStatusCode().value()).isEqualTo(200);
+    assertThat(ok.getBody()).containsEntry("jobId", "job-123");
+
+    when(dataEngineClient.retryPipelineJob("job-missing"))
+        .thenReturn(Map.of("status", "ERROR", "error", "404 Not Found"));
+    ResponseEntity<Map<String, Object>> err = controller.retryJob("job-missing");
+    assertThat(err.getStatusCode().value()).isEqualTo(502);
+  }
 }

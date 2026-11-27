@@ -188,10 +188,23 @@ class DashboardAnalyticsService:
         }
 
     def _compute_entity_type_breakdown(self, tenant_id: str) -> Dict[str, int]:
-        """Count golden records grouped by entity_type from JSON attributes."""
+        """Count golden records grouped by entity_type across Flyway and Alembic schemas."""
         df = self._load_golden_records_df(tenant_id)
         if len(df) == 0:
             return {}
+
+        json_col = "attributes" if "attributes" in df.columns else ("properties" if "properties" in df.columns else None)
+        has_etype_col = "entity_type" in df.columns
+
+        if not json_col and not has_etype_col:
+            return {}
+
+        if has_etype_col and json_col:
+            etype_expr = f"COALESCE(NULLIF(TRY_CAST(entity_type AS VARCHAR), ''), json_extract_string({json_col}, '$.entity_type'))"
+        elif has_etype_col:
+            etype_expr = "NULLIF(TRY_CAST(entity_type AS VARCHAR), '')"
+        else:
+            etype_expr = f"json_extract_string({json_col}, '$.entity_type')"
 
         con = duckdb.connect()
         try:
@@ -199,12 +212,12 @@ class DashboardAnalyticsService:
             con.execute("PRAGMA preserve_insertion_order=false")
             con.register("golden", df)
             rows = con.execute(
-                """
+                f"""
                 SELECT
-                    json_extract_string(attributes, '$.entity_type') AS entity_type,
+                    {etype_expr} AS entity_type,
                     COUNT(*) AS cnt
                 FROM golden
-                WHERE json_extract_string(attributes, '$.entity_type') IS NOT NULL
+                WHERE {etype_expr} IS NOT NULL
                 GROUP BY 1
                 ORDER BY cnt DESC
                 """

@@ -98,6 +98,17 @@ describe("Knowledge Graph Explorer — Badge & State Logic", () => {
       deriveGraphViewState({
         isLoading: false,
         hasError: false,
+        activeEntityId: null,
+        catalogTotal: 57,
+        nodeCount: 5,
+        edgeCount: 4,
+      }),
+    ).toBe("loaded");
+
+    expect(
+      deriveGraphViewState({
+        isLoading: false,
+        hasError: false,
         activeEntityId: "e-1",
         catalogTotal: 57,
         nodeCount: 1,

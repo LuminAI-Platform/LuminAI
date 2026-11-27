@@ -39,10 +39,10 @@ spring:
           order_updates: true
         generate_statistics: false
 
-  # Flyway — manages schema migrations per tenant
+  # Flyway — manages schema migrations per tenant (dev loads seed scripts too)
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    locations: classpath:db/migration,classpath:db/seed
     baseline-on-migrate: true
     validate-on-migrate: false
     schemas: public

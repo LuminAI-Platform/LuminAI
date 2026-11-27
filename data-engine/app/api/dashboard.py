@@ -8,11 +8,12 @@ GET /analytics/dashboard/entity-stats     →  Entity counts and type breakdown.
 import asyncio
 from typing import Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.processing.dashboard_service import DashboardAnalyticsService
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter()
 
@@ -134,10 +135,11 @@ class EntityStatsResponse(BaseModel):
     summary="Pipeline execution statistics",
 )
 async def get_pipeline_stats(
-    tenant_id: str = Query(
-        default=_DEFAULT_TENANT,
+    tenant_id: Optional[str] = Query(
+        default=None,
         description="Tenant identifier scoping the pipeline stats.",
     ),
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> PipelineStatsResponse:
     """Retrieve aggregated pipeline execution metrics for the specified tenant.
 
@@ -145,11 +147,12 @@ async def get_pipeline_stats(
     counts to compute total runs, success rate, average duration, and total
     records processed.
     """
+    effective_tenant = resolve_effective_tenant(identity, tenant_id) or _DEFAULT_TENANT
     settings = get_settings()
     service = DashboardAnalyticsService()
     try:
         stats = await asyncio.wait_for(
-            asyncio.to_thread(service.get_pipeline_stats, tenant_id),
+            asyncio.to_thread(service.get_pipeline_stats, effective_tenant),
             timeout=settings.analytics_query_timeout_seconds,
         )
         return PipelineStatsResponse(**stats)
@@ -166,10 +169,11 @@ async def get_pipeline_stats(
     summary="Data quality dimension scores",
 )
 async def get_data_quality(
-    tenant_id: str = Query(
-        default=_DEFAULT_TENANT,
+    tenant_id: Optional[str] = Query(
+        default=None,
         description="Tenant identifier scoping the quality analysis.",
     ),
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> DataQualityResponse:
     """Compute data quality dimension scores for the specified tenant.
 
@@ -178,11 +182,12 @@ async def get_data_quality(
     weighted composite (30% completeness, 30% uniqueness, 20% consistency,
     20% timeliness).
     """
+    effective_tenant = resolve_effective_tenant(identity, tenant_id) or _DEFAULT_TENANT
     settings = get_settings()
     service = DashboardAnalyticsService()
     try:
         quality = await asyncio.wait_for(
-            asyncio.to_thread(service.get_data_quality, tenant_id),
+            asyncio.to_thread(service.get_data_quality, effective_tenant),
             timeout=settings.analytics_query_timeout_seconds,
         )
         return DataQualityResponse(**quality)
@@ -199,10 +204,11 @@ async def get_data_quality(
     summary="Entity counts and type breakdown",
 )
 async def get_entity_stats(
-    tenant_id: str = Query(
-        default=_DEFAULT_TENANT,
+    tenant_id: Optional[str] = Query(
+        default=None,
         description="Tenant identifier scoping the entity statistics.",
     ),
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> EntityStatsResponse:
     """Retrieve entity counts and type distribution for the specified tenant.
 
@@ -210,11 +216,12 @@ async def get_entity_stats(
     and a breakdown of golden record counts grouped by ontology entity type
     (extracted from the JSON ``attributes`` column via DuckDB).
     """
+    effective_tenant = resolve_effective_tenant(identity, tenant_id) or _DEFAULT_TENANT
     settings = get_settings()
     service = DashboardAnalyticsService()
     try:
         stats = await asyncio.wait_for(
-            asyncio.to_thread(service.get_entity_stats, tenant_id),
+            asyncio.to_thread(service.get_entity_stats, effective_tenant),
             timeout=settings.analytics_query_timeout_seconds,
         )
         return EntityStatsResponse(**stats)

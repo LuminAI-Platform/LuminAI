@@ -153,7 +153,66 @@ export const parseCSV = (text: string, isSample = false) => {
   return { columns: headers, rows };
 };
 
-export const parseJSON = (text: string) => {
+function extractCompleteJsonObjects(
+  text: string,
+  maxRows = 200,
+): Record<string, unknown>[] {
+  const rows: Record<string, unknown>[] = [];
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let objStart = -1;
+
+  for (let i = 0; i < text.length && rows.length < maxRows; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && objStart !== -1) {
+        const candidate = text.slice(objStart, i + 1);
+        objStart = -1;
+        try {
+          const parsed = JSON.parse(candidate) as unknown;
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            rows.push(parsed as Record<string, unknown>);
+          }
+        } catch {
+          // Ignore incomplete/malformed fragments in truncated sample
+        }
+      }
+    }
+  }
+  return rows;
+}
+
+export const parseJSON = (text: string, isSample = false) => {
+  if (isSample) {
+    const sampledRows = extractCompleteJsonObjects(text, 200);
+    if (sampledRows.length > 0) {
+      const columnsSet = new Set<string>();
+      sampledRows.forEach((row) => {
+        Object.keys(row).forEach((k) => columnsSet.add(k));
+      });
+      return { columns: Array.from(columnsSet), rows: sampledRows };
+    }
+    return { columns: [], rows: [] };
+  }
+
   try {
     const parsed = JSON.parse(text);
     const rows = Array.isArray(parsed) ? parsed : [parsed];

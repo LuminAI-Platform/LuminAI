@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { apiFetch } from "../../lib/api";
 import {
-  Cpu,
+  ICON_MAP,
   Play,
   Award,
   BarChart3,
@@ -79,7 +79,7 @@ export const ModelWorkbenchPage: React.FC = () => {
         try {
           const cleanRes = await apiFetch(
             `/api/v1/connections/${selectedDataset.sourceConnectionId}/clean-preview`,
-            { headers: { "X-Suppress-Toast": "true" } },
+            { headers: { "X-Suppress-Toast": "true" }, timeoutMs: 120_000 },
           );
           const cleanJson = await cleanRes.json();
           if (Array.isArray(cleanJson?.rows)) records = cleanJson.rows;
@@ -87,7 +87,7 @@ export const ModelWorkbenchPage: React.FC = () => {
           try {
             const rawRes = await apiFetch(
               `/api/v1/connections/${selectedDataset.sourceConnectionId}/preview/file`,
-              { headers: { "X-Suppress-Toast": "true" } },
+              { headers: { "X-Suppress-Toast": "true" }, timeoutMs: 30_000 },
             );
             const rawJson = await rawRes.json();
             if (Array.isArray(rawJson)) records = rawJson;
@@ -125,12 +125,14 @@ export const ModelWorkbenchPage: React.FC = () => {
   });
 
   const handlePromoteRun = async (idOrRunId?: string) => {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const candidate = idOrRunId || lastTrainedResult?.model_id;
     const targetId =
-      idOrRunId ||
-      lastTrainedResult?.model_id ||
-      lastTrainedResult?.run_id ||
-      registeredModels[0]?.id;
-    if (targetId) {
+      candidate && uuidRegex.test(candidate)
+        ? candidate
+        : lastTrainedResult?.model_id;
+    if (targetId && uuidRegex.test(targetId)) {
       promoteMutation.mutate({ id: targetId, status: "CHAMPION" });
     }
   };
@@ -145,7 +147,13 @@ export const ModelWorkbenchPage: React.FC = () => {
         breadcrumbs={[{ label: "Data Science" }, { label: "Model Workbench" }]}
         title="Data Science Studio & Model Registry"
         description="End-to-end machine learning experimentation, model evaluation, and governed Model Registry."
-        icon={<Cpu size={ICON_SIZES.header} className="text-text-secondary" />}
+        icon={
+          <ICON_MAP.nav.mlStudio
+            size={ICON_SIZES.header}
+            className="text-text-secondary"
+            aria-hidden="true"
+          />
+        }
       />
 
       <div className="border-b border-border flex items-center gap-4 text-xs font-medium">

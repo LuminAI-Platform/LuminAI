@@ -1,0 +1,3 @@
+# Standalone validation dataset generator & reference calculator dependencies.
+# Core logic uses Python 3.12+ standard library; pyarrow is used only for streaming Parquet I/O.
+pyarrow>=15.0.0

@@ -459,6 +459,7 @@ public class PostgresConnectorService {
                 System.getenv().getOrDefault("ALLOW_PRIVATE_NETWORKS", "false")));
     if (!allowPrivate
         && ("prod".equalsIgnoreCase(System.getProperty("spring.profiles.active"))
+            || "prod".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE"))
             || "production".equalsIgnoreCase(System.getenv("SPRING_PROFILES_ACTIVE")))) {
       if (host.equalsIgnoreCase("localhost")
           || host.equals("127.0.0.1")

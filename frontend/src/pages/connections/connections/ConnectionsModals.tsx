@@ -3,7 +3,7 @@ import { FileUploadWizard } from "../../../features/connections/components/FileU
 import { DatabaseConnectorForm } from "../../../features/connections/components/DatabaseConnectorForm";
 import { RunDetailDrawer } from "../../../features/connections/components/pipeline-analysis/RunDetailDrawer";
 import type { PipelineRunItem } from "../../../features/connections/components/pipeline-analysis/pipelineAnalysisTypes";
-import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import { DeleteConnectionDialog } from "./DeleteConnectionDialog";
 import { EditConnectionModal } from "./EditConnectionModal";
 import { CleanDataModal } from "./CleanDataModal";
 import { RawPreviewModal } from "./RawPreviewModal";
@@ -59,19 +59,28 @@ export const ConnectionsModals: React.FC<ConnectionsModalsProps> = ({
 
       <EditConnectionModal
         source={connData.editTarget}
+        existingSources={connData.unifiedSources}
         isSaving={connData.isSavingEdit}
+        isTesting={
+          !!connData.editTarget &&
+          connData.testingSourceId === connData.editTarget.id
+        }
+        errorMessage={connData.editError}
         onClose={() => connData.setEditTarget(null)}
         onSave={connData.handleSaveEdit}
+        onTestConnection={connData.handleTestConnection}
       />
 
       {connData.cleanPreviewFile && (
         <CleanDataModal
           cleanPreviewFile={connData.cleanPreviewFile}
           cleanData={connData.cleanData}
+          cleanDataError={connData.cleanDataError}
           isCleanDataLoading={connData.isCleanDataLoading}
           cleanSearchFilter={connData.cleanSearchFilter}
           setCleanSearchFilter={connData.setCleanSearchFilter}
-          onClose={() => connData.setCleanPreviewFile(null)}
+          onRetry={connData.retryCleanData}
+          onClose={connData.closeCleanPreview}
         />
       )}
 
@@ -83,20 +92,11 @@ export const ConnectionsModals: React.FC<ConnectionsModalsProps> = ({
         />
       )}
 
-      <ConfirmDialog
-        open={!!connData.deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) connData.setDeleteTarget(null);
-        }}
-        title={
-          connData.deleteTarget?.type === "connection"
-            ? `Delete "${connData.deleteTarget.name}"?`
-            : `Delete "${connData.deleteTarget?.name ?? "file"}"?`
-        }
-        description={`Are you sure you want to permanently delete "${connData.deleteTarget?.name}"? Associated sync pipelines will be terminated.`}
-        confirmText={connData.isDeleting ? "Deleting..." : "Delete"}
-        isDestructive={true}
-        isLoading={connData.isDeleting}
+      <DeleteConnectionDialog
+        source={connData.deleteTarget}
+        isDeleting={connData.isDeleting}
+        errorMessage={connData.deleteError}
+        onClose={() => connData.setDeleteTarget(null)}
         onConfirm={connData.executeDelete}
       />
     </>

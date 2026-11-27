@@ -54,6 +54,8 @@ export function parseSyncDatasetFromApi(
     rawStatus,
     rejectedRecords,
     quarantinedRecords,
+    totalRecords,
+    syncedRecords,
   );
 
   const startedAt = item.startedAt ? new Date(String(item.startedAt)) : null;

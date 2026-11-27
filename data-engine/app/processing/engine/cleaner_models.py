@@ -64,7 +64,7 @@ class DatasetCleaningResult:
     def profiling_report(self) -> Dict[str, Any]:
         return self.profiling_delta.to_dict()
 
-    def to_api_response(self) -> Dict[str, Any]:
+    def to_api_response(self, include_golden_records: bool = True) -> Dict[str, Any]:
         """Formats the result for the REST API and React Clean Data View."""
         flat_rows = []
         for r in self.records:
@@ -100,6 +100,10 @@ class DatasetCleaningResult:
             "status": "COMPLETED",
             "columns": cols,
             "rows": flat_rows,
-            "goldenRecords": [gr.to_dict() for gr in self.golden_records],
+            "goldenRecords": (
+                [gr.to_dict() for gr in self.golden_records]
+                if include_golden_records
+                else []
+            ),
             "profilingDelta": self.profiling_delta.to_dict(),
         }

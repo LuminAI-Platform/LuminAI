@@ -111,7 +111,7 @@ def ensure_tables_exist(engine: Optional[Engine] = None) -> None:
                 if "updated_at" not in columns:
                     conn.execute(
                         text(
-                            "ALTER TABLE golden_records ADD COLUMN updated_at DATETIME"
+                            "ALTER TABLE golden_records ADD COLUMN updated_at TIMESTAMP"
                         )
                     )
                 if "quality_state" not in columns:

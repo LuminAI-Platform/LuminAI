@@ -1,20 +1,27 @@
-import React, { useEffect, useCallback, useMemo } from "react";
+import React, { useEffect, useCallback, useMemo, useState } from "react";
 import { Database, ICON_SIZES } from "../../../lib/icons";
+import { Dialog } from "../../../components/ui/Dialog";
 import type { PipelineRunItem } from "./pipeline-analysis/pipelineAnalysisTypes";
 import type {
   SyncJobStatus,
   SyncDataset,
   SyncJob,
 } from "./sync-job/syncJobTypes";
-import { SyncJobKpiCards } from "./sync-job/SyncJobKpiCards";
+import {
+  SyncJobKpiCards,
+  type CountDiscrepancy,
+} from "./sync-job/SyncJobKpiCards";
 import { SyncDatasetRow } from "./sync-job/SyncDatasetRow";
 import { useSyncJobsData } from "./sync-job/useSyncJobsData";
 import { SyncJobHeader } from "./sync-job/SyncJobHeader";
+
+const MAX_INLINE_DATASETS = 6;
 
 export type { SyncJobStatus, SyncDataset, SyncJob };
 
 interface SyncJobDetailsProps {
   datasets?: SyncDataset[];
+  cleanViewQuarantinedByConnection?: Record<string, number>;
   onOpenRunDetail?: (
     run: PipelineRunItem,
     triggerEl: HTMLElement | null,
@@ -26,11 +33,13 @@ interface SyncJobDetailsProps {
 
 export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
   datasets: controlledDatasets,
+  cleanViewQuarantinedByConnection,
   onOpenRunDetail,
   onPause,
   onResume,
   onCancel,
 }) => {
+  const [allDatasetsOpen, setAllDatasetsOpen] = useState(false);
   const {
     datasets,
     selectedScope,
@@ -115,6 +124,12 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
       return "completed_with_issues";
     }
     if (scopeDatasets.some((d) => d.status === "paused")) return "paused";
+    if (
+      scopeDatasets.length > 0 &&
+      scopeDatasets.every((d) => d.status === "completed_no_records")
+    ) {
+      return "completed_no_records";
+    }
     return "completed";
   })();
 
@@ -168,12 +183,39 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
       avgSpeed)
     : undefined;
 
+  const countDiscrepancy: CountDiscrepancy | null = (() => {
+    if (
+      isAllScope ||
+      !selectedDataset?.connectionId ||
+      !cleanViewQuarantinedByConnection
+    ) {
+      return null;
+    }
+    const cleanViewCount =
+      cleanViewQuarantinedByConnection[selectedDataset.connectionId];
+    if (typeof cleanViewCount !== "number") return null;
+    const syncCount =
+      (selectedDataset.quarantinedRecords ?? 0) +
+      (selectedDataset.rejectedRecords ?? 0);
+    if (syncCount !== cleanViewCount) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[SyncJobDetails] Count discrepancy for connection ${selectedDataset.connectionId}: pipeline run reports ${syncCount}, clean-preview reports ${cleanViewCount}`,
+        );
+      }
+      return { syncCount, cleanViewCount };
+    }
+    return null;
+  })();
+
   const headerTitle = isAllScope
     ? "All sync activity"
     : `Sync: ${selectedDataset?.name ?? "Dataset"}`;
   const scopeCaption = isAllScope
     ? `${datasets.length} ${datasets.length === 1 ? "dataset" : "datasets"}`
-    : "1 dataset";
+    : "1 dataset selected";
+  const visibleDatasets = datasets.slice(0, MAX_INLINE_DATASETS);
+  const hasMoreDatasets = datasets.length > MAX_INLINE_DATASETS;
 
   return (
     <section
@@ -216,18 +258,33 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
         avgSpeed={avgSpeed}
         rejectedCount={rejectedCount}
         quarantinedCount={quarantinedCount}
+        countDiscrepancy={countDiscrepancy}
         durationSec={durationSec}
       />
 
       <div className="px-4 sm:px-5 flex flex-col gap-2">
-        <div className="flex items-center justify-between text-xs font-medium text-text-secondary">
-          <span>Datasets ({datasets.length})</span>
-          <span className="text-[11px] text-text-muted">
-            Select a dataset to view stats and run detail
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-text-secondary">
+          <span>
+            {hasMoreDatasets
+              ? `Showing ${visibleDatasets.length} of ${datasets.length}`
+              : `Datasets (${datasets.length})`}
           </span>
+          {hasMoreDatasets ? (
+            <button
+              type="button"
+              onClick={() => setAllDatasetsOpen(true)}
+              className="text-xs font-medium text-primary hover:underline cursor-pointer bg-transparent border-none p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded"
+            >
+              View all
+            </button>
+          ) : (
+            <span className="text-[11px] text-text-muted">
+              Select a dataset to view stats and run detail
+            </span>
+          )}
         </div>
-        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto pr-0.5">
-          {datasets.map((ds) => (
+        <div className="flex flex-col gap-2">
+          {visibleDatasets.map((ds) => (
             <SyncDatasetRow
               key={ds.id}
               ds={ds}
@@ -237,6 +294,28 @@ export const SyncJobDetails: React.FC<SyncJobDetailsProps> = ({
           ))}
         </div>
       </div>
+
+      <Dialog
+        open={allDatasetsOpen}
+        onOpenChange={setAllDatasetsOpen}
+        variant="form"
+        title={`All synced datasets (${datasets.length})`}
+        description="Select a dataset run to inspect its stats and run details."
+      >
+        <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">
+          {datasets.map((ds) => (
+            <SyncDatasetRow
+              key={ds.id}
+              ds={ds}
+              isSelected={!isAllScope && selectedDataset?.id === ds.id}
+              onSelect={(selected, el) => {
+                setAllDatasetsOpen(false);
+                handleSelectRow(selected, el);
+              }}
+            />
+          ))}
+        </div>
+      </Dialog>
     </section>
   );
 };

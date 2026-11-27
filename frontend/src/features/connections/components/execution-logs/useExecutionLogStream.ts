@@ -247,6 +247,14 @@ export function useExecutionLogStream({
     setLogs([]);
   }, []);
 
+  const restoreInternalLogs = useCallback(
+    (entries: LogEntry[]) => {
+      entries.forEach((l) => clearedIdsRef.current.delete(l.id));
+      appendEntries(entries);
+    },
+    [appendEntries],
+  );
+
   return {
     internalLogs,
     internalHasActiveRun,
@@ -255,5 +263,6 @@ export function useExecutionLogStream({
     runsByIdRef,
     fetchBackendLogs,
     clearInternalLogs,
+    restoreInternalLogs,
   };
 }

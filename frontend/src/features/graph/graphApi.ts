@@ -29,7 +29,9 @@ export interface GraphStatsResponse {
   degree: number;
   inDegree: number;
   outDegree: number;
-  relationshipCounts: Record<string, number>;
+  clusterCoefficient?: number;
+  relationshipTypeCounts: Record<string, number>;
+  relationshipCounts?: Record<string, number>;
 }
 
 export interface DecomposedSyncResult {

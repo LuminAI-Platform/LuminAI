@@ -114,4 +114,9 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
           "SELECT COALESCE(NULLIF(g.entity_type, ''), 'Entity') as entityType, COUNT(*) as cnt FROM golden_records g GROUP BY COALESCE(NULLIF(g.entity_type, ''), 'Entity')",
       nativeQuery = true)
   List<Object[]> countByEntityType();
+
+  long countByCreatedAtBefore(java.time.Instant before);
+
+  @Query("select g.createdAt from GoldenRecord g where g.createdAt >= :start")
+  List<java.time.Instant> findCreatedAtSince(@Param("start") java.time.Instant start);
 }

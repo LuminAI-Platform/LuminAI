@@ -47,6 +47,10 @@ class SecurityHeadersFilterTest {
     verify(response).setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
     verify(response)
         .setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    verify(response)
+        .setHeader(
+            eq("Access-Control-Allow-Headers"),
+            argThat(val -> val != null && !val.equals("*") && val.contains("Authorization")));
     verify(response).setHeader("Access-Control-Allow-Credentials", "true");
     verify(chain).doFilter(request, response);
   }

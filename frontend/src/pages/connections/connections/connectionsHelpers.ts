@@ -87,6 +87,10 @@ export function parseRawConnections(data: unknown[]): {
         fileItems.push({
           id: String(item.id || Math.random().toString(36).substring(7)),
           name: String(item.name || parsedConfig.fileName || "File ingestion"),
+          fileName:
+            typeof parsedConfig.fileName === "string"
+              ? parsedConfig.fileName
+              : undefined,
           size: sizeDisplay,
           recordsCount: isNaN(rowCount) ? 0 : rowCount,
           status: normalizeSourceStatus(item.status),
@@ -104,16 +108,20 @@ export function parseRawConnections(data: unknown[]): {
             : undefined,
         });
       } else {
-        let pipelinesCount = 0;
+        let configuredPipelines: number | undefined;
         let configDesc = "";
         if (Array.isArray(parsedConfig.tables)) {
-          pipelinesCount = parsedConfig.tables.length;
+          configuredPipelines = parsedConfig.tables.length;
         } else if (Array.isArray(parsedConfig.selectedTables)) {
-          pipelinesCount = parsedConfig.selectedTables.length;
+          configuredPipelines = parsedConfig.selectedTables.length;
         }
         if (parsedConfig.database) {
           configDesc = `Database: ${String(parsedConfig.database)}`;
         }
+        const host =
+          typeof parsedConfig.host === "string" && parsedConfig.host.trim()
+            ? parsedConfig.host.trim()
+            : undefined;
 
         const rawRows =
           parsedConfig.rowsSynced ??
@@ -126,13 +134,17 @@ export function parseRawConnections(data: unknown[]): {
           id: typeof item.id === "string" ? item.id : undefined,
           name: String(item.name || ""),
           status: normalizeSourceStatus(item.status),
-          pipelines: pipelinesCount || 1,
+          pipelines: configuredPipelines || 1,
+          configuredPipelines,
           type: String(item.type || "POSTGRESQL"),
           desc:
             configDesc ||
             (typeof item.credentialsRef === "string"
               ? item.credentialsRef
               : "Registered database connector"),
+          host,
+          createdAt:
+            typeof item.createdAt === "string" ? item.createdAt : undefined,
           lastSyncedAt: lastSyncIso,
           rowsSynced,
           schemaDriftWarning,
@@ -155,11 +167,14 @@ export function buildUnifiedSources(
     typeLabel: formatConnectorTypeLabel(c.type),
     rawType: c.type,
     status: normalizeSourceStatus(c.status),
+    createdAt: c.createdAt,
     lastSyncAt: c.lastSyncedAt,
     rowsSynced: c.rowsSynced,
     schemaDriftWarning: c.schemaDriftWarning,
+    host: c.host,
     desc: c.desc,
     pipelines: c.pipelines,
+    configuredPipelines: c.configuredPipelines,
     connectorRef: c,
   }));
 
@@ -170,9 +185,11 @@ export function buildUnifiedSources(
     typeLabel: "Flat file",
     rawType: "FILE",
     status: normalizeSourceStatus(f.status),
+    createdAt: f.createdAt,
     lastSyncAt: f.lastSyncedAt ?? f.createdAt,
     rowsSynced: f.recordsCount,
     schemaDriftWarning: f.schemaDriftWarning,
+    fileName: f.fileName,
     size: f.size,
     fileRef: f,
   }));

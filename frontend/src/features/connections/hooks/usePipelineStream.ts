@@ -42,10 +42,38 @@ export interface UsePipelineStreamResult {
   reconnect: () => void;
 }
 
+function parseSseFrame(rawFrame: string): {
+  eventType: string;
+  data: string;
+  isCommentOnly: boolean;
+} {
+  let eventType = "message";
+  const dataLines: string[] = [];
+  let hasNonComment = false;
+
+  for (const line of rawFrame.split("\n")) {
+    if (!line) continue;
+    if (line.startsWith(":")) continue;
+    hasNonComment = true;
+    if (line.startsWith("event:")) {
+      eventType = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+
+  return {
+    eventType,
+    data: dataLines.join("\n"),
+    isCommentOnly: !hasNonComment,
+  };
+}
+
 /**
  * Custom React hook for consuming real-time Server-Sent Events (SSE)
- * from /api/v1/pipelines/stream with automated heartbeat tracking,
- * structured event parsing, and polling when SSE is unavailable.
+ * from /api/v1/pipelines/stream via fetch() with Bearer Authorization
+ * headers (never leaking tokens in URL query parameters), automated
+ * heartbeat tracking, structured event parsing, and polling fallback.
  */
 export function usePipelineStream(
   options: UsePipelineStreamOptions = {},
@@ -63,7 +91,7 @@ export function usePipelineStream(
     Record<string, PipelineCompleteEvent>
   >({});
 
-  const esRef = useRef<EventSource | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -73,47 +101,23 @@ export function usePipelineStream(
     setErrors([]);
   }, []);
 
-  const connect = useCallback(() => {
-    // Clean up any existing connection
-    if (esRef.current) {
-      esRef.current.close();
-      esRef.current = null;
-    }
-
-    try {
-      const token = getAccessToken() ?? "";
-      const queryParams = new URLSearchParams();
-      if (token) {
-        queryParams.set("token", token);
-        queryParams.set("access_token", token);
+  const dispatchSseEvent = useCallback(
+    (eventType: string, payload: string) => {
+      if (eventType === "pipeline.connected") {
+        setIsConnected(true);
+        setIsPolling(false);
+        setLastHeartbeat(new Date());
+        return;
       }
-      if (runId) queryParams.set("runId", runId);
-
-      const qs = queryParams.toString() ? `?${queryParams.toString()}` : "";
-      const streamUrl = runId
-        ? `${API_BASE_URL}/api/v1/pipelines/stream/${runId}${qs}`
-        : `${API_BASE_URL}/api/v1/pipelines/stream${qs}`;
-
-      const es = new EventSource(streamUrl);
-      esRef.current = es;
-
-      es.onopen = () => {
-        setIsConnected(true);
-        setIsPolling(false);
+      if (eventType === "ping" || eventType === "pipeline.heartbeat") {
         setLastHeartbeat(new Date());
-      };
+        return;
+      }
+      if (!payload) return;
 
-      // Handle handshake connected event
-      es.addEventListener("pipeline.connected", () => {
-        setIsConnected(true);
-        setIsPolling(false);
-        setLastHeartbeat(new Date());
-      });
-
-      // Handle step progress updates (pipeline.progress)
-      es.addEventListener("pipeline.progress", (e: MessageEvent) => {
+      if (eventType === "pipeline.progress") {
         try {
-          const data: PipelineProgressEvent = JSON.parse(e.data);
+          const data: PipelineProgressEvent = JSON.parse(payload);
           setStepProgress((prev) => ({
             ...prev,
             [`${data.runId}-${data.step}`]: data,
@@ -122,12 +126,9 @@ export function usePipelineStream(
         } catch {
           // ignore parse error
         }
-      });
-
-      // Handle inline errors (pipeline.error)
-      es.addEventListener("pipeline.error", (e: MessageEvent) => {
+      } else if (eventType === "pipeline.error") {
         try {
-          const data: PipelineErrorEvent = JSON.parse(e.data);
+          const data: PipelineErrorEvent = JSON.parse(payload);
           const enriched: PipelineErrorEvent = {
             ...data,
             timestamp: new Date().toLocaleTimeString(),
@@ -137,12 +138,9 @@ export function usePipelineStream(
         } catch {
           // ignore parse error
         }
-      });
-
-      // Handle pipeline completion (pipeline.complete)
-      es.addEventListener("pipeline.complete", (e: MessageEvent) => {
+      } else if (eventType === "pipeline.complete") {
         try {
-          const data: PipelineCompleteEvent = JSON.parse(e.data);
+          const data: PipelineCompleteEvent = JSON.parse(payload);
           setCompletions((prev) => ({
             ...prev,
             [data.runId]: data,
@@ -151,32 +149,106 @@ export function usePipelineStream(
         } catch {
           // ignore parse error
         }
-      });
+      }
+    },
+    [onProgress, onErrorEvent, onComplete],
+  );
 
-      // Handle 15s heartbeat ping
-      es.addEventListener("ping", () => {
-        setLastHeartbeat(new Date());
-      });
+  const connect = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
 
-      es.onerror = () => {
-        es.close();
-        esRef.current = null;
-        setIsConnected(false);
-        setIsPolling(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-        // Schedule reconnect attempt in 5 seconds
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectRef.current();
-        }, 5000);
-      };
-    } catch {
+    const scheduleReconnect = () => {
+      if (controller.signal.aborted) return;
       setIsConnected(false);
       setIsPolling(true);
-    }
-  }, [runId, onProgress, onErrorEvent, onComplete]);
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (!controller.signal.aborted) {
+          connectRef.current();
+        }
+      }, 5000);
+    };
+
+    const startStream = async () => {
+      try {
+        const queryParams = new URLSearchParams();
+        if (runId) queryParams.set("runId", runId);
+        const qs = queryParams.toString() ? `?${queryParams.toString()}` : "";
+        const streamUrl = runId
+          ? `${API_BASE_URL}/api/v1/pipelines/stream/${runId}${qs}`
+          : `${API_BASE_URL}/api/v1/pipelines/stream${qs}`;
+
+        const headers: Record<string, string> = {
+          Accept: "text/event-stream",
+        };
+        const token = getAccessToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(streamUrl, {
+          method: "GET",
+          headers,
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (!response.ok || !response.body) {
+          scheduleReconnect();
+          return;
+        }
+
+        setIsConnected(true);
+        setIsPolling(false);
+        setLastHeartbeat(new Date());
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (!controller.signal.aborted) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder
+            .decode(value, { stream: true })
+            .replace(/\r\n?/g, "\n");
+
+          let boundary = buffer.indexOf("\n\n");
+          while (boundary !== -1) {
+            const rawFrame = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            const parsed = parseSseFrame(rawFrame);
+            if (!parsed.isCommentOnly) {
+              dispatchSseEvent(parsed.eventType, parsed.data);
+            } else if (rawFrame.includes(":")) {
+              setLastHeartbeat(new Date());
+            }
+            boundary = buffer.indexOf("\n\n");
+          }
+        }
+
+        scheduleReconnect();
+      } catch {
+        if (!controller.signal.aborted) {
+          scheduleReconnect();
+        }
+      }
+    };
+
+    void startStream();
+  }, [runId, dispatchSseEvent]);
 
   useEffect(() => {
     connectRef.current = connect;
@@ -185,9 +257,9 @@ export function usePipelineStream(
   useEffect(() => {
     connect();
     return () => {
-      if (esRef.current) {
-        esRef.current.close();
-        esRef.current = null;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);

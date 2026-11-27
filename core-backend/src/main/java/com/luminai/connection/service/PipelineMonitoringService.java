@@ -30,6 +30,7 @@ public class PipelineMonitoringService {
   private final PipelineRunRepository pipelineRunRepository;
   private final ConnectionRepository connectionRepository;
   private final ErCandidateRepository erCandidateRepository;
+  private PipelineSseService pipelineSseService;
 
   public PipelineMonitoringService(
       PipelineRunRepository pipelineRunRepository,
@@ -38,6 +39,11 @@ public class PipelineMonitoringService {
     this.pipelineRunRepository = pipelineRunRepository;
     this.connectionRepository = connectionRepository;
     this.erCandidateRepository = erCandidateRepository;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setPipelineSseService(PipelineSseService pipelineSseService) {
+    this.pipelineSseService = pipelineSseService;
   }
 
   @Transactional(readOnly = false)
@@ -218,6 +224,10 @@ public class PipelineMonitoringService {
             .orElseThrow(() -> new ResourceNotFoundException("PipelineRun", id));
     run.setStatus(PipelineRun.PipelineRunStatus.PAUSED);
     PipelineRun saved = pipelineRunRepository.save(run);
+    if (pipelineSseService != null) {
+      pipelineSseService.emitProgress(
+          saved.getTenantId(), id.toString(), "pause", 50, "Pipeline run paused");
+    }
     Connection conn = connectionRepository.findById(saved.getConnectionId()).orElse(null);
     return toDto(saved, conn);
   }
@@ -230,6 +240,10 @@ public class PipelineMonitoringService {
             .orElseThrow(() -> new ResourceNotFoundException("PipelineRun", id));
     run.setStatus(PipelineRun.PipelineRunStatus.RUNNING);
     PipelineRun saved = pipelineRunRepository.save(run);
+    if (pipelineSseService != null) {
+      pipelineSseService.emitProgress(
+          saved.getTenantId(), id.toString(), "resume", 55, "Pipeline run resumed");
+    }
     Connection conn = connectionRepository.findById(saved.getConnectionId()).orElse(null);
     return toDto(saved, conn);
   }
@@ -243,6 +257,10 @@ public class PipelineMonitoringService {
     run.setStatus(PipelineRun.PipelineRunStatus.CANCELLED);
     run.setCompletedAt(java.time.Instant.now());
     PipelineRun saved = pipelineRunRepository.save(run);
+    if (pipelineSseService != null) {
+      pipelineSseService.emitError(
+          saved.getTenantId(), id.toString(), "cancel", "Pipeline run cancelled", "warning");
+    }
     Connection conn = connectionRepository.findById(saved.getConnectionId()).orElse(null);
     return toDto(saved, conn);
   }

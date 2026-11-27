@@ -5,6 +5,7 @@ export type SyncJobStatus =
   | "paused"
   | "completed"
   | "completed_with_issues"
+  | "completed_no_records"
   | "failed";
 
 export type SyncSourceType = "File" | "Database" | "API";
@@ -62,7 +63,7 @@ export const STATUS_CONFIG: Record<
   { label: string; dot: string; badge: string; text: string; bar: string }
 > = {
   running: {
-    label: "Syncing",
+    label: "Running",
     dot: "bg-primary",
     badge: "bg-primary-tint text-primary border-primary-border font-medium",
     text: "text-primary",
@@ -84,6 +85,13 @@ export const STATUS_CONFIG: Record<
   },
   completed_with_issues: {
     label: "Completed with issues",
+    dot: "bg-warning",
+    badge: "bg-warning-bg text-warning border-warning-border font-medium",
+    text: "text-warning",
+    bar: "bg-warning",
+  },
+  completed_no_records: {
+    label: "Completed - no records",
     dot: "bg-warning",
     badge: "bg-warning-bg text-warning border-warning-border font-medium",
     text: "text-warning",

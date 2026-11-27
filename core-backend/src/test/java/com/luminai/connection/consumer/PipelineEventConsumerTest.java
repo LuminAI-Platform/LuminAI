@@ -25,6 +25,7 @@ class PipelineEventConsumerTest {
   @Mock private PipelineRunRepository pipelineRunRepository;
   @Mock private com.luminai.connection.repository.ConnectionRepository connectionRepository;
   @Mock private com.luminai.auth.repository.TenantRepository tenantRepository;
+  @Mock private com.luminai.connection.service.PipelineSseService pipelineSseService;
   @Mock private Acknowledgment acknowledgment;
 
   private PipelineEventConsumer consumer;
@@ -35,6 +36,7 @@ class PipelineEventConsumerTest {
   void setUp() {
     consumer =
         new PipelineEventConsumer(pipelineRunRepository, connectionRepository, tenantRepository);
+    consumer.setPipelineSseService(pipelineSseService);
     connectionId = UUID.randomUUID();
 
     existingRun = new PipelineRun();
@@ -64,6 +66,8 @@ class PipelineEventConsumerTest {
 
     assertThat(saved.getStatus()).isEqualTo(PipelineRunStatus.VALIDATED);
     assertThat(saved.getRecordsOutput()).isEqualTo(95);
+    verify(pipelineSseService)
+        .emitProgress(any(), eq(existingRun.getId().toString()), eq("validated"), eq(75), any());
     verify(acknowledgment).acknowledge();
   }
 

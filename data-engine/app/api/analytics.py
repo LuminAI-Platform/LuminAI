@@ -7,12 +7,14 @@ GET  /analytics/reconciliation  →  Retrieve Cross-Store Reconciliation health 
 
 import asyncio
 import io
+import re
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 from app.processing.ai_insights import (
     InsightsRequest,
     InsightsResponse,
@@ -158,18 +160,22 @@ class TimeseriesResponse(BaseModel):
     response_model=QueryResponse,
     summary="Ad-hoc analytical query",
 )
-async def analytics_query(request: QueryRequest) -> QueryResponse:
+async def analytics_query(
+    request: QueryRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> QueryResponse:
     """Execute an ad-hoc aggregation query over ontology entities using DuckDB.
 
     Enforces request-level timeout (default 30s) to prevent runaway OLAP queries.
     """
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     settings = get_settings()
     engine = DuckDBAnalyticsEngine()
     try:
         result, row_count = await asyncio.wait_for(
             asyncio.to_thread(
                 engine.execute_query,
-                tenant_id=request.tenant_id,
+                tenant_id=effective_tenant,
                 entity_type=request.entity_type,
                 aggregations=request.aggregations,
                 filters=request.filters,
@@ -178,7 +184,7 @@ async def analytics_query(request: QueryRequest) -> QueryResponse:
             timeout=settings.analytics_query_timeout_seconds,
         )
         return QueryResponse(
-            tenant_id=request.tenant_id,
+            tenant_id=effective_tenant,
             entity_type=request.entity_type,
             result=result,
             row_count=row_count,
@@ -197,18 +203,22 @@ async def analytics_query(request: QueryRequest) -> QueryResponse:
     response_model=TimeseriesResponse,
     summary="Time-series rollup",
 )
-async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse:
+async def analytics_timeseries(
+    request: TimeseriesRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> TimeseriesResponse:
     """Compute time-series rollups over a time-stamped entity field using DuckDB.
 
     Enforces request-level timeout (default 30s) to prevent runaway OLAP queries.
     """
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     settings = get_settings()
     engine = DuckDBAnalyticsEngine()
     try:
         series = await asyncio.wait_for(
             asyncio.to_thread(
                 engine.execute_timeseries,
-                tenant_id=request.tenant_id,
+                tenant_id=effective_tenant,
                 entity_type=request.entity_type,
                 time_field=request.time_field,
                 interval=request.interval,
@@ -219,7 +229,7 @@ async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse
             timeout=settings.analytics_query_timeout_seconds,
         )
         return TimeseriesResponse(
-            tenant_id=request.tenant_id,
+            tenant_id=effective_tenant,
             entity_type=request.entity_type,
             interval=request.interval,
             series=series,
@@ -238,12 +248,14 @@ async def analytics_timeseries(request: TimeseriesRequest) -> TimeseriesResponse
     response_model=ReconciliationReport,
     summary="Get Cross-Store Reconciliation status",
 )
-async def get_reconciliation_report(
-    tenant_id: str = Query(default="acme", description="Tenant ID to inspect"),
+def get_reconciliation_report(
+    tenant_id: Optional[str] = Query(default=None, description="Tenant ID to inspect"),
     entity_type: str = Query(default="Person", description="Entity type to verify"),
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> ReconciliationReport:
     """Retrieve Cross-Store Reconciliation status report."""
-    return run_cross_store_reconciliation(tenant_id=tenant_id, entity_type=entity_type)
+    effective_tenant = resolve_effective_tenant(identity, tenant_id) or "acme"
+    return run_cross_store_reconciliation(tenant_id=effective_tenant, entity_type=entity_type)
 
 
 class ExportRequest(BaseModel):
@@ -300,12 +312,16 @@ class ExportRequest(BaseModel):
         }
     },
 )
-async def export_query_results(request: ExportRequest) -> StreamingResponse:
+def export_query_results(
+    request: ExportRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> StreamingResponse:
     """Execute analytical query and stream the clean results as a downloadable CSV/Parquet file."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     engine = DuckDBAnalyticsEngine()
     try:
         df = engine.export_data(
-            tenant_id=request.tenant_id,
+            tenant_id=effective_tenant,
             entity_type=request.entity_type,
             table_name=request.table,
             filters=request.filters,
@@ -315,11 +331,12 @@ async def export_query_results(request: ExportRequest) -> StreamingResponse:
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
 
-    clean_name = (
+    raw_name = (
         request.entity_type.lower()
         if request.entity_type and request.entity_type != "*"
         else request.table
     )
+    clean_name = re.sub(r"[^a-zA-Z0-9._-]", "_", raw_name).strip("._-") or "export"
     fmt = request.format.lower().strip()
 
     if fmt == "parquet":
@@ -362,12 +379,18 @@ async def export_query_results(request: ExportRequest) -> StreamingResponse:
     response_model=InsightsResponse,
     summary="Generate AI-powered statistical insights and anomaly summaries",
 )
-async def generate_insights(request: InsightsRequest) -> InsightsResponse:
+async def generate_insights(
+    request: InsightsRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> InsightsResponse:
     """Generate executive summary, operational metrics, and anomalies for an entity dataset.
 
     Uses cloud LLM APIs (Gemini / OpenAI) when configured, or deterministic statistical
     heuristics as instant fallback.
     """
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
+    if effective_tenant != request.tenant_id:
+        request = request.model_copy(update={"tenant_id": effective_tenant})
     service = get_ai_insights_service()
     try:
         return await service.generate_insights(request)

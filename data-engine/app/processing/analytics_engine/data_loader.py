@@ -2,14 +2,39 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
+import uuid
 
 import polars as pl
 from sqlalchemy import text
 
+from app.db.tenant import (
+    reset_pg_search_path,
+    resolve_table_schema,
+    resolve_tenant_pg_context,
+    set_pg_search_path,
+)
+
 logger = logging.getLogger(__name__)
+
+
+def _serialize_pg_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize SQLAlchemy/PostgreSQL values (dict, Decimal, UUID, datetime) for Polars."""
+    out: Dict[str, Any] = {}
+    for k, v in row.items():
+        if isinstance(v, uuid.UUID):
+            out[k] = str(v)
+        elif isinstance(v, Decimal):
+            out[k] = float(v)
+        elif isinstance(v, (dict, list)):
+            out[k] = json.dumps(v)
+        else:
+            out[k] = v
+    return out
 
 
 def get_pg_engine():
@@ -20,10 +45,27 @@ def get_pg_engine():
 
 
 def normalize_dataframe(df: pl.DataFrame, target_table: str) -> pl.DataFrame:
-    """Normalize dataframe columns across PostgreSQL and SQLite schema variations."""
+    """Normalize dataframe columns across PostgreSQL (Flyway) and SQLite/Alembic schemas."""
     cols = df.columns
     if not cols:
         return df
+
+    # Ensure JSON columns parsed as Struct/Object become UTF-8 JSON strings for DuckDB json_extract
+    json_str_exprs = []
+    for json_col in ("attributes", "properties", "data"):
+        if json_col in cols and df.schema[json_col] not in (pl.Utf8, pl.String):
+            if df.schema[json_col] == pl.Object:
+                serialized = [
+                    json.dumps(v) if isinstance(v, (dict, list)) else (None if v is None else str(v))
+                    for v in df[json_col].to_list()
+                ]
+                json_str_exprs.append(pl.Series(json_col, serialized, dtype=pl.Utf8))
+            else:
+                json_str_exprs.append(pl.col(json_col).cast(pl.Utf8).alias(json_col))
+    if json_str_exprs:
+        df = df.with_columns(json_str_exprs)
+        cols = df.columns
+
     exprs = []
     if "golden" in target_table.lower():
         if "properties" in cols and "attributes" not in cols:
@@ -49,7 +91,7 @@ def load_table_dataframe(
     tenant_id: str,
     override_df: Optional[pl.DataFrame] = None,
 ) -> pl.DataFrame:
-    """Load records for the requested tenant from PostgreSQL or SQLite fallback."""
+    """Load records for the requested tenant from PostgreSQL (Flyway/Alembic) or SQLite fallback."""
     target_table = (
         "golden_records" if "golden" in table_name.lower() else "staging_records"
     )
@@ -58,14 +100,35 @@ def load_table_dataframe(
 
     records: List[Dict[str, Any]] = []
 
-    # 1. Try PostgreSQL
+    # 1. Try PostgreSQL (with tenant schema search_path + Flyway UUID/slug support)
     try:
         engine = get_pg_engine()
         with engine.connect() as conn:
-            query = text(f"SELECT * FROM {target_table} WHERE tenant_id = :tenant_id")
-            result = conn.execute(query, {"tenant_id": tenant_id})
-            for row in result.mappings():
-                records.append(dict(row))
+            tenant_ctx = resolve_tenant_pg_context(conn, tenant_id)
+            found_schema, cols = resolve_table_schema(
+                conn,
+                target_table,
+                preferred_schemas=[tenant_ctx["schema_name"], "tenant_default", "public"],
+            )
+            if cols:
+                set_pg_search_path(conn, found_schema)
+                try:
+                    query = text(
+                        f"SELECT * FROM {target_table} "
+                        "WHERE tenant_id::text IN (:t_raw, :t_slug, :t_uuid)"
+                    )
+                    result = conn.execute(
+                        query,
+                        {
+                            "t_raw": tenant_ctx["tenant_raw"],
+                            "t_slug": tenant_ctx["tenant_slug"],
+                            "t_uuid": tenant_ctx["tenant_uuid"],
+                        },
+                    )
+                    for row in result.mappings():
+                        records.append(_serialize_pg_row(dict(row)))
+                finally:
+                    reset_pg_search_path(conn)
         if records:
             logger.debug(
                 "Loaded %d rows for tenant %s from PostgreSQL %s",
@@ -73,7 +136,7 @@ def load_table_dataframe(
                 tenant_id,
                 target_table,
             )
-            return normalize_dataframe(pl.DataFrame(records), target_table)
+            return normalize_dataframe(pl.DataFrame(records, infer_schema_length=None), target_table)
     except Exception as exc:
         logger.debug("PostgreSQL query failed (%s). Checking SQLite fallback.", exc)
 

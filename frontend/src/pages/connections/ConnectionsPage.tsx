@@ -99,11 +99,7 @@ export const ConnectionsPage: React.FC = () => {
   })();
 
   const handleRequestDelete = (source: UnifiedSource) => {
-    setDeleteTarget({
-      id: source.id,
-      name: source.name,
-      type: source.category === "database" ? "connection" : "file",
-    });
+    setDeleteTarget(source);
   };
 
   const statusSummaryText = `${
@@ -209,7 +205,12 @@ export const ConnectionsPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 min-[1100px]:grid-cols-2 gap-5 mt-2 items-start">
-        <SyncJobDetails onOpenRunDetail={handleOpenRunDetail} />
+        <SyncJobDetails
+          onOpenRunDetail={handleOpenRunDetail}
+          cleanViewQuarantinedByConnection={
+            connData.cleanViewQuarantinedByConnection
+          }
+        />
         <ExecutionLogs onOpenRunDetail={handleOpenRunDetail} />
       </div>
 

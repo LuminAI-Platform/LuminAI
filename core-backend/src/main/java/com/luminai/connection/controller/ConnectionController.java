@@ -52,6 +52,7 @@ public class ConnectionController {
   private final ConnectionCleanPreviewService cleanPreviewService;
   private final ConnectionUploadService uploadService;
   private com.luminai.connection.repository.PipelineRunRepository pipelineRunRepository;
+  private com.luminai.connection.service.ConnectionSyncService connectionSyncService;
 
   @Autowired(required = false)
   private Neo4jGraphRepository neo4jGraphRepository;
@@ -115,6 +116,24 @@ public class ConnectionController {
       @Autowired(required = false) com.luminai.engine.service.DataEngineClient dataEngineClient) {
     if (this.cleanPreviewService != null && dataEngineClient != null) {
       this.cleanPreviewService.setDataEngineClient(dataEngineClient);
+    }
+  }
+
+  @Autowired
+  public void configureSyncService(
+      @Autowired(required = false)
+          com.luminai.connection.service.ConnectionSyncService connectionSyncService) {
+    this.connectionSyncService = connectionSyncService;
+  }
+
+  @Autowired
+  public void configureCacheManager(
+      @Autowired(required = false) org.springframework.cache.CacheManager cacheManager) {
+    if (this.cleanPreviewService != null && cacheManager != null) {
+      this.cleanPreviewService.setCacheManager(cacheManager);
+    }
+    if (this.uploadService != null && cacheManager != null) {
+      this.uploadService.setCacheManager(cacheManager);
     }
   }
 
@@ -330,6 +349,8 @@ public class ConnectionController {
         return ResponseEntity.ok(schemas);
       } catch (Exception e) {
         log.warn("Database schema discovery failed: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("message", "Database schema discovery failed: " + e.getMessage()));
       }
     } else if (config != null && config.containsKey("host") && postgresConnectorService != null) {
       try {

@@ -1,6 +1,8 @@
 package com.luminai.connection.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.connection.model.PipelineRun;
 import java.time.Duration;
 import java.time.Instant;

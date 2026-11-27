@@ -26,6 +26,7 @@ import {
 import { EntityCard } from "../features/explorer/components/EntityCard";
 import { FacetFilterSidebar } from "../features/explorer/components/FacetFilterSidebar";
 import { ExplorerErrorState } from "../pages/explorer/components/ExplorerSearchStates";
+import { buildApiFilterParams } from "../pages/explorer/hooks/explorerSearchHelpers";
 
 describe("Privacy Masking Utilities", () => {
   it("masks email, DOB, phone, salary, and ID fields by field name", () => {
@@ -119,6 +120,43 @@ describe("Search Query Parsing & Response Normalization", () => {
     expect(res.content[1].possibleDuplicate).toBeUndefined();
     expect(res.content[1].matchReasons).toBeUndefined();
     expect(res.insights).toBeUndefined();
+  });
+
+  it("maps insight filter tokens to boolean API params and preserves field:value filters", () => {
+    const res = buildApiFilterParams(
+      "alice duplicates:true missing:true review:true email:alice@corp.com type:Person",
+      [],
+    );
+    expect(res.apiQuery).toBe("alice email:alice@corp.com");
+    expect(res.effectiveTypes).toEqual(["Person"]);
+    expect(res.duplicates).toBe(true);
+    expect(res.missing).toBe(true);
+    expect(res.review).toBe(true);
+  });
+
+  it("normalizes boolean possibleDuplicate from backend SearchItem", () => {
+    const res = normalizeSearchResponse(
+      {
+        items: [
+          {
+            id: "dup-1",
+            canonicalName: "Bob Smith",
+            entityType: "Person",
+            possibleDuplicate: true,
+            properties: {},
+          },
+        ],
+        total: 1,
+        page: 0,
+        size: 12,
+        facets: {},
+      },
+      12,
+      0,
+    );
+    expect(res.content[0].possibleDuplicate).toEqual({
+      name: "another record",
+    });
   });
 });
 

@@ -5,9 +5,11 @@ import {
   createRoute,
   createRouter,
   redirect,
+  useRouterState,
 } from "@tanstack/react-router";
 import { AppShell } from "./components/layout/AppShell";
 import { AppShellNotFound } from "./components/layout/AppShellNotFound";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { AdminRoute, ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { LoginPage } from "./features/auth/LoginPage";
 import { CallbackPage } from "./features/auth/CallbackPage";
@@ -70,17 +72,26 @@ const sandboxRoute = createRoute({
   component: SandboxLoginPage,
 });
 
+function ShellLayout() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  return (
+    <ProtectedRoute>
+      <AppShell>
+        <ErrorBoundary resetKey={pathname}>
+          <Outlet />
+        </ErrorBoundary>
+      </AppShell>
+    </ProtectedRoute>
+  );
+}
+
 // 3. Protected Shell Route
 const shellRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "shell",
-  component: () => (
-    <ProtectedRoute>
-      <AppShell>
-        <Outlet />
-      </AppShell>
-    </ProtectedRoute>
-  ),
+  component: ShellLayout,
   notFoundComponent: AppShellNotFound,
 });
 

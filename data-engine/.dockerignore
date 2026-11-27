@@ -1,0 +1,16 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+.env.*
+!.env.example
+storage/
+tests/
+test-results.xml
+.tmp_dagster_home_*/
+*.db
+*.sqlite

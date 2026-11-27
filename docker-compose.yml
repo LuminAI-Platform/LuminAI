@@ -391,8 +391,8 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8180/realms/luminai-auth}
-      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8180/realms/luminai-auth/protocol/openid-connect/certs}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8180/realms/luminai}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8180/realms/luminai/protocol/openid-connect/certs}
       DATA_ENGINE_URL: ${DATA_ENGINE_URL:-http://data-engine:8000}
     depends_on:
       postgres:
@@ -433,6 +433,8 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - data_engine_storage:/app/storage
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/luminai}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
@@ -511,3 +513,4 @@ volumes:
   neo4j_data:
   opensearch_data:
   redis_data:
+  data_engine_storage:

@@ -29,6 +29,7 @@ from app.processing.engine.type_inference import TypeInferenceEngine
 from app.processing.pipelines.cleaning_pipeline.helpers import (
     _parse_currency_string,
 )
+from app.processing.schema_detector.models import EMAIL_REGEX
 from app.telemetry import trace_span
 
 logger = logging.getLogger(__name__)
@@ -111,10 +112,10 @@ def clean_records(
                         cleaned_vals.append(s_val)
                     continue
 
-                # Check if Name column
+                # Check if Name column (preserve NameStandardizer smart casing such as McDonald, O'Connor, van der Beek)
                 if col_lower in ("name", "fullname", "patientname", "customername", "personname", "contactname"):
                     n_res = NameStandardizer.standardize_name(s_val)
-                    cleaned_vals.append(n_res.normalized_name.title() if n_res.normalized_name else s_val.title())
+                    cleaned_vals.append(n_res.normalized_name if n_res.normalized_name else NameStandardizer.to_title_case_smart(s_val))
                     continue
 
                 # Check if Email column
@@ -159,12 +160,9 @@ def clean_records(
                     else:
                         parsed = _parse_currency_string(s_val)
                         if parsed and parsed.get("amount") is not None:
-                            try:
-                                cleaned_vals.append(float(parsed["amount"]))
-                            except (ValueError, TypeError):
-                                cleaned_vals.append(0.0)
+                            cleaned_vals.append(float(parsed["amount"]))
                         else:
-                            cleaned_vals.append(0.0)
+                            cleaned_vals.append(None)
                     continue
 
                 cleaned_vals.append(s_val)
@@ -173,16 +171,16 @@ def clean_records(
 
         df = pl.DataFrame(cleaned_columns)
 
-        # Handle currency splitting if salary was present and needs amount/currency columns for backward compatibility
+        # Handle currency splitting if salary was present and needs amount/currency columns cleanly without inventing $0/USD
         if "salary" in raw_df.columns:
             if "salary_amount" not in df.columns:
                 parsed_salaries = [
-                    _parse_currency_string(str(x)) if x is not None else {"amount": 0.0, "currency": "USD"}
+                    _parse_currency_string(x) if not type_engine.is_null_value(x) else {"amount": None, "currency": None}
                     for x in raw_df["salary"].to_list()
                 ]
                 df = df.with_columns([
-                    pl.Series("salary_amount", [p["amount"] for p in parsed_salaries]),
-                    pl.Series("salary_currency", [p["currency"] for p in parsed_salaries]),
+                    pl.Series("salary_amount", [p["amount"] for p in parsed_salaries], dtype=pl.Float64),
+                    pl.Series("salary_currency", [p["currency"] for p in parsed_salaries], dtype=pl.Utf8),
                 ])
                 if "salary" in df.columns:
                     df = df.drop("salary")
@@ -267,14 +265,14 @@ def validate_and_quarantine_records(
                 is_row_valid = False
                 fail_reasons.append(f"Missing mandatory name in '{name_col}'")
 
-        # 3. Email check
+        # 3. Email check (RFC pattern matching instead of substring '@')
         if email_col:
             email_val = row_dict.get(email_col)
             if email_val and not TypeInferenceEngine.is_null_value(email_val):
                 s_email = str(email_val).strip()
-                if "@" not in s_email:
+                if not EMAIL_REGEX.match(s_email):
                     is_row_valid = False
-                    fail_reasons.append(f"Invalid email format (missing '@') in '{email_col}'")
+                    fail_reasons.append(f"Invalid email format in '{email_col}': '{s_email}'")
 
         # 4. Date validity check
         for d_col in date_cols:

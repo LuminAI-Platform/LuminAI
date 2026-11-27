@@ -38,6 +38,49 @@ def test_minio_sigv4_headers():
     assert headers["Host"] == "localhost:9000"
 
 
+def test_minio_sigv4_headers_separates_query_string():
+    """Verify SigV4 CanonicalURI and CanonicalQueryString handle multipart and subresource params."""
+    import hashlib
+    import hmac
+
+    client = MinioRawStorageClient(
+        endpoint="s3.eu-central-1.amazonaws.com",
+        access_key="AKIATEST",
+        secret_key="SECRETTEST",
+        secure=True,
+        region="eu-central-1",
+    )
+
+    h_uploads = client._build_sigv4_headers("POST", "/my-bucket/file.csv?uploads")
+    h_part = client._build_sigv4_headers(
+        "PUT", "/my-bucket/file.csv?uploadId=abc+1&partNumber=2"
+    )
+    assert "Authorization" in h_uploads and "Authorization" in h_part
+
+    # Verify the signature on ?partNumber=2&uploadId=abc+1 was computed with sorted CanonicalQueryString
+    amz_date = h_part["x-amz-date"]
+    date_stamp = amz_date[:8]
+    payload_hash = h_part["x-amz-content-sha256"]
+    expected_canonical = (
+        f"PUT\n/my-bucket/file.csv\npartNumber=2&uploadId=abc%201\n"
+        f"host:s3.eu-central-1.amazonaws.com\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n\n"
+        f"host;x-amz-content-sha256;x-amz-date\n{payload_hash}"
+    )
+    scope = f"{date_stamp}/eu-central-1/s3/aws4_request"
+    string_to_sign = (
+        f"AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n"
+        f"{hashlib.sha256(expected_canonical.encode('utf-8')).hexdigest()}"
+    )
+    k_date = hmac.new(b"AWS4SECRETTEST", date_stamp.encode("utf-8"), hashlib.sha256).digest()
+    k_region = hmac.new(k_date, b"eu-central-1", hashlib.sha256).digest()
+    k_service = hmac.new(k_region, b"s3", hashlib.sha256).digest()
+    k_signing = hmac.new(k_service, b"aws4_request", hashlib.sha256).digest()
+    expected_sig = hmac.new(
+        k_signing, string_to_sign.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+    assert h_part["Authorization"].endswith(f"Signature={expected_sig}")
+
+
 def test_put_and_get_local_fallback(temp_storage):
     """Verify object bytes are persisted and retrievable via local filesystem fallback."""
     client = MinioRawStorageClient(local_fallback_dir=temp_storage)

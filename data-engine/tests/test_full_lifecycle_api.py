@@ -7,12 +7,24 @@ from app.main import app
 from app.security import get_current_identity, AuthIdentity
 
 
-# Override authentication for automated tests
+# Override authentication only for this module's tests and restore afterwards
 def mock_identity():
     return AuthIdentity(user_id="test_user", username="test", tenant_id="acme", roles=["ANALYST", "DATA_ENGINEER"])
 
 
-app.dependency_overrides[get_current_identity] = mock_identity
+@pytest.fixture(scope="module", autouse=True)
+def _override_identity_for_lifecycle_module():
+    previous = app.dependency_overrides.get(get_current_identity)
+    app.dependency_overrides[get_current_identity] = mock_identity
+    try:
+        yield
+    finally:
+        if previous is None:
+            app.dependency_overrides.pop(get_current_identity, None)
+        else:
+            app.dependency_overrides[get_current_identity] = previous
+
+
 client = TestClient(app)
 
 

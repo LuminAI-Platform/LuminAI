@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, status
-import polars as pl
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.processing.engine.dataframe_utils import records_to_polars_df
 from app.processing.engine.eda_engine import EdaEngine
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter(prefix="/analytics/eda", tags=["eda-analytics"])
 
@@ -19,8 +20,12 @@ class EdaRequest(BaseModel):
 
 
 @router.post("/report", summary="Generate comprehensive Exploratory Data Analysis report")
-async def generate_eda_report_endpoint(request: EdaRequest) -> Dict[str, Any]:
+def generate_eda_report_endpoint(
+    request: EdaRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> Dict[str, Any]:
     """Generates overview, numerical stats, categorical distributions, correlation matrix, and outliers."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     if not request.records:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -28,9 +33,9 @@ async def generate_eda_report_endpoint(request: EdaRequest) -> Dict[str, Any]:
         )
 
     try:
-        df = pl.DataFrame(request.records)
+        df = records_to_polars_df(request.records)
         report = EdaEngine.generate_eda_report(df)
-        report["tenant_id"] = request.tenant_id
+        report["tenant_id"] = effective_tenant
         report["dataset_name"] = request.dataset_name
         return report
     except Exception as exc:

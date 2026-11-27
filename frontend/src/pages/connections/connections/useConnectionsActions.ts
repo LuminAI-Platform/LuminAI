@@ -1,10 +1,38 @@
-import { useState } from "react";
-import { apiFetch } from "../../../lib/api";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { apiFetch, ApiError, ApiTimeoutError } from "../../../lib/api";
 import type { IngestedFile, CleanDataResponse } from "./connectionsTypes";
 import { useConnectionsSourceOps } from "./useConnectionsSourceOps";
 
+export const CLEAN_PREVIEW_TIMEOUT_MS = 120_000;
+
 interface UseConnectionsActionsProps {
   loadConnectors: (isInitial?: boolean) => Promise<void>;
+}
+
+async function extractCleanPreviewError(err: unknown): Promise<string> {
+  if (err instanceof ApiTimeoutError) {
+    return `Loading clean records timed out after ${Math.round(err.timeoutMs / 1000)}s. The Data Engine may still be processing this dataset — please retry.`;
+  }
+  if (err instanceof ApiError) {
+    try {
+      const body = (await err.response.clone().json()) as {
+        message?: string;
+        error?: string;
+      };
+      const detail = body.message || body.error;
+      if (detail) return detail;
+    } catch {
+      // Response body was not JSON
+    }
+    if (err.status === 503 || err.status === 504) {
+      return `Data Engine is temporarily unavailable (HTTP ${err.status}). Please retry in a moment.`;
+    }
+    return `Failed to load clean records (HTTP ${err.status}).`;
+  }
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  return "Failed to load clean records for this dataset.";
 }
 
 export function useConnectionsActions({
@@ -18,10 +46,32 @@ export function useConnectionsActions({
     null,
   );
   const [cleanData, setCleanData] = useState<CleanDataResponse | null>(null);
+  const [
+    cleanViewQuarantinedByConnection,
+    setCleanViewQuarantinedByConnection,
+  ] = useState<Record<string, number>>({});
+  const [cleanDataError, setCleanDataError] = useState<string | null>(null);
   const [isCleanDataLoading, setIsCleanDataLoading] = useState(false);
   const [cleanSearchFilter, setCleanSearchFilter] = useState("");
+  const cleanPreviewAbortRef = useRef<AbortController | null>(null);
 
   const sourceOps = useConnectionsSourceOps({ loadConnectors });
+
+  useEffect(() => {
+    return () => {
+      cleanPreviewAbortRef.current?.abort();
+      cleanPreviewAbortRef.current = null;
+    };
+  }, []);
+
+  const closeCleanPreview = useCallback(() => {
+    cleanPreviewAbortRef.current?.abort();
+    cleanPreviewAbortRef.current = null;
+    setCleanPreviewFile(null);
+    setCleanData(null);
+    setCleanDataError(null);
+    setIsCleanDataLoading(false);
+  }, []);
 
   const handleOpenRawPreview = async (file: IngestedFile) => {
     setPreviewingFile(file);
@@ -69,31 +119,57 @@ export function useConnectionsActions({
     }
   };
 
-  const handleInspectCleanData = async (file: IngestedFile) => {
+  const handleInspectCleanData = useCallback(async (file: IngestedFile) => {
+    cleanPreviewAbortRef.current?.abort();
+    const controller = new AbortController();
+    cleanPreviewAbortRef.current = controller;
+
     setCleanPreviewFile(file);
     setIsCleanDataLoading(true);
     setCleanData(null);
+    setCleanDataError(null);
     setCleanSearchFilter("");
 
     try {
       const res = await apiFetch(
         `/api/v1/connections/${file.id}/clean-preview`,
         {
-          headers: { "X-Suppress-Toast": "true" },
+          timeoutMs: CLEAN_PREVIEW_TIMEOUT_MS,
+          signal: controller.signal,
         },
       );
-      if (res.ok) {
-        const data = await res.json();
-        setCleanData(data);
-      } else {
-        setCleanData(null);
+      if (controller.signal.aborted) return;
+      const data = (await res.json()) as CleanDataResponse;
+      if (controller.signal.aborted) return;
+      setCleanData(data);
+      if (typeof data.rejectedRecords === "number") {
+        setCleanViewQuarantinedByConnection((prev) => ({
+          ...prev,
+          [file.id]: data.rejectedRecords!,
+        }));
       }
-    } catch {
+    } catch (err: unknown) {
+      const isUserAbort =
+        controller.signal.aborted ||
+        (err instanceof DOMException && err.name === "AbortError");
+      if (isUserAbort) return;
+
+      const msg = await extractCleanPreviewError(err);
+      if (controller.signal.aborted) return;
       setCleanData(null);
+      setCleanDataError(msg);
     } finally {
-      setIsCleanDataLoading(false);
+      if (cleanPreviewAbortRef.current === controller) {
+        setIsCleanDataLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const retryCleanData = useCallback(() => {
+    if (cleanPreviewFile) {
+      void handleInspectCleanData(cleanPreviewFile);
+    }
+  }, [cleanPreviewFile, handleInspectCleanData]);
 
   return {
     previewingFile,
@@ -101,12 +177,16 @@ export function useConnectionsActions({
     isRawPreviewLoading,
     cleanPreviewFile,
     setCleanPreviewFile,
+    closeCleanPreview,
     cleanData,
+    cleanViewQuarantinedByConnection,
+    cleanDataError,
     isCleanDataLoading,
     cleanSearchFilter,
     setCleanSearchFilter,
     handleOpenRawPreview,
     handleInspectCleanData,
+    retryCleanData,
     ...sourceOps,
   };
 }

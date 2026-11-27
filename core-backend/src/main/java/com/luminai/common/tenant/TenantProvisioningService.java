@@ -39,7 +39,14 @@ public class TenantProvisioningService {
           "golden_records_source_ids",
           "golden_records_provenance",
           "er_candidates",
-          "provenance");
+          "provenance",
+          "datasets",
+          "dataset_versions",
+          "pipeline_definitions",
+          "data_quality_rules",
+          "dataset_lineage",
+          "saved_queries",
+          "ml_models");
 
   private final DataSource dataSource;
 
@@ -123,7 +130,7 @@ public class TenantProvisioningService {
       String sql =
           String.format(
               "CREATE TABLE IF NOT EXISTS %s.%s (LIKE %s.%s INCLUDING ALL)",
-              sanitize(schemaName), sanitize(table), TEMPLATE_SCHEMA, sanitize(table));
+              sanitize(schemaName), sanitize(table), sanitize(TEMPLATE_SCHEMA), sanitize(table));
       try (var stmt = conn.createStatement()) {
         stmt.execute(sql);
       }
@@ -313,7 +320,7 @@ public class TenantProvisioningService {
     if (identifier == null || !identifier.matches("[a-zA-Z0-9_-]+")) {
       throw new IllegalArgumentException("Invalid SQL identifier: " + identifier);
     }
-    return identifier;
+    return "\"" + identifier + "\"";
   }
 
   /** Runtime exception indicating a tenant provisioning failure. */

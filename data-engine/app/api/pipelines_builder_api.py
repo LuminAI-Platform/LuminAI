@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 import polars as pl
 from pydantic import BaseModel, Field
 
+from app.processing.engine.dataframe_utils import records_to_polars_df
 from app.processing.engine.pipeline_builder import (
     PipelineBuilderEngine,
     TransformationStep,
 )
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter(prefix="/analytics/pipelines", tags=["pipeline-builder"])
 
@@ -35,8 +37,12 @@ class PipelineExecuteRequest(BaseModel):
 
 
 @router.post("/execute", summary="Execute multi-step transformation pipeline and produce curated dataset")
-async def execute_pipeline(request: PipelineExecuteRequest) -> Dict[str, Any]:
+def execute_pipeline(
+    request: PipelineExecuteRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> Dict[str, Any]:
     """Applies transformation DAG pipeline and returns curated output dataset with execution report."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     if not request.records:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -44,11 +50,11 @@ async def execute_pipeline(request: PipelineExecuteRequest) -> Dict[str, Any]:
         )
 
     try:
-        input_df = pl.DataFrame(request.records)
+        input_df = records_to_polars_df(request.records)
         sec_dfs: Dict[str, pl.DataFrame] = {}
         if request.secondary_datasets:
             for k, rows in request.secondary_datasets.items():
-                sec_dfs[k] = pl.DataFrame(rows)
+                sec_dfs[k] = records_to_polars_df(rows)
 
         steps = [
             TransformationStep(
@@ -70,7 +76,7 @@ async def execute_pipeline(request: PipelineExecuteRequest) -> Dict[str, Any]:
         return {
             "pipeline_id": report.pipeline_id,
             "run_id": report.run_id,
-            "tenant_id": request.tenant_id,
+            "tenant_id": effective_tenant,
             "curated_dataset_name": request.dataset_name,
             "total_input_rows": report.total_input_rows,
             "total_output_rows": report.total_output_rows,

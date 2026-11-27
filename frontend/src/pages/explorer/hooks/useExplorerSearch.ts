@@ -118,10 +118,8 @@ export function useExplorerSearch(
       }
 
       try {
-        const { apiQuery, effectiveTypes } = buildApiFilterParams(
-          searchQuery,
-          types,
-        );
+        const { apiQuery, effectiveTypes, duplicates, missing, review } =
+          buildApiFilterParams(searchQuery, types);
         const { sortBy, sortDirection } = mapSortToApiParams(sort);
 
         const params = new URLSearchParams();
@@ -130,6 +128,10 @@ export function useExplorerSearch(
         params.set("size", size.toString());
         params.set("sortBy", sortBy);
         params.set("sortDirection", sortDirection);
+
+        if (duplicates) params.set("duplicates", "true");
+        if (missing) params.set("missing", "true");
+        if (review) params.set("review", "true");
 
         effectiveTypes.forEach((t) => params.append("entityType", t));
 

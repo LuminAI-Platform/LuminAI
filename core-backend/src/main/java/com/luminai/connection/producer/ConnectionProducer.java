@@ -1,7 +1,5 @@
 package com.luminai.connection.producer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -41,12 +39,9 @@ public class ConnectionProducer {
   static final String TOPIC = "ingest.raw";
 
   private final KafkaTemplate<String, Object> kafkaTemplate;
-  private final ObjectMapper objectMapper;
 
-  public ConnectionProducer(
-      KafkaTemplate<String, Object> kafkaTemplate, ObjectMapper objectMapper) {
+  public ConnectionProducer(KafkaTemplate<String, Object> kafkaTemplate) {
     this.kafkaTemplate = kafkaTemplate;
-    this.objectMapper = objectMapper;
   }
 
   /**
@@ -81,6 +76,20 @@ public class ConnectionProducer {
       List<Map<String, Object>> rows,
       boolean batchComplete,
       String objectKey) {
+    int inferredTotal = rows != null ? rows.size() : 0;
+    publishRows(
+        tenantId, connectionId, source, rows, batchComplete, objectKey, inferredTotal, null);
+  }
+
+  public void publishRows(
+      UUID tenantId,
+      UUID connectionId,
+      String source,
+      List<Map<String, Object>> rows,
+      boolean batchComplete,
+      String objectKey,
+      int actualTotalRows,
+      Long fileSizeBytes) {
 
     publishRows(tenantId, connectionId, source, rows, batchComplete, objectKey, Map.of());
   }
@@ -101,7 +110,7 @@ public class ConnectionProducer {
       return;
     }
 
-    int rowCount = rows != null ? rows.size() : 0;
+    int rowCount = Math.max(actualTotalRows, rows != null ? rows.size() : 0);
     List<Map<String, Object>> safeRows = rows != null ? rows : List.of();
 
     IngestEvent event =
@@ -117,11 +126,13 @@ public class ConnectionProducer {
             objectKey,
             batchMetadata != null ? batchMetadata : Map.of());
 
-    String payload = serialize(event);
     String messageKey = tenantId.toString();
 
+    // Pass the event object directly — KafkaTemplate<String, Object> with JsonSerializer
+    // will serialize it once. Serializing to String here caused double-encode: the JSON
+    // string would be re-serialized as a quoted JSON string literal, breaking consumers.
     kafkaTemplate
-        .send(TOPIC, messageKey, payload)
+        .send(TOPIC, messageKey, event)
         .whenComplete(
             (result, ex) -> {
               if (ex != null) {
@@ -218,6 +229,29 @@ public class ConnectionProducer {
         String ingestedAt,
         int totalRows,
         List<Map<String, Object>> rows,
+        boolean batchComplete,
+        String objectKey) {
+      this(
+          eventId,
+          tenantId,
+          connectionId,
+          source,
+          ingestedAt,
+          totalRows,
+          rows,
+          batchComplete,
+          objectKey,
+          null);
+    }
+
+    public IngestEvent(
+        String eventId,
+        String tenantId,
+        String connectionId,
+        String source,
+        String ingestedAt,
+        int totalRows,
+        List<Map<String, Object>> rows,
         boolean batchComplete) {
       this(
           eventId,
@@ -228,6 +262,7 @@ public class ConnectionProducer {
           totalRows,
           rows,
           batchComplete,
+          null,
           null);
     }
 
@@ -239,19 +274,7 @@ public class ConnectionProducer {
         String ingestedAt,
         int totalRows,
         List<Map<String, Object>> rows) {
-      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
-  private String serialize(IngestEvent event) {
-    try {
-      return objectMapper.writeValueAsString(event);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to serialize IngestEvent to JSON: " + e.getMessage(), e);
+      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null, null);
     }
   }
 }
