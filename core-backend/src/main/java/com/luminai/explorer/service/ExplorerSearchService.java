@@ -7,7 +7,6 @@ import com.luminai.connection.model.GoldenRecord;
 import com.luminai.connection.model.ProvenanceEntry;
 import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.explorer.dto.EntityDetailDto;
-import com.luminai.explorer.dto.MatchReasonDto;
 import com.luminai.explorer.dto.ProvenanceItem;
 import com.luminai.explorer.dto.SearchResponseDto;
 import java.util.*;
