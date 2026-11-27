@@ -89,17 +89,39 @@ def merge_cluster_to_golden_record(
             seed = f"{tenant_id}:{_json.dumps(cluster_records, sort_keys=True, default=str)}"
         golden_id = f"gr-{uuid.uuid5(uuid.NAMESPACE_DNS, seed)}"
 
+    entity_type_hint = (
+        cluster_records[0].get("_entity_type")
+        or cluster_records[0].get("entity_type")
+        or cluster_records[0].get("entityType")
+    )
     engine = GoldenRecordEngine()
     gr_output = engine.build_golden_record(
         cluster_records=cluster_records,
         tenant_id=tenant_id,
         golden_id=golden_id,
+        entity_type=str(entity_type_hint) if entity_type_hint else None,
+    )
+
+    source_names = sorted(
+        {
+            str(r.get("_source_name") or r.get("source_name") or r.get("_table") or "").strip()
+            for r in cluster_records
+            if str(r.get("_source_name") or r.get("source_name") or r.get("_table") or "").strip()
+        }
+    )
+    connection_ids = sorted(
+        {
+            str(r.get("_connection_id") or r.get("source_id") or "").strip()
+            for r in cluster_records
+            if str(r.get("_connection_id") or r.get("source_id") or "").strip()
+        }
     )
 
     # Return dictionary with canonical attributes and audit metadata
-    return {
+    res = {
         "golden_id": gr_output.golden_id,
         "tenant_id": gr_output.tenant_id,
+        "entity_type": gr_output.entity_type,
         "version": gr_output.version,
         "cluster_size": gr_output.cluster_size,
         "source_record_ids": gr_output.source_record_ids,
@@ -113,6 +135,12 @@ def merge_cluster_to_golden_record(
         "_conflicts": gr_output.conflicts,
         **gr_output.attributes,
     }
+    if source_names:
+        res["_source_name"] = source_names[0]
+        res["_source_systems"] = source_names
+    if connection_ids:
+        res["_connection_id"] = connection_ids[0]
+    return res
 
 
 def as_dict_safe(obj: Any) -> Any:

@@ -3,8 +3,10 @@ package com.luminai.explorer.service;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
 import com.luminai.config.CacheConfig;
+import com.luminai.connection.model.Connection;
 import com.luminai.connection.model.GoldenRecord;
 import com.luminai.connection.model.ProvenanceEntry;
+import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.explorer.dto.EntityDetailDto;
 import com.luminai.explorer.dto.MatchReasonDto;
@@ -13,6 +15,7 @@ import com.luminai.explorer.dto.SearchResponseDto;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,10 +40,18 @@ public class ExplorerSearchService {
   private final GoldenRecordRepository goldenRecordRepository;
   private final JwtClaimsExtractor claimsExtractor;
 
+  @Autowired(required = false)
+  private ConnectionRepository connectionRepository;
+
+  @Autowired
   public ExplorerSearchService(
       GoldenRecordRepository goldenRecordRepository, JwtClaimsExtractor claimsExtractor) {
     this.goldenRecordRepository = goldenRecordRepository;
     this.claimsExtractor = claimsExtractor;
+  }
+
+  public void setConnectionRepository(ConnectionRepository connectionRepository) {
+    this.connectionRepository = connectionRepository;
   }
 
   /** Performs full-text search and facet aggregations without insight flags. */
@@ -175,12 +186,21 @@ public class ExplorerSearchService {
 
     if (dbPage != null) {
       List<SearchResponseDto.SearchItem> items = new ArrayList<>();
+      Map<String, Long> sourceFacets = new LinkedHashMap<>();
       String qLower = cleanQuery.toLowerCase();
       for (GoldenRecord gr : dbPage.getContent()) {
         RecordMetrics metrics = computeMetrics(gr);
-        items.add(toSearchItem(gr, qLower, metrics, true));
+        SearchResponseDto.SearchItem item = toSearchItem(gr, qLower, metrics, true);
+        items.add(item);
+        for (String src : item.sourceSystems()) {
+          sourceFacets.put(src, sourceFacets.getOrDefault(src, 0L) + 1);
+        }
       }
-      Map<String, Map<String, Long>> facets = Map.of("entityTypes", typeFacets);
+      Map<String, Map<String, Long>> facets = new LinkedHashMap<>();
+      facets.put("entityTypes", typeFacets);
+      if (!sourceFacets.isEmpty()) {
+        facets.put("sourceSystems", sourceFacets);
+      }
       return new SearchResponseDto.Response(
           items, (int) dbPage.getTotalElements(), safePage, safeSize, facets);
     }
@@ -241,7 +261,19 @@ public class ExplorerSearchService {
     List<SearchResponseDto.SearchItem> pagedItems =
         new ArrayList<>(matchingItems.subList(fromIndex, toIndex));
 
-    Map<String, Map<String, Long>> facets = Map.of("entityTypes", typeFacets);
+    Map<String, Long> sourceFacets = new LinkedHashMap<>();
+    for (SearchResponseDto.SearchItem item : matchingItems) {
+      if (item.sourceSystems() != null) {
+        for (String src : item.sourceSystems()) {
+          sourceFacets.put(src, sourceFacets.getOrDefault(src, 0L) + 1);
+        }
+      }
+    }
+    Map<String, Map<String, Long>> facets = new LinkedHashMap<>();
+    facets.put("entityTypes", typeFacets);
+    if (!sourceFacets.isEmpty()) {
+      facets.put("sourceSystems", sourceFacets);
+    }
 
     return new SearchResponseDto.Response(pagedItems, total, safePage, safeSize, facets);
   }
@@ -312,14 +344,75 @@ public class ExplorerSearchService {
   }
 
   private RecordMetrics computeMetrics(GoldenRecord gr) {
-    Map<String, Object> props = gr.getProperties() != null ? gr.getProperties() : Map.of();
+    Map<String, Object> rawProps = gr.getProperties() != null ? gr.getProperties() : Map.of();
+    Map<String, Object> displayProps = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : rawProps.entrySet()) {
+      String key = entry.getKey();
+      if (key != null && !key.startsWith("_")) {
+        displayProps.put(key, entry.getValue());
+      }
+    }
+
     double conf = gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0;
     int sourceIdsSize = gr.getSourceRecordIds() != null ? gr.getSourceRecordIds().size() : 0;
-    int sources = Math.max(1, Math.max(gr.getSourceCount(), sourceIdsSize));
-    double comp = Math.min(100.0, 60.0 + (props.size() * 8.0));
-    double qual = conf <= 1.0 ? conf * 100.0 : conf;
+    int metaSourceIdsSize = 0;
+    if (rawProps.get("_source_record_ids") instanceof Collection<?> col) {
+      metaSourceIdsSize = col.size();
+    }
+    int sources =
+        Math.max(1, Math.max(gr.getSourceCount(), Math.max(sourceIdsSize, metaSourceIdsSize)));
+    double comp = Math.min(100.0, 60.0 + (displayProps.size() * 8.0));
+    double qual;
+    if (rawProps.get("_quality_score") instanceof Number qn) {
+      double qv = qn.doubleValue();
+      qual = qv <= 1.0 ? qv * 100.0 : qv;
+    } else {
+      qual = conf <= 1.0 ? conf * 100.0 : conf;
+    }
     boolean isDup = conf < 0.85 || sources > 1;
-    return new RecordMetrics(props, conf, sources, comp, qual, isDup);
+    List<String> sourceSystems = extractSourceSystems(gr, rawProps);
+    return new RecordMetrics(displayProps, conf, sources, comp, qual, isDup, sourceSystems);
+  }
+
+  private List<String> extractSourceSystems(GoldenRecord gr, Map<String, Object> rawProps) {
+    Set<String> sources = new LinkedHashSet<>();
+    if (rawProps != null) {
+      Object srcList = rawProps.get("_source_systems");
+      if (srcList instanceof Collection<?> col) {
+        for (Object item : col) {
+          if (item != null && !String.valueOf(item).isBlank()) {
+            sources.add(String.valueOf(item).trim());
+          }
+        }
+      }
+      for (String key :
+          List.of("_source_name", "_connection_name", "source_name", "source_system", "_table")) {
+        Object val = rawProps.get(key);
+        if (val != null) {
+          String s = String.valueOf(val).trim();
+          if (!s.isEmpty() && !"null".equalsIgnoreCase(s)) {
+            sources.add(s);
+          }
+        }
+      }
+      if (sources.isEmpty()
+          && rawProps.get("_connection_id") != null
+          && connectionRepository != null) {
+        try {
+          UUID connId = UUID.fromString(String.valueOf(rawProps.get("_connection_id")).trim());
+          Optional<Connection> connOpt =
+              gr.getTenantId() != null
+                  ? connectionRepository.findByIdAndTenantId(connId, gr.getTenantId())
+                  : connectionRepository.findById(connId);
+          connOpt
+              .map(Connection::getName)
+              .filter(n -> n != null && !n.isBlank())
+              .ifPresent(sources::add);
+        } catch (Exception ignored) {
+        }
+      }
+    }
+    return new ArrayList<>(sources);
   }
 
   private SearchResponseDto.SearchItem toSearchItem(
@@ -357,7 +450,7 @@ public class ExplorerSearchService {
           metrics.quality(),
           metrics.possibleDuplicate(),
           List.of(),
-          List.of());
+          metrics.sourceSystems());
     }
 
     return new SearchResponseDto.SearchItem(
@@ -374,7 +467,7 @@ public class ExplorerSearchService {
         metrics.quality(),
         metrics.possibleDuplicate(),
         buildMatchReasons(gr, metrics.confidence(), metrics.sources()),
-        List.of());
+        metrics.sourceSystems());
   }
 
   private record RecordMetrics(
@@ -383,7 +476,8 @@ public class ExplorerSearchService {
       int sources,
       double completeness,
       double quality,
-      boolean possibleDuplicate) {}
+      boolean possibleDuplicate,
+      List<String> sourceSystems) {}
 
   /** Retrieves full details of a specific Golden Record by ID. */
   @Transactional(readOnly = true)
@@ -399,6 +493,9 @@ public class ExplorerSearchService {
 
     String canonicalName = extractCanonicalName(gr);
     String entityType = extractEntityType(gr);
+    RecordMetrics metrics = computeMetrics(gr);
+    String resolvedSourceName =
+        metrics.sourceSystems().isEmpty() ? null : metrics.sourceSystems().get(0);
 
     double entityConfidence =
         gr.getConfidenceScore() != null ? gr.getConfidenceScore().doubleValue() : 1.0;
@@ -408,12 +505,12 @@ public class ExplorerSearchService {
       String provConfidence =
           (entityConfidence >= 0.85) ? "high" : (entityConfidence >= 0.65) ? "medium" : "low";
       for (ProvenanceEntry pe : gr.getProvenance()) {
-        Object val = gr.getProperties() != null ? gr.getProperties().get(pe.getFieldName()) : null;
+        Object val = pe.getFieldName() != null ? metrics.props().get(pe.getFieldName()) : null;
         provenanceItems.add(
             new ProvenanceItem(
                 pe.getFieldName(),
                 pe.getSourceRecordId(),
-                "Data Ingestion",
+                resolvedSourceName,
                 val,
                 pe.getAction(),
                 pe.getOccurredAt(),
@@ -421,7 +518,6 @@ public class ExplorerSearchService {
       }
     }
 
-    RecordMetrics metrics = computeMetrics(gr);
     Set<UUID> sourceRecordIds =
         gr.getSourceRecordIds() != null
             ? new LinkedHashSet<>(gr.getSourceRecordIds())
@@ -572,7 +668,11 @@ public class ExplorerSearchService {
     Set<String> propertyKeys = new LinkedHashSet<>();
     for (GoldenRecord gr : records) {
       if (gr.getProperties() != null) {
-        propertyKeys.addAll(gr.getProperties().keySet());
+        for (String key : gr.getProperties().keySet()) {
+          if (key != null && !key.startsWith("_")) {
+            propertyKeys.add(key);
+          }
+        }
       }
     }
 

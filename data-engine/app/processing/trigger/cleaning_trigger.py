@@ -75,6 +75,20 @@ def execute_cleaning_pipeline(
         or batch_metadata.get("entityType")
         or batch_metadata.get("targetEntityType")
     )
+    source_name = (
+        batch_metadata.get("source")
+        or batch_metadata.get("fileName")
+        or batch_metadata.get("connectorName")
+        or batch_metadata.get("source_name")
+    )
+    connection_id = (
+        batch_metadata.get("connectionId")
+        or batch_metadata.get("connection_id")
+        or source_id
+    )
+
+    inline_rows = batch_metadata.get("rows")
+    has_inline_rows = isinstance(inline_rows, list) and len(inline_rows) > 0
 
     tags: dict[str, str] = {
         "tenant_id": str(tenant_id),
@@ -84,10 +98,36 @@ def execute_cleaning_pipeline(
     }
     if entity_type:
         tags["entity_type"] = str(entity_type)
+    if source_name:
+        tags["source_name"] = str(source_name)
+    if connection_id:
+        tags["connection_id"] = str(connection_id)
     if object_key:
         tags["object_key"] = str(object_key)
     if bucket:
         tags["bucket"] = str(bucket)
+    if has_inline_rows:
+        try:
+            import pandas as pd
+            import polars as pl
+            from app.processing.checkpoint import get_checkpoint_manager
+            from app.processing.engine.dataframe_utils import records_to_polars_df
+
+            try:
+                inline_df = records_to_polars_df(inline_rows)
+            except Exception:
+                inline_df = pl.from_pandas(pd.DataFrame(inline_rows))
+            if inline_df.height > 0:
+                get_checkpoint_manager().save_checkpoint(
+                    active_run_id, "inline_ingestion_data", inline_df
+                )
+                tags["inline_checkpoint_run_id"] = str(active_run_id)
+        except Exception as inline_exc:
+            logger.warning(
+                "⚠️ Could not stage inline rows checkpoint for run %s: %s",
+                active_run_id,
+                inline_exc,
+            )
 
     settings = get_settings()
     raw_total_rows = batch_metadata.get("total_rows") or batch_metadata.get("totalRows")

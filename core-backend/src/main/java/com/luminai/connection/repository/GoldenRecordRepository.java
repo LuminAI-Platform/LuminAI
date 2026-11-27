@@ -6,9 +6,11 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Access to {@link GoldenRecord}. Supports paginated searching, property filtering, and facet
@@ -60,4 +62,31 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
 
   @Query("select g.createdAt from GoldenRecord g where g.createdAt >= :start")
   List<java.time.Instant> findCreatedAtSince(@Param("start") java.time.Instant start);
+
+  @Query(
+      value =
+          "SELECT * FROM golden_records WHERE tenant_id = :tenantId AND properties->>'_connection_id' = :connectionId",
+      nativeQuery = true)
+  List<GoldenRecord> findByTenantIdAndConnectionId(
+      @Param("tenantId") UUID tenantId, @Param("connectionId") String connectionId);
+
+  @Modifying
+  @Transactional
+  @Query(
+      value =
+          "DELETE FROM golden_records WHERE tenant_id = :tenantId AND properties->>'_connection_id' = :connectionId",
+      nativeQuery = true)
+  int deleteByTenantIdAndConnectionId(
+      @Param("tenantId") UUID tenantId, @Param("connectionId") String connectionId);
+
+  @Modifying
+  @Transactional
+  @Query(
+      value =
+          "UPDATE golden_records SET entity_type = :entityType WHERE tenant_id = :tenantId AND properties->>'_connection_id' = :connectionId",
+      nativeQuery = true)
+  int updateEntityTypeByConnectionId(
+      @Param("tenantId") UUID tenantId,
+      @Param("connectionId") String connectionId,
+      @Param("entityType") String entityType);
 }

@@ -28,6 +28,12 @@ public final class ConnectionFileParser {
   public record StreamingParseResult(
       List<String> columns, List<Map<String, Object>> sampleRows, int totalRecords) {}
 
+  public record ExtendedStreamingParseResult(
+      List<String> columns,
+      List<Map<String, Object>> sampleRows,
+      List<Map<String, Object>> persistRows,
+      int totalRecords) {}
+
   public static List<String> parseCsvLine(String line) {
     List<String> tokens = new ArrayList<>();
     StringBuilder sb = new StringBuilder();
@@ -97,10 +103,20 @@ public final class ConnectionFileParser {
   }
 
   public static StreamingParseResult parseFileStream(MultipartFile file, int maxSampleRows) {
+    ExtendedStreamingParseResult extended =
+        parseFileStreamExtended(file, maxSampleRows, maxSampleRows);
+    return new StreamingParseResult(
+        extended.columns(), extended.sampleRows(), extended.totalRecords());
+  }
+
+  public static ExtendedStreamingParseResult parseFileStreamExtended(
+      MultipartFile file, int maxSampleRows, int maxPersistRows) {
     String filename = file.getOriginalFilename();
     String lower = filename != null ? filename.toLowerCase() : "";
     List<String> columns = new ArrayList<>();
     List<Map<String, Object>> sampleRows = new ArrayList<>();
+    List<Map<String, Object>> persistRows = new ArrayList<>();
+    int rowCap = Math.max(maxSampleRows, maxPersistRows);
     int totalCount = 0;
 
     try (InputStream is = file.getInputStream()) {
@@ -111,10 +127,15 @@ public final class ConnectionFileParser {
             while (parser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY
                 && parser.currentToken() != null) {
               totalCount++;
-              if (sampleRows.size() < maxSampleRows) {
+              if (persistRows.size() < rowCap) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> item = mapper.readValue(parser, Map.class);
-                sampleRows.add(item);
+                if (sampleRows.size() < maxSampleRows) {
+                  sampleRows.add(item);
+                }
+                if (persistRows.size() < maxPersistRows) {
+                  persistRows.add(item);
+                }
                 if (columns.isEmpty()) {
                   columns.addAll(item.keySet());
                 }
@@ -127,7 +148,12 @@ public final class ConnectionFileParser {
             if (parsed instanceof Map<?, ?> m) {
               @SuppressWarnings("unchecked")
               Map<String, Object> typedMap = (Map<String, Object>) m;
-              sampleRows.add(typedMap);
+              if (sampleRows.size() < maxSampleRows) {
+                sampleRows.add(typedMap);
+              }
+              if (persistRows.size() < maxPersistRows) {
+                persistRows.add(typedMap);
+              }
               columns.addAll(typedMap.keySet());
               totalCount = 1;
             }
@@ -143,7 +169,7 @@ public final class ConnectionFileParser {
             while ((line = reader.readLine()) != null) {
               if (line.isBlank()) continue;
               totalCount++;
-              if (sampleRows.size() < maxSampleRows) {
+              if (persistRows.size() < rowCap) {
                 List<String> vals = parseCsvLine(line);
                 Map<String, Object> row = new LinkedHashMap<>();
                 for (int h = 0; h < columns.size(); h++) {
@@ -151,7 +177,12 @@ public final class ConnectionFileParser {
                   String val = h < vals.size() ? vals.get(h) : "";
                   row.put(key, val);
                 }
-                sampleRows.add(row);
+                if (sampleRows.size() < maxSampleRows) {
+                  sampleRows.add(row);
+                }
+                if (persistRows.size() < maxPersistRows) {
+                  persistRows.add(row);
+                }
               }
             }
           }
@@ -161,7 +192,7 @@ public final class ConnectionFileParser {
       log.warn("Failed to stream parse file '{}': {}", filename, e.getMessage());
     }
 
-    return new StreamingParseResult(columns, sampleRows, totalCount);
+    return new ExtendedStreamingParseResult(columns, sampleRows, persistRows, totalCount);
   }
 
   public static void writeRecordsToCsv(List<GoldenRecord> records, PrintWriter writer) {
@@ -238,25 +269,58 @@ public final class ConnectionFileParser {
     }
 
     String[] candidateKeys = {
-      "canonicalName",
+      "canonicalname",
       "canonical_name",
       "name",
       "full_name",
+      "fullname",
       "student_name",
       "customer_name",
+      "customername",
+      "client_name",
+      "clientname",
       "user_name",
       "username",
       "person_name",
       "employee_name",
       "patient_name",
-      "title",
+      "contact_name",
+      "company_name",
+      "companyname",
       "company",
-      "organization"
+      "organization",
+      "organization_name",
+      "org_name",
+      "supplier_name",
+      "carrier_name",
+      "account_name",
+      "product_name",
+      "item_name",
+      "title",
+      "label"
     };
-    for (String key : candidateKeys) {
-      if (raw.containsKey(key) && raw.get(key) != null && !String.valueOf(raw.get(key)).isBlank()) {
-        return String.valueOf(raw.get(key)).trim();
+    Map<String, Object> lowerRaw = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+      if (entry.getKey() != null) {
+        String normKey = entry.getKey().trim().toLowerCase().replace("-", "_");
+        lowerRaw.putIfAbsent(normKey, entry.getValue());
+        lowerRaw.putIfAbsent(normKey.replace("_", ""), entry.getValue());
       }
+    }
+    for (String key : candidateKeys) {
+      Object val = lowerRaw.get(key);
+      if (val != null
+          && !String.valueOf(val).isBlank()
+          && !"null".equalsIgnoreCase(String.valueOf(val).trim())) {
+        return String.valueOf(val).trim();
+      }
+    }
+    Object firstObj = lowerRaw.get("first_name");
+    Object lastObj = lowerRaw.get("last_name");
+    String first = firstObj != null ? String.valueOf(firstObj).trim() : "";
+    String last = lastObj != null ? String.valueOf(lastObj).trim() : "";
+    if (!first.isEmpty() || !last.isEmpty()) {
+      return (first + " " + last).trim();
     }
 
     String item = null;

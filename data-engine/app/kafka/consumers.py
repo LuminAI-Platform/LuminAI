@@ -47,6 +47,7 @@ class IngestRawConsumer:
         self.batch_size = batch_size
         self._running = False
         self._consumer: Consumer | None = None
+        self._pending_rows: dict[tuple[str, str], list[dict[str, Any]]] = {}
 
         # Callback hook for pipeline trigger integration (S2-01)
         self.on_batch_complete: Callable[[str, str, dict[str, Any]], None] | None = None
@@ -119,23 +120,41 @@ class IngestRawConsumer:
                 row_count,
             )
 
-            # Check for batch-complete signal
-            if value.get("batch_complete", False):
-                logger.info(
-                    "Batch complete signal received — tenant=%s, source=%s",
-                    tenant_id,
-                    source_id,
-                )
-                if self.on_batch_complete is not None:
-                    try:
-                        self.on_batch_complete(tenant_id, source_id, value)
-                    except Exception:
-                        logger.exception(
-                            "Error in on_batch_complete callback — "
-                            "tenant=%s, source=%s",
-                            tenant_id,
-                            source_id,
-                        )
+            batch_key = (str(tenant_id), str(source_id))
+            incoming_rows = value.get("rows")
+
+            # Buffer chunked rows when batch_complete is False so multi-batch syncs preserve all chunks
+            if not value.get("batch_complete", False):
+                if isinstance(incoming_rows, list) and incoming_rows:
+                    buf = self._pending_rows.setdefault(batch_key, [])
+                    remaining_cap = max(0, 50_000 - len(buf))
+                    if remaining_cap > 0:
+                        buf.extend(incoming_rows[:remaining_cap])
+                return
+
+            buffered_rows = self._pending_rows.pop(batch_key, [])
+            trigger_payload = value
+            if buffered_rows:
+                combined_rows = list(buffered_rows)
+                if isinstance(incoming_rows, list) and incoming_rows:
+                    combined_rows.extend(incoming_rows)
+                trigger_payload = {**value, "rows": combined_rows}
+
+            logger.info(
+                "Batch complete signal received — tenant=%s, source=%s",
+                tenant_id,
+                source_id,
+            )
+            if self.on_batch_complete is not None:
+                try:
+                    self.on_batch_complete(tenant_id, source_id, trigger_payload)
+                except Exception:
+                    logger.exception(
+                        "Error in on_batch_complete callback — "
+                        "tenant=%s, source=%s",
+                        tenant_id,
+                        source_id,
+                    )
 
     def consume_batch(
         self,

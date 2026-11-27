@@ -1,15 +1,23 @@
 package com.luminai.connection.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.security.JwtClaimsExtractor;
+import com.luminai.config.CacheConfig;
 import com.luminai.connection.dto.SchemaMappingDto;
 import com.luminai.connection.model.SchemaMapping;
 import com.luminai.connection.repository.ConnectionRepository;
+import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.connection.repository.SchemaMappingRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +36,30 @@ public class SchemaMappingService {
   private final SchemaMappingRepository repository;
   private final ConnectionRepository connectionRepository;
   private final JwtClaimsExtractor claimsExtractor;
+
+  @Autowired(required = false)
+  private GoldenRecordRepository goldenRecordRepository;
+
+  @Autowired(required = false)
+  private ObjectMapper objectMapper;
+
+  @Autowired(required = false)
+  private CacheManager cacheManager;
+
+  @Autowired(required = false)
+  public void setGoldenRecordRepository(GoldenRecordRepository goldenRecordRepository) {
+    this.goldenRecordRepository = goldenRecordRepository;
+  }
+
+  @Autowired(required = false)
+  public void setObjectMapper(ObjectMapper objectMapper) {
+    this.objectMapper = objectMapper;
+  }
+
+  @Autowired(required = false)
+  public void setCacheManager(CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
+  }
 
   public SchemaMappingService(
       SchemaMappingRepository repository,
@@ -63,6 +95,7 @@ public class SchemaMappingService {
             request.transformation());
 
     SchemaMapping saved = repository.save(mapping);
+    propagateTargetEntityType(tenantId, request.connectorId(), request.targetEntityType());
     log.info(
         "Created schema mapping '{}' (id={}) for tenant {}",
         saved.getName(),
@@ -145,6 +178,9 @@ public class SchemaMappingService {
     }
 
     SchemaMapping updated = repository.save(mapping);
+    if (request.targetEntityType() != null) {
+      propagateTargetEntityType(tenantId, updated.getConnectorId(), request.targetEntityType());
+    }
     log.info(
         "Updated schema mapping '{}' (id={}) for tenant {}",
         updated.getName(),
@@ -179,6 +215,7 @@ public class SchemaMappingService {
       repository.deleteAllByConnectorIdAndTenantId(connectorId, tenantId);
     }
 
+    String resolvedBatchTarget = request.targetEntity();
     java.util.List<SchemaMappingDto.Response> savedList = new java.util.ArrayList<>();
     if (request.mappings() != null) {
       for (SchemaMappingDto.MappingItem item : request.mappings()) {
@@ -188,6 +225,11 @@ public class SchemaMappingService {
                 : (request.sourceTable() + " - " + item.sourceColumn());
         String targetEntity =
             item.targetEntityType() != null ? item.targetEntityType() : request.targetEntity();
+        if ((resolvedBatchTarget == null || resolvedBatchTarget.isBlank())
+            && targetEntity != null
+            && !targetEntity.isBlank()) {
+          resolvedBatchTarget = targetEntity;
+        }
         SchemaMapping.Transformation trans =
             item.transformation() != null
                 ? item.transformation()
@@ -207,6 +249,10 @@ public class SchemaMappingService {
       }
     }
 
+    if (connectorId != null) {
+      propagateTargetEntityType(tenantId, connectorId, resolvedBatchTarget);
+    }
+
     log.info(
         "Batch saved {} schema mappings for connector {} (tenant={})",
         savedList.size(),
@@ -216,6 +262,73 @@ public class SchemaMappingService {
         savedList,
         request.foreignKeys() != null ? request.foreignKeys() : java.util.List.of(),
         savedList.size());
+  }
+
+  private void propagateTargetEntityType(UUID tenantId, UUID connectorId, String targetEntityType) {
+    if (connectorId == null
+        || targetEntityType == null
+        || targetEntityType.isBlank()
+        || "Entity".equalsIgnoreCase(targetEntityType.trim())) {
+      return;
+    }
+    String cleanType = targetEntityType.trim();
+
+    if (connectionRepository != null) {
+      try {
+        connectionRepository
+            .findByIdAndTenantId(connectorId, tenantId)
+            .ifPresent(
+                conn -> {
+                  try {
+                    ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
+                    Map<String, Object> cfg = new LinkedHashMap<>();
+                    if (conn.getConfig() != null && !conn.getConfig().isBlank()) {
+                      @SuppressWarnings("unchecked")
+                      Map<String, Object> parsed = mapper.readValue(conn.getConfig(), Map.class);
+                      cfg.putAll(parsed);
+                    }
+                    if (!cleanType.equals(cfg.get("targetEntityType"))) {
+                      cfg.put("targetEntityType", cleanType);
+                      conn.setConfig(mapper.writeValueAsString(cfg));
+                      connectionRepository.save(conn);
+                    }
+                  } catch (Exception e) {
+                    log.debug(
+                        "Failed saving targetEntityType onto connection '{}': {}",
+                        connectorId,
+                        e.getMessage());
+                  }
+                });
+      } catch (Exception ignored) {
+      }
+    }
+
+    if (goldenRecordRepository != null) {
+      try {
+        goldenRecordRepository.updateEntityTypeByConnectionId(
+            tenantId, connectorId.toString(), cleanType);
+      } catch (Exception e) {
+        log.debug(
+            "Skipping entityType backfill on golden records for '{}': {}",
+            connectorId,
+            e.getMessage());
+      }
+    }
+
+    if (cacheManager != null) {
+      for (String name :
+          List.of(
+              CacheConfig.CACHE_EXPLORER_SEARCH,
+              CacheConfig.CACHE_EXPLORER_ENTITIES,
+              CacheConfig.CACHE_CLEAN_PREVIEW,
+              CacheConfig.CACHE_DASHBOARD)) {
+        try {
+          Cache cache = cacheManager.getCache(name);
+          if (cache != null) cache.clear();
+        } catch (Exception ignored) {
+        }
+      }
+    }
   }
 
   // ----------------------------------------------------------------

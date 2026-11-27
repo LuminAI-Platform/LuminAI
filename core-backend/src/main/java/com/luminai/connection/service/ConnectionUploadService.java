@@ -7,7 +7,9 @@ import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
 import com.luminai.connection.producer.ConnectionProducer;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.PipelineRunRepository;
+import com.luminai.connection.repository.SchemaMappingRepository;
 import com.luminai.connection.util.ConnectionFileParser;
+import com.luminai.engine.service.DataEngineClient;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -41,6 +43,9 @@ public class ConnectionUploadService {
   private DatasetRegistrationHelper datasetRegistrationHelper;
   private PipelineSseService pipelineSseService;
   private org.springframework.cache.CacheManager cacheManager;
+  private DataEngineClient dataEngineClient;
+  private GoldenRecordPersistenceService goldenRecordPersistenceService;
+  private SchemaMappingRepository schemaMappingRepository;
 
   public void setPipelineRunRepository(PipelineRunRepository pipelineRunRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
@@ -49,6 +54,22 @@ public class ConnectionUploadService {
   @org.springframework.beans.factory.annotation.Autowired(required = false)
   public void setCacheManager(org.springframework.cache.CacheManager cacheManager) {
     this.cacheManager = cacheManager;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setDataEngineClient(DataEngineClient dataEngineClient) {
+    this.dataEngineClient = dataEngineClient;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setGoldenRecordPersistenceService(
+      GoldenRecordPersistenceService goldenRecordPersistenceService) {
+    this.goldenRecordPersistenceService = goldenRecordPersistenceService;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setSchemaMappingRepository(SchemaMappingRepository schemaMappingRepository) {
+    this.schemaMappingRepository = schemaMappingRepository;
   }
 
   @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -117,9 +138,10 @@ public class ConnectionUploadService {
               + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload.csv");
     }
 
-    ConnectionFileParser.StreamingParseResult parseResult =
-        ConnectionFileParser.parseFileStream(file, 1000);
+    ConnectionFileParser.ExtendedStreamingParseResult parseResult =
+        ConnectionFileParser.parseFileStreamExtended(file, 1000, 5000);
     List<Map<String, Object>> sampleRows = parseResult.sampleRows();
+    List<Map<String, Object>> persistRows = parseResult.persistRows();
     List<String> columns = parseResult.columns();
     int totalRows = parseResult.totalRecords();
 
@@ -254,7 +276,20 @@ public class ConnectionUploadService {
 
     if (pipelineSseService != null) {
       pipelineSseService.emitProgress(
-          tenantId, sseRunId, "publish", 100, "File uploaded and queued for downstream processing");
+          tenantId, sseRunId, "publish", 80, "Resolving uploaded records for Explorer");
+    }
+
+    int persistedCount = persistUploadedRows(tenantId, id, file.getOriginalFilename(), persistRows);
+
+    if (pipelineSseService != null) {
+      pipelineSseService.emitProgress(
+          tenantId,
+          sseRunId,
+          "publish",
+          100,
+          persistedCount > 0
+              ? "Persisted " + persistedCount + " live records to Entity Explorer"
+              : "File uploaded and queued for downstream processing");
       pipelineSseService.emitComplete(tenantId, sseRunId, totalRows, totalRows, 0L, "1s");
     }
 
@@ -290,8 +325,10 @@ public class ConnectionUploadService {
     }
 
     List<Map<String, Object>> tables = new ArrayList<>();
+    List<Map<String, Object>> allArchiveRows = new ArrayList<>();
     int totalExtractedRows = 0;
     final int BATCH_SIZE = 1000;
+    final int MAX_ARCHIVE_PERSIST_ROWS = 5000;
 
     try (ZipInputStream zis = new ZipInputStream(file.getInputStream())) {
       ZipEntry entry;
@@ -354,6 +391,13 @@ public class ConnectionUploadService {
             tableSummary.put("fileKey", entryKey);
             tableSummary.put("recordsCount", entryRows.size());
             if (!entryRows.isEmpty()) {
+              for (Map<String, Object> r : entryRows) {
+                if (allArchiveRows.size() >= MAX_ARCHIVE_PERSIST_ROWS) break;
+                Map<String, Object> tagged = new LinkedHashMap<>();
+                tagged.put("_table", cleanName);
+                tagged.putAll(r);
+                allArchiveRows.add(tagged);
+              }
               tableSummary.put("columns", new ArrayList<>(entryRows.get(0).keySet()));
               tableSummary.put("sampleRows", entryRows.subList(0, Math.min(entryRows.size(), 50)));
             }
@@ -456,6 +500,10 @@ public class ConnectionUploadService {
       }
     }
 
+    if (!allArchiveRows.isEmpty()) {
+      persistUploadedRows(tenantId, connectionId, file.getOriginalFilename(), allArchiveRows);
+    }
+
     Map<String, Object> resp = new LinkedHashMap<>();
     resp.put("fileKey", objectKey);
     resp.put("status", "INGESTED");
@@ -472,5 +520,62 @@ public class ConnectionUploadService {
             + tables.size()
             + " dataset files extracted and published to ingest pipeline");
     return ResponseEntity.ok(resp);
+  }
+
+  @SuppressWarnings("unchecked")
+  private int persistUploadedRows(
+      UUID tenantId, UUID connectionId, String sourceName, List<Map<String, Object>> rawRows) {
+    if (goldenRecordPersistenceService == null || rawRows == null || rawRows.isEmpty()) {
+      return 0;
+    }
+    try {
+      String configuredEntityType =
+          goldenRecordPersistenceService.resolveConfiguredEntityType(
+              null, connectionId, tenantId, null);
+      String requestType =
+          (configuredEntityType != null && !configuredEntityType.isBlank())
+              ? configuredEntityType
+              : ConnectionFileParser.inferEntityType(rawRows.get(0), null);
+
+      List<Map<String, Object>> rowsToPersist = new ArrayList<>();
+      if (dataEngineClient != null) {
+        final int chunkSize = 1000;
+        for (int start = 0; start < rawRows.size(); start += chunkSize) {
+          int end = Math.min(start + chunkSize, rawRows.size());
+          Map<String, Object> req = new LinkedHashMap<>();
+          req.put("tenant_id", tenantId.toString());
+          req.put("source_id", connectionId.toString());
+          req.put("entity_type", requestType);
+          req.put("rows", rawRows.subList(start, end));
+          req.put("options", Map.of("include_golden_records", true));
+
+          Map<String, Object> engineRes = dataEngineClient.cleanDatasetDirect(req);
+          if (engineRes != null && "COMPLETED".equals(engineRes.get("status"))) {
+            if (engineRes.get("goldenRecords") instanceof List<?> grList && !grList.isEmpty()) {
+              for (Object item : grList) {
+                if (item instanceof Map<?, ?> m) rowsToPersist.add((Map<String, Object>) m);
+              }
+            } else if (engineRes.get("rows") instanceof List<?> rowList && !rowList.isEmpty()) {
+              for (Object item : rowList) {
+                if (item instanceof Map<?, ?> m) rowsToPersist.add((Map<String, Object>) m);
+              }
+            }
+          }
+        }
+      }
+
+      if (rowsToPersist.isEmpty()) {
+        rowsToPersist.addAll(rawRows);
+      }
+
+      return goldenRecordPersistenceService.syncGoldenRecords(
+          connectionId, tenantId, sourceName, configuredEntityType, rowsToPersist, true);
+    } catch (Exception e) {
+      log.warn(
+          "Synchronous golden record persistence fallback failed for connection '{}': {}",
+          connectionId,
+          e.getMessage());
+      return 0;
+    }
   }
 }

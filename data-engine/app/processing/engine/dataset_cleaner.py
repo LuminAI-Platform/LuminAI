@@ -93,6 +93,15 @@ class DatasetCleaner:
             "canonicalname",
             "patientname",
             "customername",
+            "clientname",
+            "companyname",
+            "company",
+            "organization",
+            "organizationname",
+            "orgname",
+            "suppliername",
+            "carriername",
+            "accountname",
             "personname",
             "contactname",
         ):
@@ -220,12 +229,8 @@ class DatasetCleaner:
         all_errors = list(set(validation_errors + qa.critical_errors))
         all_warnings = list(set(validation_warnings + qa.warnings))
         quality_state = self._resolve_quality_state(all_errors, all_warnings)
-        c_name = str(
-            cleaned_attrs.get("name")
-            or cleaned_attrs.get("full_name")
-            or cleaned_attrs.get("canonical_name")
-            or rec_id
-        ).strip()
+        resolved_type = GoldenRecordEngine.infer_entity_type(cleaned_attrs, entity_type_hint)
+        c_name = GoldenRecordEngine.resolve_canonical_name(cleaned_attrs, fallback_id=rec_id)
 
         audit.cleaned_payload = cleaned_attrs
         audit.quality_state = quality_state
@@ -236,7 +241,7 @@ class DatasetCleaner:
         record = CleanedRecord(
             record_id=rec_id,
             canonical_name=c_name,
-            entity_type=entity_type_hint or "Person",
+            entity_type=resolved_type,
             quality_state=quality_state,
             quality_score=qa.quality_score,
             confidence_score=1.0,
@@ -256,10 +261,14 @@ class DatasetCleaner:
         entity_type_hint: Optional[str],
         mandatory_fields: Optional[Set[str]],
     ) -> tuple[CleanedRecord, RecordQualityAssessment, GoldenRecordOutput]:
+        resolved_type = GoldenRecordEngine.infer_entity_type(
+            clus_recs[0],
+            entity_type_hint or cleaned_records_list[idx_cluster[0]].entity_type,
+        )
         gr = self.golden_engine.build_golden_record(
             cluster_records=clus_recs,
             tenant_id=self.tenant_id,
-            entity_type=entity_type_hint or "Person",
+            entity_type=resolved_type,
         )
         lead = cleaned_records_list[idx_cluster[0]]
         merged_attrs = dict(lead.attributes)
@@ -273,18 +282,15 @@ class DatasetCleaner:
         all_errors = list(qa.critical_errors)
         all_warnings = list(qa.warnings)
         quality_state = self._resolve_quality_state(all_errors, all_warnings)
-        c_name = str(
-            merged_attrs.get("name")
-            or merged_attrs.get("full_name")
-            or merged_attrs.get("canonical_name")
-            or gr.canonical_name
-            or lead.record_id
-        ).strip()
+        c_name = GoldenRecordEngine.resolve_canonical_name(
+            merged_attrs,
+            fallback_id=gr.canonical_name or lead.record_id,
+        )
         tx_total = sum(cleaned_records_list[i].transformations_count for i in idx_cluster) + (len(idx_cluster) - 1)
         merged_record = CleanedRecord(
             record_id=lead.record_id,
             canonical_name=c_name,
-            entity_type=entity_type_hint or lead.entity_type,
+            entity_type=resolved_type,
             quality_state=quality_state,
             quality_score=qa.quality_score,
             confidence_score=gr.confidence_score,
@@ -325,9 +331,10 @@ class DatasetCleaner:
         record_assessments: List[RecordQualityAssessment] = []
         synthetic_flags: List[bool] = []
 
+        resolved_type = GoldenRecordEngine.infer_entity_type(df.columns, entity_type_hint)
         for idx, raw_row in enumerate(df.to_dicts()):
             rec, qa, is_synth = self._clean_single_row(
-                idx, raw_row, column_roles, column_date_hints, entity_type_hint, mandatory_fields
+                idx, raw_row, column_roles, column_date_hints, resolved_type, mandatory_fields
             )
             cleaned_records_list.append(rec)
             record_assessments.append(qa)
@@ -371,13 +378,13 @@ class DatasetCleaner:
                         self.golden_engine.build_golden_record(
                             cluster_records=clus_recs,
                             tenant_id=self.tenant_id,
-                            entity_type=entity_type_hint or "Person",
+                            entity_type=cleaned_records_list[i0].entity_type,
                         )
                     )
             else:
                 duplicates_merged_count += len(idx_cluster) - 1
                 merged_rec, merged_qa, gr = self._merge_cluster_record(
-                    idx_cluster, clus_recs, cleaned_records_list, entity_type_hint, mandatory_fields
+                    idx_cluster, clus_recs, cleaned_records_list, resolved_type, mandatory_fields
                 )
                 deduped_records.append(merged_rec)
                 deduped_assessments.append(merged_qa)
