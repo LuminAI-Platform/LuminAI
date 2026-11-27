@@ -212,13 +212,7 @@ public class ConnectionUploadService {
       if (!sampleRows.isEmpty()) {
         try {
           connectionProducer.publishRows(
-              tenantId,
-              id,
-              file.getOriginalFilename(),
-              sampleRows,
-              true,
-              objectKey,
-              ingestionMetadata(tenantId, id));
+              tenantId, id, file.getOriginalFilename(), sampleRows, true, objectKey);
           log.info(
               "Streamed {} parsed rows to Kafka for connection '{}' (tenant={})",
               totalRows,
@@ -230,13 +224,7 @@ public class ConnectionUploadService {
       } else {
         try {
           connectionProducer.publishRows(
-              tenantId,
-              id,
-              file.getOriginalFilename(),
-              List.of(),
-              true,
-              objectKey,
-              ingestionMetadata(tenantId, id));
+              tenantId, id, file.getOriginalFilename(), List.of(), true, objectKey);
         } catch (Exception e) {
           log.warn("Kafka completion signal skipped: {}", e.getMessage());
         }
@@ -247,10 +235,11 @@ public class ConnectionUploadService {
             tenantId,
             id,
             file.getOriginalFilename(),
-            sampleRows,
+            List.of(),
             true,
             objectKey,
-            ingestionMetadata(tenantId, id));
+            totalRows,
+            file.getSize());
         log.info(
             "Dispatched MinIO reference objectKey='{}' ({} records, {} bytes) to Data Engine for connection '{}' (tenant={})",
             objectKey,
@@ -483,33 +472,5 @@ public class ConnectionUploadService {
             + tables.size()
             + " dataset files extracted and published to ingest pipeline");
     return ResponseEntity.ok(resp);
-  }
-
-  private Map<String, Object> ingestionMetadata(UUID tenantId, UUID connectionId) {
-    if (connectionRepository == null) return Map.of();
-    return connectionRepository
-        .findByIdAndTenantId(connectionId, tenantId)
-        .map(
-            connection -> {
-              try {
-                Map<String, Object> config =
-                    objectMapper.readValue(connection.getConfig(), Map.class);
-                Map<String, Object> metadata = new LinkedHashMap<>();
-                Object targetType = config.get("targetEntityType");
-                if (targetType != null && !String.valueOf(targetType).isBlank()) {
-                  metadata.put("entity_type", String.valueOf(targetType));
-                  metadata.put("target_entity_type", String.valueOf(targetType));
-                }
-                Object foreignKeys = config.get("foreign_keys");
-                if (foreignKeys != null) metadata.put("foreign_keys", foreignKeys);
-                metadata.put("auto_er", config.getOrDefault("auto_er", true));
-                metadata.put("generate_edges", config.getOrDefault("generate_edges", true));
-                return metadata;
-              } catch (Exception e) {
-                log.warn("Could not read ingestion options for connection {}", connectionId, e);
-                return new LinkedHashMap<String, Object>();
-              }
-            })
-        .orElseGet(LinkedHashMap::new);
   }
 }

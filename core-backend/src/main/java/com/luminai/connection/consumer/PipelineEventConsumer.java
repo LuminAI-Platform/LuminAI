@@ -178,12 +178,6 @@ public class PipelineEventConsumer {
                 run -> {
                   run.setStatus(newStatus);
                   run.setRecordsOutput(run.getRecordsOutput() + recordsOutput);
-                  if (payload.containsKey("recordsQuarantined")) {
-                    run.setRecordsQuarantined(toLong(payload.get("recordsQuarantined")));
-                  }
-                  if (payload.containsKey("recordsRejected")) {
-                    run.setRecordsRejected(toLong(payload.get("recordsRejected")));
-                  }
                   pipelineRunRepository.save(run);
                   log.info(
                       "Updated PipelineRun '{}' for connection '{}' (tenant={}) → status={}",

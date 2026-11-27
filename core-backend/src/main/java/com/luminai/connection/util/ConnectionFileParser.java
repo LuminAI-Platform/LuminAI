@@ -341,9 +341,6 @@ public final class ConnectionFileParser {
       return String.valueOf(raw.get("entity_type")).trim();
     }
     String keys = String.join(" ", raw.keySet()).toLowerCase();
-    if (keys.contains("patient") || keys.contains("diagnosis") || keys.contains("medication")) {
-      return "Patient";
-    }
     if (keys.contains("student")
         || keys.contains("academic")
         || keys.contains("school")
@@ -361,12 +358,14 @@ public final class ConnectionFileParser {
         || keys.contains("invoice")) {
       return "Transaction";
     }
-    // Do not classify an entire dataset as Person from a generic attribute such as
-    // email, age, gender, or patient. The caller's explicit target type wins above;
-    // inference requires a clearer person identity signal.
-    if (keys.contains("first_name") && keys.contains("last_name")
-        || keys.contains("full_name")
-        || keys.matches(".*(^|\\s)(person|user)_id($|\\s).*")) {
+    if (keys.contains("email")
+        || keys.contains("first_name")
+        || keys.contains("last_name")
+        || keys.contains("user")
+        || keys.contains("person")
+        || keys.contains("age")
+        || keys.contains("gender")
+        || keys.contains("patient")) {
       return "Person";
     }
     if (keys.contains("company")
