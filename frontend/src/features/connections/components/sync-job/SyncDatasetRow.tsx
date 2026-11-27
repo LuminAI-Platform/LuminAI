@@ -14,16 +14,25 @@ export const SyncDatasetRow: React.FC<SyncDatasetRowProps> = ({
   isSelected = false,
   onSelect,
 }) => {
+  const hasPositiveTotal =
+    typeof ds.totalRecords === "number" && ds.totalRecords > 0;
   const pct =
-    typeof ds.totalRecords === "number" &&
-    ds.totalRecords > 0 &&
-    typeof ds.syncedRecords === "number"
-      ? Math.min(100, Math.round((ds.syncedRecords / ds.totalRecords) * 100))
-      : ds.status === "completed" || ds.status === "completed_with_issues"
-        ? 100
-        : 0;
+    ds.status === "completed_no_records"
+      ? 0
+      : hasPositiveTotal && typeof ds.syncedRecords === "number"
+        ? Math.min(100, Math.round((ds.syncedRecords / ds.totalRecords!) * 100))
+        : hasPositiveTotal &&
+            (ds.status === "completed" || ds.status === "completed_with_issues")
+          ? 100
+          : 0;
+
   const dsCfg = STATUS_CONFIG[ds.status];
-  const outcomeSummary = formatOutcomeSummary(ds);
+  const badgeLabel =
+    ds.status === "completed_no_records" ? "No records synced" : dsCfg.label;
+  const outcomeSummary =
+    ds.status === "completed_no_records"
+      ? "No records synced"
+      : formatOutcomeSummary(ds);
   const startLabel = formatStartTime(ds.startedAt);
   const shortRunId = ds.id.slice(0, 8);
   const showFileName =
@@ -42,23 +51,18 @@ export const SyncDatasetRow: React.FC<SyncDatasetRowProps> = ({
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <span
             className={`w-2 h-2 rounded-full shrink-0 ${dsCfg.dot}`}
             aria-hidden="true"
           />
           <span
-            className="text-xs font-semibold text-text truncate max-w-[200px] sm:max-w-[260px]"
+            className="text-xs font-semibold text-text break-words min-w-0"
             title={ds.name}
           >
             {ds.name}
           </span>
-          {ds.pipelineTypeLabel && (
-            <span className="text-[11px] text-text-secondary bg-surface-subtle border border-border-subtle px-1.5 py-0.5 rounded shrink-0">
-              {ds.pipelineTypeLabel}
-            </span>
-          )}
-          <span className="text-[11px] text-text-secondary bg-surface-subtle border border-border px-1.5 py-0.5 rounded font-medium shrink-0">
+          <span className="text-[11px] text-text-secondary bg-surface-subtle border border-border px-1.5 py-0.5 rounded font-medium shrink-0 whitespace-nowrap">
             {ds.sourceType}
           </span>
         </div>
@@ -66,7 +70,7 @@ export const SyncDatasetRow: React.FC<SyncDatasetRowProps> = ({
         <span
           className={`text-[11px] px-2 py-0.5 rounded-full border shrink-0 whitespace-nowrap ${dsCfg.badge}`}
         >
-          {dsCfg.label}
+          {badgeLabel}
         </span>
       </div>
 
@@ -78,10 +82,13 @@ export const SyncDatasetRow: React.FC<SyncDatasetRowProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mt-2 text-xs text-text-secondary">
-        <span className="truncate" title={outcomeSummary}>
+        <span className="truncate min-w-0" title={outcomeSummary}>
           {outcomeSummary}
+          {ds.pipelineTypeLabel && (
+            <span className="text-text-muted"> · {ds.pipelineTypeLabel}</span>
+          )}
         </span>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
           {showFileName && (
             <span
               className="text-[11px] text-text-muted truncate max-w-[140px]"

@@ -8,7 +8,13 @@ import {
   CheckCircle2,
   ICON_SIZES,
 } from "../../../../lib/icons";
+import { Tooltip } from "../../../../components/ui/Tooltip";
 import { Sparkline } from "./Sparkline";
+
+export interface CountDiscrepancy {
+  syncCount: number;
+  cleanViewCount: number;
+}
 
 export interface SyncJobKpiCardsProps {
   status: SyncJobStatus;
@@ -22,6 +28,7 @@ export interface SyncJobKpiCardsProps {
   avgSpeed?: number;
   rejectedCount?: number;
   quarantinedCount?: number;
+  countDiscrepancy?: CountDiscrepancy | null;
   durationSec?: number;
 }
 
@@ -37,29 +44,35 @@ export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
   avgSpeed,
   rejectedCount,
   quarantinedCount,
+  countDiscrepancy = null,
   durationSec,
 }) => {
   const hasProgress =
     typeof totalSynced === "number" && typeof totalRecords === "number";
   const pct =
-    hasProgress && totalRecords > 0
-      ? Math.min(100, Math.round((totalSynced / totalRecords) * 100))
-      : status === "completed" || status === "completed_with_issues"
-        ? 100
+    status === "completed_no_records"
+      ? 0
+      : hasProgress && totalRecords > 0
+        ? Math.min(100, Math.round((totalSynced / totalRecords) * 100))
         : undefined;
 
-  const progressValue = hasProgress
-    ? `${formatNumber(totalSynced)} of ${formatNumber(totalRecords)} records`
-    : typeof totalSynced === "number"
-      ? `${formatNumber(totalSynced)} records`
-      : "–";
+  const progressValue =
+    status === "completed_no_records"
+      ? "0 records"
+      : hasProgress
+        ? `${formatNumber(totalSynced)} of ${formatNumber(totalRecords)} records`
+        : typeof totalSynced === "number"
+          ? `${formatNumber(totalSynced)} records`
+          : "–";
 
   const progressCaption =
-    pct !== undefined
-      ? `${pct}% complete`
-      : isAllScope
-        ? `${datasetCount} ${datasetCount === 1 ? "dataset" : "datasets"}`
-        : "–";
+    status === "completed_no_records"
+      ? "No records synced"
+      : pct !== undefined
+        ? `${pct}% complete`
+        : isAllScope
+          ? `${datasetCount} ${datasetCount === 1 ? "dataset" : "datasets"}`
+          : "–";
 
   const speedLabel = isActive ? "Speed" : "Avg speed";
   const speedNumeric = isActive ? (currentSpeed ?? avgSpeed) : avgSpeed;
@@ -84,10 +97,18 @@ export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
       ? (rejectedCount ?? 0) + (quarantinedCount ?? 0)
       : undefined;
 
-  const errorsValue =
-    totalIssues !== undefined ? formatNumber(totalIssues) : "–";
+  const errorsValue = countDiscrepancy
+    ? "Counts unavailable"
+    : totalIssues !== undefined
+      ? formatNumber(totalIssues)
+      : "–";
+
+  const discrepancyTooltip = countDiscrepancy
+    ? `Two sources report different values: ${countDiscrepancy.syncCount} vs ${countDiscrepancy.cleanViewCount}`
+    : undefined;
 
   const errorsCaption = (() => {
+    if (countDiscrepancy) return "Source mismatch";
     if (!hasRejected && !hasQuarantined) return "Not reported";
     if (hasRejected && hasQuarantined) {
       return `${formatNumber(rejectedCount)} rejected, ${formatNumber(quarantinedCount)} quarantined`;
@@ -98,8 +119,9 @@ export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
     return `${formatNumber(quarantinedCount!)} quarantined`;
   })();
 
-  const errorsValueClass =
-    (rejectedCount ?? 0) > 0
+  const errorsValueClass = countDiscrepancy
+    ? "text-warning"
+    : (rejectedCount ?? 0) > 0
       ? "text-error"
       : (quarantinedCount ?? 0) > 0
         ? "text-warning"
@@ -211,15 +233,26 @@ export const SyncJobKpiCards: React.FC<SyncJobKpiCardsProps> = ({
             />
           </div>
           <div className="min-w-0">
-            <div
-              className={`text-sm font-semibold leading-snug line-clamp-2 break-words ${errorsValueClass}`}
-              title={errorsValue}
-            >
-              {errorsValue}
-            </div>
+            {discrepancyTooltip ? (
+              <Tooltip label={discrepancyTooltip} side="top">
+                <div
+                  className={`text-sm font-semibold leading-snug line-clamp-2 break-words underline decoration-dotted underline-offset-2 ${errorsValueClass}`}
+                  title={discrepancyTooltip}
+                >
+                  {errorsValue}
+                </div>
+              </Tooltip>
+            ) : (
+              <div
+                className={`text-sm font-semibold leading-snug line-clamp-2 break-words ${errorsValueClass}`}
+                title={errorsValue}
+              >
+                {errorsValue}
+              </div>
+            )}
             <div
               className="text-xs text-text-secondary leading-snug line-clamp-2 mt-0.5"
-              title={errorsCaption}
+              title={discrepancyTooltip ?? errorsCaption}
             >
               {errorsCaption}
             </div>

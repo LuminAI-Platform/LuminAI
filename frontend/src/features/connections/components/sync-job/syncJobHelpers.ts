@@ -128,19 +128,30 @@ export function resolveSyncStatus(
   rawStatus: string | undefined,
   rejected?: number,
   quarantined?: number,
+  totalRecords?: number,
+  syncedRecords?: number,
 ): SyncJobStatus {
   const upper = (rawStatus ?? "").trim().toUpperCase();
   const hasIssues = (rejected ?? 0) > 0 || (quarantined ?? 0) > 0;
+  const isZeroRecords =
+    (typeof totalRecords === "number" && totalRecords === 0) ||
+    (totalRecords === undefined &&
+      typeof syncedRecords === "number" &&
+      syncedRecords === 0);
 
   if (upper === "FAILED" || upper === "ERROR") return "failed";
   if (upper === "PAUSED" || upper === "CANCELLED") return "paused";
   if (upper === "COMPLETED" || upper === "CLEANED" || upper === "VALIDATED") {
-    return hasIssues ? "completed_with_issues" : "completed";
+    if (hasIssues) return "completed_with_issues";
+    if (isZeroRecords) return "completed_no_records";
+    return "completed";
   }
   if (upper === "RUNNING" || upper === "INGESTING" || upper === "PENDING") {
     return "running";
   }
-  return hasIssues ? "completed_with_issues" : "completed";
+  if (hasIssues) return "completed_with_issues";
+  if (isZeroRecords) return "completed_no_records";
+  return "completed";
 }
 
 export function formatOutcomeSummary(ds: {
