@@ -35,13 +35,10 @@ public class ConnectionService {
   private final ConnectionRepository repository;
   private final PipelineRunRepository pipelineRunRepository;
   private CredentialsVaultService credentialsVaultService;
-<<<<<<< HEAD
-=======
   private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
   @Autowired(required = false)
   private org.springframework.cache.CacheManager cacheManager;
->>>>>>> 0bae2ad5199b22c6a51bd9e43c7906356a2e6260
 
   public ConnectionService(
       ConnectionRepository repository,
@@ -55,8 +52,6 @@ public class ConnectionService {
     this.credentialsVaultService = credentialsVaultService;
   }
 
-<<<<<<< HEAD
-=======
   @Autowired(required = false)
   public void setObjectMapper(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
@@ -67,7 +62,6 @@ public class ConnectionService {
     this.cacheManager = cacheManager;
   }
 
->>>>>>> 0bae2ad5199b22c6a51bd9e43c7906356a2e6260
   /** Create a new connection registry entry for the authenticated tenant. */
   @Transactional
   public ConnectionDto.Response create(ConnectionDto.CreateRequest request) {
@@ -84,26 +78,6 @@ public class ConnectionService {
 
     Connection saved = repository.save(connection);
 
-<<<<<<< HEAD
-    // Keep passwords out of connector JSON. When the API receives credentials, persist them in
-    // the encrypted vault so later discovery/sync can authenticate without the client resending
-    // a secret. The UI currently does not send request.password; that remains a frontend issue.
-    if (credentialsVaultService != null
-        && request.password() != null
-        && !request.password().isBlank()) {
-      com.fasterxml.jackson.databind.node.ObjectNode credentials =
-          new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
-      credentials.put("host", request.host());
-      credentials.put("port", request.port() != null ? request.port() : 5432);
-      credentials.put("database", request.database() != null ? request.database() : "");
-      credentials.put("username", request.username() != null ? request.username() : "");
-      credentials.put("password", request.password());
-      String vaultRef =
-          credentialsVaultService.storeCredentials(tenantId, saved.getId(), credentials.toString());
-      saved.setCredentialsRef(vaultRef);
-      saved = repository.save(saved);
-    }
-=======
     // Persist encrypted database/API credentials in vault when supplied on creation
     if (credentialsVaultService != null && hasInlineCredentials(request)) {
       String credsJson = buildCredentialsJson(request);
@@ -115,7 +89,6 @@ public class ConnectionService {
       }
     }
 
->>>>>>> 0bae2ad5199b22c6a51bd9e43c7906356a2e6260
     log.info(
         "Created connection '{}' (id={}) for tenant {}", saved.getName(), saved.getId(), tenantId);
 

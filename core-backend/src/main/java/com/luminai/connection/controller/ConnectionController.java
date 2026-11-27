@@ -52,11 +52,7 @@ public class ConnectionController {
   private final ConnectionCleanPreviewService cleanPreviewService;
   private final ConnectionUploadService uploadService;
   private com.luminai.connection.repository.PipelineRunRepository pipelineRunRepository;
-<<<<<<< HEAD
-  private com.luminai.connection.service.PostgresIngestionService postgresIngestionService;
-=======
   private com.luminai.connection.service.ConnectionSyncService connectionSyncService;
->>>>>>> 0bae2ad5199b22c6a51bd9e43c7906356a2e6260
 
   @Autowired(required = false)
   private Neo4jGraphRepository neo4jGraphRepository;
@@ -124,12 +120,6 @@ public class ConnectionController {
   }
 
   @Autowired
-<<<<<<< HEAD
-  public void configurePostgresIngestionService(
-      @Autowired(required = false)
-          com.luminai.connection.service.PostgresIngestionService postgresIngestionService) {
-    this.postgresIngestionService = postgresIngestionService;
-=======
   public void configureSyncService(
       @Autowired(required = false)
           com.luminai.connection.service.ConnectionSyncService connectionSyncService) {
@@ -145,7 +135,6 @@ public class ConnectionController {
     if (this.uploadService != null && cacheManager != null) {
       this.uploadService.setCacheManager(cacheManager);
     }
->>>>>>> 0bae2ad5199b22c6a51bd9e43c7906356a2e6260
   }
 
   @PostMapping
@@ -234,49 +223,11 @@ public class ConnectionController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
   public ResponseEntity<Map<String, Object>> syncConnection(
       @PathVariable UUID id, @RequestBody(required = false) Map<String, Object> body) {
-<<<<<<< HEAD
-    if (postgresIngestionService != null) {
-      com.luminai.connection.model.PipelineRun run = postgresIngestionService.sync(id);
-      return ResponseEntity.ok(
-          Map.of(
-              "runId", run.getId().toString(),
-              "status", run.getStatus().name(),
-              "recordsInput", run.getRecordsInput(),
-              "recordsOutput", run.getRecordsOutput(),
-              "recordsFailed", run.getRecordsFailed()));
-    }
-
-    ConnectionDto.Response conn = connectionService.getById(id);
-    UUID tenantId = TenantContext.getTenantUuid();
-    UUID runTenantId = tenantId != null ? tenantId : conn.tenantId();
-
-    com.luminai.connection.model.PipelineRun run = new com.luminai.connection.model.PipelineRun();
-    run.setTenantId(runTenantId);
-    run.setConnectionId(conn.id());
-    run.setPipelineType(
-        conn.type() == null || conn.type() == com.luminai.connection.model.Connection.Type.FILE
-            ? "FILE_INGESTION"
-            : conn.type().name() + "_SYNC");
-    run.setStatus(com.luminai.connection.model.PipelineRun.PipelineRunStatus.RUNNING);
-    run.setStartedAt(java.time.Instant.now());
-    run.setRecordsInput(100);
-    run.setRecordsOutput(100);
-    run.setRecordsFailed(0);
-    run.setMetadata("{\"connectorName\":\"" + conn.name() + "\",\"syncScope\":\"manual\"}");
-
-    com.luminai.connection.model.PipelineRun saved =
-        pipelineRunRepository != null ? pipelineRunRepository.save(run) : run;
-    UUID runId = saved.getId() != null ? saved.getId() : UUID.randomUUID();
-
-    log.info("Triggered sync for connector '{}' (id={}), runId={}", conn.name(), id, runId);
-    return ResponseEntity.ok(Map.of("runId", runId.toString(), "status", "RUNNING"));
-=======
     if (connectionSyncService != null) {
       return ResponseEntity.ok(connectionSyncService.triggerSync(id, body));
     }
     return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
         .body(Map.of("status", "FAILED", "error", "ConnectionSyncService is not configured"));
->>>>>>> 0bae2ad5199b22c6a51bd9e43c7906356a2e6260
   }
 
   @PostMapping("/test")
