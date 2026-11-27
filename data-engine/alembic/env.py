@@ -36,6 +36,11 @@ def get_url() -> str:
     return settings.postgres_driver_dsn
 
 
+def _version_table_for_url(url: str) -> str:
+    """Use an engine-specific version table in PostgreSQL while preserving SQLite tests."""
+    return "alembic_version" if url.startswith("sqlite") else "data_engine_alembic_version"
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = get_url()
@@ -45,6 +50,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         render_as_batch=True,
+        version_table=_version_table_for_url(url),
     )
 
     with context.begin_transaction():
@@ -57,10 +63,12 @@ def run_migrations_online() -> None:
     provided_connection = config.attributes.get("connection", None)
 
     if provided_connection is not None:
+        url_str = str(provided_connection.engine.url)
         context.configure(
             connection=provided_connection,
             target_metadata=target_metadata,
             render_as_batch=True,
+            version_table=_version_table_for_url(url_str),
         )
         with context.begin_transaction():
             context.run_migrations()
@@ -80,6 +88,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             render_as_batch=True,
+            version_table=_version_table_for_url(url),
         )
 
         with context.begin_transaction():

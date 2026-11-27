@@ -8,7 +8,7 @@ Endpoints:
 """
 
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.processing.models import (
     QuarantineActionResponse,
@@ -19,6 +19,7 @@ from app.api.processing.models import (
     QuarantinedMessageSchema,
 )
 import app.api.processing as proc
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter()
 
@@ -28,13 +29,15 @@ router = APIRouter()
     response_model=QuarantineListResponse,
     summary="List quarantined messages with filters",
 )
-async def list_quarantine_post(
+def list_quarantine_post(
     request: QuarantineListRequest = QuarantineListRequest(),
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> QuarantineListResponse:
     """Query and filter quarantined messages from the Dead-Letter Queue."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id)
     manager = proc.get_quarantine_manager()
     items, total = manager.list_messages(
-        tenant_id=request.tenant_id,
+        tenant_id=effective_tenant,
         status=request.status,
         limit=request.limit,
         offset=request.offset,
@@ -52,16 +55,18 @@ async def list_quarantine_post(
     response_model=QuarantineListResponse,
     summary="List quarantined messages (GET convenience)",
 )
-async def list_quarantine_get(
+def list_quarantine_get(
     tenant_id: Optional[str] = None,
     status: Optional[str] = "quarantined",
     limit: int = 50,
     offset: int = 0,
+    identity: AuthIdentity = Depends(get_current_identity),
 ) -> QuarantineListResponse:
     """Retrieve quarantined messages via query parameters."""
+    effective_tenant = resolve_effective_tenant(identity, tenant_id)
     manager = proc.get_quarantine_manager()
     items, total = manager.list_messages(
-        tenant_id=tenant_id,
+        tenant_id=effective_tenant,
         status=status,
         limit=limit,
         offset=offset,
@@ -79,7 +84,7 @@ async def list_quarantine_get(
     response_model=QuarantineActionResponse,
     summary="Replay quarantined messages back to ingest.raw",
 )
-async def replay_quarantined_messages(
+def replay_quarantined_messages(
     request: QuarantineReplayRequest,
 ) -> QuarantineActionResponse:
     """Re-publish quarantined messages back into the ingest.raw stream for reprocessing."""
@@ -98,7 +103,7 @@ async def replay_quarantined_messages(
     response_model=QuarantineActionResponse,
     summary="Discard quarantined messages",
 )
-async def discard_quarantined_messages(
+def discard_quarantined_messages(
     request: QuarantineDiscardRequest,
 ) -> QuarantineActionResponse:
     """Discard quarantined messages without reprocessing."""

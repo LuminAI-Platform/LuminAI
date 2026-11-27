@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "../../../lib/icons";
 import { PipelineJobCard, type PipelineJob } from "./PipelineJobCard";
@@ -56,6 +56,8 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     onStreamStatusChange,
   });
 
+  const hashHandledRef = useRef(false);
+
   const handleOpenJobDetail = useCallback(
     (job: PipelineJob, triggerEl: HTMLElement | null) => {
       drawerTriggerRef.current = triggerEl;
@@ -78,6 +80,23 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     },
     [],
   );
+
+  useEffect(() => {
+    if (
+      hashHandledRef.current ||
+      jobs.length === 0 ||
+      typeof window === "undefined"
+    )
+      return;
+    const targetId = window.location.hash.match(/^#pipeline-job-(.+)$/)?.[1];
+    const found =
+      targetId &&
+      jobs.find((j) => j.id === targetId || j.id.startsWith(targetId));
+    if (found) {
+      hashHandledRef.current = true;
+      handleOpenJobDetail(found, null);
+    }
+  }, [jobs, handleOpenJobDetail]);
 
   if (isActuallyLoading) {
     return <PipelineMonitorLoading />;

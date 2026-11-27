@@ -11,8 +11,10 @@ Computes mathematically sound, type-appropriate analytical statistics:
 from __future__ import annotations
 
 import math
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import polars as pl
+
+from app.processing.engine.stats_utils import compute_numeric_summary
 
 
 class EdaEngine:
@@ -63,45 +65,33 @@ class EdaEngine:
 
         for col in numeric_cols:
             series = df[col].drop_nulls()
+            if series.dtype.is_float():
+                series = series.drop_nans()
             if series.len() == 0:
                 continue
 
-            nums = series.to_list()
-            n = len(nums)
-            mean_v = float(series.mean())
-            std_v = float(series.std()) if series.std() is not None else 0.0
-            sorted_nums = sorted(nums)
-            median_v = float(sorted_nums[n // 2])
-            min_v = float(sorted_nums[0])
-            max_v = float(sorted_nums[-1])
+            summary = compute_numeric_summary(series.to_list())
+            if not summary:
+                continue
 
-            # Percentiles
-            p25 = float(sorted_nums[int(n * 0.25)]) if n >= 4 else min_v
-            p75 = float(sorted_nums[int(n * 0.75)]) if n >= 4 else max_v
-            p90 = float(sorted_nums[int(n * 0.90)]) if n >= 10 else max_v
-            p95 = float(sorted_nums[int(n * 0.95)]) if n >= 20 else max_v
-
-            # Outliers (IQR)
-            iqr = p75 - p25
-            outliers = [x for x in sorted_nums if x < (p25 - 1.5 * iqr) or x > (p75 + 1.5 * iqr)]
-
+            n = int(summary["count"])
             numeric_stats[col] = {
                 "count": n,
-                "min": round(min_v, 2),
-                "max": round(max_v, 2),
-                "mean": round(mean_v, 2),
-                "median": round(median_v, 2),
-                "variance": round(std_v ** 2, 2),
-                "std_dev": round(std_v, 2),
+                "min": round(float(summary["min"]), 2),
+                "max": round(float(summary["max"]), 2),
+                "mean": round(float(summary["mean"]), 2),
+                "median": round(float(summary["median"]), 2),
+                "variance": round(float(summary["variance"]), 2),
+                "std_dev": round(float(summary["std_dev"]), 2),
                 "percentiles": {
-                    "p25": round(p25, 2),
-                    "p50": round(median_v, 2),
-                    "p75": round(p75, 2),
-                    "p90": round(p90, 2),
-                    "p95": round(p95, 2),
+                    "p25": round(float(summary["q1"]), 2),
+                    "p50": round(float(summary["median"]), 2),
+                    "p75": round(float(summary["q3"]), 2),
+                    "p90": round(float(summary["p90"]), 2),
+                    "p95": round(float(summary["p95"]), 2),
                 },
-                "outlier_count": len(outliers),
-                "outlier_pct": round((len(outliers) / n) * 100.0, 2) if n > 0 else 0.0,
+                "outlier_count": int(summary["outlier_count"]),
+                "outlier_pct": round((int(summary["outlier_count"]) / n) * 100.0, 2) if n > 0 else 0.0,
             }
 
         # 4. Categorical Statistics
@@ -122,7 +112,12 @@ class EdaEngine:
 
             sorted_freq = sorted(val_counts.items(), key=lambda x: x[1], reverse=True)
             top_cats = [
-                {"category": cat, "count": cnt, "percentage": round((cnt / total_rows) * 100.0, 2)}
+                {
+                    "category": cat,
+                    "count": cnt,
+                    "percentage": round((cnt / n) * 100.0, 2),
+                    "pct_of_total": round((cnt / total_rows) * 100.0, 2) if total_rows > 0 else 0.0,
+                }
                 for cat, cnt in sorted_freq[:8]
             ]
             mode_v = sorted_freq[0][0] if sorted_freq else None
@@ -130,21 +125,28 @@ class EdaEngine:
             cat_stats[col] = {
                 "count": n,
                 "distinct_count": unique_cnt,
-                "uniqueness_ratio": round(unique_cnt / total_rows, 4) if total_rows > 0 else 0.0,
+                "uniqueness_ratio": round(unique_cnt / n, 4) if n > 0 else 0.0,
                 "mode": mode_v,
                 "top_categories": top_cats,
             }
 
-        # 5. Correlation Matrix for Numeric Columns
-        correlation_matrix: Dict[str, Dict[str, float]] = {}
+        # 5. Correlation Matrix for Numeric Columns (preserve None for undefined zero-variance correlations)
+        correlation_matrix: Dict[str, Dict[str, Optional[float]]] = {}
         if len(numeric_cols) >= 2:
             try:
-                corr_df = df.select(numeric_cols).corr()
+                clean_num_exprs = [
+                    pl.col(c).fill_nan(None) if df[c].dtype.is_float() else pl.col(c)
+                    for c in numeric_cols
+                ]
+                corr_df = df.select(clean_num_exprs).corr()
                 for c in numeric_cols:
                     correlation_matrix[c] = {}
                     for target_c in numeric_cols:
                         val = corr_df[target_c][corr_df.columns.index(c)]
-                        correlation_matrix[c][target_c] = round(float(val), 4) if val is not None and not math.isnan(val) else 0.0
+                        if val is not None and math.isfinite(float(val)):
+                            correlation_matrix[c][target_c] = round(float(val), 4)
+                        else:
+                            correlation_matrix[c][target_c] = None
             except Exception:
                 correlation_matrix = {}
 

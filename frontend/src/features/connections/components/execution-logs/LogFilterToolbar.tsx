@@ -64,7 +64,7 @@ export const LogFilterToolbar: React.FC<LogFilterToolbarProps> = ({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 flex-1 sm:flex-initial justify-end">
-        <div className="flex items-center gap-1.5 bg-surface border border-border rounded-lg px-2.5 py-1 focus-within:border-border-focus min-w-[180px] flex-1 sm:flex-initial sm:w-52">
+        <div className="flex items-center gap-1.5 bg-surface border border-border rounded-lg px-2.5 py-1 focus-within:border-border-focus min-w-[200px] flex-1 sm:flex-initial sm:w-60">
           <Search
             size={ICON_SIZES.inline}
             className="text-text-muted shrink-0"
@@ -74,8 +74,8 @@ export const LogFilterToolbar: React.FC<LogFilterToolbarProps> = ({
             type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filter message, source, or run ID..."
-            aria-label="Filter logs by message, source, or run ID"
+            placeholder="Filter messages, source or run ID"
+            aria-label="Filter messages, source or run ID"
             className="bg-transparent border-none outline-none text-xs text-text placeholder:text-text-muted w-full"
           />
         </div>
@@ -84,7 +84,7 @@ export const LogFilterToolbar: React.FC<LogFilterToolbarProps> = ({
           type="button"
           onClick={onCopyVisible}
           disabled={visibleCount === 0}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border text-xs font-medium text-text-secondary hover:text-text hover:border-border-focus disabled:opacity-40 disabled:cursor-not-allowed transition-colors motion-reduce:transition-none cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border text-xs font-medium text-text-secondary hover:text-text hover:border-border-focus disabled:opacity-40 disabled:cursor-not-allowed transition-colors motion-reduce:transition-none cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {copiedAll ? (
             <>

@@ -57,7 +57,9 @@ public class SecurityHeadersFilter implements Filter {
       if (isAllowedOrigin(origin)) {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "*");
+        res.setHeader(
+            "Access-Control-Allow-Headers",
+            "Authorization, Content-Type, Accept, Origin, X-Requested-With, X-API-Key, X-Tenant-ID, X-Suppress-Toast, Cache-Control");
         res.setHeader("Access-Control-Allow-Credentials", "true");
         res.setHeader("Access-Control-Max-Age", "3600");
       } else {

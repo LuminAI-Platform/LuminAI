@@ -270,6 +270,7 @@ class DataQualityFramework:
         records: List[Dict[str, Any]],
         mandatory_fields: Optional[Set[str]] = None,
         date_fields: Optional[Set[str]] = None,
+        precomputed_assessments: Optional[List[RecordQualityAssessment]] = None,
     ) -> DatasetQualityAssessment:
         """Evaluates overall dataset quality across all records."""
         total = len(records)
@@ -298,20 +299,36 @@ class DataQualityFramework:
         # Duplicate ID check across dataset
         seen_ids: Dict[str, int] = {}
         for r in records:
-            rid = str(r.get("id") or r.get("record_id") or r.get("mrn") or "")
+            rid = str(
+                r.get("id")
+                or r.get("record_id")
+                or r.get("mrn")
+                or r.get("national_id")
+                or r.get("ssn")
+                or r.get("entity_id")
+                or ""
+            )
             if rid:
                 seen_ids[rid] = seen_ids.get(rid, 0) + 1
 
         dup_ids_count = sum(c - 1 for c in seen_ids.values() if c > 1)
         uniqueness_score = max(0.0, 100.0 - ((dup_ids_count / total) * 100.0))
 
+        use_precomputed = (
+            precomputed_assessments is not None
+            and len(precomputed_assessments) == total
+        )
         for i, r in enumerate(records):
             rec_id = str(r.get("id") or r.get("record_id") or f"row-{i}")
-            res = cls.evaluate_record(
-                record=r,
-                record_id=rec_id,
-                mandatory_fields=mandatory_fields,
-                date_fields=date_fields,
+            res = (
+                precomputed_assessments[i]
+                if use_precomputed
+                else cls.evaluate_record(
+                    record=r,
+                    record_id=rec_id,
+                    mandatory_fields=mandatory_fields,
+                    date_fields=date_fields,
+                )
             )
 
             if res.quality_state == "VERIFIED":

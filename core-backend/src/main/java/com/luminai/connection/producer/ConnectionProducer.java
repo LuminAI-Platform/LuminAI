@@ -1,7 +1,5 @@
 package com.luminai.connection.producer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -41,12 +39,9 @@ public class ConnectionProducer {
   static final String TOPIC = "ingest.raw";
 
   private final KafkaTemplate<String, Object> kafkaTemplate;
-  private final ObjectMapper objectMapper;
 
-  public ConnectionProducer(
-      KafkaTemplate<String, Object> kafkaTemplate, ObjectMapper objectMapper) {
+  public ConnectionProducer(KafkaTemplate<String, Object> kafkaTemplate) {
     this.kafkaTemplate = kafkaTemplate;
-    this.objectMapper = objectMapper;
   }
 
   /**
@@ -81,8 +76,9 @@ public class ConnectionProducer {
       List<Map<String, Object>> rows,
       boolean batchComplete,
       String objectKey) {
-
-    publishRows(tenantId, connectionId, source, rows, batchComplete, objectKey, Map.of());
+    int inferredTotal = rows != null ? rows.size() : 0;
+    publishRows(
+        tenantId, connectionId, source, rows, batchComplete, objectKey, inferredTotal, null);
   }
 
   public void publishRows(
@@ -92,7 +88,8 @@ public class ConnectionProducer {
       List<Map<String, Object>> rows,
       boolean batchComplete,
       String objectKey,
-      Map<String, Object> batchMetadata) {
+      int actualTotalRows,
+      Long fileSizeBytes) {
 
     if ((rows == null || rows.isEmpty()) && (objectKey == null || objectKey.isBlank())) {
       log.warn(
@@ -101,7 +98,7 @@ public class ConnectionProducer {
       return;
     }
 
-    int rowCount = rows != null ? rows.size() : 0;
+    int rowCount = Math.max(actualTotalRows, rows != null ? rows.size() : 0);
     List<Map<String, Object>> safeRows = rows != null ? rows : List.of();
 
     IngestEvent event =
@@ -115,13 +112,15 @@ public class ConnectionProducer {
             safeRows,
             batchComplete,
             objectKey,
-            batchMetadata != null ? batchMetadata : Map.of());
+            fileSizeBytes);
 
-    String payload = serialize(event);
     String messageKey = tenantId.toString();
 
+    // Pass the event object directly — KafkaTemplate<String, Object> with JsonSerializer
+    // will serialize it once. Serializing to String here caused double-encode: the JSON
+    // string would be re-serialized as a quoted JSON string literal, breaking consumers.
     kafkaTemplate
-        .send(TOPIC, messageKey, payload)
+        .send(TOPIC, messageKey, event)
         .whenComplete(
             (result, ex) -> {
               if (ex != null) {
@@ -184,8 +183,7 @@ public class ConnectionProducer {
       List<Map<String, Object>> rows,
       @com.fasterxml.jackson.annotation.JsonProperty("batch_complete") boolean batchComplete,
       @com.fasterxml.jackson.annotation.JsonProperty("object_key") String objectKey,
-      @com.fasterxml.jackson.annotation.JsonProperty("batch_metadata")
-          Map<String, Object> batchMetadata) {
+      @com.fasterxml.jackson.annotation.JsonProperty("file_size_bytes") Long fileSizeBytes) {
 
     public IngestEvent(
         String eventId,
@@ -207,7 +205,7 @@ public class ConnectionProducer {
           rows,
           batchComplete,
           objectKey,
-          Map.of());
+          null);
     }
 
     public IngestEvent(
@@ -228,6 +226,7 @@ public class ConnectionProducer {
           totalRows,
           rows,
           batchComplete,
+          null,
           null);
     }
 
@@ -239,19 +238,7 @@ public class ConnectionProducer {
         String ingestedAt,
         int totalRows,
         List<Map<String, Object>> rows) {
-      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
-  private String serialize(IngestEvent event) {
-    try {
-      return objectMapper.writeValueAsString(event);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException("Failed to serialize IngestEvent to JSON: " + e.getMessage(), e);
+      this(eventId, tenantId, connectionId, source, ingestedAt, totalRows, rows, true, null, null);
     }
   }
 }

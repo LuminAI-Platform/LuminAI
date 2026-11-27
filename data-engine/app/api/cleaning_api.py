@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, status
-import polars as pl
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.processing.engine.cleaning_engine import CleaningEngine, CleaningStepConfig
+from app.processing.engine.dataframe_utils import records_to_polars_df
+from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
 
 router = APIRouter(prefix="/analytics/cleaning", tags=["cleaning-engine"])
 
@@ -34,7 +35,7 @@ class ExecuteRecipeRequest(BaseModel):
 
 
 @router.post("/preview", summary="Interactive non-destructive preview of a cleaning operation")
-async def preview_cleaning_operation(request: PreviewStepRequest) -> Dict[str, Any]:
+def preview_cleaning_operation(request: PreviewStepRequest) -> Dict[str, Any]:
     """Generates before vs after diffs, affected records count, and quality delta."""
     if not request.records:
         raise HTTPException(
@@ -43,7 +44,7 @@ async def preview_cleaning_operation(request: PreviewStepRequest) -> Dict[str, A
         )
 
     try:
-        df = pl.DataFrame(request.records)
+        df = records_to_polars_df(request.records)
         engine = CleaningEngine()
         step_config = CleaningStepConfig(
             step_id=request.step.step_id or "preview-step",
@@ -62,8 +63,12 @@ async def preview_cleaning_operation(request: PreviewStepRequest) -> Dict[str, A
 
 
 @router.post("/execute", summary="Execute cleaning recipe and produce cleaned dataset with audit log")
-async def execute_cleaning_recipe(request: ExecuteRecipeRequest) -> Dict[str, Any]:
+def execute_cleaning_recipe(
+    request: ExecuteRecipeRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> Dict[str, Any]:
     """Executes full cleaning recipe, generating reproducible audit logs and new clean records."""
+    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
     if not request.records:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -71,8 +76,8 @@ async def execute_cleaning_recipe(request: ExecuteRecipeRequest) -> Dict[str, An
         )
 
     try:
-        df = pl.DataFrame(request.records)
-        engine = CleaningEngine(tenant_id=request.tenant_id)
+        df = records_to_polars_df(request.records)
+        engine = CleaningEngine(tenant_id=effective_tenant)
         steps = [
             CleaningStepConfig(
                 step_id=s.step_id or f"step-{i+1}",
@@ -87,7 +92,7 @@ async def execute_cleaning_recipe(request: ExecuteRecipeRequest) -> Dict[str, An
 
         return {
             "dataset_name": request.dataset_name,
-            "tenant_id": request.tenant_id,
+            "tenant_id": effective_tenant,
             "total_input_rows": df.height,
             "total_output_rows": clean_df.height,
             "audit_log": audit_log,

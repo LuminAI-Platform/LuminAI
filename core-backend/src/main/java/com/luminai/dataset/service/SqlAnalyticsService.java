@@ -2,6 +2,7 @@ package com.luminai.dataset.service;
 
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.dataset.dto.SavedQueryDto;
+import com.luminai.dataset.dto.SqlColumnInfo;
 import com.luminai.dataset.dto.SqlQueryRequest;
 import com.luminai.dataset.dto.SqlQueryResultDto;
 import com.luminai.dataset.model.SavedQuery;
@@ -42,12 +43,12 @@ public class SqlAnalyticsService {
 
   private static final java.util.regex.Pattern DISALLOWED_KEYWORDS =
       java.util.regex.Pattern.compile(
-          "\\b(DROP|DELETE|UPDATE|INSERT|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|EXECUTE|COPY|INTO|PG_SLEEP|PG_READ_FILE)\\b",
+          "\\b(DROP|DELETE|UPDATE|INSERT|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|EXECUTE|COPY|INTO|PG_SLEEP|PG_READ_FILE|PG_READ_BINARY_FILE|PG_LS_DIR|PG_STAT_FILE|DBLINK|DBLINK_EXEC|LO_IMPORT|LO_EXPORT|SET_CONFIG|CURRENT_SETTING|QUERY_TO_XML|PG_TERMINATE_BACKEND|PG_CANCEL_BACKEND)\\b",
           java.util.regex.Pattern.CASE_INSENSITIVE);
 
   private static final java.util.regex.Pattern CROSS_SCHEMA_PATTERN =
       java.util.regex.Pattern.compile(
-          "\\b(PUBLIC|VAULT_CREDENTIALS|USERS|TENANTS|INFORMATION_SCHEMA|PG_CATALOG|TENANT_[A-Z0-9_\\-]+)\\.",
+          "(?:\\b(PUBLIC|VAULT_CREDENTIALS|USERS|TENANTS|API_KEYS|FLYWAY_SCHEMA_HISTORY|INFORMATION_SCHEMA|PG_CATALOG|PG_TEMP|PG_TOAST|TENANT_[A-Z0-9_\\-]+)\\s*\\.|\"[^\"]+\"\\s*\\.|\\b(VAULT_CREDENTIALS|USERS|TENANTS|API_KEYS|FLYWAY_SCHEMA_HISTORY|PG_ROLES|PG_USER|PG_SHADOW|PG_AUTHID|PG_STAT_ACTIVITY)\\b)",
           java.util.regex.Pattern.CASE_INSENSITIVE);
 
   public SqlQueryResultDto executeQuery(SqlQueryRequest req) {
@@ -101,7 +102,7 @@ public class SqlAnalyticsService {
 
               // Set tenant-specific search_path for strict schema isolation
               try (Statement setStmt = conn.createStatement()) {
-                setStmt.execute("SET search_path = \"" + targetSchema + "\", public");
+                setStmt.execute("SET search_path = \"" + targetSchema + "\"");
               }
 
               try (Statement queryStmt = conn.createStatement()) {
@@ -109,16 +110,20 @@ public class SqlAnalyticsService {
                 try (ResultSet rs = queryStmt.executeQuery(sqlToRun)) {
                   ResultSetMetaData meta = rs.getMetaData();
                   int colCount = meta.getColumnCount();
-                  List<String> columns = new ArrayList<>(colCount);
+                  List<SqlColumnInfo> columns = new ArrayList<>(colCount);
                   for (int i = 1; i <= colCount; i++) {
-                    columns.add(meta.getColumnLabel(i));
+                    String rawType = meta.getColumnTypeName(i);
+                    columns.add(
+                        new SqlColumnInfo(
+                            meta.getColumnLabel(i),
+                            rawType != null ? rawType.toLowerCase() : "varchar"));
                   }
 
                   List<Map<String, Object>> rows = new ArrayList<>();
                   while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
                     for (int i = 1; i <= colCount; i++) {
-                      row.put(columns.get(i - 1), rs.getObject(i));
+                      row.put(columns.get(i - 1).name(), rs.getObject(i));
                     }
                     rows.add(row);
                   }
@@ -132,8 +137,7 @@ public class SqlAnalyticsService {
               try {
                 conn.setReadOnly(originalReadOnly);
                 try (Statement resetStmt = conn.createStatement()) {
-                  resetStmt.execute(
-                      "SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\", public");
+                  resetStmt.execute("SET search_path = \"" + TenantContext.DEFAULT_SCHEMA + "\"");
                 }
               } catch (Exception e) {
                 log.warn(
@@ -149,7 +153,8 @@ public class SqlAnalyticsService {
     } catch (Exception e) {
       long elapsed = System.currentTimeMillis() - start;
       log.warn("SQL execution error: {}", e.getMessage());
-      return new SqlQueryResultDto(List.of(), List.of(), 0, elapsed, "ERROR: " + e.getMessage());
+      return new SqlQueryResultDto(
+          List.<SqlColumnInfo>of(), List.of(), 0, elapsed, "ERROR: " + e.getMessage());
     }
   }
 

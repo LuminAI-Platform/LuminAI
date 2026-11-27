@@ -39,14 +39,22 @@ def test_deduplicated_ingestion_data_removes_duplicates():
 
 
 def test_cleaned_ingestion_data_normalises_cases():
-    """cleaned_ingestion_data normalises casing standard: title case names, lowercase emails."""
+    """cleaned_ingestion_data applies smart name normalization (preserving McDonald/O'Connor) and lowercase emails."""
+    from app.processing.engine.name_standardizer import NameStandardizer
+
     ctx = build_asset_context()
-    raw = raw_ingestion_data(ctx)
+    raw = pl.DataFrame({
+        "id": ["1", "2"],
+        "name": ["  alice smith  ", "john mcdonald"],
+        "email": ["Alice@Example.COM", "JOHN@Example.ORG"],
+        "country": ["uk", "us"],
+    })
     cleaned = cleaned_ingestion_data(ctx, raw)
 
+    assert cleaned["name"].to_list() == ["Alice Smith", "John McDonald"]
     for name in cleaned["name"].to_list():
-        if name:  # skip empty strings
-            assert name == name.title(), f"Name '{name}' is not title case"
+        if name:
+            assert name == NameStandardizer.to_title_case_smart(name)
 
     for email in cleaned["email"].to_list():
         if email:
@@ -139,10 +147,14 @@ def test_parse_currency_no_symbol():
 
 
 def test_parse_currency_invalid():
-    """_parse_currency_string defaults gracefully on invalid entries."""
+    """_parse_currency_string returns None amount/currency on invalid or empty entries instead of inventing $0."""
     res = _parse_currency_string("invalid")
-    assert res["amount"] == 0.0
-    assert res["currency"] == "USD"
+    assert res["amount"] is None
+    assert res["currency"] is None
+
+    res_none = _parse_currency_string(None)
+    assert res_none["amount"] is None
+    assert res_none["currency"] is None
 
 
 def test_staged_ingestion_data_stages_parquet_and_db():

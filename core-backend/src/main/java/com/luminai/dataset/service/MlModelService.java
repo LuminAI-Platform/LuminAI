@@ -269,8 +269,16 @@ public class MlModelService {
       String run = String.valueOf(item.get("run_id"));
       if (runToModelId.containsKey(run)) {
         item.put("model_id", runToModelId.get(run));
-      } else if (!localModels.isEmpty()) {
-        item.put("model_id", localModels.get(0).getId().toString());
+      } else {
+        // Fallback match only on exact model name when unambiguous — never attach an unrelated
+        // model ID
+        Object expModelName = item.get("model_name");
+        if (expModelName != null) {
+          localModels.stream()
+              .filter(m -> String.valueOf(expModelName).equals(m.getName()))
+              .findFirst()
+              .ifPresent(m -> item.put("model_id", m.getId().toString()));
+        }
       }
       enriched.add(item);
     }

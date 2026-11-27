@@ -11,6 +11,7 @@ import polars as pl
 from dagster import AssetExecutionContext
 from sqlalchemy import text
 
+from app.db.tenant import resolve_tenant_pg_context
 import app.processing.pipelines.er_pipeline as er_pipe
 from app.processing.pipelines.er_pipeline.helpers import (
     _extract_run_tags,
@@ -18,6 +19,47 @@ from app.processing.pipelines.er_pipeline.helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _records_to_df(records: List[Dict[str, Any]]) -> pl.DataFrame:
+    try:
+        return pl.DataFrame(records, infer_schema_length=None)
+    except Exception:
+        import pandas as pd
+
+        return pl.from_pandas(pd.DataFrame(records))
+
+
+def _load_records_from_conn(conn, tenant_id: Optional[str], safe_limit: Optional[int]) -> List[Dict[str, Any]]:
+    params: Dict[str, Any] = {}
+    if tenant_id:
+        tenant_keys = {str(tenant_id)}
+        if conn.dialect.name == "postgresql":
+            ctx = resolve_tenant_pg_context(conn, tenant_id)
+            tenant_keys.update({ctx["tenant_slug"], ctx["tenant_uuid"]})
+        ordered_keys = sorted(tenant_keys)
+        placeholders = ", ".join(f":t_{i}" for i in range(len(ordered_keys)))
+        for i, val in enumerate(ordered_keys):
+            params[f"t_{i}"] = val
+        sql = f"SELECT id, tenant_id, source_id, raw_id, data FROM staging_records WHERE tenant_id IN ({placeholders})"
+    else:
+        sql = "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records"
+
+    if safe_limit:
+        sql += " LIMIT :limit_val"
+        params["limit_val"] = safe_limit
+    sql += ";"
+
+    records: List[Dict[str, Any]] = []
+    res = conn.execute(text(sql), params)
+    for row in res:
+        data_dict = json.loads(row.data) if isinstance(row.data, str) else dict(row.data)
+        data_dict["id"] = str(row.id)
+        data_dict["raw_id"] = str(row.raw_id)
+        data_dict["source_id"] = str(row.source_id)
+        data_dict["tenant_id"] = str(row.tenant_id)
+        records.append(data_dict)
+    return records
 
 
 def fetch_staged_records(context: AssetExecutionContext) -> pl.DataFrame:
@@ -49,56 +91,21 @@ def fetch_staged_records(context: AssetExecutionContext) -> pl.DataFrame:
         except (ValueError, TypeError):
             safe_limit = None
 
-    if tenant_id:
-        if safe_limit:
-            query = text(
-                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
-                "WHERE tenant_id = :tenant_id LIMIT :limit_val;"
-            )
-            query_params = {"tenant_id": tenant_id, "limit_val": safe_limit}
-        else:
-            query = text(
-                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records "
-                "WHERE tenant_id = :tenant_id;"
-            )
-            query_params = {"tenant_id": tenant_id}
-    else:
-        if safe_limit:
-            query = text(
-                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records LIMIT :limit_val;"
-            )
-            query_params = {"limit_val": safe_limit}
-        else:
-            query = text(
-                "SELECT id, tenant_id, source_id, raw_id, data FROM staging_records;"
-            )
-            query_params = {}
-
-    records: List[Dict[str, Any]] = []
-
     # Attempt to load from PostgreSQL first
     try:
         engine = get_engine()
         with engine.connect() as conn:
-            res = conn.execute(query, query_params)
-            for row in res:
-                data_dict = (
-                    json.loads(row.data)
-                    if isinstance(row.data, str)
-                    else dict(row.data)
-                )
-                data_dict["id"] = str(row.id)
-                data_dict["raw_id"] = str(row.raw_id)
-                data_dict["source_id"] = str(row.source_id)
-                data_dict["tenant_id"] = str(row.tenant_id)
-                records.append(data_dict)
+            records = _load_records_from_conn(conn, tenant_id, safe_limit)
         if records:
             context.log.info(
                 "Loaded %d staged records from PostgreSQL (tenant: %s)",
                 len(records),
                 tenant_id or "all",
             )
-            return pl.DataFrame(records)
+            res_df = _records_to_df(records)
+            if run_id:
+                cp_mgr.save_checkpoint(run_id, "staged_records_for_er", res_df)
+            return res_df
     except Exception as exc:
         context.log.debug(
             "PostgreSQL staging unavailable (%s). Checking SQLite or synthetic fallback.",
@@ -111,25 +118,17 @@ def fetch_staged_records(context: AssetExecutionContext) -> pl.DataFrame:
         try:
             sqlite_engine = get_sqlite_engine(sqlite_path)
             with sqlite_engine.connect() as conn:
-                res = conn.execute(query, query_params)
-                for row in res:
-                    data_dict = (
-                        json.loads(row.data)
-                        if isinstance(row.data, str)
-                        else dict(row.data)
-                    )
-                    data_dict["id"] = str(row.id)
-                    data_dict["raw_id"] = str(row.raw_id)
-                    data_dict["source_id"] = str(row.source_id)
-                    data_dict["tenant_id"] = str(row.tenant_id)
-                    records.append(data_dict)
+                records = _load_records_from_conn(conn, tenant_id, safe_limit)
             if records:
                 context.log.info(
                     "Loaded %d staged records from SQLite staging (tenant: %s)",
                     len(records),
                     tenant_id or "all",
                 )
-                return pl.DataFrame(records)
+                res_df = _records_to_df(records)
+                if run_id:
+                    cp_mgr.save_checkpoint(run_id, "staged_records_for_er", res_df)
+                return res_df
         except Exception as sqle:
             context.log.debug("SQLite staging error: %s", sqle)
 

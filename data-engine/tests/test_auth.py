@@ -272,13 +272,43 @@ class TestAuthenticationEnforced:
         )
         assert res_unauth.status_code == 401
 
-        # With valid API Key -> 200
+        # With valid API Key -> 200 (service account can pass target tenant_id)
         res_auth = client.post(
             "/analytics/query",
             headers={"X-API-Key": "secret-api-key-999"},
             json={"tenant_id": "acme", "entity_type": "Person"},
         )
         assert res_auth.status_code == 200
+
+    def test_jwt_tenant_isolation_blocks_cross_tenant_and_allows_matching_tenant(self, rsa_keys):
+        """JWT caller scoped to 'beta' gets 403 on 'acme' payloads and succeeds for 'beta'."""
+        token = create_test_jwt(
+            rsa_keys["private_key"], sub="user-beta", username="betty", tenant_id="beta"
+        )
+        res_cross = client.post(
+            "/analytics/query",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"tenant_id": "acme", "entity_type": "Person"},
+        )
+        assert res_cross.status_code == 403
+        assert "Tenant mismatch" in res_cross.json()["detail"]
+
+        res_same = client.post(
+            "/analytics/query",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"tenant_id": "beta", "entity_type": "Person"},
+        )
+        assert res_same.status_code == 200
+        assert res_same.json()["tenant_id"] == "beta"
+
+        # Service X-API-Key remains allowed to act on any requested tenant
+        res_service = client.post(
+            "/analytics/query",
+            headers={"X-API-Key": "secret-api-key-999"},
+            json={"tenant_id": "gamma", "entity_type": "Person"},
+        )
+        assert res_service.status_code == 200
+        assert res_service.json()["tenant_id"] == "gamma"
 
 
 # --- Integration Tests with auth_enabled = False (Dev Bypass Mode) ---

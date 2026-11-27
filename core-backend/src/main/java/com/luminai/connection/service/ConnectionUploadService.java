@@ -39,9 +39,21 @@ public class ConnectionUploadService {
   private PipelineRunRepository pipelineRunRepository;
   private final ObjectMapper objectMapper;
   private DatasetRegistrationHelper datasetRegistrationHelper;
+  private PipelineSseService pipelineSseService;
+  private org.springframework.cache.CacheManager cacheManager;
 
   public void setPipelineRunRepository(PipelineRunRepository pipelineRunRepository) {
     this.pipelineRunRepository = pipelineRunRepository;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setCacheManager(org.springframework.cache.CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setPipelineSseService(PipelineSseService pipelineSseService) {
+    this.pipelineSseService = pipelineSseService;
   }
 
   @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -112,6 +124,7 @@ public class ConnectionUploadService {
     int totalRows = parseResult.totalRecords();
 
     // 1. Update Connection in database with parsed sample rows & metadata
+    String savedRunId = null;
     if (connectionRepository != null) {
       try {
         Optional<Connection> connOpt = connectionRepository.findByIdAndTenantId(id, tenantId);
@@ -132,6 +145,7 @@ public class ConnectionUploadService {
           configMap.put("fileSize", file.getSize());
           configMap.put("recordsCount", totalRows);
           configMap.put("rowsCount", totalRows);
+          configMap.remove("goldenRecordsPersisted");
           if (!columns.isEmpty()) {
             configMap.put("columns", columns);
             configMap.put("sampleRows", sampleRows);
@@ -140,6 +154,7 @@ public class ConnectionUploadService {
           connection.setStatus(Connection.Status.ACTIVE);
           connection.setLastSyncAt(Instant.now());
           connectionRepository.save(connection);
+          ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, id);
           log.info("Persisted connection config and sample rows for connection '{}'", id);
 
           if (pipelineRunRepository != null) {
@@ -158,7 +173,8 @@ public class ConnectionUploadService {
                   "{\"fileName\":\""
                       + (file.getOriginalFilename() != null ? file.getOriginalFilename() : "Upload")
                       + "\"}");
-              pipelineRunRepository.save(run);
+              PipelineRun savedRun = pipelineRunRepository.save(run);
+              savedRunId = savedRun.getId() != null ? savedRun.getId().toString() : id.toString();
               log.info("Recorded initial PipelineRun for connection '{}'", id);
             } catch (Exception pe) {
               log.warn("Could not save initial PipelineRun: {}", pe.getMessage());
@@ -181,18 +197,22 @@ public class ConnectionUploadService {
       }
     }
 
+    String sseRunId = savedRunId != null ? savedRunId : id.toString();
+    if (pipelineSseService != null) {
+      pipelineSseService.emitProgress(
+          tenantId,
+          sseRunId,
+          "ingest",
+          40,
+          "Parsed " + totalRows + " rows from '" + file.getOriginalFilename() + "'");
+    }
+
     // 2. Stream parsed rows into Kafka in chunked batches
     if (totalRows <= 1000) {
       if (!sampleRows.isEmpty()) {
         try {
           connectionProducer.publishRows(
-              tenantId,
-              id,
-              file.getOriginalFilename(),
-              sampleRows,
-              true,
-              objectKey,
-              ingestionMetadata(tenantId, id));
+              tenantId, id, file.getOriginalFilename(), sampleRows, true, objectKey);
           log.info(
               "Streamed {} parsed rows to Kafka for connection '{}' (tenant={})",
               totalRows,
@@ -204,13 +224,7 @@ public class ConnectionUploadService {
       } else {
         try {
           connectionProducer.publishRows(
-              tenantId,
-              id,
-              file.getOriginalFilename(),
-              List.of(),
-              true,
-              objectKey,
-              ingestionMetadata(tenantId, id));
+              tenantId, id, file.getOriginalFilename(), List.of(), true, objectKey);
         } catch (Exception e) {
           log.warn("Kafka completion signal skipped: {}", e.getMessage());
         }
@@ -221,19 +235,27 @@ public class ConnectionUploadService {
             tenantId,
             id,
             file.getOriginalFilename(),
-            sampleRows,
+            List.of(),
             true,
             objectKey,
-            ingestionMetadata(tenantId, id));
+            totalRows,
+            file.getSize());
         log.info(
-            "Dispatched MinIO reference objectKey='{}' ({} records) to Data Engine for connection '{}' (tenant={})",
+            "Dispatched MinIO reference objectKey='{}' ({} records, {} bytes) to Data Engine for connection '{}' (tenant={})",
             objectKey,
             totalRows,
+            file.getSize(),
             id,
             tenantId);
       } catch (Exception e) {
         log.warn("Kafka publishing skipped: {}", e.getMessage());
       }
+    }
+
+    if (pipelineSseService != null) {
+      pipelineSseService.emitProgress(
+          tenantId, sseRunId, "publish", 100, "File uploaded and queued for downstream processing");
+      pipelineSseService.emitComplete(tenantId, sseRunId, totalRows, totalRows, 0L, "1s");
     }
 
     return ResponseEntity.ok(
@@ -365,6 +387,7 @@ public class ConnectionUploadService {
           configMap.put("archive", true);
           configMap.put("recordsCount", totalExtractedRows);
           configMap.put("tables", tables);
+          configMap.remove("goldenRecordsPersisted");
 
           // Populate combined sample rows and columns across all extracted tables
           DatasetRegistrationHelper.populateArchiveCombinedSamples(configMap, tables);
@@ -373,11 +396,13 @@ public class ConnectionUploadService {
           connection.setStatus(Connection.Status.ACTIVE);
           connection.setLastSyncAt(Instant.now());
           connectionRepository.save(connection);
+          ConnectionCleanPreviewService.evictPreviewCache(cacheManager, tenantId, connectionId);
           log.info(
               "Persisted connection config with {} archive tables for connection '{}'",
               tables.size(),
               connectionId);
 
+          String savedZipRunId = null;
           if (pipelineRunRepository != null) {
             try {
               PipelineRun run = new PipelineRun();
@@ -398,11 +423,27 @@ public class ConnectionUploadService {
                       + "\",\"tablesCount\":"
                       + tables.size()
                       + "}");
-              pipelineRunRepository.save(run);
+              PipelineRun savedZipRun = pipelineRunRepository.save(run);
+              savedZipRunId =
+                  savedZipRun.getId() != null
+                      ? savedZipRun.getId().toString()
+                      : connectionId.toString();
               log.info("Recorded PipelineRun for archive connection '{}'", connectionId);
             } catch (Exception pe) {
               log.warn("Could not save initial PipelineRun for archive: {}", pe.getMessage());
             }
+          }
+
+          if (pipelineSseService != null) {
+            String sseRunId = savedZipRunId != null ? savedZipRunId : connectionId.toString();
+            pipelineSseService.emitProgress(
+                tenantId,
+                sseRunId,
+                "ingest",
+                100,
+                "Extracted " + tables.size() + " tables (" + totalExtractedRows + " rows)");
+            pipelineSseService.emitComplete(
+                tenantId, sseRunId, totalExtractedRows, totalExtractedRows, 0L, "1s");
           }
 
           if (datasetRegistrationHelper != null) {
@@ -431,33 +472,5 @@ public class ConnectionUploadService {
             + tables.size()
             + " dataset files extracted and published to ingest pipeline");
     return ResponseEntity.ok(resp);
-  }
-
-  private Map<String, Object> ingestionMetadata(UUID tenantId, UUID connectionId) {
-    if (connectionRepository == null) return Map.of();
-    return connectionRepository
-        .findByIdAndTenantId(connectionId, tenantId)
-        .map(
-            connection -> {
-              try {
-                Map<String, Object> config =
-                    objectMapper.readValue(connection.getConfig(), Map.class);
-                Map<String, Object> metadata = new LinkedHashMap<>();
-                Object targetType = config.get("targetEntityType");
-                if (targetType != null && !String.valueOf(targetType).isBlank()) {
-                  metadata.put("entity_type", String.valueOf(targetType));
-                  metadata.put("target_entity_type", String.valueOf(targetType));
-                }
-                Object foreignKeys = config.get("foreign_keys");
-                if (foreignKeys != null) metadata.put("foreign_keys", foreignKeys);
-                metadata.put("auto_er", config.getOrDefault("auto_er", true));
-                metadata.put("generate_edges", config.getOrDefault("generate_edges", true));
-                return metadata;
-              } catch (Exception e) {
-                log.warn("Could not read ingestion options for connection {}", connectionId, e);
-                return new LinkedHashMap<String, Object>();
-              }
-            })
-        .orElseGet(LinkedHashMap::new);
   }
 }

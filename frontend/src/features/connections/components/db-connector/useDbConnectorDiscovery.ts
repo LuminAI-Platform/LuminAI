@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import type { DBType } from "./dbConnectorTypes";
 import type { SchemaDiscovery } from "../TableSelector";
-import { apiFetch } from "../../../../lib/api";
+import { apiFetch, ApiError } from "../../../../lib/api";
+import { showToastNotification } from "../../../../components/ui/ToastProvider";
 import {
   type ClassifiedConnectionError,
   classifyConnectionError,
@@ -171,6 +172,11 @@ export function useDbConnectorDiscovery({
         body: JSON.stringify({
           name: name.trim(),
           type: resolvedType,
+          host: host.trim(),
+          port: Number(port),
+          database: databaseName.trim(),
+          username: username.trim(),
+          password,
           config: JSON.stringify({
             host: host.trim(),
             port: Number(port),
@@ -185,6 +191,55 @@ export function useDbConnectorDiscovery({
         throw new Error(
           err.message || "Failed to register database connector.",
         );
+      }
+      const created = (await res.json().catch(() => null)) as {
+        id?: string;
+      } | null;
+      if (created?.id) {
+        try {
+          const syncRes = await apiFetch(
+            `/api/v1/connections/${created.id}/sync`,
+            {
+              method: "POST",
+              headers: { "X-Suppress-Toast": "true" },
+              body: JSON.stringify({ tables: selectedTables }),
+            },
+          );
+          if (!syncRes.ok) {
+            const errBody = (await syncRes.json().catch(() => ({}))) as {
+              error?: string;
+              message?: string;
+            };
+            throw new Error(
+              errBody.error ||
+                errBody.message ||
+                `Sync request failed (HTTP ${syncRes.status})`,
+            );
+          }
+        } catch (syncErr: unknown) {
+          let detail = "Could not start initial sync for this connection.";
+          if (syncErr instanceof ApiError) {
+            try {
+              const errBody = (await syncErr.response.clone().json()) as {
+                error?: string;
+                message?: string;
+              };
+              detail =
+                errBody.error ||
+                errBody.message ||
+                `Sync request failed (HTTP ${syncErr.status}).`;
+            } catch {
+              detail = `Sync request failed (HTTP ${syncErr.status}).`;
+            }
+          } else if (syncErr instanceof Error && syncErr.message) {
+            detail = syncErr.message;
+          }
+          console.warn(
+            `[DatabaseConnector] Initial sync failed for connection ${created.id}:`,
+            detail,
+          );
+          showToastNotification("warning", "Initial sync failed", detail);
+        }
       }
       clearPassword();
       onSuccess();

@@ -47,10 +47,15 @@ public class CacheConfig implements CachingConfigurer {
   public static final String CACHE_ONTOLOGY = "ontology_cache";
   public static final String CACHE_DASHBOARD = "dashboard_cache";
   public static final String CACHE_TENANT_RESOLUTION = "tenant_resolution";
+  public static final String CACHE_CLEAN_PREVIEW = "clean_preview";
 
-  private GenericJackson2JsonRedisSerializer createRedisSerializer() {
+  GenericJackson2JsonRedisSerializer createRedisSerializer() {
     ObjectMapper mapper = new ObjectMapper();
     mapper.registerModule(new JavaTimeModule());
+    // Jdk8Module is required alongside DefaultTyping.NON_FINAL so that Optional,
+    // OptionalLong, etc. round-trip correctly and Java records don't deserialize
+    // as LinkedHashMap (which causes ClassCastException on cache reads).
+    mapper.registerModule(new com.fasterxml.jackson.datatype.jdk8.Jdk8Module());
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     PolymorphicTypeValidator ptv =
@@ -62,8 +67,11 @@ public class CacheConfig implements CachingConfigurer {
             .allowIfSubType("java.time.")
             .allowIfSubType("java.util.")
             .build();
+    // DefaultTyping.EVERYTHING is required so final Java record DTOs
+    // (DashboardSummaryDto, SearchResponseDto.Response, EntityDetailDto.Response)
+    // include @class metadata instead of deserializing as LinkedHashMap (ClassCastException).
     mapper.activateDefaultTyping(
-        ptv, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+        ptv, ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
 
     return new GenericJackson2JsonRedisSerializer(mapper);
   }
@@ -96,6 +104,7 @@ public class CacheConfig implements CachingConfigurer {
             .withCacheConfiguration(CACHE_ONTOLOGY, config.entryTtl(Duration.ofMinutes(5)))
             .withCacheConfiguration(CACHE_DASHBOARD, config.entryTtl(Duration.ofSeconds(30)))
             .withCacheConfiguration(CACHE_TENANT_RESOLUTION, config.entryTtl(Duration.ofMinutes(5)))
+            .withCacheConfiguration(CACHE_CLEAN_PREVIEW, config.entryTtl(Duration.ofMinutes(10)))
             .build();
       }
     } catch (Exception exc) {
@@ -110,7 +119,8 @@ public class CacheConfig implements CachingConfigurer {
         CACHE_EXPLORER_ENTITIES,
         CACHE_ONTOLOGY,
         CACHE_DASHBOARD,
-        CACHE_TENANT_RESOLUTION);
+        CACHE_TENANT_RESOLUTION,
+        CACHE_CLEAN_PREVIEW);
   }
 
   @Override

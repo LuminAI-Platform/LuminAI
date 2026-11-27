@@ -63,7 +63,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             <TopBar onMenuClick={() => setMobileOpen(true)} />
 
             {/* Scrollable View Container */}
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-7 relative min-w-0 bg-page">
+            <main className="flex-1 overflow-y-auto scroll-pt-6 p-4 md:p-6 lg:p-7 relative min-w-0 bg-page">
               {/* Subtle calm background pattern */}
               <div className="absolute inset-0 bg-grid-dots pointer-events-none z-0" />
 

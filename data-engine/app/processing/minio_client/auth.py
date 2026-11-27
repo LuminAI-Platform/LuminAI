@@ -55,11 +55,21 @@ def build_sigv4_headers(
         f"{k}:{headers_to_sign[k]}\n" for k in sorted(headers_to_sign.keys())
     )
 
-    encoded_path = urllib.parse.quote(path, safe="/-_.~")
+    raw_path, _, raw_query = path.partition("?")
+    encoded_path = urllib.parse.quote(raw_path or "/", safe="/-_.~")
+    if raw_query:
+        query_pairs = urllib.parse.parse_qsl(raw_query, keep_blank_values=True)
+        canonical_query = "&".join(
+            f"{urllib.parse.quote(k, safe='-_.~')}={urllib.parse.quote(v, safe='-_.~')}"
+            for k, v in sorted(query_pairs)
+        )
+    else:
+        canonical_query = ""
+
     canonical_request = (
         f"{method}\n"
         f"{encoded_path}\n"
-        f"\n"
+        f"{canonical_query}\n"
         f"{canonical_headers}\n"
         f"{signed_headers}\n"
         f"{payload_hash}"

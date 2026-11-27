@@ -56,7 +56,7 @@ class DecomposeResponse(BaseModel):
     response_model=DecomposeResponse,
     summary="Decompose flat records into multi-class entity graph nodes and edges",
 )
-async def decompose_records(request: DecomposeRequest) -> DecomposeResponse:
+def decompose_records(request: DecomposeRequest) -> DecomposeResponse:
     """Decompose denormalized tabular rows into a structured knowledge graph."""
     if not request.records:
         raise HTTPException(status_code=400, detail="records list cannot be empty")

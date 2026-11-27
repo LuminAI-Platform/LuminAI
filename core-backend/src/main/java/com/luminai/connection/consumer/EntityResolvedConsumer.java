@@ -31,6 +31,9 @@ public class EntityResolvedConsumer {
   private final com.luminai.connection.repository.ConnectionRepository connectionRepository;
   private final com.luminai.auth.repository.TenantRepository tenantRepository;
 
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  private com.luminai.connection.service.PipelineSseService pipelineSseService;
+
   public EntityResolvedConsumer(
       PipelineRunRepository pipelineRunRepository,
       com.luminai.connection.repository.ConnectionRepository connectionRepository,
@@ -38,6 +41,12 @@ public class EntityResolvedConsumer {
     this.pipelineRunRepository = pipelineRunRepository;
     this.connectionRepository = connectionRepository;
     this.tenantRepository = tenantRepository;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setPipelineSseService(
+      com.luminai.connection.service.PipelineSseService pipelineSseService) {
+    this.pipelineSseService = pipelineSseService;
   }
 
   /**
@@ -151,6 +160,7 @@ public class EntityResolvedConsumer {
         com.luminai.common.tenant.TenantContext.setTenant(tenantId, tenantSlug);
       }
 
+      final UUID resolvedTenantId = tenantId;
       try {
         pipelineRunRepository.findByConnectionId(connectionId).stream()
             .filter(
@@ -163,8 +173,9 @@ public class EntityResolvedConsumer {
             .findFirst()
             .ifPresentOrElse(
                 run -> {
+                  Instant completedAt = Instant.now();
                   run.setStatus(COMPLETED_STATUS);
-                  run.setCompletedAt(Instant.now());
+                  run.setCompletedAt(completedAt);
                   if (resolvedEntities > 0) {
                     run.setRecordsOutput(resolvedEntities);
                   }
@@ -177,6 +188,30 @@ public class EntityResolvedConsumer {
                       connectionId,
                       com.luminai.common.tenant.TenantContext.getTenantSlug(),
                       resolvedEntities);
+                  if (pipelineSseService != null && run.getId() != null) {
+                    UUID sseTenant =
+                        resolvedTenantId != null ? resolvedTenantId : run.getTenantId();
+                    long elapsedSec =
+                        run.getStartedAt() != null
+                            ? Math.max(
+                                1L,
+                                java.time.Duration.between(run.getStartedAt(), completedAt)
+                                    .getSeconds())
+                            : 0L;
+                    pipelineSseService.emitProgress(
+                        sseTenant,
+                        run.getId().toString(),
+                        "resolve",
+                        100,
+                        "Entity resolution completed (" + resolvedEntities + " golden records)");
+                    pipelineSseService.emitComplete(
+                        sseTenant,
+                        run.getId().toString(),
+                        run.getRecordsInput(),
+                        run.getRecordsOutput(),
+                        run.getRecordsFailed(),
+                        elapsedSec + "s");
+                  }
                 },
                 () ->
                     log.warn(

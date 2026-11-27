@@ -118,8 +118,13 @@ export function useSchemaMapState() {
         const prop = ontologyProps.find(
           (p: OntologyProperty) => p.id === m.ontologyPropertyId,
         );
+        const uuidMatch = selectedSource.match(
+          /^(?:conn_)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
+        );
         return {
-          connectorId: selectedSource.replace(/^conn_/, ""),
+          connectorId: uuidMatch
+            ? uuidMatch[1]
+            : selectedSource.replace(/^conn_/, ""),
           name: `${sourceData.table} - ${col?.name ?? m.sourceColumnId} Map`,
           sourceColumn: col?.name ?? m.sourceColumnId,
           targetEntityType: payload.targetEntity,

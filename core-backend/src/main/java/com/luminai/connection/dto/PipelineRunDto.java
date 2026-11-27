@@ -1,9 +1,12 @@
 package com.luminai.connection.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.connection.model.PipelineRun;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,7 +30,7 @@ public record PipelineRunDto(
     double throughput,
     Instant startedAt,
     Instant completedAt,
-    Long durationSeconds,
+    long durationSeconds,
     String errorMessage,
     String metadata,
     Instant createdAt) {
@@ -72,7 +75,7 @@ public record PipelineRunDto(
         0L,
         recordsFailed,
         null,
-        List.of(),
+        generateDefaultStages(recordsInput, recordsOutput, recordsFailed, durationSeconds),
         throughput,
         startedAt,
         completedAt,
@@ -82,16 +85,71 @@ public record PipelineRunDto(
         createdAt);
   }
 
+  private static final ObjectMapper METADATA_MAPPER = new ObjectMapper();
+
+  private static List<StageMetricDto> generateDefaultStages(
+      long in, long out, long failed, long duration) {
+    if (in == 0 && out == 0 && failed == 0 && duration == 0) {
+      return List.of();
+    }
+    List<StageMetricDto> stages = new ArrayList<>();
+    long durSlice = duration > 0 ? duration / 4 : 0L;
+    stages.add(new StageMetricDto("ingest", "Data Ingestion", in, in, 0, durSlice));
+    stages.add(new StageMetricDto("clean", "Cleaning & Normalization", in, in, 0, durSlice));
+    stages.add(new StageMetricDto("dedupe", "Deduplication", in, out + failed, failed, durSlice));
+    stages.add(new StageMetricDto("resolve", "Entity Resolution", out + failed, out, 0, durSlice));
+    return stages;
+  }
+
+  private static JsonNode parseMetadata(String rawMetadata) {
+    if (rawMetadata == null || rawMetadata.isBlank() || "{}".equals(rawMetadata.trim())) {
+      return null;
+    }
+    try {
+      return METADATA_MAPPER.readTree(rawMetadata);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static Long readLongField(JsonNode node, String field) {
+    if (node != null && node.has(field) && node.get(field).isNumber()) {
+      return node.get(field).asLong();
+    }
+    return null;
+  }
+
+  private static List<StageMetricDto> readStagesFromMetadata(JsonNode meta) {
+    if (meta == null || !meta.has("stages") || !meta.get("stages").isArray()) {
+      return null;
+    }
+    List<StageMetricDto> result = new ArrayList<>();
+    for (JsonNode s : meta.get("stages")) {
+      if (!s.isObject()) continue;
+      String stage =
+          s.has("stage")
+              ? s.get("stage").asText("stage")
+              : (s.has("id") ? s.get("id").asText("stage") : "stage");
+      String label =
+          s.has("label")
+              ? s.get("label").asText(stage)
+              : (s.has("name") ? s.get("name").asText(stage) : stage);
+      long recIn = s.has("recordsIn") ? s.get("recordsIn").asLong(0L) : 0L;
+      long recOut = s.has("recordsOut") ? s.get("recordsOut").asLong(0L) : 0L;
+      long dropped =
+          s.has("dropped")
+              ? s.get("dropped").asLong(0L)
+              : (s.has("recordsFailed") ? s.get("recordsFailed").asLong(0L) : 0L);
+      long dur = s.has("durationSeconds") ? s.get("durationSeconds").asLong(0L) : 0L;
+      result.add(new StageMetricDto(stage, label, recIn, recOut, dropped, dur));
+    }
+    return result.isEmpty() ? null : result;
+  }
+
   public static PipelineRunDto fromEntity(
       PipelineRun run, String connectorName, String connectorType) {
     long duration = 0;
     Instant start = run.getStartedAt();
-    boolean terminal =
-        run.getStatus() == PipelineRun.PipelineRunStatus.COMPLETED
-            || run.getStatus() == PipelineRun.PipelineRunStatus.CLEANED
-            || run.getStatus() == PipelineRun.PipelineRunStatus.VALIDATED
-            || run.getStatus() == PipelineRun.PipelineRunStatus.FAILED
-            || run.getStatus() == PipelineRun.PipelineRunStatus.CANCELLED;
     Instant end = run.getCompletedAt() != null ? run.getCompletedAt() : Instant.now();
     if (start != null) {
       duration = Math.max(0, Duration.between(start, end).getSeconds());
@@ -111,27 +169,39 @@ public record PipelineRunDto(
       throughput = (double) run.getRecordsOutput() / duration;
     }
 
-    Long reportedDuration = terminal && run.getCompletedAt() == null ? null : duration;
+    long failed = run.getRecordsFailed();
+    JsonNode meta = parseMetadata(run.getMetadata());
+    Long metaQuarantined = readLongField(meta, "quarantined");
+    Long metaRejected = readLongField(meta, "rejected");
+    long quarantined = metaQuarantined != null ? Math.max(0L, metaQuarantined) : 0L;
+    long rejected =
+        metaRejected != null ? Math.max(0L, metaRejected) : Math.max(0L, failed - quarantined);
+    List<StageMetricDto> parsedStages = readStagesFromMetadata(meta);
+    List<StageMetricDto> stages =
+        parsedStages != null
+            ? parsedStages
+            : generateDefaultStages(
+                run.getRecordsInput(), run.getRecordsOutput(), failed, duration);
 
     return new PipelineRunDto(
         run.getId(),
         run.getConnectionId(),
-        connectorName,
-        connectorType,
+        connectorName != null ? connectorName : "Data Connector",
+        connectorType != null ? connectorType : "Database",
         run.getPipelineType(),
         status,
         progress,
         run.getRecordsInput(),
         run.getRecordsOutput(),
         run.getRecordsFailed(),
-        run.getRecordsQuarantined(),
-        run.getRecordsRejected(),
+        quarantined,
+        rejected,
         null,
-        List.of(),
+        stages,
         throughput,
         run.getStartedAt(),
         run.getCompletedAt(),
-        reportedDuration,
+        duration,
         run.getErrorMessage(),
         run.getMetadata(),
         run.getCreatedAt());

@@ -36,6 +36,9 @@ public class PipelineEventConsumer {
   private final ConnectionRepository connectionRepository;
   private final TenantRepository tenantRepository;
 
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  private com.luminai.connection.service.PipelineSseService pipelineSseService;
+
   public PipelineEventConsumer(
       PipelineRunRepository pipelineRunRepository,
       ConnectionRepository connectionRepository,
@@ -43,6 +46,12 @@ public class PipelineEventConsumer {
     this.pipelineRunRepository = pipelineRunRepository;
     this.connectionRepository = connectionRepository;
     this.tenantRepository = tenantRepository;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setPipelineSseService(
+      com.luminai.connection.service.PipelineSseService pipelineSseService) {
+    this.pipelineSseService = pipelineSseService;
   }
 
   /**
@@ -155,23 +164,20 @@ public class PipelineEventConsumer {
         TenantContext.setTenant(tenantId, tenantSlug);
       }
 
+      final UUID resolvedTenantId = tenantId;
+      final String eventStatus = rawStatus;
       try {
         pipelineRunRepository.findByConnectionId(connectionId).stream()
             .filter(
                 run ->
                     run.getStatus() == PipelineRunStatus.PENDING
-                        || run.getStatus() == PipelineRunStatus.INGESTING)
+                        || run.getStatus() == PipelineRunStatus.INGESTING
+                        || run.getStatus() == PipelineRunStatus.RUNNING)
             .findFirst()
             .ifPresentOrElse(
                 run -> {
                   run.setStatus(newStatus);
                   run.setRecordsOutput(run.getRecordsOutput() + recordsOutput);
-                  if (payload.containsKey("recordsQuarantined")) {
-                    run.setRecordsQuarantined(toLong(payload.get("recordsQuarantined")));
-                  }
-                  if (payload.containsKey("recordsRejected")) {
-                    run.setRecordsRejected(toLong(payload.get("recordsRejected")));
-                  }
                   pipelineRunRepository.save(run);
                   log.info(
                       "Updated PipelineRun '{}' for connection '{}' (tenant={}) → status={}",
@@ -179,6 +185,15 @@ public class PipelineEventConsumer {
                       connectionId,
                       TenantContext.getTenantSlug(),
                       newStatus);
+                  if (pipelineSseService != null && run.getId() != null) {
+                    int pct = "CLEANED".equals(eventStatus) ? 50 : 75;
+                    pipelineSseService.emitProgress(
+                        resolvedTenantId != null ? resolvedTenantId : run.getTenantId(),
+                        run.getId().toString(),
+                        eventStatus.toLowerCase(),
+                        pct,
+                        "Batch " + eventStatus.toLowerCase() + " (" + recordsOutput + " records)");
+                  }
                 },
                 () ->
                     log.warn(

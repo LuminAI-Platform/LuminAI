@@ -65,10 +65,11 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str | None = None
     otel_sample_rate: float = 1.0
 
-    # Rate Limiting Configuration
+    # Rate Limiting & Proxy Configuration
     rate_limit_enabled: bool = True
     rate_limit_default_per_minute: int = 120
     rate_limit_pipeline_per_minute: int = 30
+    trust_proxy_headers: bool = False
 
     # CORS Configuration
     cors_origins: list[str] | str = [
@@ -151,6 +152,12 @@ class Settings(BaseSettings):
     analytics_query_timeout_seconds: float = (
         30.0  # Maximum execution time for analytics queries
     )
+    pipeline_max_ingest_rows: int = (
+        5000  # Bounded row cap for in-process Kafka/Dagster cleaning runs
+    )
+    pipeline_max_download_bytes: int = (
+        25 * 1024 * 1024  # 25 MB streaming read cap for large text/CSV ingestion
+    )
 
     @property
     def postgres_dsn(self) -> str:
@@ -232,6 +239,7 @@ class Settings(BaseSettings):
     )
     api_key: str = "luminai-internal-secret-key"
     keycloak_url: str = "http://localhost:8080"
+    keycloak_issuer_uri: str | None = None
     keycloak_realm: str = "luminai"
     keycloak_client_id: str = "luminai-spa"
     keycloak_audience: str | None = None
@@ -251,6 +259,8 @@ class Settings(BaseSettings):
 
     @property
     def keycloak_issuer(self) -> str:
+        if self.keycloak_issuer_uri:
+            return self.keycloak_issuer_uri.rstrip("/")
         url = self.keycloak_url.rstrip("/")
         return f"{url}/realms/{self.keycloak_realm}"
 

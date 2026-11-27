@@ -1,5 +1,5 @@
 import type { LucideIcon } from "../../../lib/icons";
-import { Icons } from "../../../lib/icons";
+import { ICON_MAP } from "../../../lib/icons";
 
 export interface NavItem {
   label: string;
@@ -15,19 +15,19 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Dashboard",
     to: "/",
     section: "mesh",
-    icon: Icons.Dashboard,
+    icon: ICON_MAP.nav.dashboard,
   },
   {
     label: "Entity Explorer",
     to: "/explorer",
     section: "mesh",
-    icon: Icons.EntityExplorer,
+    icon: ICON_MAP.nav.entityExplorer,
   },
   {
     label: "Knowledge Graph",
     to: "/graph",
     section: "mesh",
-    icon: Icons.KnowledgeGraph,
+    icon: ICON_MAP.nav.knowledgeGraph,
   },
 
   // DATA PIPELINES & DATASETS
@@ -35,38 +35,38 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Data Connections",
     to: "/connections",
     section: "pipelines",
-    icon: Icons.DataConnections,
+    icon: ICON_MAP.nav.dataConnections,
   },
   {
     label: "Dataset Catalog",
     to: "/datasets",
     section: "pipelines",
-    icon: Icons.Database,
+    icon: ICON_MAP.nav.datasetCatalog,
   },
   {
     label: "Projects & Lineage",
     to: "/projects",
     section: "pipelines",
-    icon: Icons.GitBranch,
+    icon: ICON_MAP.nav.projectsLineage,
   },
   {
     label: "Schema Studio",
     to: "/connections/schema-map",
     section: "pipelines",
-    icon: Icons.SchemaStudio,
+    icon: ICON_MAP.nav.schemaStudio,
   },
   {
     label: "Fusion Review",
     to: "/connections/merge-review",
     section: "pipelines",
-    icon: Icons.FusionReview,
+    icon: ICON_MAP.nav.fusionReview,
     badgeKey: "fusionReview",
   },
   {
     label: "Pipeline Monitor",
     to: "/connections/pipelines",
     section: "pipelines",
-    icon: Icons.PipelineMonitor,
+    icon: ICON_MAP.nav.pipelineMonitor,
   },
 
   // ANALYTICS & INTELLIGENCE
@@ -74,13 +74,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "SQL & Analytics Studio",
     to: "/analytics/sql",
     section: "analytics",
-    icon: Icons.Table,
+    icon: ICON_MAP.nav.sqlAnalytics,
   },
   {
     label: "ML & AI Studio",
     to: "/datascience/models",
     section: "analytics",
-    icon: Icons.Cpu,
+    icon: ICON_MAP.nav.mlStudio,
   },
 
   // SYSTEM ARCHITECTURE
@@ -88,6 +88,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Ontology Manager",
     to: "/ontology",
     section: "system",
-    icon: Icons.OntologyManager,
+    icon: ICON_MAP.nav.ontologyManager,
   },
 ];

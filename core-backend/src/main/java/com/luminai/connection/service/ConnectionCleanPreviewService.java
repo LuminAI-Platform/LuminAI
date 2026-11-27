@@ -3,6 +3,7 @@ package com.luminai.connection.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.tenant.TenantContext;
+import com.luminai.config.CacheConfig;
 import com.luminai.connection.model.Connection;
 import com.luminai.connection.repository.ConnectionPreviewService;
 import com.luminai.connection.repository.ConnectionRepository;
@@ -17,6 +18,8 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -37,6 +40,9 @@ public class ConnectionCleanPreviewService {
 
   @Autowired(required = false)
   private DataEngineClient dataEngineClient;
+
+  @Autowired(required = false)
+  private CacheManager cacheManager;
 
   public ConnectionCleanPreviewService(
       ConnectionPreviewService connectionPreviewService,
@@ -73,6 +79,26 @@ public class ConnectionCleanPreviewService {
     this.dataEngineClient = client;
   }
 
+  public void setCacheManager(CacheManager cacheManager) {
+    this.cacheManager = cacheManager;
+  }
+
+  public static String cacheKey(UUID tenantId, UUID connectionId) {
+    return tenantId + ":" + connectionId;
+  }
+
+  public static void evictPreviewCache(CacheManager manager, UUID tenantId, UUID connectionId) {
+    if (manager == null || tenantId == null || connectionId == null) return;
+    try {
+      Cache cache = manager.getCache(CacheConfig.CACHE_CLEAN_PREVIEW);
+      if (cache != null) {
+        cache.evict(cacheKey(tenantId, connectionId));
+      }
+    } catch (Exception e) {
+      log.debug("Failed to evict clean-preview cache for {}: {}", connectionId, e.getMessage());
+    }
+  }
+
   public ResponseEntity<Map<String, Object>> getCleanPreview(UUID id) {
     UUID currentTenant = TenantContext.getTenantUuid();
     if (currentTenant == null) {
@@ -82,8 +108,9 @@ public class ConnectionCleanPreviewService {
           .body(Map.of("error", "Unauthorized: missing tenant context"));
     }
 
+    Optional<Connection> existingOpt = Optional.empty();
     if (connectionRepository != null) {
-      Optional<Connection> existingOpt = connectionRepository.findById(id);
+      existingOpt = connectionRepository.findById(id);
       if (existingOpt.isPresent() && !currentTenant.equals(existingOpt.get().getTenantId())) {
         log.warn("Forbidden: connection '{}' does not belong to tenant '{}'", id, currentTenant);
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -91,53 +118,32 @@ public class ConnectionCleanPreviewService {
       }
     }
 
+    Map<String, Object> cachedPreview = readCachedPreview(currentTenant, id);
+    if (cachedPreview != null) {
+      return ResponseEntity.ok(cachedPreview);
+    }
+
     List<Map<String, Object>> rawRows = connectionPreviewService.previewFile(id);
     String configuredEntityType = null;
 
-    if (connectionRepository != null) {
-      Optional<Connection> connOpt = connectionRepository.findByIdAndTenantId(id, currentTenant);
-      if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
-        try {
-          JsonNode root = objectMapper.readTree(connOpt.get().getConfig());
-          if (root.has("targetEntityType") && !root.get("targetEntityType").asText().isBlank()) {
-            configuredEntityType = root.get("targetEntityType").asText();
-          } else if (root.has("entityType") && !root.get("entityType").asText().isBlank()) {
-            configuredEntityType = root.get("entityType").asText();
-          }
+    Optional<Connection> connOpt = existingOpt.filter(c -> currentTenant.equals(c.getTenantId()));
+    if (connOpt.isEmpty() && connectionRepository != null) {
+      connOpt = connectionRepository.findByIdAndTenantId(id, currentTenant);
+    }
 
-          if (root.has("tables") && root.get("tables").isArray() && root.get("tables").size() > 0) {
-            List<Map<String, Object>> archiveRows = new ArrayList<>();
-            for (JsonNode tblNode : root.get("tables")) {
-              String tblName = tblNode.has("fileName") ? tblNode.get("fileName").asText() : "";
-              if (tblNode.has("sampleRows") && tblNode.get("sampleRows").isArray()) {
-                for (JsonNode rNode : tblNode.get("sampleRows")) {
-                  @SuppressWarnings("unchecked")
-                  Map<String, Object> rMap = objectMapper.convertValue(rNode, Map.class);
-                  Map<String, Object> enriched = new LinkedHashMap<>();
-                  if (!tblName.isBlank()) {
-                    enriched.put("_table", tblName);
-                  }
-                  enriched.putAll(rMap);
-                  archiveRows.add(enriched);
-                }
-              }
-            }
-            if (!archiveRows.isEmpty()) {
-              rawRows = archiveRows;
-            }
-          } else if (rawRows.isEmpty()
-              && root.has("sampleRows")
-              && root.get("sampleRows").isArray()) {
-            List<Map<String, Object>> cached = new ArrayList<>();
-            for (JsonNode rowNode : root.get("sampleRows")) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> map = objectMapper.convertValue(rowNode, Map.class);
-              cached.add(map);
-            }
-            rawRows = cached;
-          }
-        } catch (Exception ignored) {
+    if (connOpt.isPresent() && connOpt.get().getConfig() != null) {
+      try {
+        JsonNode root = objectMapper.readTree(connOpt.get().getConfig());
+        if (root.has("targetEntityType") && !root.get("targetEntityType").asText().isBlank()) {
+          configuredEntityType = root.get("targetEntityType").asText();
+        } else if (root.has("entityType") && !root.get("entityType").asText().isBlank()) {
+          configuredEntityType = root.get("entityType").asText();
         }
+
+        if (rawRows.isEmpty()) {
+          rawRows = extractConfigSampleRows(root);
+        }
+      } catch (Exception ignored) {
       }
     }
 
@@ -175,6 +181,7 @@ public class ConnectionCleanPreviewService {
             ? configuredEntityType
             : "Entity");
     remoteReq.put("rows", rawRows);
+    remoteReq.put("options", Map.of("include_golden_records", false));
 
     Map<String, Object> engineRes;
     try {
@@ -197,9 +204,10 @@ public class ConnectionCleanPreviewService {
           engineRes != null && engineRes.get("error") != null
               ? String.valueOf(engineRes.get("error"))
               : "Data Engine did not return completed clean preview results.";
-      log.warn("Data Engine returned error or invalid status: {}", errorMsg);
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-          .body(Map.of("error", errorMsg, "status", "SERVICE_UNAVAILABLE"));
+      HttpStatus errorStatus = resolveErrorStatus(engineRes);
+      log.warn("Data Engine returned error or invalid status ({}): {}", errorStatus, errorMsg);
+      return ResponseEntity.status(errorStatus)
+          .body(Map.of("error", errorMsg, "status", errorStatus.name()));
     }
 
     if (engineRes.containsKey("rows") && engineRes.get("rows") instanceof List) {
@@ -210,7 +218,88 @@ public class ConnectionCleanPreviewService {
       }
     }
 
+    writeCachedPreview(currentTenant, id, engineRes);
     return ResponseEntity.ok(engineRes);
+  }
+
+  private List<Map<String, Object>> extractConfigSampleRows(JsonNode root) {
+    if (root.has("tables") && root.get("tables").isArray() && root.get("tables").size() > 0) {
+      List<Map<String, Object>> archiveRows = new ArrayList<>();
+      for (JsonNode tblNode : root.get("tables")) {
+        String tblName = tblNode.has("fileName") ? tblNode.get("fileName").asText() : "";
+        if (tblNode.has("sampleRows") && tblNode.get("sampleRows").isArray()) {
+          for (JsonNode rNode : tblNode.get("sampleRows")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rMap = objectMapper.convertValue(rNode, Map.class);
+            Map<String, Object> enriched = new LinkedHashMap<>();
+            if (!tblName.isBlank()) {
+              enriched.put("_table", tblName);
+            }
+            enriched.putAll(rMap);
+            archiveRows.add(enriched);
+          }
+        }
+      }
+      if (!archiveRows.isEmpty()) {
+        return archiveRows;
+      }
+    }
+    if (root.has("sampleRows") && root.get("sampleRows").isArray()) {
+      List<Map<String, Object>> cached = new ArrayList<>();
+      for (JsonNode rowNode : root.get("sampleRows")) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = objectMapper.convertValue(rowNode, Map.class);
+        cached.add(map);
+      }
+      return cached;
+    }
+    return List.of();
+  }
+
+  private static HttpStatus resolveErrorStatus(Map<String, Object> engineRes) {
+    if (engineRes == null) {
+      return HttpStatus.SERVICE_UNAVAILABLE;
+    }
+    if (Boolean.TRUE.equals(engineRes.get("timedOut"))) {
+      return HttpStatus.GATEWAY_TIMEOUT;
+    }
+    Object codeObj = engineRes.get("statusCode");
+    if (codeObj instanceof Number n) {
+      int code = n.intValue();
+      if (code == 504) return HttpStatus.GATEWAY_TIMEOUT;
+      if (code == 429) return HttpStatus.TOO_MANY_REQUESTS;
+    }
+    return HttpStatus.SERVICE_UNAVAILABLE;
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> readCachedPreview(UUID tenantId, UUID connectionId) {
+    if (cacheManager == null) return null;
+    try {
+      Cache cache = cacheManager.getCache(CacheConfig.CACHE_CLEAN_PREVIEW);
+      if (cache == null) return null;
+      Cache.ValueWrapper wrapper = cache.get(cacheKey(tenantId, connectionId));
+      if (wrapper != null && wrapper.get() instanceof Map<?, ?> cachedMap) {
+        if ("COMPLETED".equals(cachedMap.get("status"))) {
+          return (Map<String, Object>) cachedMap;
+        }
+      }
+    } catch (Exception e) {
+      log.debug("Failed reading clean-preview cache for {}: {}", connectionId, e.getMessage());
+    }
+    return null;
+  }
+
+  private void writeCachedPreview(UUID tenantId, UUID connectionId, Map<String, Object> response) {
+    if (cacheManager == null || response == null) return;
+    try {
+      Cache cache = cacheManager.getCache(CacheConfig.CACHE_CLEAN_PREVIEW);
+      if (cache != null) {
+        cache.put(cacheKey(tenantId, connectionId), new LinkedHashMap<>(response));
+      }
+    } catch (Exception e) {
+      log.debug("Failed writing clean-preview cache for {}: {}", connectionId, e.getMessage());
+    }
   }
 
   public void exportCleanCsv(UUID id, HttpServletResponse response) throws IOException {

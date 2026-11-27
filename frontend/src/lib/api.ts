@@ -202,11 +202,52 @@ export async function apiFetch(
             }
             retryHeaders.set("Authorization", `Bearer ${newToken}`);
 
-            const retryResponse = await fetch(url, {
-              ...resolvedInit,
-              headers: retryHeaders,
-              _isRetry: true,
-            } as RequestInit);
+            const retryController = new AbortController();
+            let retryTimedOut = false;
+            const retryTimeoutId =
+              timeoutMs > 0
+                ? setTimeout(() => {
+                    retryTimedOut = true;
+                    retryController.abort(
+                      new ApiTimeoutError(timeoutMs, String(url)),
+                    );
+                  }, timeoutMs)
+                : undefined;
+
+            const abortFromParent = () => {
+              if (retryTimeoutId) clearTimeout(retryTimeoutId);
+              retryController.abort(resolvedInit.signal?.reason);
+            };
+            if (resolvedInit.signal) {
+              if (resolvedInit.signal.aborted) {
+                abortFromParent();
+              } else {
+                resolvedInit.signal.addEventListener("abort", abortFromParent, {
+                  once: true,
+                });
+              }
+            }
+
+            let retryResponse: Response;
+            try {
+              retryResponse = await fetch(url, {
+                ...resolvedInit,
+                headers: retryHeaders,
+                signal: retryController.signal,
+                _isRetry: true,
+              } as RequestInit);
+            } catch (retryFetchErr) {
+              if (retryTimedOut) {
+                throw new ApiTimeoutError(timeoutMs, String(url));
+              }
+              throw retryFetchErr;
+            } finally {
+              if (retryTimeoutId) clearTimeout(retryTimeoutId);
+              resolvedInit.signal?.removeEventListener(
+                "abort",
+                abortFromParent,
+              );
+            }
 
             if (retryResponse.ok) {
               return retryResponse;

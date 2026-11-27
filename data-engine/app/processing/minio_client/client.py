@@ -68,72 +68,171 @@ class MinioRawStorageClient:
             content_type=content_type,
         )
 
+    def _safe_bucket(self, bucket: str) -> str:
+        """Sanitize bucket name and forbid path traversal."""
+        clean_bucket = (bucket or "").strip().strip("/\\")
+        if (
+            not clean_bucket
+            or ".." in clean_bucket
+            or "/" in clean_bucket
+            or "\\" in clean_bucket
+            or "\x00" in clean_bucket
+        ):
+            raise ValueError(f"Invalid bucket name: {bucket!r}")
+        return clean_bucket
+
     def _safe_key(self, key: str) -> str:
         """Sanitize object key and prevent directory traversal."""
+        if not key or "\x00" in key:
+            raise ValueError(f"Invalid object key: {key!r}")
         clean = key.lstrip("/").replace("\\", "/")
         norm = os.path.normpath(clean).replace("\\", "/")
-        if norm.startswith("..") or "/../" in norm or norm.startswith("/"):
+        if norm.startswith("..") or "/../" in norm or norm == ".." or norm.startswith("/"):
             raise ValueError(f"Directory traversal detected in object key: {key}")
         return clean
 
     def _safe_local_path(self, bucket: str, clean_key: str) -> str:
         """Resolve and verify that local fallback path stays strictly within fallback directory."""
+        safe_bucket = self._safe_bucket(bucket)
         base_dir = os.path.abspath(self.local_fallback_dir)
-        resolved = os.path.abspath(os.path.join(base_dir, bucket, clean_key))
-        if not resolved.startswith(base_dir):
+        resolved = os.path.abspath(os.path.join(base_dir, safe_bucket, clean_key))
+        try:
+            common = os.path.commonpath([base_dir, resolved])
+        except ValueError as exc:
+            raise ValueError(f"Path traversal detected for key '{clean_key}'") from exc
+        if common != base_dir or resolved == base_dir:
             raise ValueError(f"Path traversal detected for key '{clean_key}'")
         return resolved
 
     def get_object_bytes(self, bucket: str, object_key: str) -> bytes:
         """Fetch raw object bytes from MinIO, falling back to local storage."""
+        return self.get_object_bytes_bounded(bucket, object_key)
+
+    @staticmethod
+    def _read_bounded_stream_chunks(chunks, max_bytes: Optional[int], max_lines: Optional[int]) -> bytes:
+        """Collect streamed chunks up to max_bytes and/or max_lines, ending cleanly on a newline boundary."""
+        buf = bytearray()
+        line_count = 0
+        reached_limit = False
+
+        for chunk in chunks:
+            if not chunk:
+                continue
+            buf.extend(chunk)
+            if max_lines is not None and max_lines > 0:
+                line_count = buf.count(b"\n")
+                if line_count >= max_lines:
+                    reached_limit = True
+                    break
+            if max_bytes is not None and max_bytes > 0 and len(buf) >= max_bytes:
+                reached_limit = True
+                break
+
+        raw = bytes(buf[:max_bytes] if (max_bytes and len(buf) > max_bytes) else buf)
+        if reached_limit:
+            last_nl = raw.rfind(b"\n")
+            if last_nl > 0:
+                raw = raw[: last_nl + 1]
+        return raw
+
+    def get_object_bytes_bounded(
+        self,
+        bucket: str,
+        object_key: str,
+        max_bytes: Optional[int] = None,
+        max_lines: Optional[int] = None,
+    ) -> bytes:
+        """Fetch object bytes from MinIO or local storage, stopping early when bounded."""
+        safe_bucket = self._safe_bucket(bucket)
         clean_key = self._safe_key(object_key)
-        path = f"/{bucket}/{clean_key}"
+        path = f"/{safe_bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
+        ext = os.path.splitext(clean_key)[1].lower()
+        is_line_streamable = ext in ("", ".csv", ".tsv", ".txt", ".ndjson", ".jsonl")
+        effective_lines = max_lines if is_line_streamable else None
 
         try:
             headers = self._build_sigv4_headers("GET", path)
-            # Allow up to 300s (5 minutes) for downloading large 100MB+ datasets from S3/MinIO
+            # Allow up to 300s (5 minutes) for downloading large datasets from S3/MinIO
             with httpx.Client(timeout=300.0) as client:
-                resp = client.get(url, headers=headers)
-                if resp.status_code == 200:
+                if is_line_streamable and (effective_lines is not None or max_bytes is not None):
+                    with client.stream("GET", url, headers=headers) as resp:
+                        if resp.status_code == 200:
+                            data = self._read_bounded_stream_chunks(
+                                resp.iter_bytes(chunk_size=65536),
+                                max_bytes=max_bytes,
+                                max_lines=effective_lines,
+                            )
+                            logger.debug(
+                                "Streamed bounded s3://%s/%s from MinIO (%d bytes)",
+                                safe_bucket,
+                                clean_key,
+                                len(data),
+                            )
+                            return data
+                        logger.debug(
+                            "MinIO GET %s returned %s. Trying local fallback.",
+                            url,
+                            resp.status_code,
+                        )
+                else:
+                    resp = client.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        logger.debug(
+                            "Retrieved s3://%s/%s from MinIO (%d bytes)",
+                            safe_bucket,
+                            clean_key,
+                            len(resp.content),
+                        )
+                        return resp.content
                     logger.debug(
-                        "Retrieved s3://%s/%s from MinIO (%d bytes)",
-                        bucket,
-                        clean_key,
-                        len(resp.content),
+                        "MinIO GET %s returned %s. Trying local fallback.",
+                        url,
+                        resp.status_code,
                     )
-                    return resp.content
-                logger.debug(
-                    "MinIO GET %s returned %s. Trying local fallback.",
-                    url,
-                    resp.status_code,
-                )
         except Exception as exc:
             logger.debug(
                 "MinIO unreachable (%s). Checking local storage fallback.", exc
             )
 
-        local_path = self._safe_local_path(bucket, clean_key)
+        local_path = self._safe_local_path(safe_bucket, clean_key)
         if os.path.exists(local_path):
             with open(local_path, "rb") as f:
                 logger.debug(
                     "Loaded s3://%s/%s from local fallback: %s",
-                    bucket,
+                    safe_bucket,
                     clean_key,
                     local_path,
                 )
+                if is_line_streamable and (effective_lines is not None or max_bytes is not None):
+                    return self._read_bounded_stream_chunks(
+                        iter(lambda: f.read(65536), b""),
+                        max_bytes=max_bytes,
+                        max_lines=effective_lines,
+                    )
                 return f.read()
 
-        alt_local_path = os.path.abspath(os.path.join(os.path.abspath(self.local_fallback_dir), clean_key))
-        if alt_local_path.startswith(os.path.abspath(self.local_fallback_dir)) and os.path.exists(alt_local_path):
+        base_dir = os.path.abspath(self.local_fallback_dir)
+        alt_local_path = os.path.abspath(os.path.join(base_dir, clean_key))
+        try:
+            is_inside = os.path.commonpath([base_dir, alt_local_path]) == base_dir
+        except ValueError:
+            is_inside = False
+        if is_inside and alt_local_path != base_dir and os.path.exists(alt_local_path):
             with open(alt_local_path, "rb") as f:
                 logger.debug(
                     "Loaded %s from local fallback: %s", clean_key, alt_local_path
                 )
+                if is_line_streamable and (effective_lines is not None or max_bytes is not None):
+                    return self._read_bounded_stream_chunks(
+                        iter(lambda: f.read(65536), b""),
+                        max_bytes=max_bytes,
+                        max_lines=effective_lines,
+                    )
                 return f.read()
 
         raise FileNotFoundError(
-            f"Object s3://{bucket}/{clean_key} not found in MinIO or local storage ({local_path})"
+            f"Object s3://{safe_bucket}/{clean_key} not found in MinIO or local storage ({local_path})"
         )
 
     def put_object_multipart(
@@ -147,15 +246,19 @@ class MinioRawStorageClient:
         """Upload large object to MinIO using S3 multipart upload protocol."""
         import xml.etree.ElementTree as ET
 
+        safe_bucket = self._safe_bucket(bucket)
         clean_key = self._safe_key(object_key)
-        path = f"/{bucket}/{clean_key}"
+        path = f"/{safe_bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
-        local_path = self._safe_local_path(bucket, clean_key)
+        local_path: Optional[str] = None
+        local_saved = False
         try:
+            local_path = self._safe_local_path(safe_bucket, clean_key)
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             with open(local_path, "wb") as f:
                 f.write(data)
+            local_saved = True
         except Exception as exc:
             logger.debug("Local cache write failed for %s: %s", clean_key, exc)
 
@@ -163,7 +266,7 @@ class MinioRawStorageClient:
         num_parts = max(1, (total_bytes + part_size - 1) // part_size)
         logger.info(
             "Initiating MinIO multipart upload for s3://%s/%s (%d bytes, %d parts)",
-            bucket,
+            safe_bucket,
             clean_key,
             total_bytes,
             num_parts,
@@ -181,7 +284,7 @@ class MinioRawStorageClient:
                         init_resp.status_code,
                         init_resp.text,
                     )
-                    return True
+                    return local_saved and not get_settings().is_production
 
                 upload_id = None
                 try:
@@ -195,9 +298,10 @@ class MinioRawStorageClient:
 
                 if not upload_id:
                     logger.warning(
-                        "Could not extract UploadId from MinIO response. Using local cache."
+                        "Could not extract UploadId from MinIO response. Local saved=%s.",
+                        local_saved,
                     )
-                    return True
+                    return local_saved and not get_settings().is_production
 
                 parts_info = []
                 for part_num in range(1, num_parts + 1):
@@ -219,7 +323,7 @@ class MinioRawStorageClient:
                         logger.warning(
                             "Part %d upload failed: %s", part_num, part_resp.status_code
                         )
-                        return True
+                        return local_saved and not get_settings().is_production
 
                     etag = part_resp.headers.get("ETag", f'"{part_num}"').strip('"')
                     parts_info.append((part_num, etag))
@@ -250,10 +354,13 @@ class MinioRawStorageClient:
                 if comp_resp.status_code in (200, 201):
                     logger.info(
                         "Successfully completed MinIO multipart upload: s3://%s/%s",
-                        bucket,
+                        safe_bucket,
                         clean_key,
                     )
                     return True
+                logger.warning(
+                    "MinIO CompleteMultipartUpload returned status %s", comp_resp.status_code
+                )
 
         except Exception as exc:
             logger.debug(
@@ -262,7 +369,7 @@ class MinioRawStorageClient:
                 local_path,
             )
 
-        return True
+        return local_saved and not get_settings().is_production
 
     def put_object_bytes(
         self,
@@ -277,15 +384,19 @@ class MinioRawStorageClient:
                 bucket, object_key, data, content_type=content_type
             )
 
+        safe_bucket = self._safe_bucket(bucket)
         clean_key = self._safe_key(object_key)
-        path = f"/{bucket}/{clean_key}"
+        path = f"/{safe_bucket}/{clean_key}"
         url = f"{self.base_url}{path}"
 
+        local_path: Optional[str] = None
+        local_saved = False
         try:
-            local_path = self._safe_local_path(bucket, clean_key)
+            local_path = self._safe_local_path(safe_bucket, clean_key)
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             with open(local_path, "wb") as f:
                 f.write(data)
+            local_saved = True
         except Exception as exc:
             logger.debug("Failed to cache local copy of %s: %s", clean_key, exc)
 
@@ -298,16 +409,22 @@ class MinioRawStorageClient:
                 if resp.status_code in (200, 201):
                     logger.info(
                         "Successfully uploaded object to MinIO: s3://%s/%s",
-                        bucket,
+                        safe_bucket,
                         clean_key,
                     )
                     return True
+                logger.warning(
+                    "MinIO PUT s3://%s/%s returned unexpected status %s",
+                    safe_bucket,
+                    clean_key,
+                    resp.status_code,
+                )
         except Exception as exc:
             logger.debug(
                 "MinIO PUT failed (%s). Local file cached at %s", exc, local_path
             )
 
-        return True
+        return local_saved and not get_settings().is_production
 
     def object_exists(self, bucket: str, object_key: str) -> bool:
         """Check if an object exists in MinIO or local storage."""
@@ -321,6 +438,23 @@ class MinioRawStorageClient:
         """Download raw object from MinIO / local storage and parse into a Polars DataFrame."""
         data = self.get_object_bytes(bucket, object_key)
         return parse_raw_data_to_dataframe(data, object_key, bucket)
+
+    def load_dataframe_bounded(
+        self,
+        bucket: str,
+        object_key: str,
+        max_rows: Optional[int] = None,
+        max_bytes: Optional[int] = None,
+    ) -> pl.DataFrame:
+        """Stream and parse a bounded row/byte window for memory-safe pipeline runs."""
+        max_lines = (max_rows + 1) if (max_rows is not None and max_rows > 0) else None
+        data = self.get_object_bytes_bounded(
+            bucket,
+            object_key,
+            max_bytes=max_bytes,
+            max_lines=max_lines,
+        )
+        return parse_raw_data_to_dataframe(data, object_key, bucket, max_rows=max_rows)
 
 
 _default_minio_client: Optional[MinioRawStorageClient] = None

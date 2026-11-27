@@ -8,11 +8,16 @@ import os
 
 import polars as pl
 
+from app.processing.engine.dataframe_utils import parse_csv_bytes_with_fallback
+
 logger = logging.getLogger(__name__)
 
 
 def parse_raw_data_to_dataframe(
-    data: bytes, object_key: str, bucket: str
+    data: bytes,
+    object_key: str,
+    bucket: str,
+    max_rows: int | None = None,
 ) -> pl.DataFrame:
     """Download raw object from MinIO / local storage and parse into a Polars DataFrame.
 
@@ -26,24 +31,25 @@ def parse_raw_data_to_dataframe(
     bio = io.BytesIO(data)
 
     if ext in (".parquet", ".pq"):
-        df = pl.read_parquet(bio)
+        df = pl.read_parquet(bio, n_rows=max_rows)
     elif ext in (".json", ".jsonl", ".ndjson"):
         try:
             df = pl.read_json(bio)
         except Exception:
             bio.seek(0)
-            df = pl.read_ndjson(bio)
+            df = pl.read_ndjson(bio, n_rows=max_rows)
     elif ext in (".xlsx", ".xls"):
         df = pl.read_excel(bio)
     else:
         separator = "\t" if ext == ".tsv" else ","
-        df = pl.read_csv(
-            bio,
-            separator=separator,
-            infer_schema_length=10000,
-            ignore_errors=True,
-            truncate_ragged_lines=True,
+        df, csv_warnings = parse_csv_bytes_with_fallback(
+            data, separator=separator, infer_schema_length=10000
         )
+        for w in csv_warnings:
+            logger.warning("s3://%s/%s: %s", bucket, object_key, w)
+
+    if max_rows is not None and max_rows > 0 and df.height > max_rows:
+        df = df.head(max_rows)
 
     # Clean column names (strip whitespace)
     clean_cols = [c.strip() for c in df.columns]

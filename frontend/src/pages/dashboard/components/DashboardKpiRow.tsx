@@ -8,7 +8,7 @@ import {
   useDataQuality,
   formatQualityMetric,
 } from "../../../hooks/useDataQuality";
-import { Icons } from "../../../lib/icons";
+import { ICON_MAP, ICON_SIZES } from "../../../lib/icons";
 
 interface DashboardKpiRowProps {
   summary: DashboardSummary | undefined;
@@ -87,13 +87,20 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         ? "warning"
         : "default";
 
+  const ResolvedEntitiesIcon = ICON_MAP.kpi.resolvedEntities;
+  const ActiveConnectorsIcon = ICON_MAP.kpi.activeConnectors;
+  const PipelineExecutionsIcon = ICON_MAP.kpi.pipelineExecutions;
+  const DataQualityIcon = ICON_MAP.kpi.dataQualityScore;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <KpiCard
         title="Resolved Entities"
         value={totalEntities}
         subtitle={hasEntities ? "Matched records" : "No records yet"}
-        icon={<Icons.ResolvedEntities />}
+        icon={
+          <ResolvedEntitiesIcon size={ICON_SIZES.card} aria-hidden="true" />
+        }
         badge={
           hasEntities
             ? { text: "Active", variant: "success" }
@@ -107,7 +114,9 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         title="Active Connectors"
         value={totalConnections}
         subtitle={hasConnections ? "Connected sources" : "No sources connected"}
-        icon={<Icons.DataConnections />}
+        icon={
+          <ActiveConnectorsIcon size={ICON_SIZES.card} aria-hidden="true" />
+        }
         badge={
           hasConnections
             ? { text: "Online", variant: "success" }
@@ -125,7 +134,9 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
             ? `${summary.pipelineHealth.completed} completed · ${summary.pipelineHealth.running} running`
             : "No runs yet"
         }
-        icon={<Icons.PipelineExecutions />}
+        icon={
+          <PipelineExecutionsIcon size={ICON_SIZES.card} aria-hidden="true" />
+        }
         status={pipelineStatus}
         badge={
           hasPipelines
@@ -146,7 +157,7 @@ export const DashboardKpiRow: React.FC<DashboardKpiRowProps> = ({
         subtitle={
           hasQualityScore ? "Completeness & accuracy" : "No data evaluated"
         }
-        icon={<Icons.DataQuality />}
+        icon={<DataQualityIcon size={ICON_SIZES.card} aria-hidden="true" />}
         badge={qualityBadge}
         isLoading={isLoading}
         isCached={isCached}

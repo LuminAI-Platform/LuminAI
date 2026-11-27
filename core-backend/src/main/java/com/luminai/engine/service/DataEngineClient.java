@@ -35,8 +35,9 @@ public class DataEngineClient {
     this.baseUrl = baseUrl;
     org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory =
         new org.springframework.http.client.SimpleClientHttpRequestFactory();
-    requestFactory.setConnectTimeout(java.time.Duration.ofMillis(3000));
-    requestFactory.setReadTimeout(java.time.Duration.ofMillis(3000));
+    requestFactory.setConnectTimeout(java.time.Duration.ofMillis(5000));
+    requestFactory.setReadTimeout(
+        java.time.Duration.ofMillis(120000)); // 120s — allows full dataset cleaning pipeline
 
     RestClient.Builder builder = restClientBuilder.baseUrl(baseUrl).requestFactory(requestFactory);
     if (apiKey != null && !apiKey.isBlank()) {
@@ -205,16 +206,54 @@ public class DataEngineClient {
           .body(MAP_TYPE);
     } catch (Exception e) {
       log.warn("Data Engine direct dataset cleaning failed ({}): {}", baseUrl, e.getMessage());
-      return Map.of(
-          "status",
-          "ERROR",
-          "available",
-          false,
+      boolean timedOut = isTimeoutException(e);
+      int statusCode = timedOut ? 504 : extractHttpStatusCode(e, 503);
+      String errorMessage =
+          timedOut
+              ? "Data Engine timed out while processing dataset ("
+                  + (e.getMessage() != null ? e.getMessage() : "read timeout")
+                  + ")"
+              : (e.getMessage() != null ? e.getMessage() : "Connection failed");
+
+      Map<String, Object> errorBody = new HashMap<>();
+      errorBody.put("status", "ERROR");
+      errorBody.put("available", false);
+      errorBody.put("timedOut", timedOut);
+      errorBody.put("statusCode", statusCode);
+      errorBody.put(
           "message",
-          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").",
-          "error",
-          e.getMessage() != null ? e.getMessage() : "Connection failed");
+          "Data Engine unreachable at " + baseUrl + " (" + e.getClass().getSimpleName() + ").");
+      errorBody.put("error", errorMessage);
+      return errorBody;
     }
+  }
+
+  private static boolean isTimeoutException(Throwable throwable) {
+    Throwable cur = throwable;
+    while (cur != null) {
+      if (cur instanceof java.net.SocketTimeoutException
+          || cur instanceof java.util.concurrent.TimeoutException
+          || cur instanceof java.net.http.HttpTimeoutException) {
+        return true;
+      }
+      String msg = cur.getMessage();
+      if (msg != null && msg.toLowerCase().contains("timed out")) {
+        return true;
+      }
+      cur = cur.getCause();
+    }
+    return false;
+  }
+
+  private static int extractHttpStatusCode(Throwable throwable, int defaultStatus) {
+    Throwable cur = throwable;
+    while (cur != null) {
+      if (cur instanceof org.springframework.web.client.RestClientResponseException respEx) {
+        return respEx.getStatusCode().value();
+      }
+      cur = cur.getCause();
+    }
+    return defaultStatus;
   }
 
   public Map<String, Object> resolveEntities(Object requestPayload) {
@@ -399,6 +438,20 @@ public class DataEngineClient {
       log.warn("Failed to list ML models from Data Engine: {}", e.getMessage());
       return List.of();
     }
+  }
+
+  /**
+   * Re-queues a failed or stalled pipeline job by POSTing to the Data Engine retry endpoint.
+   *
+   * <p>Previously {@code retryJob} in {@link com.luminai.engine.controller.DataEngineController}
+   * called {@link #getJobStatus} (a GET) instead of a retry, so clicking "Retry" in the UI had no
+   * effect — it only returned the same failed status. This method issues the correct POST.
+   *
+   * @param jobId the job ID to retry
+   * @return the Data Engine response (typically {@code {"status":"QUEUED","jobId":"..."}})
+   */
+  public Map<String, Object> retryPipelineJob(String jobId) {
+    return postJson("/process/retry/" + jobId, Map.of());
   }
 
   private Map<String, Object> postJson(String uri, Object payload) {

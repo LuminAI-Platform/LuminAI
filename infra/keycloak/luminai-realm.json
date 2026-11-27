@@ -11,15 +11,26 @@
       "protocol": "openid-connect",
       "redirectUris": [
         "http://localhost:3000/*",
-        "https://luminai.luminex-logistics.com/*"
+        "http://localhost:5173/*"
       ],
       "webOrigins": [
         "http://localhost:3000",
-        "https://luminai.luminex-logistics.com",
+        "http://localhost:5173",
         "+"
       ],
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true
+      "directAccessGrantsEnabled": false
+    },
+    {
+      "clientId": "luminai-admin-cli",
+      "name": "LuminAI Core Backend Admin Service Client",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "REPLACE_VIA_KEYCLOAK_ADMIN_OR_ENV"
     }
   ],
   "roles": {
@@ -29,21 +40,5 @@
       { "name": "offline_access" },
       { "name": "PLATFORM_ADMIN" }
     ]
-  },
-  "users": [
-    {
-      "username": "admin@luminai.dev",
-      "enabled": true,
-      "email": "admin@luminai.dev",
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Admin1234!",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["admin", "user", "offline_access", "PLATFORM_ADMIN"]
-    }
-  ]
+  }
 }
