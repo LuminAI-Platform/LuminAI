@@ -7,6 +7,7 @@ import time
 import uuid
 from typing import Any, Optional
 
+
 import app.processing.trigger as trig
 from app.config import get_settings
 from app.logging import bind_context
