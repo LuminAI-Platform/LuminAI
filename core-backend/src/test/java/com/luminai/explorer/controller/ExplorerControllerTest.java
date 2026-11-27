@@ -125,4 +125,49 @@ class ExplorerControllerTest {
         .andExpect(jsonPath("$[0].fieldName").value("email"))
         .andExpect(jsonPath("$[0].contributedValue").value("john@example.com"));
   }
+
+  @Test
+  @DisplayName(
+      "GET /api/v1/explorer/search with default empty query & sortBy=createdAt returns 200")
+  void searchDefaultParamsSuccess() throws Exception {
+    SearchResponseDto.Response response =
+        new SearchResponseDto.Response(List.of(), 0, 0, 12, Map.of("entityTypes", Map.of()));
+
+    when(searchService.search("", null, 0, 12, "createdAt", "DESC")).thenReturn(response);
+
+    mockMvc
+        .perform(
+            get("/api/v1/explorer/search")
+                .param("query", "")
+                .param("page", "0")
+                .param("size", "12")
+                .param("sortBy", "createdAt")
+                .param("sortDirection", "DESC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items").isArray())
+        .andExpect(jsonPath("$.total").value(0))
+        .andExpect(jsonPath("$.size").value(12));
+  }
+
+  @Test
+  @DisplayName("GET /api/v1/explorer/search with insight filters delegates to 9-arg search")
+  void searchWithInsightFiltersSuccess() throws Exception {
+    SearchResponseDto.Response response =
+        new SearchResponseDto.Response(List.of(), 0, 0, 12, Map.of("entityTypes", Map.of()));
+
+    when(searchService.search("", null, true, null, null, 0, 12, "createdAt", "DESC"))
+        .thenReturn(response);
+
+    mockMvc
+        .perform(
+            get("/api/v1/explorer/search")
+                .param("query", "")
+                .param("duplicates", "true")
+                .param("page", "0")
+                .param("size", "12")
+                .param("sortBy", "createdAt")
+                .param("sortDirection", "DESC"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total").value(0));
+  }
 }

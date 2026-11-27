@@ -59,7 +59,11 @@ class CacheConfigTest {
             List.of());
     SearchResponseDto.Response searchResp =
         new SearchResponseDto.Response(
-            List.of(item), 1L, 0, 20, Map.of("entityTypes", Map.of("Company", 1L)));
+            new java.util.ArrayList<>(List.of(item)),
+            1L,
+            0,
+            20,
+            Map.of("entityTypes", new java.util.LinkedHashMap<>(Map.of("Company", 1L))));
 
     byte[] searchBytes = serializer.serialize(searchResp);
     Object searchOut = serializer.deserialize(searchBytes);

@@ -2,6 +2,9 @@ package com.luminai.explorer.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.luminai.common.exception.ResourceNotFoundException;
@@ -12,6 +15,7 @@ import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.explorer.dto.EntityDetailDto;
 import com.luminai.explorer.dto.ProvenanceItem;
 import com.luminai.explorer.dto.SearchResponseDto;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 class ExplorerSearchServiceTest {
@@ -132,5 +139,54 @@ class ExplorerSearchServiceTest {
 
     assertThat(prov).hasSize(1);
     assertThat(prov.get(0).fieldName()).isEqualTo("email");
+  }
+
+  @Test
+  @DisplayName("search uses db pushdown cleanly, preserves sourceCount, and avoids fake facets")
+  void searchDbPushdownAndFacets() {
+    GoldenRecord gr = GoldenRecord.newStandalone();
+    gr.setCanonicalName("Luminex Logistics");
+    gr.setEntityType("Organization");
+    gr.setConfidenceScore(BigDecimal.valueOf(0.96));
+    gr.setSourceCount(3);
+    gr.getProperties().put("country", "US");
+
+    when(goldenRecordRepository.countByEntityType())
+        .thenReturn(List.<Object[]>of(new Object[] {"Organization", 1L}));
+    when(goldenRecordRepository.searchByPropertiesAndType(eq(""), isNull(), any(Pageable.class)))
+        .thenReturn(new PageImpl<>(List.of(gr), PageRequest.of(0, 12), 1));
+
+    SearchResponseDto.Response result = service.search("", null, 0, 12, "createdAt", "DESC");
+
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().get(0).sourceCount()).isEqualTo(3);
+    assertThat(result.facets()).containsOnlyKeys("entityTypes");
+    assertThat(result.facets().get("entityTypes")).containsEntry("Organization", 1L);
+  }
+
+  @Test
+  @DisplayName(
+      "fallback search paginated items use ArrayList (not ArrayList$SubList) and handle null properties")
+  void searchFallbackPaginationUsesSerializableList() {
+    GoldenRecord gr1 = GoldenRecord.newStandalone();
+    gr1.setCanonicalName("Unnamed Entity");
+    gr1.setEntityType("Organization");
+    gr1.setConfidenceScore(BigDecimal.valueOf(0.70));
+    gr1.getProperties().put("name", null);
+    gr1.getProperties().put("company_name", "Alpha Freight");
+
+    GoldenRecord gr2 = GoldenRecord.newStandalone();
+    gr2.setCanonicalName("Beta Freight");
+    gr2.setEntityType("Organization");
+    gr2.setConfidenceScore(BigDecimal.valueOf(0.75));
+
+    when(goldenRecordRepository.findAll()).thenReturn(List.of(gr1, gr2));
+
+    SearchResponseDto.Response reviewPage =
+        service.search("", null, null, null, true, 0, 1, "canonicalName", "ASC");
+    assertThat(reviewPage.items()).hasSize(1);
+    assertThat(reviewPage.items().getClass()).isEqualTo(ArrayList.class);
+    assertThat(reviewPage.items().get(0).canonicalName()).isEqualTo("Alpha Freight");
+    assertThat(reviewPage.total()).isEqualTo(2);
   }
 }
