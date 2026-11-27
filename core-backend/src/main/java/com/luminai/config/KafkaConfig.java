@@ -131,7 +131,7 @@ public class KafkaConfig {
     // Throughput tuning
     props.put(ProducerConfig.LINGER_MS_CONFIG, 5);
     props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16_384);
-    props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+    props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
 
     // Include type information in the JSON payload so the consumer can
     // deserialise into the correct class without extra configuration.
@@ -262,7 +262,7 @@ public class KafkaConfig {
         .partitions(6)
         .replicas(replicationFactor)
         .config("retention.ms", String.valueOf(7 * 24 * 60 * 60 * 1000L)) // 7 days
-        .config("compression.type", "snappy")
+        .config("compression.type", "gzip")
         .build();
   }
 

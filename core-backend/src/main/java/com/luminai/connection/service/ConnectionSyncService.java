@@ -347,7 +347,7 @@ public class ConnectionSyncService {
     }
     try {
       connectionProducer.publishRows(tenantId, connectionId, sourceLabel, rows, isLast, objectKey);
-    } catch (Exception e) {
+    } catch (Exception | LinkageError e) {
       log.warn(
           "Kafka publish failed for connection '{}' ({}); falling back to direct persistence: {}",
           connectionId,

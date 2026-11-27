@@ -232,36 +232,45 @@ public class ConnectionUploadService {
     // 2. Stream parsed rows into Kafka in chunked batches
     if (totalRows <= 1000) {
       if (!sampleRows.isEmpty()) {
-        try {
-          connectionProducer.publishRows(
-              tenantId, id, file.getOriginalFilename(), sampleRows, true, objectKey);
+        if (publishUploadBatchSafely(
+            tenantId,
+            id,
+            file.getOriginalFilename(),
+            sampleRows,
+            true,
+            objectKey,
+            sampleRows.size(),
+            null,
+            "Kafka publishing")) {
           log.info(
               "Streamed {} parsed rows to Kafka for connection '{}' (tenant={})",
               totalRows,
               id,
               tenantId);
-        } catch (Exception e) {
-          log.warn("Kafka publishing skipped: {}", e.getMessage());
         }
       } else {
-        try {
-          connectionProducer.publishRows(
-              tenantId, id, file.getOriginalFilename(), List.of(), true, objectKey);
-        } catch (Exception e) {
-          log.warn("Kafka completion signal skipped: {}", e.getMessage());
-        }
-      }
-    } else {
-      try {
-        connectionProducer.publishRows(
+        publishUploadBatchSafely(
             tenantId,
             id,
             file.getOriginalFilename(),
             List.of(),
             true,
             objectKey,
-            totalRows,
-            file.getSize());
+            0,
+            null,
+            "Kafka completion signal");
+      }
+    } else {
+      if (publishUploadBatchSafely(
+          tenantId,
+          id,
+          file.getOriginalFilename(),
+          List.of(),
+          true,
+          objectKey,
+          totalRows,
+          file.getSize(),
+          "Kafka publishing")) {
         log.info(
             "Dispatched MinIO reference objectKey='{}' ({} records, {} bytes) to Data Engine for connection '{}' (tenant={})",
             objectKey,
@@ -269,8 +278,6 @@ public class ConnectionUploadService {
             file.getSize(),
             id,
             tenantId);
-      } catch (Exception e) {
-        log.warn("Kafka publishing skipped: {}", e.getMessage());
       }
     }
 
@@ -366,24 +373,28 @@ public class ConnectionUploadService {
                 int end = Math.min(i + BATCH_SIZE, total);
                 List<Map<String, Object>> chunk = entryRows.subList(i, end);
                 boolean isLast = (end == total);
-                try {
-                  connectionProducer.publishRows(
-                      tenantId, connectionId, cleanName, chunk, isLast, entryKey);
-                } catch (Exception e) {
-                  log.warn(
-                      "Kafka publishing skipped for table '{}': {}", cleanName, e.getMessage());
-                }
+                publishUploadBatchSafely(
+                    tenantId,
+                    connectionId,
+                    cleanName,
+                    chunk,
+                    isLast,
+                    entryKey,
+                    chunk.size(),
+                    null,
+                    "Kafka publishing for table '" + cleanName + "'");
               }
             } else {
-              try {
-                connectionProducer.publishRows(
-                    tenantId, connectionId, cleanName, List.of(), true, entryKey);
-              } catch (Exception e) {
-                log.warn(
-                    "Kafka completion signal skipped for table '{}': {}",
-                    cleanName,
-                    e.getMessage());
-              }
+              publishUploadBatchSafely(
+                  tenantId,
+                  connectionId,
+                  cleanName,
+                  List.of(),
+                  true,
+                  entryKey,
+                  0,
+                  null,
+                  "Kafka completion signal for table '" + cleanName + "'");
             }
 
             Map<String, Object> tableSummary = new LinkedHashMap<>();
@@ -576,6 +587,41 @@ public class ConnectionUploadService {
           connectionId,
           e.getMessage());
       return 0;
+    }
+  }
+
+  private boolean publishUploadBatchSafely(
+      UUID tenantId,
+      UUID connectionId,
+      String source,
+      List<Map<String, Object>> rows,
+      boolean batchComplete,
+      String objectKey,
+      int actualTotalRows,
+      Long fileSizeBytes,
+      String contextLabel) {
+    if (connectionProducer == null) {
+      return false;
+    }
+    try {
+      if (fileSizeBytes != null) {
+        connectionProducer.publishRows(
+            tenantId,
+            connectionId,
+            source,
+            rows,
+            batchComplete,
+            objectKey,
+            actualTotalRows,
+            fileSizeBytes);
+      } else {
+        connectionProducer.publishRows(
+            tenantId, connectionId, source, rows, batchComplete, objectKey);
+      }
+      return true;
+    } catch (Exception | LinkageError e) {
+      log.warn("{} skipped: {}", contextLabel, e.getMessage());
+      return false;
     }
   }
 }

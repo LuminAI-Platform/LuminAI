@@ -49,6 +49,14 @@ public class GraphSyncConsumer {
         JsonDeserializer.USE_TYPE_INFO_HEADERS + "=false"
       })
   public void onEntityResolved(EntityResolvedEvent event, Acknowledgment acknowledgment) {
+    if (event == null || (isBlank(event.goldenId()) && isBlank(event.entityType()))) {
+      log.debug(
+          "Skipping non-entity (batch completion) event on entity.resolved for tenant_id={}",
+          event != null ? event.tenantId() : null);
+      acknowledgment.acknowledge();
+      return;
+    }
+
     log.info(
         "Received entity.resolved event: golden_id={} tenant_id={} entity_type={}",
         event.goldenId(),
@@ -58,5 +66,9 @@ public class GraphSyncConsumer {
     syncService.sync(event);
 
     acknowledgment.acknowledge();
+  }
+
+  private static boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 }

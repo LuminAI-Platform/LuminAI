@@ -33,6 +33,17 @@ class GraphSyncConsumerTest {
   }
 
   @Test
+  void skipsAndAcknowledgesBatchCompletionEventWithoutEntityIds() {
+    EntityResolvedEvent event = new EntityResolvedEvent("luminex", null, null, null);
+    Acknowledgment acknowledgment = mock(Acknowledgment.class);
+
+    consumer.onEntityResolved(event, acknowledgment);
+
+    verifyNoInteractions(syncService);
+    verify(acknowledgment).acknowledge();
+  }
+
+  @Test
   void doesNotAcknowledgeWhenSyncServiceThrows() {
     EntityResolvedEvent event = new EntityResolvedEvent("acme", "gr-100", "Person", Map.of());
     Acknowledgment acknowledgment = mock(Acknowledgment.class);

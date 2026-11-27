@@ -87,6 +87,19 @@ class EntityResolvedConsumerTest {
   }
 
   @Test
+  void shouldIgnoreIndividualEntityEventEvenWhenConnectionIdIsPresent() {
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("golden_id", "gr-123");
+    payload.put("entity_type", "Person");
+    payload.put("connectionId", connectionId.toString());
+
+    consumer.onEntityResolved(payload, null, 0, 0L, acknowledgment);
+
+    verify(pipelineRunRepository, never()).save(any());
+    verify(acknowledgment).acknowledge();
+  }
+
+  @Test
   void shouldRejectNegativeResolvedEntities() {
     Map<String, Object> payload = new HashMap<>();
     payload.put("connectionId", connectionId.toString());
