@@ -36,9 +36,10 @@ def test_clean_dataset_sync_skips_golden_records_when_opted_out():
     compact_body = compact_resp.json()
     assert compact_body["status"] == "COMPLETED"
     assert compact_body["totalRawRecords"] == 3
-    assert compact_body["duplicatesMerged"] >= 1
+    assert compact_body["duplicatesMerged"] == 1
+    assert compact_body["totalCleanRecords"] == 2
     assert compact_body["goldenRecords"] == []
-    assert len(compact_body["rows"]) == 3
+    assert len(compact_body["rows"]) == 2
 
     full_resp = client.post(
         "/process/dataset/clean",

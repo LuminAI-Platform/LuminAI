@@ -7,6 +7,7 @@ import time
 import uuid
 from typing import Any, Optional
 
+
 import app.processing.trigger as trig
 from app.config import get_settings
 from app.logging import bind_context
@@ -47,6 +48,13 @@ def execute_cleaning_pipeline(
         batch_metadata.get("total_rows") or batch_metadata.get("totalRows", "unknown"),
         active_run_id,
     )
+
+    # Connection metadata travels separately from raw rows in the ingest envelope.
+    # Promote it here so entity hints, FK mappings, and orchestration flags control
+    # the same production pipeline path as manually-triggered jobs.
+    envelope_metadata = batch_metadata.get("batch_metadata")
+    if isinstance(envelope_metadata, dict):
+        batch_metadata = {**batch_metadata, **envelope_metadata}
 
     object_key = (
         batch_metadata.get("object_key")
@@ -172,7 +180,10 @@ def execute_cleaning_pipeline(
                     duration,
                 )
                 # Automatically trigger Entity Resolution pipeline for complete pipeline orchestration
-                if batch_metadata.get("auto_er", False):
+                auto_er = batch_metadata.get("auto_er")
+                if auto_er is None:
+                    auto_er = bool(batch_metadata.get("batch_complete", False))
+                if auto_er:
                     try:
                         logger.info(
                             "🚀 Auto-triggering Entity Resolution pipeline post-cleaning — tenant=%s, source=%s",
@@ -188,10 +199,9 @@ def execute_cleaning_pipeline(
                             "⚠️ Automated post-cleaning ER trigger encountered an issue: %s",
                             er_exc,
                         )
-                # Automatically generate relational edges if foreign keys specified
-                if batch_metadata.get("foreign_keys") or batch_metadata.get(
-                    "generate_edges"
-                ):
+                # Generate relationships for ingested datasets by default; callers can
+                # disable generation, or provide explicit foreign-key mappings.
+                if batch_metadata.get("generate_edges", True) or batch_metadata.get("foreign_keys"):
                     try:
                         logger.info(
                             "🔗 Auto-triggering relational edge generator post-cleaning — tenant=%s, source=%s",

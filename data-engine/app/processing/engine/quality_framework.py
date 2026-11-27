@@ -299,7 +299,15 @@ class DataQualityFramework:
         # Duplicate ID check across dataset
         seen_ids: Dict[str, int] = {}
         for r in records:
-            rid = str(r.get("id") or r.get("record_id") or r.get("mrn") or "")
+            rid = str(
+                r.get("id")
+                or r.get("record_id")
+                or r.get("mrn")
+                or r.get("national_id")
+                or r.get("ssn")
+                or r.get("entity_id")
+                or ""
+            )
             if rid:
                 seen_ids[rid] = seen_ids.get(rid, 0) + 1
 

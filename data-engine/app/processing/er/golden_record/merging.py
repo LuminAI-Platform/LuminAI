@@ -77,7 +77,17 @@ def merge_cluster_to_golden_record(
         return {}
 
     if not golden_id:
-        golden_id = f"gr-{uuid.uuid4()}"
+        stable_keys = sorted(
+            str(r.get("raw_id") or r.get("id") or r.get("record_id") or "")
+            for r in cluster_records
+        )
+        if any(stable_keys):
+            seed = f"{tenant_id}:{'|'.join(stable_keys)}"
+        else:
+            import json as _json
+
+            seed = f"{tenant_id}:{_json.dumps(cluster_records, sort_keys=True, default=str)}"
+        golden_id = f"gr-{uuid.uuid5(uuid.NAMESPACE_DNS, seed)}"
 
     engine = GoldenRecordEngine()
     gr_output = engine.build_golden_record(
