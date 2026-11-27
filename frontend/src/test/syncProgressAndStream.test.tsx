@@ -70,11 +70,64 @@ describe("Sync progress panel & Pipeline Execution Stream", () => {
     expect(html).toContain("Completed with issues");
     expect(html).toContain("Loaded 840 - Quarantined 25 - Rejected 5");
     expect(html).toContain("5 rejected, 25 quarantined");
-    // Toggle to all sync activity is available
-    expect(html).toContain("All sync activity");
+    // Toggle to all sync activity is a plain text link
+    expect(html).toContain("Show all sync activity");
     // Run IDs visible so duplicates are distinguishable
     expect(html).toContain("#run-1111");
     expect(html).toContain("#run-2222");
+  });
+
+  it("shows No records synced (amber) with empty bar for 0-record runs, discrepancy state, and 6-item cap", () => {
+    const zeroRun = parseSyncDatasetFromApi(
+      {
+        id: "run-zero-0001",
+        connectionId: "conn-1",
+        connectorName: "empty_source.csv",
+        connectorType: "FILE",
+        pipelineType: "FILE_INGESTION",
+        status: "COMPLETED",
+        recordsInput: 0,
+        recordsOutput: 0,
+        recordsFailed: 0,
+        durationSeconds: 1,
+        startedAt: "2026-11-20T15:47:00Z",
+      },
+      0,
+    );
+
+    const zeroHtml = renderToStaticMarkup(
+      React.createElement(SyncJobDetails, {
+        datasets: [zeroRun],
+        cleanViewQuarantinedByConnection: { "conn-1": 1 },
+      }),
+    );
+    expect(zeroHtml).toContain("Completed - no records");
+    expect(zeroHtml).toContain("No records synced");
+    expect(zeroHtml).toContain("width:0%");
+    expect(zeroHtml).not.toContain("100% complete");
+    expect(zeroHtml).toContain("Counts unavailable");
+    expect(zeroHtml).toContain("Two sources report different values: 0 vs 1");
+
+    const manyRuns = Array.from({ length: 8 }, (_, i) =>
+      parseSyncDatasetFromApi(
+        {
+          id: `run-many-${i}`,
+          connectorName: `dataset_${i}.csv`,
+          connectorType: "FILE",
+          status: "COMPLETED",
+          recordsInput: 10,
+          recordsOutput: 10,
+          recordsFailed: 0,
+        },
+        i,
+      ),
+    );
+    const listHtml = renderToStaticMarkup(
+      React.createElement(SyncJobDetails, { datasets: manyRuns }),
+    );
+    expect(listHtml).toContain("Showing 6 of 8");
+    expect(listHtml).toContain("View all");
+    expect(listHtml).not.toContain("dataset_7.csv");
   });
 
   it("never renders FILE_INGESTION with a contradicting Database type tag", () => {
@@ -247,5 +300,38 @@ describe("Sync progress panel & Pipeline Execution Stream", () => {
     expect(
       formatRowCountsFragment({ rowsIn: 100, rowsOut: 95, rowsRejected: 5 }),
     ).toBe("In 100 · Out 95 · Rejected 5");
+  });
+
+  it("renders ExecutionLogs with container-query two-line wrap and readable message styles at 360px, 480px, and 720px", () => {
+    const entries: LogEntry[] = [
+      {
+        id: "log-wrap-1",
+        ts: new Date(2026, 10, 20, 15, 48, 0),
+        level: "INFO",
+        source: "very_long_hospital_patients_dataset_2026_final.csv",
+        runId: "abcdef12-3456-7890",
+        message: "Run completed in 15s with normalized schema columns",
+      },
+    ];
+
+    for (const width of [360, 480, 720]) {
+      const html = renderToStaticMarkup(
+        React.createElement(
+          "div",
+          { style: { width: `${width}px` } },
+          React.createElement(ExecutionLogs, {
+            entries,
+            streamConnected: true,
+            hasActiveRun: false,
+          }),
+        ),
+      );
+      expect(html).toContain("@container");
+      expect(html).toContain("@[640px]:flex-row");
+      expect(html).toContain("whitespace-pre-wrap");
+      expect(html).toContain("[overflow-wrap:anywhere]");
+      expect(html).toContain("Filter messages, source or run ID");
+      expect(html).toContain("Copy run ID abcdef12-3456-7890");
+    }
   });
 });

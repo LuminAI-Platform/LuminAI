@@ -205,7 +205,12 @@ export const ConnectionsPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 min-[1100px]:grid-cols-2 gap-5 mt-2 items-start">
-        <SyncJobDetails onOpenRunDetail={handleOpenRunDetail} />
+        <SyncJobDetails
+          onOpenRunDetail={handleOpenRunDetail}
+          cleanViewQuarantinedByConnection={
+            connData.cleanViewQuarantinedByConnection
+          }
+        />
         <ExecutionLogs onOpenRunDetail={handleOpenRunDetail} />
       </div>
 

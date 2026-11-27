@@ -46,6 +46,10 @@ export function useConnectionsActions({
     null,
   );
   const [cleanData, setCleanData] = useState<CleanDataResponse | null>(null);
+  const [
+    cleanViewQuarantinedByConnection,
+    setCleanViewQuarantinedByConnection,
+  ] = useState<Record<string, number>>({});
   const [cleanDataError, setCleanDataError] = useState<string | null>(null);
   const [isCleanDataLoading, setIsCleanDataLoading] = useState(false);
   const [cleanSearchFilter, setCleanSearchFilter] = useState("");
@@ -138,6 +142,12 @@ export function useConnectionsActions({
       const data = (await res.json()) as CleanDataResponse;
       if (controller.signal.aborted) return;
       setCleanData(data);
+      if (typeof data.rejectedRecords === "number") {
+        setCleanViewQuarantinedByConnection((prev) => ({
+          ...prev,
+          [file.id]: data.rejectedRecords!,
+        }));
+      }
     } catch (err: unknown) {
       const isUserAbort =
         controller.signal.aborted ||
@@ -169,6 +179,7 @@ export function useConnectionsActions({
     setCleanPreviewFile,
     closeCleanPreview,
     cleanData,
+    cleanViewQuarantinedByConnection,
     cleanDataError,
     isCleanDataLoading,
     cleanSearchFilter,
