@@ -191,6 +191,16 @@ export function useDbConnectorDiscovery({
           err.message || "Failed to register database connector.",
         );
       }
+      const created = (await res.json().catch(() => null)) as {
+        id?: string;
+      } | null;
+      if (created?.id) {
+        await apiFetch(`/api/v1/connections/${created.id}/sync`, {
+          method: "POST",
+          headers: { "X-Suppress-Toast": "true" },
+          body: JSON.stringify({ tables: selectedTables }),
+        }).catch(() => null);
+      }
       clearPassword();
       onSuccess();
     } catch (err: unknown) {
