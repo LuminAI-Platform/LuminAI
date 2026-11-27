@@ -108,8 +108,17 @@ public class PostgresConnectorService {
    */
   public Map<String, List<String>> discoverSchemasDirect(
       String host, int port, String database, String username, String password) {
+    return discoverSchemasDirect(host, port, database, username, password, null, null);
+  }
+
+  public Map<String, List<String>> discoverSchemasDirect(
+      String host, int port, String database, String username, String password,
+      String sslMode, String schemaFilter) {
     validateHostAndDatabase(host, port, database);
     String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, database);
+    if (sslMode != null && !sslMode.isBlank()) {
+      jdbcUrl += "?sslmode=" + java.net.URLEncoder.encode(sslMode, java.nio.charset.StandardCharsets.UTF_8);
+    }
     Map<String, List<String>> schemaTableMap = new LinkedHashMap<>();
 
     String sql =
@@ -118,18 +127,23 @@ public class PostgresConnectorService {
             FROM information_schema.tables
             WHERE table_type = 'BASE TABLE'
               AND table_schema NOT IN ('pg_catalog', 'information_schema')
+              AND (? IS NULL OR table_schema = ?)
             ORDER BY table_schema, table_name
             """;
 
     DriverManager.setLoginTimeout(5);
     try (Connection conn = DriverManager.getConnection(jdbcUrl, username, password);
         PreparedStatement stmt = conn.prepareStatement(sql);
-        ResultSet rs = stmt.executeQuery()) {
+        ) {
+      stmt.setString(1, schemaFilter == null || schemaFilter.isBlank() ? null : schemaFilter);
+      stmt.setString(2, schemaFilter == null || schemaFilter.isBlank() ? null : schemaFilter);
+      try (ResultSet rs = stmt.executeQuery()) {
 
       while (rs.next()) {
         String schema = rs.getString("table_schema");
         String table = rs.getString("table_name");
         schemaTableMap.computeIfAbsent(schema, k -> new ArrayList<>()).add(table);
+      }
       }
 
       log.info(

@@ -7,6 +7,7 @@ import com.luminai.connection.model.PipelineRun.PipelineRunStatus;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.PipelineRunRepository;
 import java.util.Map;
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -166,6 +167,12 @@ public class PipelineEventConsumer {
                 run -> {
                   run.setStatus(newStatus);
                   run.setRecordsOutput(run.getRecordsOutput() + recordsOutput);
+                  if (payload.containsKey("recordsQuarantined")) {
+                    run.setRecordsQuarantined(toLong(payload.get("recordsQuarantined")));
+                  }
+                  if (payload.containsKey("recordsRejected")) {
+                    run.setRecordsRejected(toLong(payload.get("recordsRejected")));
+                  }
                   pipelineRunRepository.save(run);
                   log.info(
                       "Updated PipelineRun '{}' for connection '{}' (tenant={}) → status={}",

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.luminai.connection.model.PipelineRun;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,7 +27,7 @@ public record PipelineRunDto(
     double throughput,
     Instant startedAt,
     Instant completedAt,
-    long durationSeconds,
+    Long durationSeconds,
     String errorMessage,
     String metadata,
     Instant createdAt) {
@@ -73,7 +72,7 @@ public record PipelineRunDto(
         0L,
         recordsFailed,
         null,
-        generateDefaultStages(recordsInput, recordsOutput, recordsFailed, durationSeconds),
+        List.of(),
         throughput,
         startedAt,
         completedAt,
@@ -83,21 +82,15 @@ public record PipelineRunDto(
         createdAt);
   }
 
-  private static List<StageMetricDto> generateDefaultStages(
-      long in, long out, long failed, long duration) {
-    List<StageMetricDto> stages = new ArrayList<>();
-    long durSlice = Math.max(1, duration / 4);
-    stages.add(new StageMetricDto("ingest", "Data Ingestion", in, in, 0, durSlice));
-    stages.add(new StageMetricDto("clean", "Cleaning & Normalization", in, in, 0, durSlice));
-    stages.add(new StageMetricDto("dedupe", "Deduplication", in, out + failed, failed, durSlice));
-    stages.add(new StageMetricDto("resolve", "Entity Resolution", out + failed, out, 0, durSlice));
-    return stages;
-  }
-
   public static PipelineRunDto fromEntity(
       PipelineRun run, String connectorName, String connectorType) {
     long duration = 0;
     Instant start = run.getStartedAt();
+    boolean terminal = run.getStatus() == PipelineRun.PipelineRunStatus.COMPLETED
+        || run.getStatus() == PipelineRun.PipelineRunStatus.CLEANED
+        || run.getStatus() == PipelineRun.PipelineRunStatus.VALIDATED
+        || run.getStatus() == PipelineRun.PipelineRunStatus.FAILED
+        || run.getStatus() == PipelineRun.PipelineRunStatus.CANCELLED;
     Instant end = run.getCompletedAt() != null ? run.getCompletedAt() : Instant.now();
     if (start != null) {
       duration = Math.max(0, Duration.between(start, end).getSeconds());
@@ -117,29 +110,27 @@ public record PipelineRunDto(
       throughput = (double) run.getRecordsOutput() / duration;
     }
 
-    long failed = run.getRecordsFailed();
-    long quarantined = failed > 0 ? failed / 2 : 0;
-    long rejected = failed - quarantined;
+    Long reportedDuration = terminal && run.getCompletedAt() == null ? null : duration;
 
     return new PipelineRunDto(
         run.getId(),
         run.getConnectionId(),
-        connectorName != null ? connectorName : "Data Connector",
-        connectorType != null ? connectorType : "Database",
+        connectorName,
+        connectorType,
         run.getPipelineType(),
         status,
         progress,
         run.getRecordsInput(),
         run.getRecordsOutput(),
         run.getRecordsFailed(),
-        quarantined,
-        rejected,
+        run.getRecordsQuarantined(),
+        run.getRecordsRejected(),
         null,
-        generateDefaultStages(run.getRecordsInput(), run.getRecordsOutput(), failed, duration),
+        List.of(),
         throughput,
         run.getStartedAt(),
         run.getCompletedAt(),
-        duration,
+        reportedDuration,
         run.getErrorMessage(),
         run.getMetadata(),
         run.getCreatedAt());

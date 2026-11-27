@@ -53,6 +53,12 @@ public class PipelineRun {
   @Column(name = "records_failed", nullable = false)
   private long recordsFailed = 0;
 
+  @Column(name = "records_quarantined", nullable = false)
+  private long recordsQuarantined = 0;
+
+  @Column(name = "records_rejected", nullable = false)
+  private long recordsRejected = 0;
+
   @Column(name = "error_message", columnDefinition = "TEXT")
   private String errorMessage;
 
@@ -164,6 +170,14 @@ public class PipelineRun {
   public void setRecordsFailed(long recordsFailed) {
     this.recordsFailed = recordsFailed;
   }
+
+  public long getRecordsQuarantined() { return recordsQuarantined; }
+
+  public void setRecordsQuarantined(long recordsQuarantined) { this.recordsQuarantined = recordsQuarantined; }
+
+  public long getRecordsRejected() { return recordsRejected; }
+
+  public void setRecordsRejected(long recordsRejected) { this.recordsRejected = recordsRejected; }
 
   public String getErrorMessage() {
     return errorMessage;
