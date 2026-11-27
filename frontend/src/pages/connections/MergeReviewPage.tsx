@@ -35,6 +35,7 @@ export const MergeReviewPage: React.FC = () => {
     acceptMutation,
     rejectMutation,
     scanMutation,
+    splitMutation,
     allPropertyKeys,
     loadErrorMessage,
   } = useMergeReviewData();
@@ -154,8 +155,12 @@ export const MergeReviewPage: React.FC = () => {
             allPropertyKeys={allPropertyKeys}
             onAccept={(id) => acceptMutation.mutate(id)}
             onReject={(id) => rejectMutation.mutate(id)}
+            onSplit={(goldenRecordId, sourceRecordIdToExtract) =>
+              splitMutation.mutate({ goldenRecordId, sourceRecordIdToExtract })
+            }
             isAcceptPending={acceptMutation.isPending}
             isRejectPending={rejectMutation.isPending}
+            isSplitPending={splitMutation.isPending}
           />
         </div>
       </div>

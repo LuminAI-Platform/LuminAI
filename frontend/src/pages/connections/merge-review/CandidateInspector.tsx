@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   GitMerge,
+  GitFork,
   ShieldCheck,
   AlertTriangle,
   XCircle,
   CheckCircle,
 } from "../../../lib/icons";
 import { Button } from "../../../components/ui/Button";
+import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import { Badge, SuggestedTag } from "../../../components/ui/Badge";
 import type { CandidateResponse } from "./mergeTypes";
 
@@ -15,8 +17,10 @@ interface CandidateInspectorProps {
   allPropertyKeys: string[];
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
+  onSplit?: (goldenRecordId: string, sourceRecordIdToExtract: string) => void;
   isAcceptPending: boolean;
   isRejectPending: boolean;
+  isSplitPending?: boolean;
 }
 
 export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
@@ -24,9 +28,13 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
   allPropertyKeys,
   onAccept,
   onReject,
+  onSplit,
   isAcceptPending,
   isRejectPending,
+  isSplitPending = false,
 }) => {
+  const [confirmSplitOpen, setConfirmSplitOpen] = useState(false);
+
   if (!activeCandidate) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-text-secondary">
@@ -41,6 +49,10 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
       </div>
     );
   }
+
+  const comparisonEntries = activeCandidate.comparisonDetails
+    ? Object.entries(activeCandidate.comparisonDetails)
+    : [];
 
   return (
     <>
@@ -99,7 +111,45 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
             </Button>
           </div>
         )}
+
+        {activeCandidate.status === "ACCEPTED" &&
+          onSplit &&
+          activeCandidate.goldenRecordId &&
+          activeCandidate.recordB?.recordId && (
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setConfirmSplitOpen(true)}
+                isLoading={isSplitPending}
+                disabled={isSplitPending}
+                leftIcon={
+                  <GitFork className="w-3.5 h-3.5" aria-hidden="true" />
+                }
+              >
+                Split record
+              </Button>
+            </div>
+          )}
       </div>
+
+      {comparisonEntries.length > 0 && (
+        <div className="px-4 py-2.5 border-b border-border bg-surface-subtle/50 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span className="font-medium text-text-secondary">
+            Comparison details:
+          </span>
+          {comparisonEntries.map(([key, val]) => (
+            <span key={key} className="text-text-secondary">
+              <span className="font-medium text-text">{key}:</span>{" "}
+              <span className="font-mono text-[11px]">
+                {typeof val === "object" && val !== null
+                  ? JSON.stringify(val)
+                  : String(val)}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Side-by-Side Comparison Table */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col">
@@ -224,6 +274,28 @@ export const CandidateInspector: React.FC<CandidateInspectorProps> = ({
           </span>
         </div>
       </div>
+
+      {onSplit &&
+        activeCandidate.goldenRecordId &&
+        activeCandidate.recordB?.recordId && (
+          <ConfirmDialog
+            open={confirmSplitOpen}
+            onOpenChange={setConfirmSplitOpen}
+            title="Split merged record?"
+            description="Extract source record B into its own separate Golden Record. This creates a new version of the existing Golden Record."
+            confirmText="Split record"
+            cancelText="Cancel"
+            isDestructive={false}
+            isLoading={isSplitPending}
+            onConfirm={() => {
+              onSplit(
+                activeCandidate.goldenRecordId,
+                activeCandidate.recordB.recordId,
+              );
+              setConfirmSplitOpen(false);
+            }}
+          />
+        )}
     </>
   );
 };
