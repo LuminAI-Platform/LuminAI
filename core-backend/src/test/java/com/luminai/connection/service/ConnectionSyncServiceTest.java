@@ -303,6 +303,6 @@ class ConnectionSyncServiceTest {
 
     assertThat(run.getStatus()).isEqualTo(PipelineRunStatus.COMPLETED);
     verify(persistenceService)
-        .syncGoldenRecords(eq(connId), eq(tenantId), eq("Shipments File"), any(), any(), eq(true));
+        .syncGoldenRecords(eq(connId), eq(tenantId), eq("shipments.csv"), any(), any(), eq(true));
   }
 }
