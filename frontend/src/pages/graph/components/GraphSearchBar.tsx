@@ -4,6 +4,7 @@ import { apiFetch } from "../../../lib/api";
 import { useThemeStore } from "../../../stores/themeStore";
 import { getEntityColor } from "../../../lib/entityColors";
 import type { SuggestedEntity } from "../useGraphData";
+import { mapExplorerItemsToSuggestions } from "../graphDataUtils";
 
 interface GraphSearchBarProps {
   onSearch: (entityId: string, label?: string) => void;
@@ -48,24 +49,7 @@ export const GraphSearchBar: React.FC<GraphSearchBarProps> = ({
           },
         );
         const data = await res.json();
-        const rawItems = Array.isArray(data?.items)
-          ? data.items
-          : Array.isArray(data?.content)
-            ? data.content
-            : Array.isArray(data?.results)
-              ? data.results
-              : [];
-
-        const mapped: SuggestedEntity[] = rawItems
-          .filter((item: Record<string, unknown>) => Boolean(item?.id))
-          .slice(0, 6)
-          .map((item: Record<string, unknown>) => ({
-            id: String(item.id),
-            canonicalName: String(
-              item.canonicalName || item.label || item.name || item.id,
-            ),
-            entityType: String(item.entityType || "Entity"),
-          }));
+        const { items: mapped } = mapExplorerItemsToSuggestions(data, 6);
 
         setSuggestions(mapped);
         setIsOpen(mapped.length > 0);

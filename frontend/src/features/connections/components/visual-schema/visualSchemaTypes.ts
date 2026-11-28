@@ -59,6 +59,58 @@ export const DEFAULT_TARGET_ENTITIES: string[] = [];
 
 export const DEFAULT_RELATION_TYPES: string[] = [];
 
+export interface SchemaMappingBatchRequest {
+  connectorId: string;
+  sourceTable: string;
+  targetEntity: string;
+  mappings: Array<{
+    sourceColumn: string;
+    targetEntityType: string;
+    targetProperty: string;
+    transformation: string;
+  }>;
+  foreignKeys: ForeignKeyDefinition[];
+}
+
+const CONNECTOR_UUID_PATTERN =
+  /^(?:conn_)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+
+export function extractConnectorUuid(connectionId: string): string | null {
+  const match = connectionId.trim().match(CONNECTOR_UUID_PATTERN);
+  return match ? match[1] : null;
+}
+
+export function buildSchemaMappingBatchPayload(params: {
+  connectorId: string;
+  sourceTable: string;
+  targetEntity: string;
+  mappings: SchemaMapping[];
+  foreignKeys: ForeignKeyDefinition[];
+  sourceColumns: SourceColumn[];
+  ontologyProperties: OntologyProperty[];
+}): SchemaMappingBatchRequest {
+  return {
+    connectorId: params.connectorId,
+    sourceTable: params.sourceTable,
+    targetEntity: params.targetEntity,
+    mappings: params.mappings.map((m) => {
+      const sourceCol =
+        params.sourceColumns.find((c) => c.id === m.sourceColumnId)?.name ??
+        m.sourceColumnId;
+      const targetProp =
+        params.ontologyProperties.find((p) => p.id === m.ontologyPropertyId)
+          ?.name ?? m.ontologyPropertyId;
+      return {
+        sourceColumn: sourceCol,
+        targetEntityType: params.targetEntity,
+        targetProperty: targetProp,
+        transformation: "NONE",
+      };
+    }),
+    foreignKeys: params.foreignKeys,
+  };
+}
+
 export function inferDefaultRelationship(
   colName: string,
   availableEntities: string[] = [],

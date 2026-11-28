@@ -9,6 +9,8 @@ import {
   type SchemaMappingPayload,
   DEFAULT_TARGET_ENTITIES,
   DEFAULT_RELATION_TYPES,
+  extractConnectorUuid,
+  buildSchemaMappingBatchPayload,
 } from "./visualSchemaTypes";
 import { useForeignKeyState } from "./useForeignKeyState";
 import { useConnectorLines } from "./useConnectorLines";
@@ -140,38 +142,32 @@ export function useSchemaMapper({
 
     // Extract the connector UUID even when connectionId has a table suffix
     // from ZIP archives (e.g. "conn_<uuid>_orders.csv").
-    const uuidMatch = connectionId.match(
-      /^(?:conn_)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
-    );
-    const cleanConnectorId = uuidMatch ? uuidMatch[1] : "";
+    const cleanConnectorId = extractConnectorUuid(connectionId) ?? "";
     const isUuid = cleanConnectorId.length > 0;
 
     setSaveError(null);
 
     try {
       if (isUuid) {
-        for (const m of mappings) {
-          const sourceCol =
-            sourceColumns.find((c) => c.id === m.sourceColumnId)?.name ??
-            m.sourceColumnId;
-          const targetProp =
-            ontologyProperties.find((p) => p.id === m.ontologyPropertyId)
-              ?.name ?? m.ontologyPropertyId;
+        const batchBody = buildSchemaMappingBatchPayload({
+          connectorId: cleanConnectorId,
+          sourceTable,
+          targetEntity: targetEntityName,
+          mappings,
+          foreignKeys: fkList,
+          sourceColumns,
+          ontologyProperties,
+        });
 
-          const res = await apiFetch("/api/v1/schema-mappings", {
-            method: "POST",
-            body: JSON.stringify({
-              connectorId: cleanConnectorId,
-              name: `${sourceTable} - ${sourceCol} Map`,
-              sourceColumn: sourceCol,
-              targetEntityType: targetEntityName,
-              targetProperty: targetProp,
-              transformation: "NONE",
-            }),
-          });
-          if (!res.ok) {
-            throw new Error(`Failed to save schema mapping: ${res.statusText}`);
-          }
+        const res = await apiFetch(
+          `/api/v1/schema-mappings/connector/${encodeURIComponent(cleanConnectorId)}`,
+          {
+            method: "PUT",
+            body: JSON.stringify(batchBody),
+          },
+        );
+        if (!res.ok) {
+          throw new Error(`Failed to save schema mapping: ${res.statusText}`);
         }
       }
       localStorage.setItem("lumin_schema_mapping", JSON.stringify(payload));
@@ -192,9 +188,13 @@ export function useSchemaMapper({
       setSaveSuccess(true);
       onSave?.(payload);
 
+      const fkSuffix =
+        fkList.length > 0
+          ? ` and ${fkList.length} graph link${fkList.length === 1 ? "" : "s"}`
+          : "";
       toast.success(
         "Schema Mapping Saved",
-        `Saved ${mappings.length} column mapping${mappings.length === 1 ? "" : "s"} for ${sourceTable}.`,
+        `Saved ${mappings.length} column mapping${mappings.length === 1 ? "" : "s"}${fkSuffix} for ${sourceTable}.`,
       );
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err: unknown) {

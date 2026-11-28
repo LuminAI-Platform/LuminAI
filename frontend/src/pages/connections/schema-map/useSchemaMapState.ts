@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "../../../lib/api";
 import { useToast } from "../../../components/ui/ToastProvider";
-import type {
-  SourceColumn,
-  OntologyProperty,
-  SchemaMappingPayload,
-} from "../../../features/connections/components/VisualSchemaMapper";
+import {
+  type SourceColumn,
+  type OntologyProperty,
+  type ForeignKeyDefinition,
+  type SchemaMappingPayload,
+  extractConnectorUuid,
+} from "../../../features/connections/components/visual-schema/visualSchemaTypes";
 import {
   sanitizeEntityName,
   sanitizePropertyName,
@@ -28,6 +30,9 @@ export function useSchemaMapState() {
   const [isSeedModalOpen, setIsSeedModalOpen] = useState(false);
   const [generatingFromDataset, setGeneratingFromDataset] = useState(false);
   const [seedingDomain, setSeedingDomain] = useState<string | null>(null);
+  const [foreignKeysByConnector, setForeignKeysByConnector] = useState<
+    Record<string, ForeignKeyDefinition[]>
+  >({});
 
   const toast = useToast();
 
@@ -110,21 +115,69 @@ export function useSchemaMapState() {
     ],
   );
 
+  const selectedConnectorUuid = useMemo(
+    () => extractConnectorUuid(selectedSource),
+    [selectedSource],
+  );
+
+  useEffect(() => {
+    if (!selectedConnectorUuid) return;
+    const controller = new AbortController();
+    const fetchForeignKeys = async () => {
+      try {
+        const res = await apiFetch(
+          `/api/v1/schema-mappings/connector/${encodeURIComponent(selectedConnectorUuid)}/foreign-keys`,
+          {
+            headers: { "X-Suppress-Toast": "true" },
+            signal: controller.signal,
+          },
+        );
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list)) {
+            setForeignKeysByConnector((prev) => ({
+              ...prev,
+              [selectedConnectorUuid]: list,
+            }));
+          }
+        }
+      } catch {
+        // ignore if connector FKs haven't been saved yet
+      }
+    };
+    fetchForeignKeys();
+    return () => controller.abort();
+  }, [selectedConnectorUuid]);
+
+  const initialForeignKeys = useMemo(
+    () =>
+      selectedConnectorUuid
+        ? (foreignKeysByConnector[selectedConnectorUuid] ?? [])
+        : [],
+    [selectedConnectorUuid, foreignKeysByConnector],
+  );
+
   const handleSave = (payload: SchemaMappingPayload) => {
     setSavedMappings((prev) => [payload, ...prev.slice(0, 4)]);
+    const resolvedConnUuid =
+      extractConnectorUuid(payload.connectionId || selectedSource) ??
+      selectedSource.replace(/^conn_/, "");
+
+    if (selectedConnectorUuid && payload.foreignKeys) {
+      setForeignKeysByConnector((prev) => ({
+        ...prev,
+        [selectedConnectorUuid]: payload.foreignKeys ?? [],
+      }));
+    }
+
     const newRaws = payload.mappings.map(
       (m: { sourceColumnId: string; ontologyPropertyId: string }) => {
         const col = sourceData.columns.find((c) => c.id === m.sourceColumnId);
         const prop = ontologyProps.find(
           (p: OntologyProperty) => p.id === m.ontologyPropertyId,
         );
-        const uuidMatch = selectedSource.match(
-          /^(?:conn_)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
-        );
         return {
-          connectorId: uuidMatch
-            ? uuidMatch[1]
-            : selectedSource.replace(/^conn_/, ""),
+          connectorId: resolvedConnUuid,
           name: `${sourceData.table} - ${col?.name ?? m.sourceColumnId} Map`,
           sourceColumn: col?.name ?? m.sourceColumnId,
           targetEntityType: payload.targetEntity,
@@ -255,6 +308,7 @@ export function useSchemaMapState() {
     activeOntologyKey,
     ontologyProps,
     initialMapperLinks,
+    initialForeignKeys,
     handleSave,
     handleAutoGenerateFromDataset,
     handleSeedDomainTemplate,

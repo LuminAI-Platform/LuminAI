@@ -32,6 +32,8 @@ interface NodeDetailPanelProps {
   node: GraphNodeData | null;
   onClose: () => void;
   onExpand: (nodeId: string) => void;
+  isExpanding?: boolean;
+  onFindPathFrom?: (node: GraphNodeData) => void;
 }
 
 /**
@@ -42,32 +44,35 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   node,
   onClose,
   onExpand,
+  isExpanding = false,
+  onFindPathFrom,
 }) => {
   const isDark = useThemeStore((s) => s.isDark);
 
-  const { data: stats, isLoading: isStatsLoading } = useQuery<NodeStats | null>(
-    {
-      queryKey: ["graph", "stats", node?.id],
-      queryFn: async () => {
-        if (!node) return null;
-        try {
-          const res = await apiFetch(
-            `/api/v1/graph/stats?entityId=${encodeURIComponent(node.id)}`,
-            { headers: { "X-Suppress-Toast": "true" } },
-          );
-          return res.json();
-        } catch {
-          return null;
-        }
-      },
-      enabled: Boolean(node),
-      retry: false,
+  const {
+    data: stats,
+    isLoading: isStatsLoading,
+    isError: isStatsError,
+    refetch: refetchStats,
+  } = useQuery<NodeStats | null>({
+    queryKey: ["graph", "stats", node?.id],
+    queryFn: async () => {
+      if (!node) return null;
+      const res = await apiFetch(
+        `/api/v1/graph/stats?entityId=${encodeURIComponent(node.id)}`,
+        { headers: { "X-Suppress-Toast": "true" } },
+      );
+      return res.json();
     },
-  );
+    enabled: Boolean(node),
+    retry: false,
+  });
 
   if (!node) return null;
 
   const nodeColor = node.color || getEntityColor(node.entityType, isDark);
+  const relCounts =
+    stats?.relationshipTypeCounts ?? stats?.relationshipCounts ?? undefined;
 
   return (
     <aside
@@ -120,72 +125,90 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             <Skeleton className="h-14 rounded-lg" />
             <Skeleton className="h-14 rounded-lg" />
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
-              <span className="text-[10px] text-text-secondary block mb-0.5">
-                Degree
-              </span>
-              <span className="text-sm font-bold text-text">
-                {stats?.degree ?? "—"}
-              </span>
-            </div>
-            <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
-              <span className="text-[10px] text-text-secondary block mb-0.5 flex items-center justify-center gap-0.5">
-                <ArrowDownLeft
-                  className="w-2.5 h-2.5 text-text-secondary"
-                  aria-hidden="true"
-                />{" "}
-                In
-              </span>
-              <span className="text-sm font-bold text-text">
-                {stats?.inDegree ?? "—"}
-              </span>
-            </div>
-            <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
-              <span className="text-[10px] text-text-secondary block mb-0.5 flex items-center justify-center gap-0.5">
-                <ArrowUpRight
-                  className="w-2.5 h-2.5 text-text-secondary"
-                  aria-hidden="true"
-                />{" "}
-                Out
-              </span>
-              <span className="text-sm font-bold text-text">
-                {stats?.outDegree ?? "—"}
-              </span>
-            </div>
+        ) : isStatsError ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-error/30 bg-error/10 px-2.5 py-2 text-[11px] text-error">
+            <span>Unable to load centrality metrics.</span>
+            <button
+              type="button"
+              onClick={() => refetchStats()}
+              className="font-semibold underline hover:no-underline shrink-0 cursor-pointer"
+            >
+              Retry
+            </button>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
+                <span className="text-[10px] text-text-secondary block mb-0.5">
+                  Degree
+                </span>
+                <span className="text-sm font-bold text-text">
+                  {stats?.degree ?? "—"}
+                </span>
+              </div>
+              <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
+                <span className="text-[10px] text-text-secondary block mb-0.5 flex items-center justify-center gap-0.5">
+                  <ArrowDownLeft
+                    className="w-2.5 h-2.5 text-text-secondary"
+                    aria-hidden="true"
+                  />{" "}
+                  In
+                </span>
+                <span className="text-sm font-bold text-text">
+                  {stats?.inDegree ?? "—"}
+                </span>
+              </div>
+              <div className="bg-surface-subtle p-2.5 rounded-lg border border-border">
+                <span className="text-[10px] text-text-secondary block mb-0.5 flex items-center justify-center gap-0.5">
+                  <ArrowUpRight
+                    className="w-2.5 h-2.5 text-text-secondary"
+                    aria-hidden="true"
+                  />{" "}
+                  Out
+                </span>
+                <span className="text-sm font-bold text-text">
+                  {stats?.outDegree ?? "—"}
+                </span>
+              </div>
+            </div>
+            {typeof stats?.clusterCoefficient === "number" && (
+              <div className="mt-2 flex items-center justify-between text-[11px] text-text-secondary bg-surface-subtle px-2.5 py-1.5 rounded-lg border border-border">
+                <span>Local clustering</span>
+                <span className="font-semibold text-text">
+                  {stats.clusterCoefficient.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Relationship types breakdown */}
-      {stats?.relationshipTypeCounts &&
-        Object.keys(stats.relationshipTypeCounts).length > 0 && (
-          <div>
-            <h4 className="text-[11px] font-semibold text-text-secondary mb-1.5 flex items-center gap-1.5">
-              <GitFork
-                className="w-3.5 h-3.5 text-text-secondary"
-                aria-hidden="true"
-              />
-              Adjacent Edges
-            </h4>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(stats.relationshipTypeCounts).map(
-                ([type, count]) => (
-                  <span
-                    key={type}
-                    className="px-2 py-0.5 rounded-md text-[10px] bg-surface-subtle border border-border text-text flex items-center gap-1"
-                  >
-                    <span>{type}</span>
-                    <span className="font-bold text-text-secondary">
-                      &times;{count}
-                    </span>
-                  </span>
-                ),
-              )}
-            </div>
+      {relCounts && Object.keys(relCounts).length > 0 && (
+        <div>
+          <h4 className="text-[11px] font-semibold text-text-secondary mb-1.5 flex items-center gap-1.5">
+            <GitFork
+              className="w-3.5 h-3.5 text-text-secondary"
+              aria-hidden="true"
+            />
+            Adjacent Edges
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(relCounts).map(([type, count]) => (
+              <span
+                key={type}
+                className="px-2 py-0.5 rounded-md text-[10px] bg-surface-subtle border border-border text-text flex items-center gap-1"
+              >
+                <span>{type}</span>
+                <span className="font-bold text-text-secondary">
+                  &times;{count}
+                </span>
+              </span>
+            ))}
           </div>
-        )}
+        </div>
+      )}
 
       {/* Entity Properties Table */}
       {node.properties && Object.keys(node.properties).length > 0 && (
@@ -213,11 +236,23 @@ export const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         <Button
           size="sm"
           variant="secondary"
+          disabled={isExpanding}
           onClick={() => onExpand(node.id)}
           leftIcon={<PlusCircle className="w-3.5 h-3.5" />}
         >
-          Expand Node (1 Hop)
+          {isExpanding ? "Expanding..." : "Expand Node (1 Hop)"}
         </Button>
+
+        {onFindPathFrom && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => onFindPathFrom(node)}
+            leftIcon={<GitFork className="w-3.5 h-3.5" />}
+          >
+            Find Shortest Path From Here
+          </Button>
+        )}
 
         <Link to="/explorer/$entityId" params={{ entityId: node.id }}>
           <Button
