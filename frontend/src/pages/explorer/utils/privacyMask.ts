@@ -1,94 +1,98 @@
 /**
  * Display-only privacy masking utilities for sensitive entity fields.
  *
- * Rules are strictly based on field name and formatting:
- * - Email: b***@corp.com
- * - Date of birth: 19**-**-**
- * - Phone, salary, national/insurance/medical IDs: ••••••
+ * All sensitive field detection is driven by a single configurable constant:
+ * `SENSITIVE_FIELD_KEYWORDS`. Ordinary fields such as Age or Gender are never
+ * masked unless they match this list.
  */
 
-export type SensitiveFieldKind = "email" | "dob" | "phone" | "salary" | "id";
+export const SENSITIVE_FIELD_KEYWORDS = [
+  "email",
+  "phone",
+  "dob",
+  "birth",
+  "national_id",
+  "ssn",
+  "insurance",
+  "salary",
+  "address",
+  "diagnosis",
+  "patient",
+  "medical",
+  "health",
+] as const;
 
-const EMAIL_PATTERNS = [
-  /^e[-_ ]?mail$/i,
-  /email[-_ ]?addr/i,
-  /contact[-_ ]?email/i,
-  /work[-_ ]?email/i,
-  /personal[-_ ]?email/i,
-  /_email$/i,
-];
+export type SensitiveFieldKeyword = (typeof SENSITIVE_FIELD_KEYWORDS)[number];
 
-const DOB_PATTERNS = [
-  /^dob$/i,
-  /date[-_ ]?of[-_ ]?birth/i,
-  /birth[-_ ]?date/i,
-  /birthdate/i,
-  /birthday/i,
-];
+export type SensitiveFieldKind =
+  | "email"
+  | "dob"
+  | "phone"
+  | "salary"
+  | "id"
+  | "address"
+  | "medical";
 
-const PHONE_PATTERNS = [
-  /phone/i,
-  /mobile/i,
-  /telephone/i,
-  /^tel$/i,
-  /cell[-_ ]?(num|number|phone)?$/i,
-  /^fax$/i,
-];
+function normalizeFieldKey(fieldName: string): string {
+  return fieldName
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[-\s]+/g, "_")
+    .toLowerCase();
+}
 
-const SALARY_PATTERNS = [
-  /salary/i,
-  /income/i,
-  /compensation/i,
-  /\bwage\b/i,
-  /annual[-_ ]?pay/i,
-  /base[-_ ]?pay/i,
-  /net[-_ ]?worth/i,
-];
-
-const ID_PATTERNS = [
-  /\bssn\b/i,
-  /social[-_ ]?security/i,
-  /\bsin\b/i,
-  /\bnin\b/i,
-  /national[-_ ]?id/i,
-  /tax[-_ ]?id/i,
-  /\btin\b/i,
-  /passport/i,
-  /driver[-_ ]?license/i,
-  /license[-_ ]?(num|number|id)/i,
-  /insurance[-_ ]?(id|num|number|policy)/i,
-  /policy[-_ ]?(num|number|id)/i,
-  /member[-_ ]?id/i,
-  /\bmrn\b/i,
-  /medical[-_ ]?record/i,
-  /health[-_ ]?(id|card|number)/i,
-  /credit[-_ ]?card/i,
-  /card[-_ ]?number/i,
-  /\biban\b/i,
-  /bank[-_ ]?account/i,
-  /routing[-_ ]?number/i,
-];
+function matchesKeyword(normalizedKey: string, keyword: string): boolean {
+  if (!normalizedKey) return false;
+  if (normalizedKey === keyword) return true;
+  if (keyword === "dob" || keyword === "ssn") {
+    // Match as a standalone token (e.g. `dob`, `patient_dob`, `user_ssn`) to avoid false positives
+    const tokens = normalizedKey.split("_");
+    return tokens.includes(keyword);
+  }
+  return normalizedKey.includes(keyword);
+}
 
 /**
- * Classifies a field name into a sensitive category, or returns null if non-sensitive.
+ * Classifies a field name into a sensitive category using `SENSITIVE_FIELD_KEYWORDS`,
+ * or returns null if the field is not sensitive.
  */
 export function getSensitiveFieldKind(
   fieldName: string,
 ): SensitiveFieldKind | null {
-  const normalized = fieldName.trim();
+  const normalized = normalizeFieldKey(fieldName);
   if (!normalized) return null;
 
-  if (EMAIL_PATTERNS.some((re) => re.test(normalized))) return "email";
-  if (DOB_PATTERNS.some((re) => re.test(normalized))) return "dob";
-  if (PHONE_PATTERNS.some((re) => re.test(normalized))) return "phone";
-  if (SALARY_PATTERNS.some((re) => re.test(normalized))) return "salary";
-  if (ID_PATTERNS.some((re) => re.test(normalized))) return "id";
+  const matched = SENSITIVE_FIELD_KEYWORDS.find((kw) =>
+    matchesKeyword(normalized, kw),
+  );
+  if (!matched) return null;
 
-  return null;
+  switch (matched) {
+    case "email":
+      return "email";
+    case "dob":
+    case "birth":
+      return "dob";
+    case "phone":
+      return "phone";
+    case "salary":
+      return "salary";
+    case "address":
+      return "address";
+    case "national_id":
+    case "ssn":
+    case "insurance":
+      return "id";
+    case "diagnosis":
+    case "patient":
+    case "medical":
+    case "health":
+      return "medical";
+  }
 }
 
 /**
- * Returns true if the given property name should be masked when privacy mode is enabled.
+ * Returns true if the given property name should be masked when sensitive data is hidden.
  */
 export function isSensitiveField(fieldName: string): boolean {
   return getSensitiveFieldKind(fieldName) !== null;
@@ -122,7 +126,7 @@ function maskDob(raw: string): string {
 
 /**
  * Formats a property value with display-only masking when `masked` is true and the
- * field name matches a sensitive category.
+ * field name matches `SENSITIVE_FIELD_KEYWORDS`.
  */
 export function maskSensitiveValue(
   fieldName: string,
@@ -152,6 +156,8 @@ export function maskSensitiveValue(
     case "phone":
     case "salary":
     case "id":
+    case "address":
+    case "medical":
       return "••••••";
   }
 }

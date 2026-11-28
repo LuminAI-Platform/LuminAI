@@ -1,13 +1,13 @@
 import React from "react";
-import { X, Sparkles, GitMerge } from "../../../lib/icons";
+import { X, GitMerge } from "../../../lib/icons";
+import { Tooltip } from "../../../components/ui/Tooltip";
 import { EntityTypeIcon } from "./EntityTypeIcon";
 
 interface EntityDrawerHeaderProps {
   activeEntityType: string;
   typeColor: string;
   typeLabel: string;
-  canonicalName: string;
-  confidencePct: number | null;
+  displayLabel: string;
   sourceCount?: number;
   onClose: () => void;
   closeBtnRef: React.RefObject<HTMLButtonElement | null>;
@@ -17,12 +17,18 @@ export const EntityDrawerHeader: React.FC<EntityDrawerHeaderProps> = ({
   activeEntityType,
   typeColor,
   typeLabel,
-  canonicalName,
-  confidencePct,
+  displayLabel,
   sourceCount,
   onClose,
   closeBtnRef,
 }) => {
+  const sourceStatusLabel =
+    typeof sourceCount === "number"
+      ? sourceCount >= 2
+        ? `Merged from ${sourceCount} records`
+        : "Unique record"
+      : null;
+
   return (
     <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-border shrink-0">
       <div className="flex items-start gap-3 min-w-0">
@@ -42,36 +48,28 @@ export const EntityDrawerHeader: React.FC<EntityDrawerHeaderProps> = ({
             id="entity-drawer-title"
             className="text-base font-bold text-text leading-snug break-words"
           >
-            {canonicalName}
+            {displayLabel}
           </h2>
           <div className="flex flex-wrap items-center gap-2 mt-1.5">
-            <span
-              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border"
-              style={{
-                backgroundColor: `${typeColor}12`,
-                borderColor: `${typeColor}30`,
-                color: typeColor,
-              }}
-            >
-              <EntityTypeIcon entityType={activeEntityType} size={11} />
-              <span>{typeLabel}</span>
-            </span>
-
-            {confidencePct !== null && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary-tint text-primary border border-primary-border">
-                <Sparkles size={11} aria-hidden="true" />
-                <span>{confidencePct}% confidence</span>
+            <Tooltip label={typeLabel} side="bottom">
+              <span
+                title={typeLabel}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border max-w-full"
+                style={{
+                  backgroundColor: `${typeColor}12`,
+                  borderColor: `${typeColor}30`,
+                  color: typeColor,
+                }}
+              >
+                <EntityTypeIcon entityType={activeEntityType} size={11} />
+                <span className="break-words leading-tight">{typeLabel}</span>
               </span>
-            )}
+            </Tooltip>
 
-            {typeof sourceCount === "number" && (
+            {sourceStatusLabel && (
               <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
                 <GitMerge size={12} aria-hidden="true" />
-                <span>
-                  {sourceCount > 1
-                    ? `Merged from ${sourceCount} records`
-                    : "1 source record"}
-                </span>
+                <span>{sourceStatusLabel}</span>
               </span>
             )}
           </div>
@@ -83,7 +81,7 @@ export const EntityDrawerHeader: React.FC<EntityDrawerHeaderProps> = ({
         type="button"
         onClick={onClose}
         aria-label="Close entity details"
-        className="p-2 rounded-lg text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent hover:border-border transition-colors duration-150 motion-reduce:transition-none cursor-pointer shrink-0"
+        className="p-2 rounded-lg text-text-secondary hover:text-text hover:bg-surface-hover border border-transparent hover:border-border transition-colors duration-150 motion-reduce:transition-none cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <X size={18} aria-hidden="true" />
       </button>

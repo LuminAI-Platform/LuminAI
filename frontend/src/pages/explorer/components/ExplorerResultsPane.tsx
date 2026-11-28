@@ -5,6 +5,7 @@ import { EntityTableView } from "../../../features/explorer/components/EntityTab
 import { ExplorerPagination } from "./ExplorerPagination";
 import { ExplorerEmptyState } from "./ExplorerEmptyState";
 import type { SearchResponse, SearchResultItem, ViewMode } from "../types";
+import type { TypeLabelFieldMap } from "../utils";
 
 interface ExplorerResultsPaneProps {
   searchData: SearchResponse;
@@ -14,6 +15,7 @@ interface ExplorerResultsPaneProps {
   hasActiveFilters: boolean;
   page: number;
   ontologyTypes: EntityType[];
+  typeLabelFields?: TypeLabelFieldMap;
   maskSensitiveData: boolean;
   onClearFilters: () => void;
   onOpenEntity: (
@@ -31,6 +33,7 @@ export const ExplorerResultsPane: React.FC<ExplorerResultsPaneProps> = ({
   hasActiveFilters,
   page,
   ontologyTypes,
+  typeLabelFields,
   maskSensitiveData,
   onClearFilters,
   onOpenEntity,
@@ -52,6 +55,7 @@ export const ExplorerResultsPane: React.FC<ExplorerResultsPaneProps> = ({
         <EntityTableView
           entities={searchData.content.filter(Boolean)}
           ontologyTypes={ontologyTypes}
+          typeLabelFields={typeLabelFields}
           maskSensitiveData={maskSensitiveData}
           onSelect={onOpenEntity}
         />
@@ -62,6 +66,7 @@ export const ExplorerResultsPane: React.FC<ExplorerResultsPaneProps> = ({
               key={entity.id || `entity-${index}`}
               entity={entity}
               ontologyTypes={ontologyTypes}
+              typeLabelFields={typeLabelFields}
               maskSensitiveData={maskSensitiveData}
               onSelect={onOpenEntity}
             />

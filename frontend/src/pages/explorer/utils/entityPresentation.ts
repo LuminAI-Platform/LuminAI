@@ -1,4 +1,5 @@
 import { formatPropertyLabel, formatShortDate } from "./entityFormatting";
+import { isQualityPropertyKey } from "./entityLabel";
 
 export {
   ENTITY_TYPE_ICON_MAP,
@@ -116,6 +117,7 @@ export function pickKeyCardFields(
   const entries = Object.entries(properties).filter(
     ([key, val]) =>
       !SKIP_CARD_KEYS.has(key.toLowerCase()) &&
+      !isQualityPropertyKey(key) &&
       val !== null &&
       val !== undefined &&
       String(val).trim() !== "",

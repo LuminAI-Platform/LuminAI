@@ -10,6 +10,7 @@ import { EntityDetailDrawer } from "../../features/explorer/components/EntityDet
 import { FacetFilterSidebar } from "../../features/explorer/components/FacetFilterSidebar";
 import { Icons, ICON_SIZES } from "../../lib/icons";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { useAuthStore } from "../../stores/authStore";
 import {
   ExplorerToolbar,
   ExplorerLoadingState,
@@ -24,10 +25,16 @@ import { DEFAULT_PAGE_SIZE, PRIVACY_STORAGE_KEY } from "./constants";
 import type { SearchResultItem, ViewMode } from "./types";
 import { formatRelativeTime } from "./utils";
 
-function readInitialPrivacyMask(): boolean {
+function getUserPrivacyStorageKey(userKey: string): string {
+  return `${PRIVACY_STORAGE_KEY}:${userKey}`;
+}
+
+function readUserPrivacyMask(userKey: string): boolean {
   if (typeof window === "undefined") return true;
   try {
-    const stored = window.localStorage.getItem(PRIVACY_STORAGE_KEY);
+    const stored = window.localStorage.getItem(
+      getUserPrivacyStorageKey(userKey),
+    );
     if (stored === "false") return false;
     return true;
   } catch {
@@ -36,6 +43,12 @@ function readInitialPrivacyMask(): boolean {
 }
 
 export const ExplorerPage: React.FC = () => {
+  const user = useAuthStore((s) => s.user);
+  const userKey = useMemo(() => {
+    const id = user?.profile?.sub || user?.profile?.email;
+    return typeof id === "string" && id.trim() ? id.trim() : "anonymous";
+  }, [user]);
+
   const {
     inputValue,
     setInputValue,
@@ -50,6 +63,7 @@ export const ExplorerPage: React.FC = () => {
     pageSize,
     setPageSize,
     ontologyTypes,
+    typeLabelFields,
     searchData,
     facets,
     facetGroups,
@@ -72,8 +86,8 @@ export const ExplorerPage: React.FC = () => {
   });
 
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
-  const [maskSensitiveData, setMaskSensitiveData] = useState<boolean>(
-    readInitialPrivacyMask,
+  const [maskSensitiveData, setMaskSensitiveData] = useState<boolean>(() =>
+    readUserPrivacyMask(userKey),
   );
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<SearchResultItem | null>(
@@ -82,15 +96,23 @@ export const ExplorerPage: React.FC = () => {
   const lastTriggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        PRIVACY_STORAGE_KEY,
-        String(maskSensitiveData),
-      );
-    } catch {
-      // Ignore storage quota / privacy mode errors
-    }
-  }, [maskSensitiveData]);
+    setMaskSensitiveData(readUserPrivacyMask(userKey));
+  }, [userKey]);
+
+  const handleToggleMask = useCallback(() => {
+    setMaskSensitiveData((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(
+          getUserPrivacyStorageKey(userKey),
+          String(next),
+        );
+      } catch {
+        // Ignore storage quota / privacy mode errors
+      }
+      return next;
+    });
+  }, [userKey]);
 
   const handleOpenEntity = useCallback(
     (entity: SearchResultItem, triggerEl: HTMLElement | null) => {
@@ -145,7 +167,7 @@ export const ExplorerPage: React.FC = () => {
           { label: "Entity Explorer" },
         ]}
         title="Entity Explorer"
-        description="Search, filter, and inspect resolved canonical entities, provenance, and confidence."
+        description="Search, filter, and inspect resolved canonical entities, provenance, and data quality."
         icon={
           <Icons.EntityExplorer
             size={ICON_SIZES.header}
@@ -157,7 +179,7 @@ export const ExplorerPage: React.FC = () => {
         actions={
           <ExplorerHeaderActions
             maskSensitiveData={maskSensitiveData}
-            onToggleMask={() => setMaskSensitiveData((prev) => !prev)}
+            onToggleMask={handleToggleMask}
             isExporting={isExporting}
             filteredRecordCount={filteredRecordCount}
             onExportCsv={() => void handleExportCsv()}
@@ -237,6 +259,7 @@ export const ExplorerPage: React.FC = () => {
               hasActiveFilters={hasActiveFilters}
               page={page}
               ontologyTypes={ontologyTypes}
+              typeLabelFields={typeLabelFields}
               maskSensitiveData={maskSensitiveData}
               onClearFilters={clearAllFilters}
               onOpenEntity={handleOpenEntity}
@@ -249,6 +272,7 @@ export const ExplorerPage: React.FC = () => {
       <EntityDetailDrawer
         entity={selectedEntity}
         ontologyTypes={ontologyTypes}
+        typeLabelFields={typeLabelFields}
         maskSensitiveData={maskSensitiveData}
         onClose={handleCloseEntity}
       />

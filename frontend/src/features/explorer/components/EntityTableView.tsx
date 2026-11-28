@@ -3,7 +3,12 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "../../../lib/icons";
 import type { EntityType } from "../../ontology/types";
 import { useThemeStore } from "../../../stores/themeStore";
 import type { SearchResultItem } from "../../../pages/explorer/types";
-import { formatPropertyLabel } from "../../../pages/explorer/utils";
+import {
+  formatPropertyLabel,
+  isQualityPropertyKey,
+  resolveEntityLabel,
+  type TypeLabelFieldMap,
+} from "../../../pages/explorer/utils";
 import { EntityTableRow, type ColumnDef } from "./EntityTableRow";
 import { ColumnVisibilityMenu } from "./ColumnVisibilityMenu";
 
@@ -12,6 +17,7 @@ export { type ColumnDef };
 interface EntityTableViewProps {
   entities: SearchResultItem[];
   ontologyTypes?: EntityType[];
+  typeLabelFields?: TypeLabelFieldMap;
   maskSensitiveData: boolean;
   onSelect: (entity: SearchResultItem, triggerEl: HTMLElement | null) => void;
 }
@@ -21,6 +27,7 @@ type TableSortDir = "asc" | "desc";
 export const EntityTableView: React.FC<EntityTableViewProps> = ({
   entities,
   ontologyTypes = [],
+  typeLabelFields,
   maskSensitiveData,
   onSelect,
 }) => {
@@ -31,7 +38,13 @@ export const EntityTableView: React.FC<EntityTableViewProps> = ({
   const [colMenuOpen, setColMenuOpen] = useState(false);
 
   const hasConfidence = useMemo(
-    () => entities.some((e) => typeof e.confidenceScore === "number"),
+    () =>
+      entities.some(
+        (e) =>
+          typeof e.sourceCount === "number" &&
+          e.sourceCount >= 2 &&
+          typeof e.confidenceScore === "number",
+      ),
     [entities],
   );
   const hasSources = useMemo(
@@ -53,6 +66,7 @@ export const EntityTableView: React.FC<EntityTableViewProps> = ({
       for (const [k, v] of Object.entries(entity.properties || {})) {
         if (
           !skip.has(k.toLowerCase()) &&
+          !isQualityPropertyKey(k) &&
           v !== null &&
           v !== undefined &&
           String(v).trim() !== ""
@@ -69,7 +83,7 @@ export const EntityTableView: React.FC<EntityTableViewProps> = ({
 
   const allColumns = useMemo<ColumnDef[]>(() => {
     const cols: ColumnDef[] = [
-      { id: "canonicalName", label: "Name", sortable: true },
+      { id: "canonicalName", label: "Entity", sortable: true },
       { id: "entityType", label: "Type", sortable: true },
     ];
     if (hasConfidence) {
@@ -120,11 +134,25 @@ export const EntityTableView: React.FC<EntityTableViewProps> = ({
     copy.sort((a, b) => {
       let cmp = 0;
       if (sortCol === "canonicalName") {
-        cmp = a.canonicalName.localeCompare(b.canonicalName);
+        const aLabel = resolveEntityLabel(
+          a,
+          typeLabelFields,
+          maskSensitiveData,
+        );
+        const bLabel = resolveEntityLabel(
+          b,
+          typeLabelFields,
+          maskSensitiveData,
+        );
+        cmp = aLabel.localeCompare(bLabel, undefined, { numeric: true });
       } else if (sortCol === "entityType") {
         cmp = a.entityType.localeCompare(b.entityType);
       } else if (sortCol === "confidenceScore") {
-        cmp = (a.confidenceScore ?? -1) - (b.confidenceScore ?? -1);
+        const aConf =
+          (a.sourceCount ?? 0) >= 2 ? (a.confidenceScore ?? -1) : -1;
+        const bConf =
+          (b.sourceCount ?? 0) >= 2 ? (b.confidenceScore ?? -1) : -1;
+        cmp = aConf - bConf;
       } else if (sortCol === "sourceCount") {
         cmp = (a.sourceCount ?? 0) - (b.sourceCount ?? 0);
       } else if (sortCol === "updatedAt") {
@@ -140,7 +168,7 @@ export const EntityTableView: React.FC<EntityTableViewProps> = ({
       return sortDir === "asc" ? cmp : -cmp;
     });
     return copy;
-  }, [entities, sortCol, sortDir]);
+  }, [entities, sortCol, sortDir, typeLabelFields, maskSensitiveData]);
 
   return (
     <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-xs">
@@ -216,6 +244,7 @@ export const EntityTableView: React.FC<EntityTableViewProps> = ({
                 key={entity.id}
                 entity={entity}
                 ontologyTypes={ontologyTypes}
+                typeLabelFields={typeLabelFields}
                 visibleColumns={visibleColumns}
                 maskSensitiveData={maskSensitiveData}
                 isDark={isDark}

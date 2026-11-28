@@ -21,6 +21,10 @@ import {
   getSearchParamEntityId,
 } from "./graphDataUtils";
 import { useGraphViewport } from "./useGraphViewport";
+import {
+  computeEntityTypeLabelFields,
+  resolveEntityLabel,
+} from "../explorer/utils/entityLabel";
 
 export {
   type GraphResponse,
@@ -74,16 +78,33 @@ export function useGraphData() {
             ? data.results
             : [];
 
-      const items: SuggestedEntity[] = rawItems
+      const filteredRaw = rawItems
         .slice(0, 5)
-        .filter((item: Record<string, unknown>) => Boolean(item?.id))
-        .map((item: Record<string, unknown>) => ({
-          id: String(item.id),
-          canonicalName: String(
-            item.canonicalName || item.label || item.name || item.id,
-          ),
-          entityType: String(item.entityType || "Entity"),
-        }));
+        .filter((item: Record<string, unknown>) => Boolean(item?.id));
+
+      const labelable: Array<{
+        id: string;
+        canonicalName: string;
+        entityType: string;
+        properties: Record<string, unknown>;
+      }> = filteredRaw.map((item: Record<string, unknown>) => ({
+        id: String(item.id),
+        canonicalName: String(
+          item.canonicalName || item.label || item.name || "",
+        ),
+        entityType: String(item.entityType || "Entity"),
+        properties:
+          item.properties && typeof item.properties === "object"
+            ? (item.properties as Record<string, unknown>)
+            : {},
+      }));
+      const typeLabelMap = computeEntityTypeLabelFields(labelable);
+
+      const items: SuggestedEntity[] = labelable.map((item) => ({
+        id: item.id,
+        canonicalName: resolveEntityLabel(item, typeLabelMap),
+        entityType: item.entityType,
+      }));
 
       const total =
         typeof data?.total === "number"

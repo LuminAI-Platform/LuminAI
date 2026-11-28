@@ -10,9 +10,11 @@ import type {
 } from "../types";
 import { DEFAULT_PAGE_SIZE, DEFAULT_DEBOUNCE_MS } from "../constants";
 import {
+  computeEntityTypeLabelFields,
   normalizeSearchResponse,
   parseSearchQuery,
   removeFilterFromQuery,
+  type TypeLabelFieldMap,
 } from "../utils";
 import {
   mapSortToApiParams,
@@ -50,6 +52,7 @@ export function useExplorerSearch(
   const [pageSize, setPageSizeState] = useState(initialPageSize);
 
   const [ontologyTypes, setOntologyTypes] = useState<EntityType[]>([]);
+  const [typeLabelFields, setTypeLabelFields] = useState<TypeLabelFieldMap>({});
   const [searchData, setSearchData] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +157,9 @@ export function useExplorerSearch(
           );
         }
 
+        setTypeLabelFields((prev) =>
+          computeEntityTypeLabelFields(normalized.content, prev),
+        );
         setSearchData(normalized);
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -183,7 +189,7 @@ export function useExplorerSearch(
   }, [query, selectedTypes, page, pageSize, sortOption, executeSearch]);
 
   const { suggestions, mostRecentUpdate, activeTypeCount, hasConfidenceData } =
-    useExplorerDerivedStats(searchData, parsedInput.text);
+    useExplorerDerivedStats(searchData, parsedInput.text, typeLabelFields);
 
   const handleExportCsv = async () => {
     setIsExporting(true);
@@ -251,6 +257,7 @@ export function useExplorerSearch(
       setPage(0);
     },
     ontologyTypes,
+    typeLabelFields,
     searchData,
     facets: searchData?.facets || {},
     facetGroups: searchData?.facetGroups || {},

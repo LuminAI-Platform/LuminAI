@@ -27,6 +27,9 @@ export interface EntityType {
   color: string;
   icon: string;
   properties: PropertySchema[];
+  sourceDataset?: string;
+  sourceName?: string;
+  datasetName?: string;
   version?: number;
   createdAt?: string;
   updatedAt?: string;
