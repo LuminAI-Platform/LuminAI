@@ -1,5 +1,6 @@
 package com.luminai.dataset.service;
 
+import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.dataset.dto.LineageGraphDto;
 import com.luminai.dataset.model.Dataset;
@@ -34,19 +35,63 @@ public class LineageService {
   @Transactional(readOnly = true)
   public LineageGraphDto getLineageGraph(UUID datasetId) {
     UUID tenantId = requireTenant();
-    List<DatasetLineage> edges =
-        datasetId != null
-            ? lineageRepository.findAllByTenantId(tenantId)
-            : lineageRepository.findAllByTenantId(tenantId);
-
     List<Dataset> datasets = datasetRepository.findAllByTenantIdOrderByUpdatedAtDesc(tenantId);
-    Map<UUID, Dataset> datasetMap = new HashMap<>();
+    Map<UUID, Dataset> datasetMap = new LinkedHashMap<>();
     for (Dataset d : datasets) {
       datasetMap.put(d.getId(), d);
     }
 
+    List<DatasetLineage> validEdges =
+        lineageRepository.findAllByTenantId(tenantId).stream()
+            .filter(
+                e ->
+                    datasetMap.containsKey(e.getSourceDatasetId())
+                        && datasetMap.containsKey(e.getTargetDatasetId()))
+            .toList();
+
+    List<Dataset> scopedDatasets = datasets;
+    List<DatasetLineage> scopedEdges = validEdges;
+
+    if (datasetId != null) {
+      if (!datasetMap.containsKey(datasetId)) {
+        throw new ResourceNotFoundException("Dataset", datasetId);
+      }
+
+      Map<UUID, Set<UUID>> adjacency = new HashMap<>();
+      for (DatasetLineage e : validEdges) {
+        adjacency
+            .computeIfAbsent(e.getSourceDatasetId(), k -> new LinkedHashSet<>())
+            .add(e.getTargetDatasetId());
+        adjacency
+            .computeIfAbsent(e.getTargetDatasetId(), k -> new LinkedHashSet<>())
+            .add(e.getSourceDatasetId());
+      }
+
+      Set<UUID> connectedIds = new LinkedHashSet<>();
+      Deque<UUID> queue = new ArrayDeque<>();
+      connectedIds.add(datasetId);
+      queue.add(datasetId);
+      while (!queue.isEmpty()) {
+        UUID current = queue.poll();
+        for (UUID neighbor : adjacency.getOrDefault(current, Set.of())) {
+          if (connectedIds.add(neighbor)) {
+            queue.add(neighbor);
+          }
+        }
+      }
+
+      scopedDatasets = datasets.stream().filter(d -> connectedIds.contains(d.getId())).toList();
+      scopedEdges =
+          validEdges.stream()
+              .filter(
+                  e ->
+                      connectedIds.contains(e.getSourceDatasetId())
+                          && connectedIds.contains(e.getTargetDatasetId()))
+              .toList();
+    }
+
     List<Map<String, Object>> nodes = new ArrayList<>();
-    for (Dataset d : datasets) {
+    for (Dataset d : scopedDatasets) {
       Map<String, Object> node = new LinkedHashMap<>();
       node.put("id", d.getId().toString());
       node.put("label", d.getDisplayName() != null ? d.getDisplayName() : d.getName());
@@ -58,7 +103,7 @@ public class LineageService {
     }
 
     List<Map<String, Object>> edgeList = new ArrayList<>();
-    for (DatasetLineage e : edges) {
+    for (DatasetLineage e : scopedEdges) {
       Map<String, Object> edge = new LinkedHashMap<>();
       edge.put("id", e.getId().toString());
       edge.put("source", e.getSourceDatasetId().toString());
@@ -68,6 +113,13 @@ public class LineageService {
     }
 
     return new LineageGraphDto(nodes, edgeList);
+  }
+
+  @Transactional
+  public void deleteLineageForDataset(UUID tenantId, UUID datasetId) {
+    UUID safeTenantId = (tenantId != null) ? tenantId : requireTenant();
+    lineageRepository.deleteBySourceDatasetIdAndTenantId(datasetId, safeTenantId);
+    lineageRepository.deleteByTargetDatasetIdAndTenantId(datasetId, safeTenantId);
   }
 
   @Transactional

@@ -14,16 +14,35 @@ import {
   runSqlQuery,
   fetchSavedQueries,
   createSavedQuery,
+  fetchDatasets,
 } from "../../features/datasets/datasetApi";
-import type { SqlQueryResult, SavedQuery } from "../../features/datasets/types";
+import type {
+  Dataset,
+  SqlQueryResult,
+  SavedQuery,
+} from "../../features/datasets/types";
 import { SaveQueryModal } from "./components/SaveQueryModal";
 import { SqlResultsTable } from "./components/SqlResultsTable";
 import { SavedQueriesPanel } from "./components/SavedQueriesPanel";
 
 export const SqlStudioPage: React.FC = () => {
-  const [queryText, setQueryText] = useState<string>("");
+  const initialDatasetId =
+    typeof window !== "undefined"
+      ? (new URLSearchParams(window.location.search).get("datasetId") ?? "")
+      : "";
+
+  const [selectedDatasetId, setSelectedDatasetId] =
+    useState<string>(initialDatasetId);
+  const [queryText, setQueryText] = useState<string>(
+    initialDatasetId ? "SELECT * FROM dataset LIMIT 100" : "",
+  );
   const [saveQueryName, setSaveQueryName] = useState<string>("");
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
+
+  const { data: datasets = [] } = useQuery<Dataset[]>({
+    queryKey: ["datasets"],
+    queryFn: () => fetchDatasets(),
+  });
 
   const { data: savedQueries = [], refetch: refetchSaved } = useQuery<
     SavedQuery[]
@@ -32,20 +51,21 @@ export const SqlStudioPage: React.FC = () => {
     queryFn: fetchSavedQueries,
   });
 
-  const initialDatasetId =
-    typeof window !== "undefined"
-      ? (new URLSearchParams(window.location.search).get("datasetId") ??
-        undefined)
-      : undefined;
-
   const sqlMutation = useMutation<SqlQueryResult, Error, string>({
     mutationFn: (sql: string) =>
-      runSqlQuery({ query: sql, datasetId: initialDatasetId, limit: 500 }),
+      runSqlQuery({
+        query: sql,
+        datasetId: selectedDatasetId || undefined,
+        limit: 500,
+      }),
   });
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { name: string; sqlText: string }) =>
-      createSavedQuery(payload),
+    mutationFn: (payload: {
+      name: string;
+      sqlText: string;
+      datasetId?: string;
+    }) => createSavedQuery(payload),
     onSuccess: () => {
       setShowSaveModal(false);
       setSaveQueryName("");
@@ -104,13 +124,37 @@ export const SqlStudioPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 flex flex-col gap-4">
           <div className="rounded-xl border border-border bg-surface overflow-hidden flex flex-col shadow-xs">
-            <div className="p-3 bg-surface-subtle border-b border-border flex items-center justify-between">
-              <span className="text-xs font-semibold text-text flex items-center gap-2">
-                <Database className="w-3.5 h-3.5 text-primary" />
-                SQL Query Editor (DuckDB Dialect)
-              </span>
+            <div className="p-3 bg-surface-subtle border-b border-border flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-text flex items-center gap-2">
+                  <Database className="w-3.5 h-3.5 text-primary" />
+                  SQL Query Editor (
+                  {selectedDatasetId ? "DuckDB Dataset" : "Tenant PostgreSQL"})
+                </span>
+                <select
+                  value={selectedDatasetId}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setSelectedDatasetId(nextId);
+                    if (nextId && !queryText.trim()) {
+                      setQueryText("SELECT * FROM dataset LIMIT 100");
+                    }
+                  }}
+                  aria-label="Target Dataset"
+                  className="bg-surface border border-border rounded-md px-2 py-1 text-xs text-text max-w-[220px]"
+                >
+                  <option value="">Tenant Schema (golden_records)</option>
+                  {datasets.map((ds) => (
+                    <option key={ds.id} value={ds.id}>
+                      {ds.displayName || ds.name} ({ds.layer})
+                    </option>
+                  ))}
+                </select>
+              </div>
               <span className="text-[11px] text-text-secondary">
-                Press Ctrl+Enter to execute
+                {selectedDatasetId
+                  ? "Query table as FROM dataset • Ctrl+Enter to run"
+                  : "Press Ctrl+Enter to execute"}
               </span>
             </div>
             <textarea
@@ -160,6 +204,7 @@ export const SqlStudioPage: React.FC = () => {
           saveMutation.mutate({
             name: saveQueryName,
             sqlText: queryText,
+            datasetId: selectedDatasetId || undefined,
           })
         }
         isSaving={saveMutation.isPending}

@@ -23,4 +23,17 @@ public interface ConnectionPreviewService {
    * @return list of row maps — each map is {columnName -> value}
    */
   List<Map<String, Object>> previewTable(UUID connectionId, String table);
+
+  /**
+   * Streams up to {@code maxRows} parsed rows directly from a tenant-scoped object key in storage.
+   *
+   * @param tenantId the owning tenant UUID (validated against objectKey prefix)
+   * @param objectKey the object key in MinIO storage
+   * @param maxRows maximum number of rows to parse and return
+   * @return list of row maps — each map is {columnName -> value}
+   */
+  default List<Map<String, Object>> previewStorageObject(
+      UUID tenantId, String objectKey, int maxRows) {
+    return List.of();
+  }
 }

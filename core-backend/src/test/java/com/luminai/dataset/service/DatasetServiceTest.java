@@ -5,10 +5,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.luminai.common.tenant.TenantContext;
+import com.luminai.connection.repository.ConnectionPreviewService;
 import com.luminai.dataset.dto.CreateDatasetRequest;
 import com.luminai.dataset.dto.DatasetDto;
 import com.luminai.dataset.model.Dataset;
 import com.luminai.dataset.model.DatasetVersion;
+import com.luminai.dataset.repository.DataQualityRuleRepository;
 import com.luminai.dataset.repository.DatasetRepository;
 import com.luminai.dataset.repository.DatasetVersionRepository;
 import com.luminai.engine.service.DataEngineClient;
@@ -102,16 +104,79 @@ class DatasetServiceTest {
             connId,
             "sales_raw",
             "Sales Raw",
-            "s3://bucket/sales.csv",
+            tenantId + "/raw/sales.csv",
             500L,
             50000L,
-            "[\"tx_id\",\"amount\"]");
+            "{\"tx_id\":\"string\",\"amount\":\"float\"}");
 
     assertNotNull(dto);
     assertEquals("sales_raw", dto.name());
     assertEquals(Dataset.Layer.RAW, dto.layer());
     verify(datasetRepository, times(1)).save(any(Dataset.class));
     verify(versionRepository, times(1)).save(any(DatasetVersion.class));
+  }
+
+  @Test
+  @DisplayName("registerRawDataset isolates multiple tables sharing the same connection")
+  void testRegisterRawDatasetMultiTablePerConnection() {
+    UUID connId = UUID.randomUUID();
+    when(datasetRepository.findBySourceConnectionIdAndNameAndTenantId(connId, "orders", tenantId))
+        .thenReturn(Optional.empty());
+    when(datasetRepository.findByNameAndTenantId("orders", tenantId)).thenReturn(Optional.empty());
+
+    Dataset saved = new Dataset();
+    saved.setId(datasetId);
+    saved.setName("orders");
+    saved.setLayer(Dataset.Layer.RAW);
+    saved.setCurrentVersion(1);
+
+    when(datasetRepository.save(any(Dataset.class))).thenReturn(saved);
+    when(versionRepository.save(any(DatasetVersion.class))).thenAnswer(i -> i.getArgument(0));
+
+    DatasetDto dto =
+        datasetService.registerRawDataset(
+            tenantId,
+            connId,
+            "orders",
+            "orders.csv",
+            tenantId + "/raw/orders.csv",
+            120L,
+            12000L,
+            "{\"order_id\":\"string\"}",
+            true);
+
+    assertEquals("orders", dto.name());
+    verify(datasetRepository, times(1))
+        .findBySourceConnectionIdAndNameAndTenantId(connId, "orders", tenantId);
+  }
+
+  @Test
+  @DisplayName("previewDataset streams rows directly from tenant storage location")
+  void testPreviewDatasetFromStorage() {
+    ConnectionPreviewService previewService = mock(ConnectionPreviewService.class);
+    datasetService.setConnectionPreviewService(previewService);
+
+    Dataset ds = new Dataset();
+    ds.setId(datasetId);
+    ds.setTenantId(tenantId);
+    ds.setName("orders");
+    ds.setDisplayName("Orders");
+    ds.setRowCount(2L);
+    ds.setStorageLocation(tenantId + "/raw/orders.csv");
+    ds.setSchemaMetadata("{\"id\":\"integer\",\"city\":\"string\"}");
+
+    when(datasetRepository.findByIdAndTenantId(datasetId, tenantId)).thenReturn(Optional.of(ds));
+    when(previewService.previewStorageObject(tenantId, ds.getStorageLocation(), 50))
+        .thenReturn(List.of(Map.of("id", 1, "city", "Accra")));
+
+    Map<String, Object> preview = datasetService.previewDataset(datasetId, 50);
+    assertEquals(1, preview.get("previewCount"));
+    assertEquals(2L, preview.get("totalRows"));
+    @SuppressWarnings("unchecked")
+    List<Map<String, String>> cols = (List<Map<String, String>>) preview.get("columns");
+    assertEquals(2, cols.size());
+    assertEquals("id", cols.get(0).get("name"));
+    assertEquals("integer", cols.get(0).get("type"));
   }
 
   @Test
@@ -159,8 +224,13 @@ class DatasetServiceTest {
   }
 
   @Test
-  @DisplayName("deleteDataset removes dataset by ID and tenant")
+  @DisplayName("deleteDataset removes dataset versions, rules, lineage, and entity")
   void testDeleteDataset() {
+    DataQualityRuleRepository ruleRepo = mock(DataQualityRuleRepository.class);
+    LineageService lineageService = mock(LineageService.class);
+    datasetService.setDataQualityRuleRepository(ruleRepo);
+    datasetService.setLineageService(lineageService);
+
     Dataset existing = new Dataset();
     existing.setId(datasetId);
     existing.setTenantId(tenantId);
@@ -169,6 +239,9 @@ class DatasetServiceTest {
         .thenReturn(Optional.of(existing));
 
     datasetService.deleteDataset(datasetId);
+    verify(versionRepository, times(1)).deleteByDatasetIdAndTenantId(datasetId, tenantId);
+    verify(ruleRepo, times(1)).deleteByDatasetIdAndTenantId(datasetId, tenantId);
+    verify(lineageService, times(1)).deleteLineageForDataset(tenantId, datasetId);
     verify(datasetRepository, times(1)).deleteByIdAndTenantId(datasetId, tenantId);
   }
 }

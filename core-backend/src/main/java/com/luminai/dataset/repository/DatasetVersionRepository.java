@@ -14,4 +14,6 @@ public interface DatasetVersionRepository extends JpaRepository<DatasetVersion, 
 
   Optional<DatasetVersion> findByDatasetIdAndVersionAndTenantId(
       UUID datasetId, int version, UUID tenantId);
+
+  void deleteByDatasetIdAndTenantId(UUID datasetId, UUID tenantId);
 }

@@ -211,7 +211,8 @@ public class ConnectionUploadService {
                 objectKey,
                 totalRows,
                 file.getSize(),
-                columns);
+                columns,
+                sampleRows);
           }
         }
       } catch (Exception e) {

@@ -57,6 +57,7 @@ public class ConnectionSyncService {
   private org.springframework.cache.CacheManager cacheManager;
   private GoldenRecordPersistenceService goldenRecordPersistenceService;
   private SchemaMappingRepository schemaMappingRepository;
+  private DatasetRegistrationHelper datasetRegistrationHelper;
 
   @Autowired(required = false)
   public void setCacheManager(org.springframework.cache.CacheManager cacheManager) {
@@ -72,6 +73,11 @@ public class ConnectionSyncService {
   @Autowired(required = false)
   public void setSchemaMappingRepository(SchemaMappingRepository schemaMappingRepository) {
     this.schemaMappingRepository = schemaMappingRepository;
+  }
+
+  @Autowired(required = false)
+  public void setDatasetRegistrationHelper(DatasetRegistrationHelper datasetRegistrationHelper) {
+    this.datasetRegistrationHelper = datasetRegistrationHelper;
   }
 
   @Autowired
@@ -252,6 +258,7 @@ public class ConnectionSyncService {
       final String sourceLabel = schema + "." + table;
       final boolean isFinalTable = tableIdx == targetTables.size();
       final AtomicLong tableCount = new AtomicLong(0L);
+      final List<Map<String, Object>> tableSampleRows = new ArrayList<>();
       final AtomicReference<List<Map<String, Object>>> pendingChunk = new AtomicReference<>();
 
       postgresConnectorService.extractRows(
@@ -262,6 +269,10 @@ public class ConnectionSyncService {
           chunk -> {
             if (chunk == null || chunk.isEmpty()) return;
             tableCount.addAndGet(chunk.size());
+            if (tableSampleRows.size() < 50) {
+              int tableRem = 50 - tableSampleRows.size();
+              tableSampleRows.addAll(chunk.subList(0, Math.min(chunk.size(), tableRem)));
+            }
             if (sampleRowsOut.size() < SYNC_PERSIST_BATCH_LIMIT) {
               int remaining = SYNC_PERSIST_BATCH_LIMIT - sampleRowsOut.size();
               sampleRowsOut.addAll(chunk.subList(0, Math.min(chunk.size(), remaining)));
@@ -272,6 +283,11 @@ public class ConnectionSyncService {
                   tenantId, conn.id(), sourceLabel, previous, false, null, publishedToKafka);
             }
           });
+
+      if (datasetRegistrationHelper != null) {
+        datasetRegistrationHelper.registerDatabaseTableDataset(
+            tenantId, conn.id(), sourceLabel, tableCount.get(), tableSampleRows);
+      }
 
       List<Map<String, Object>> tail = pendingChunk.getAndSet(null);
       if (tail != null) {

@@ -7,11 +7,14 @@ import {
   RefreshCw,
   GitCommit,
   ShieldCheck,
+  Shield,
   Table,
   Cpu,
   GitBranch,
   Trash2,
   BarChart3,
+  Eye,
+  Wand2,
   ICON_SIZES,
 } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
@@ -31,7 +34,10 @@ import type {
   LineageGraph,
 } from "../../features/datasets/types";
 import { DatasetProfilerTab } from "./components/DatasetProfilerTab";
+import { DatasetPreviewTab } from "./components/DatasetPreviewTab";
 import { DatasetSchemaTab } from "./components/DatasetSchemaTab";
+import { DatasetPrepTab } from "./components/DatasetPrepTab";
+import { DatasetQualityRulesTab } from "./components/DatasetQualityRulesTab";
 import { DatasetVersionsTab } from "./components/DatasetVersionsTab";
 import { DatasetLineageTab } from "./components/DatasetLineageTab";
 import { DatasetSummaryMetrics } from "./components/DatasetSummaryMetrics";
@@ -41,7 +47,13 @@ export const DatasetDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "profiler" | "schema" | "versions" | "lineage"
+    | "profiler"
+    | "preview"
+    | "schema"
+    | "prep"
+    | "rules"
+    | "versions"
+    | "lineage"
   >("profiler");
 
   const {
@@ -55,7 +67,9 @@ export const DatasetDetailPage: React.FC = () => {
     enabled: !!datasetId,
   });
 
-  const { data: versions = [] } = useQuery<DatasetVersion[]>({
+  const { data: versions = [], refetch: refetchVersions } = useQuery<
+    DatasetVersion[]
+  >({
     queryKey: ["dataset-versions", datasetId],
     queryFn: () => fetchDatasetVersions(datasetId),
     enabled: !!datasetId,
@@ -208,7 +222,7 @@ export const DatasetDetailPage: React.FC = () => {
         isTransitioning={transitionMutation.isPending}
       />
 
-      <div className="border-b border-border flex items-center gap-4 text-xs font-medium">
+      <div className="border-b border-border flex items-center gap-4 text-xs font-medium overflow-x-auto">
         {(
           [
             {
@@ -216,7 +230,10 @@ export const DatasetDetailPage: React.FC = () => {
               label: "Data Profiler & Quality",
               Icon: ShieldCheck,
             },
+            { key: "preview", label: "Data Preview", Icon: Eye },
             { key: "schema", label: "Schema & Contract", Icon: Table },
+            { key: "prep", label: "Prep & Pipelines", Icon: Wand2 },
+            { key: "rules", label: "Quality Rules", Icon: Shield },
             {
               key: "versions",
               label: `Version Commits (${versions.length})`,
@@ -228,7 +245,7 @@ export const DatasetDetailPage: React.FC = () => {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+            className={`pb-3 px-1 border-b-2 transition-colors cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === key
                 ? "border-primary text-primary font-semibold"
                 : "border-transparent text-text-secondary hover:text-text"
@@ -241,14 +258,42 @@ export const DatasetDetailPage: React.FC = () => {
       </div>
 
       {activeTab === "profiler" && (
-        <DatasetProfilerTab dataset={dataset} schemaEntries={schemaEntries} />
+        <DatasetProfilerTab
+          dataset={dataset}
+          schemaEntries={schemaEntries}
+          onRunEda={() => edaMutation.mutate()}
+          isRunningEda={edaMutation.isPending}
+        />
       )}
+
+      {activeTab === "preview" && <DatasetPreviewTab datasetId={datasetId} />}
 
       {activeTab === "schema" && (
         <DatasetSchemaTab dataset={dataset} schemaEntries={schemaEntries} />
       )}
 
-      {activeTab === "versions" && <DatasetVersionsTab versions={versions} />}
+      {activeTab === "prep" && (
+        <DatasetPrepTab dataset={dataset} schemaEntries={schemaEntries} />
+      )}
+
+      {activeTab === "rules" && (
+        <DatasetQualityRulesTab
+          datasetId={datasetId}
+          schemaEntries={schemaEntries}
+        />
+      )}
+
+      {activeTab === "versions" && (
+        <DatasetVersionsTab
+          datasetId={datasetId}
+          currentRowCount={dataset.rowCount}
+          versions={versions}
+          onVersionCommitted={() => {
+            void refetch();
+            void refetchVersions();
+          }}
+        />
+      )}
 
       {activeTab === "lineage" && (
         <DatasetLineageTab

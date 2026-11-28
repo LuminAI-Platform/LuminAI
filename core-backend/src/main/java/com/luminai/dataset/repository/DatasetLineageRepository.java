@@ -13,4 +13,8 @@ public interface DatasetLineageRepository extends JpaRepository<DatasetLineage, 
   List<DatasetLineage> findAllByTenantIdAndSourceDatasetId(UUID tenantId, UUID sourceDatasetId);
 
   List<DatasetLineage> findAllByTenantIdAndTargetDatasetId(UUID tenantId, UUID targetDatasetId);
+
+  void deleteBySourceDatasetIdAndTenantId(UUID sourceDatasetId, UUID tenantId);
+
+  void deleteByTargetDatasetIdAndTenantId(UUID targetDatasetId, UUID tenantId);
 }

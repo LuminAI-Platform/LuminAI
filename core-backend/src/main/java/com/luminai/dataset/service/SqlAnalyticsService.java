@@ -1,12 +1,16 @@
 package com.luminai.dataset.service;
 
+import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.dataset.dto.SavedQueryDto;
 import com.luminai.dataset.dto.SqlColumnInfo;
 import com.luminai.dataset.dto.SqlQueryRequest;
 import com.luminai.dataset.dto.SqlQueryResultDto;
+import com.luminai.dataset.model.Dataset;
 import com.luminai.dataset.model.SavedQuery;
+import com.luminai.dataset.repository.DatasetRepository;
 import com.luminai.dataset.repository.SavedQueryRepository;
+import com.luminai.engine.service.DataEngineClient;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -15,6 +19,7 @@ import java.util.*;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -27,10 +32,28 @@ public class SqlAnalyticsService {
 
   private final JdbcTemplate jdbcTemplate;
   private final SavedQueryRepository savedQueryRepository;
+  private DatasetRepository datasetRepository;
+  private DatasetService datasetService;
+  private DataEngineClient dataEngineClient;
 
   public SqlAnalyticsService(DataSource dataSource, SavedQueryRepository savedQueryRepository) {
     this.jdbcTemplate = new JdbcTemplate(dataSource);
     this.savedQueryRepository = savedQueryRepository;
+  }
+
+  @Autowired(required = false)
+  public void setDatasetRepository(DatasetRepository datasetRepository) {
+    this.datasetRepository = datasetRepository;
+  }
+
+  @Autowired(required = false)
+  public void setDatasetService(DatasetService datasetService) {
+    this.datasetService = datasetService;
+  }
+
+  @Autowired(required = false)
+  public void setDataEngineClient(DataEngineClient dataEngineClient) {
+    this.dataEngineClient = dataEngineClient;
   }
 
   private UUID requireTenant() {
@@ -52,7 +75,7 @@ public class SqlAnalyticsService {
           java.util.regex.Pattern.CASE_INSENSITIVE);
 
   public SqlQueryResultDto executeQuery(SqlQueryRequest req) {
-    requireTenant();
+    UUID tenantId = requireTenant();
     String query = req.query().trim();
 
     // Disallow multi-statement injection
@@ -73,15 +96,20 @@ public class SqlAnalyticsService {
           "Destructive DDL/DML or privileged operations are strictly prohibited.");
     }
 
+    int limit = req.limit() > 0 && req.limit() <= 5000 ? req.limit() : 500;
+    if (req.datasetId() != null) {
+      return executeDatasetDuckDbQuery(tenantId, req.datasetId(), cleanSql, limit);
+    }
+
     if (CROSS_SCHEMA_PATTERN.matcher(cleanSql).find()) {
       throw new IllegalArgumentException(
           "Cross-schema references and queries targeting system/credential tables are prohibited.");
     }
 
-    int limit = req.limit() > 0 && req.limit() <= 1000 ? req.limit() : 100;
+    int pgLimit = req.limit() > 0 && req.limit() <= 1000 ? req.limit() : 100;
     String boundedQuery = cleanSql;
     if (!cleanUpper.contains("LIMIT")) {
-      boundedQuery = cleanSql + " LIMIT " + limit;
+      boundedQuery = cleanSql + " LIMIT " + pgLimit;
     }
 
     final String sqlToRun = boundedQuery;
@@ -156,6 +184,91 @@ public class SqlAnalyticsService {
       return new SqlQueryResultDto(
           List.<SqlColumnInfo>of(), List.of(), 0, elapsed, "ERROR: " + e.getMessage());
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private SqlQueryResultDto executeDatasetDuckDbQuery(
+      UUID tenantId, UUID datasetId, String cleanSql, int limit) {
+    long start = System.currentTimeMillis();
+    if (datasetRepository == null || dataEngineClient == null) {
+      return new SqlQueryResultDto(
+          List.of(), List.of(), 0, 0L, "ERROR: Dataset DuckDB analytics engine is unavailable.");
+    }
+
+    Dataset dataset =
+        datasetRepository
+            .findByIdAndTenantId(datasetId, tenantId)
+            .orElseThrow(() -> new ResourceNotFoundException("Dataset", datasetId));
+
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("query", cleanSql);
+    payload.put("tenant_id", tenantId.toString());
+    payload.put("dataset_id", dataset.getId().toString());
+    payload.put("limit", limit);
+
+    String storageLoc = dataset.getStorageLocation();
+    boolean hasTenantStorageKey =
+        storageLoc != null && !storageLoc.isBlank() && storageLoc.startsWith(tenantId + "/");
+    if (hasTenantStorageKey) {
+      payload.put("storage_location", storageLoc);
+    }
+
+    // Bind inline records for DB-table datasets or when no direct MinIO storage object is present.
+    if (!hasTenantStorageKey && datasetService != null) {
+      List<Map<String, Object>> records = datasetService.loadDatasetRecords(dataset, 5000);
+      if (records.isEmpty()) {
+        long elapsed = System.currentTimeMillis() - start;
+        return new SqlQueryResultDto(
+            List.of(),
+            List.of(),
+            0,
+            elapsed,
+            "ERROR: No records found for dataset '" + dataset.getName() + "'");
+      }
+      Map<String, Object> tables = new LinkedHashMap<>();
+      tables.put("dataset", records);
+      String alias =
+          dataset.getName() != null ? dataset.getName().replaceAll("[^a-zA-Z0-9_]", "_") : "";
+      if (!alias.isBlank() && !alias.equals("dataset") && Character.isLetter(alias.charAt(0))) {
+        tables.put(alias, records);
+      }
+      payload.put("tables", tables);
+    }
+
+    Map<String, Object> response = dataEngineClient.executeSqlQuery(payload);
+    long elapsed = System.currentTimeMillis() - start;
+    if (response == null || response.containsKey("error")) {
+      String msg =
+          response != null
+              ? String.valueOf(response.get("error"))
+              : "Empty response from Data Engine SQL executor";
+      return new SqlQueryResultDto(List.of(), List.of(), 0, elapsed, "ERROR: " + msg);
+    }
+
+    List<SqlColumnInfo> columns = new ArrayList<>();
+    if (response.get("columns") instanceof List<?> rawCols) {
+      for (Object item : rawCols) {
+        if (item instanceof Map<?, ?> m) {
+          String colName = String.valueOf(m.get("name"));
+          Object dtObj = m.containsKey("data_type") ? m.get("data_type") : m.get("dataType");
+          String dt = dtObj != null ? String.valueOf(dtObj).toLowerCase() : "varchar";
+          columns.add(new SqlColumnInfo(colName, dt));
+        }
+      }
+    }
+
+    List<Map<String, Object>> rows = new ArrayList<>();
+    if (response.get("rows") instanceof List<?> rawRows) {
+      for (Object r : rawRows) {
+        if (r instanceof Map<?, ?> rm) {
+          rows.add((Map<String, Object>) rm);
+        }
+      }
+    }
+
+    long totalRows = response.get("total_count") instanceof Number n ? n.longValue() : rows.size();
+    long execMs = response.get("execution_time_ms") instanceof Number n ? n.longValue() : elapsed;
+    return new SqlQueryResultDto(columns, rows, totalRows, execMs, "SUCCESS");
   }
 
   @Transactional(readOnly = true)
