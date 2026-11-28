@@ -12,6 +12,7 @@ import {
 import { getEntityColor } from "../../lib/entityColors";
 import { useThemeStore } from "../../stores/themeStore";
 import { useEntityDetail } from "./hooks";
+import { extractQualityMetadata, resolveEntityLabel } from "./utils";
 
 // ─── EntityDetailPage ─────────────────────────────────────────────────────────
 
@@ -52,6 +53,14 @@ export const EntityDetailPage: React.FC = () => {
     );
   }
 
+  const { sourceProperties } = extractQualityMetadata(entity.properties);
+  const displayLabel = resolveEntityLabel({
+    id: entity.id,
+    canonicalName: entity.canonicalName,
+    entityType: entity.entityType,
+    properties: sourceProperties,
+  });
+
   return (
     <>
       {/* ── Provenance Inspector Drawer ───────────────────────────────────── */}
@@ -64,24 +73,24 @@ export const EntityDetailPage: React.FC = () => {
       {/* ── Page content ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-6 select-none w-full">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <div className="flex items-center gap-2 text-xs text-text-muted">
           <Link
             to="/explorer"
             id="breadcrumb-explorer"
-            className="flex items-center gap-1.5 hover:text-blue-400 transition-colors group cursor-pointer"
+            className="flex items-center gap-1.5 hover:text-primary transition-colors group cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
             <span>Entity Explorer</span>
           </Link>
-          <span className="text-zinc-700">/</span>
-          <span className="text-zinc-400 font-medium truncate max-w-xs">
-            {entity.canonicalName || "Unnamed Entity"}
+          <span className="text-border">/</span>
+          <span className="text-text-secondary font-medium truncate max-w-xs">
+            {displayLabel}
           </span>
         </div>
 
         {/* Entity Header Card */}
         <EntityHeaderCard
-          canonicalName={entity.canonicalName}
+          canonicalName={displayLabel}
           entityType={entity.entityType}
           entityId={entity.id}
           createdAt={entity.createdAt ?? ""}
@@ -94,24 +103,19 @@ export const EntityDetailPage: React.FC = () => {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <GitBranch className="w-4 h-4 text-blue-500" />
-              <h2 className="text-sm font-bold text-zinc-200">
-                Properties & Provenance
+              <GitBranch className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-bold text-text">
+                Properties ({Object.keys(sourceProperties).length})
               </h2>
-              <span className="text-[10px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded-md">
-                {Object.keys(entity.properties || {}).length} attributes
-              </span>
             </div>
-            <span className="text-[10px] text-zinc-600 italic flex items-center gap-1">
-              <span className="w-2.5 h-2.5 text-zinc-500 inline-block">
-                <GitBranch className="w-2.5 h-2.5" />
-              </span>
+            <span className="text-[11px] text-text-muted flex items-center gap-1">
+              <GitBranch className="w-3 h-3 text-text-muted" />
               Click provenance icon to inspect source lineage
             </span>
           </div>
 
           <EntityPropertyTable
-            properties={entity.properties}
+            properties={sourceProperties}
             provenance={provenance}
             onProvenanceClick={(key) => {
               setActiveProvenanceKey((prev) => (prev === key ? null : key));

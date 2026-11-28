@@ -1,25 +1,25 @@
 import { useMemo } from "react";
 import type { SearchResponse, SearchResultItem } from "../types";
+import { resolveEntityLabel, type TypeLabelFieldMap } from "../utils";
 
 export function useExplorerDerivedStats(
   searchData: SearchResponse | null,
   parsedKeyword: string,
+  typeLabelFields?: TypeLabelFieldMap,
 ) {
   const suggestions = useMemo(() => {
     const keyword = parsedKeyword.toLowerCase().trim();
     if (!keyword || !searchData?.content) return [];
     const matches = searchData.content
-      .filter((item): item is SearchResultItem =>
-        Boolean(item && item.canonicalName),
-      )
-      .map((item) => item.canonicalName)
+      .filter((item): item is SearchResultItem => Boolean(item && item.id))
+      .map((item) => resolveEntityLabel(item, typeLabelFields))
       .filter(
-        (name) =>
-          typeof name === "string" && name.toLowerCase().includes(keyword),
+        (label) =>
+          typeof label === "string" && label.toLowerCase().includes(keyword),
       )
       .slice(0, 5);
     return Array.from(new Set(matches));
-  }, [parsedKeyword, searchData]);
+  }, [parsedKeyword, searchData, typeLabelFields]);
 
   const mostRecentUpdate = useMemo(() => {
     if (!searchData?.content?.length) return null;
@@ -46,7 +46,10 @@ export function useExplorerDerivedStats(
   const hasConfidenceData = useMemo(() => {
     if (!searchData?.content?.length) return false;
     return searchData.content.some(
-      (item) => typeof item.confidenceScore === "number",
+      (item) =>
+        typeof item.sourceCount === "number" &&
+        item.sourceCount >= 2 &&
+        typeof item.confidenceScore === "number",
     );
   }, [searchData]);
 

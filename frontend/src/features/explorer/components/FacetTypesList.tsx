@@ -1,5 +1,12 @@
 import React from "react";
-import { Search, ChevronDown, ChevronRight, X } from "../../../lib/icons";
+import { Link } from "@tanstack/react-router";
+import {
+  Search,
+  ChevronDown,
+  ChevronRight,
+  X,
+  ExternalLink,
+} from "../../../lib/icons";
 import { FacetTypeItem, type MergedTypeRow } from "./FacetTypeItem";
 
 interface FacetTypesListProps {
@@ -97,6 +104,13 @@ export const FacetTypesList: React.FC<FacetTypesListProps> = ({
                   onToggle={onToggleType}
                 />
               ))}
+              <Link
+                to="/ontology"
+                className="mt-1 inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-primary hover:bg-primary-tint transition-colors duration-150 motion-reduce:transition-none"
+              >
+                <span>Open Ontology Manager</span>
+                <ExternalLink size={12} aria-hidden="true" />
+              </Link>
             </div>
           )}
         </div>

@@ -17,6 +17,7 @@ export const ExplorerHeaderActions: React.FC<ExplorerHeaderActionsProps> = ({
   filteredRecordCount,
   onExportCsv,
 }) => {
+  const isShown = !maskSensitiveData;
   const exportTooltip = `Export ${filteredRecordCount.toLocaleString()} filtered ${
     filteredRecordCount === 1 ? "record" : "records"
   }`;
@@ -26,20 +27,42 @@ export const ExplorerHeaderActions: React.FC<ExplorerHeaderActionsProps> = ({
       <button
         type="button"
         role="switch"
-        aria-checked={maskSensitiveData}
+        aria-checked={isShown}
+        aria-label={`Sensitive data: ${isShown ? "Shown" : "Hidden"}`}
         onClick={onToggleMask}
-        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none cursor-pointer ${
+        className={`inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors duration-150 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           maskSensitiveData
-            ? "bg-primary-tint border-primary-border text-primary"
-            : "bg-surface border-border text-text-secondary hover:text-text hover:bg-surface-hover"
+            ? "bg-surface border-border text-text hover:bg-surface-hover"
+            : "bg-warning-bg border-warning-border text-warning hover:opacity-90"
         }`}
       >
         {maskSensitiveData ? (
-          <EyeOff size={14} aria-hidden="true" />
+          <EyeOff
+            size={14}
+            className="text-text-secondary shrink-0"
+            aria-hidden="true"
+          />
         ) : (
-          <Eye size={14} aria-hidden="true" />
+          <Eye size={14} className="shrink-0" aria-hidden="true" />
         )}
-        <span>Mask sensitive data</span>
+        <span className="whitespace-nowrap">
+          Sensitive data:{" "}
+          <strong className="font-semibold">
+            {isShown ? "Shown" : "Hidden"}
+          </strong>
+        </span>
+        <span
+          aria-hidden="true"
+          className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-150 motion-reduce:transition-none ${
+            isShown ? "bg-warning" : "bg-border"
+          }`}
+        >
+          <span
+            className={`inline-block h-3 w-3 rounded-full bg-surface shadow-xs transition-transform duration-150 motion-reduce:transition-none ${
+              isShown ? "translate-x-3.5" : "translate-x-0.5"
+            }`}
+          />
+        </span>
       </button>
 
       <Tooltip label={exportTooltip} side="bottom">

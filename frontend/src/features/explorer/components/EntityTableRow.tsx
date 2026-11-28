@@ -1,5 +1,6 @@
 import React from "react";
 import { Sparkles, GitMerge } from "../../../lib/icons";
+import { Tooltip } from "../../../components/ui/Tooltip";
 import type { EntityType } from "../../ontology/types";
 import { getEntityColor } from "../../../lib/entityColors";
 import type { SearchResultItem } from "../../../pages/explorer/types";
@@ -8,6 +9,9 @@ import {
   getEntityTypeIcon,
   isSensitiveField,
   maskSensitiveValue,
+  resolveEntityLabel,
+  truncateMiddle,
+  type TypeLabelFieldMap,
 } from "../../../pages/explorer/utils";
 
 export interface ColumnDef {
@@ -20,6 +24,7 @@ export interface ColumnDef {
 interface EntityTableRowProps {
   entity: SearchResultItem;
   ontologyTypes: EntityType[];
+  typeLabelFields?: TypeLabelFieldMap;
   visibleColumns: ColumnDef[];
   maskSensitiveData: boolean;
   isDark: boolean;
@@ -29,6 +34,7 @@ interface EntityTableRowProps {
 export const EntityTableRow: React.FC<EntityTableRowProps> = ({
   entity,
   ontologyTypes,
+  typeLabelFields,
   visibleColumns,
   maskSensitiveData,
   isDark,
@@ -42,12 +48,19 @@ export const EntityTableRow: React.FC<EntityTableRowProps> = ({
     matchedType?.color || getEntityColor(entity.entityType, isDark);
   const TypeIcon = getEntityTypeIcon(entity.entityType);
   const typeLabel = matchedType?.label || entity.entityType;
+  const displayLabel = resolveEntityLabel(
+    entity,
+    typeLabelFields,
+    maskSensitiveData,
+  );
+  const isMerged =
+    typeof entity.sourceCount === "number" && entity.sourceCount >= 2;
 
   return (
     <tr
       tabIndex={0}
       role="button"
-      aria-label={`Inspect ${entity.canonicalName} (${typeLabel})`}
+      aria-label={`Inspect ${displayLabel} (${typeLabel})`}
       onClick={(e) => onSelect(entity, e.currentTarget)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -62,7 +75,7 @@ export const EntityTableRow: React.FC<EntityTableRowProps> = ({
           return (
             <td
               key={col.id}
-              className="px-4 py-3 text-sm font-semibold text-text whitespace-nowrap max-w-[240px] truncate"
+              className="px-4 py-3 text-sm font-semibold text-text whitespace-nowrap max-w-[260px]"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <span
@@ -76,7 +89,14 @@ export const EntityTableRow: React.FC<EntityTableRowProps> = ({
                 >
                   <TypeIcon size={14} />
                 </span>
-                <span className="truncate">{entity.canonicalName}</span>
+                <div className="min-w-0">
+                  <div title={displayLabel} className="truncate">
+                    {displayLabel}
+                  </div>
+                  <div className="text-[11px] font-mono font-normal text-text-muted">
+                    {entity.id.slice(0, 8)}
+                  </div>
+                </div>
               </div>
             </td>
           );
@@ -85,24 +105,27 @@ export const EntityTableRow: React.FC<EntityTableRowProps> = ({
         if (col.id === "entityType") {
           return (
             <td key={col.id} className="px-4 py-3 whitespace-nowrap">
-              <span
-                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border"
-                style={{
-                  backgroundColor: `${typeColor}12`,
-                  borderColor: `${typeColor}30`,
-                  color: typeColor,
-                }}
-              >
-                <TypeIcon size={11} aria-hidden="true" />
-                <span>{typeLabel}</span>
-              </span>
+              <Tooltip label={typeLabel} side="top">
+                <span
+                  title={typeLabel}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border"
+                  style={{
+                    backgroundColor: `${typeColor}12`,
+                    borderColor: `${typeColor}30`,
+                    color: typeColor,
+                  }}
+                >
+                  <TypeIcon size={11} aria-hidden="true" />
+                  <span>{truncateMiddle(typeLabel, 34)}</span>
+                </span>
+              </Tooltip>
             </td>
           );
         }
 
         if (col.id === "confidenceScore") {
           const pct =
-            typeof entity.confidenceScore === "number"
+            isMerged && typeof entity.confidenceScore === "number"
               ? Math.round(
                   entity.confidenceScore <= 1
                     ? entity.confidenceScore * 100
@@ -136,7 +159,11 @@ export const EntityTableRow: React.FC<EntityTableRowProps> = ({
                     className="text-text-muted"
                     aria-hidden="true"
                   />
-                  <span>{entity.sourceCount}</span>
+                  <span>
+                    {entity.sourceCount === 1
+                      ? "Unique (1)"
+                      : `${entity.sourceCount} merged`}
+                  </span>
                 </span>
               ) : (
                 "—"

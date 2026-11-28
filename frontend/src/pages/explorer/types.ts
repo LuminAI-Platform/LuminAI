@@ -86,6 +86,7 @@ export interface UseExplorerSearchResult {
   pageSize: number;
   setPageSize: (size: number) => void;
   ontologyTypes: EntityType[];
+  typeLabelFields: import("./utils/entityLabel").TypeLabelFieldMap;
   searchData: SearchResponse | null;
   facets: Record<string, number>;
   facetGroups: Record<string, Record<string, number>>;

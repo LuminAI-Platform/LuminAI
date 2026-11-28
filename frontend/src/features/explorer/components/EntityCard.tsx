@@ -15,6 +15,8 @@ import type { SearchResultItem } from "../../../pages/explorer/types";
 import {
   isSensitiveField,
   pickKeyCardFields,
+  resolveEntityLabel,
+  type TypeLabelFieldMap,
 } from "../../../pages/explorer/utils";
 import { EntityCardHeader } from "./EntityCardHeader";
 import { EntityCardFields } from "./EntityCardFields";
@@ -22,6 +24,7 @@ import { EntityCardFields } from "./EntityCardFields";
 interface EntityCardProps {
   entity: SearchResultItem;
   ontologyTypes?: EntityType[];
+  typeLabelFields?: TypeLabelFieldMap;
   maskSensitiveData: boolean;
   onSelect: (entity: SearchResultItem, triggerEl: HTMLElement | null) => void;
 }
@@ -29,6 +32,7 @@ interface EntityCardProps {
 export const EntityCard: React.FC<EntityCardProps> = ({
   entity,
   ontologyTypes = [],
+  typeLabelFields,
   maskSensitiveData,
   onSelect,
 }) => {
@@ -62,9 +66,28 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   );
 
   const isMasked = maskSensitiveData && !localReveal;
-  const nameHighlighted = entity.highlights?.["canonicalName"]?.[0];
 
+  const displayLabel = useMemo(
+    () => resolveEntityLabel(entity, typeLabelFields, isMasked),
+    [entity, typeLabelFields, isMasked],
+  );
+
+  const rawNameHighlight = entity.highlights?.["canonicalName"]?.[0];
+  const nameHighlighted = useMemo(() => {
+    if (!rawNameHighlight) return undefined;
+    const stripped = rawNameHighlight.replace(/<\/?em>/gi, "").trim();
+    return stripped === displayLabel ? rawNameHighlight : undefined;
+  }, [rawNameHighlight, displayLabel]);
+
+  const hasSourceCount =
+    typeof entity.sourceCount === "number" &&
+    Number.isFinite(entity.sourceCount);
+  const isMerged = hasSourceCount && entity.sourceCount! >= 2;
+  const isSingleSource = hasSourceCount && entity.sourceCount === 1;
+
+  // Never show match confidence for single-source entities
   const hasConfidence =
+    isMerged &&
     typeof entity.confidenceScore === "number" &&
     Number.isFinite(entity.confidenceScore);
   const confidencePct = hasConfidence
@@ -75,14 +98,15 @@ export const EntityCard: React.FC<EntityCardProps> = ({
       )
     : null;
 
-  const hasSourceCount =
-    typeof entity.sourceCount === "number" &&
-    Number.isFinite(entity.sourceCount);
-
   const sourceSummary = useMemo(() => {
     if (!hasSourceCount) return null;
     const count = entity.sourceCount!;
-    const base = count > 1 ? `Merged from ${count} records` : "1 source record";
+    const base =
+      count >= 2
+        ? `Merged from ${count} records`
+        : count === 1
+          ? "Unique record - 1 source"
+          : `${count} sources`;
     if (entity.sourceSystems && entity.sourceSystems.length > 0) {
       return `${base} · ${entity.sourceSystems.join(", ")}`;
     }
@@ -90,7 +114,10 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   }, [hasSourceCount, entity.sourceCount, entity.sourceSystems]);
 
   const hasMatchReasons =
-    Array.isArray(entity.matchReasons) && entity.matchReasons.length > 0;
+    isMerged &&
+    !isSingleSource &&
+    Array.isArray(entity.matchReasons) &&
+    entity.matchReasons.length > 0;
 
   return (
     <article
@@ -100,7 +127,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
       <button
         type="button"
         onClick={(e) => onSelect(entity, e.currentTarget)}
-        aria-label={`Inspect ${entity.canonicalName} (${typeLabel})`}
+        aria-label={`Inspect ${displayLabel} (${typeLabel})`}
         className="absolute inset-0 z-0 rounded-xl cursor-pointer focus:outline-none"
       />
 
@@ -108,7 +135,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
         entityType={entity.entityType}
         typeColor={typeColor}
         typeLabel={typeLabel}
-        canonicalName={entity.canonicalName}
+        displayLabel={displayLabel}
         entityId={entity.id}
         nameHighlighted={nameHighlighted}
       />
@@ -220,8 +247,8 @@ export const EntityCard: React.FC<EntityCardProps> = ({
               }}
               aria-label={
                 localReveal
-                  ? `Mask sensitive fields for ${entity.canonicalName}`
-                  : `Reveal sensitive fields for ${entity.canonicalName}`
+                  ? `Mask sensitive fields for ${displayLabel}`
+                  : `Reveal sensitive fields for ${displayLabel}`
               }
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-text-secondary hover:text-text hover:bg-surface-subtle border border-border-subtle transition-colors duration-150 motion-reduce:transition-none cursor-pointer"
             >

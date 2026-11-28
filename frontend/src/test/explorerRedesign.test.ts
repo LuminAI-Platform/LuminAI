@@ -15,6 +15,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 import {
+  SENSITIVE_FIELD_KEYWORDS,
   isSensitiveField,
   maskSensitiveValue,
   parseSearchQuery,
@@ -22,9 +23,16 @@ import {
   normalizeSearchResponse,
   getEntityTypeIcon,
   pickKeyCardFields,
+  computeEntityTypeLabelFields,
+  resolveEntityLabel,
+  truncateMiddle,
+  extractQualityMetadata,
 } from "../pages/explorer/utils";
 import { EntityCard } from "../features/explorer/components/EntityCard";
+import { EntityPropertiesSection } from "../features/explorer/components/EntityPropertiesSection";
+import { EntityDrawerHeader } from "../features/explorer/components/EntityDrawerHeader";
 import { FacetFilterSidebar } from "../features/explorer/components/FacetFilterSidebar";
+import { ExplorerHeaderActions } from "../pages/explorer/components/ExplorerHeaderActions";
 import { ExplorerErrorState } from "../pages/explorer/components/ExplorerSearchStates";
 import { buildApiFilterParams } from "../pages/explorer/hooks/explorerSearchHelpers";
 
@@ -298,5 +306,186 @@ describe("Entity Presentation & Components", () => {
     expect(html).toContain("Details");
     // Details collapsed by default
     expect(html).not.toContain("HTTP 503 Service Unavailable");
+  });
+});
+
+describe("Entity Explorer Refinement Acceptance Checks", () => {
+  it("resolves entity labels by priority and never uses bare Age as a title", () => {
+    const entities = [
+      {
+        id: "aaaaaaaa-1111-2222-3333-444444444444",
+        canonicalName: "22",
+        entityType: "Social Media Impact On Life",
+        properties: { Student_ID: "STU-1042", Age: 22, Gender: "Female" },
+      },
+      {
+        id: "bbbbbbbb-1111-2222-3333-444444444444",
+        canonicalName: "25",
+        entityType: "Social Media Impact On Life",
+        properties: { Student_ID: "STU-1043", Age: 25, Gender: "Male" },
+      },
+      {
+        id: "cccccccc-1111-2222-3333-444444444444",
+        canonicalName: "31",
+        entityType: "Survey Response",
+        properties: { Age: 31, Gender: "Non-binary" },
+      },
+      {
+        id: "dddddddd-1111-2222-3333-444444444444",
+        canonicalName: "99",
+        entityType: "Product",
+        properties: { title: "Enterprise Analytics", sku_code: "ENT-01" },
+      },
+    ];
+
+    const typeMap = computeEntityTypeLabelFields(entities);
+
+    // (b) Identifier property chosen consistently for the whole type
+    expect(resolveEntityLabel(entities[0], typeMap)).toBe(
+      "Student ID: STU-1042",
+    );
+    expect(resolveEntityLabel(entities[1], typeMap)).toBe(
+      "Student ID: STU-1043",
+    );
+    // (c) No name or identifier -> falls back to short entity ID, never bare Age
+    expect(resolveEntityLabel(entities[2], typeMap)).toBe("cccccccc");
+    // (a) Name/title property takes precedence over identifier
+    expect(resolveEntityLabel(entities[3], typeMap)).toBe(
+      "Enterprise Analytics",
+    );
+  });
+
+  it("hides Why merged? and confidence badge on single-source entities", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(EntityCard, {
+        entity: {
+          id: "11111111-2222-3333-4444-555555555555",
+          canonicalName: "24",
+          entityType: "Social Media Impact On Life",
+          properties: {
+            student_id: "S-901",
+            Age: 24,
+            Gender: "Male",
+            quality_score: 98,
+            quality_state: "VERIFIED",
+          },
+          // Even if backend returns confidence & matchReasons for 1-source entity, hide them
+          confidenceScore: 0.95,
+          sourceCount: 1,
+          matchReasons: [{ field: "email", rule: "exact", score: 1 }],
+        },
+        maskSensitiveData: true,
+        onSelect: () => {},
+      }),
+    );
+
+    expect(html).toContain("Student id: S-901");
+    expect(html).toContain("Unique record - 1 source");
+    expect(html).not.toContain("Why merged?");
+    expect(html).not.toContain("95%");
+    expect(html).toContain("Social Media Impact On Life");
+    expect(html).not.toContain("Quality score");
+    expect(html).not.toContain("Quality state");
+  });
+
+  it("masks all configured sensitive keywords without masking Age or Gender", () => {
+    expect(SENSITIVE_FIELD_KEYWORDS).toContain("diagnosis");
+    expect(SENSITIVE_FIELD_KEYWORDS).toContain("address");
+    expect(SENSITIVE_FIELD_KEYWORDS).toContain("patient");
+    expect(SENSITIVE_FIELD_KEYWORDS).toContain("medical");
+    expect(SENSITIVE_FIELD_KEYWORDS).toContain("health");
+
+    expect(isSensitiveField("home_address")).toBe(true);
+    expect(isSensitiveField("primary_diagnosis")).toBe(true);
+    expect(isSensitiveField("patient_notes")).toBe(true);
+    expect(isSensitiveField("medical_history")).toBe(true);
+    expect(isSensitiveField("health_plan")).toBe(true);
+    expect(isSensitiveField("national_id")).toBe(true);
+
+    // Ordinary fields must NOT be masked
+    expect(isSensitiveField("Age")).toBe(false);
+    expect(isSensitiveField("Gender")).toBe(false);
+    expect(maskSensitiveValue("Age", 24, true)).toBe("24");
+    expect(maskSensitiveValue("Gender", "Female", true)).toBe("Female");
+  });
+
+  it("renders labelled sensitive data switch reflecting Hidden and Shown states", () => {
+    const hiddenHtml = renderToStaticMarkup(
+      React.createElement(ExplorerHeaderActions, {
+        maskSensitiveData: true,
+        onToggleMask: () => {},
+        isExporting: false,
+        filteredRecordCount: 10,
+        onExportCsv: () => {},
+      }),
+    );
+    expect(hiddenHtml).toContain('role="switch"');
+    expect(hiddenHtml).toContain("Sensitive data:");
+    expect(hiddenHtml).toContain("Hidden");
+
+    const shownHtml = renderToStaticMarkup(
+      React.createElement(ExplorerHeaderActions, {
+        maskSensitiveData: false,
+        onToggleMask: () => {},
+        isExporting: false,
+        filteredRecordCount: 10,
+        onExportCsv: () => {},
+      }),
+    );
+    expect(shownHtml).toContain("Sensitive data:");
+    expect(shownHtml).toContain("Shown");
+  });
+
+  it("separates quality properties from source properties and supports per-field reveal in drawer", () => {
+    const extracted = extractQualityMetadata({
+      quality_score: 96,
+      quality_state: "VERIFIED",
+      email: "alice@corp.com",
+      Age: 29,
+    });
+
+    expect(extracted.qualityScore).toBe(96);
+    expect(extracted.qualityState).toBe("VERIFIED");
+    expect(extracted.sourceProperties).toEqual({
+      email: "alice@corp.com",
+      Age: 29,
+    });
+
+    const propsHtml = renderToStaticMarkup(
+      React.createElement(EntityPropertiesSection, {
+        entityId: "ent-1",
+        properties: extracted.sourceProperties,
+        maskSensitiveData: true,
+      }),
+    );
+    expect(propsHtml).toContain("Properties (2)");
+    expect(propsHtml).toContain("Filter properties...");
+    expect(propsHtml).toContain("a***@corp.com");
+    expect(propsHtml).toContain("Reveal");
+    expect(propsHtml).toContain("29");
+    expect(propsHtml).not.toContain("Quality score");
+
+    const headerHtml = renderToStaticMarkup(
+      React.createElement(EntityDrawerHeader, {
+        activeEntityType: "Social Media Impact On Life",
+        typeColor: "#12297A",
+        typeLabel: "Social Media Impact On Life",
+        displayLabel: "Student ID: 101",
+        sourceCount: 1,
+        onClose: () => {},
+        closeBtnRef: { current: null },
+      }),
+    );
+    expect(headerHtml).toContain("Student ID: 101");
+    expect(headerHtml).toContain("Unique record");
+    expect(headerHtml).toContain("Social Media Impact On Life");
+  });
+
+  it("middle-truncates very long type names without losing the distinguishing suffix", () => {
+    const longType = "Social Media Impact On Life - Survey Cohort B";
+    const truncated = truncateMiddle(longType, 30);
+    expect(truncated.length).toBeLessThanOrEqual(30);
+    expect(truncated).toContain("…");
+    expect(truncated.endsWith("Cohort B")).toBe(true);
   });
 });

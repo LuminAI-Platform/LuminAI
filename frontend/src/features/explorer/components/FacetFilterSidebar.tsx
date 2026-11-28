@@ -45,6 +45,7 @@ export const FacetFilterSidebar: React.FC<FacetFilterSidebarProps> = ({
         label: t.label || t.name,
         count,
         color: t.color || getEntityColor(name, isDark),
+        sourceDataset: t.sourceDataset || t.sourceName || t.datasetName,
       });
     }
 
