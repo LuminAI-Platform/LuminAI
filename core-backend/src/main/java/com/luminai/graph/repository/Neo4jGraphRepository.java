@@ -91,6 +91,21 @@ public class Neo4jGraphRepository {
   }
 
   private static final Pattern SAFE_LABEL = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
+  private static final Pattern GR_UUID_PATTERN =
+      Pattern.compile(
+          "^gr-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$");
+  private static final java.util.Set<String> RESERVED_NODE_PROPERTIES =
+      java.util.Set.of(
+          "id",
+          "tenant_id",
+          "tenantId",
+          "canonical_name",
+          "entity_type",
+          "created_at",
+          "updated_at");
+  private static final int MAX_NODE_PROPERTIES = 25;
+  private final java.util.Set<String> ensuredEntityTypeLabels =
+      java.util.concurrent.ConcurrentHashMap.newKeySet();
 
   /**
    * Auto-generates Neo4j schema indexes for a specific entity type label. Ensures lookup by
@@ -104,6 +119,9 @@ public class Neo4jGraphRepository {
     if (!SAFE_LABEL.matcher(sanitized).matches()) {
       log.debug(
           "Skipping Neo4j index creation for non-standard entity type label: '{}'", entityType);
+      return;
+    }
+    if (!ensuredEntityTypeLabels.add(sanitized.toLowerCase())) {
       return;
     }
 
@@ -165,6 +183,83 @@ public class Neo4jGraphRepository {
   }
 
   /**
+   * Merges flat scalar properties onto an existing {@code :Entity} node within the tenant's graph.
+   */
+  public void mergeEntityProperties(String tenantId, String id, Map<String, Object> rawProperties) {
+    Map<String, Object> safeProps = sanitizeScalarProperties(rawProperties);
+    if (safeProps.isEmpty() || id == null || id.isBlank()) {
+      return;
+    }
+    String altTenantId = resolveAltTenantId(tenantId);
+    String altId = alternateEntityId(id);
+    String cypher =
+        """
+        MATCH (e:Entity)
+        WHERE (e.id = $id OR e.id = $altId)
+          AND (e.tenant_id = $tenantId OR e.tenant_id = $altTenantId)
+        SET e += $props, e.updated_at = datetime()
+        """;
+    try {
+      neo4jClient
+          .query(cypher)
+          .bind(id)
+          .to("id")
+          .bind(altId)
+          .to("altId")
+          .bind(tenantId)
+          .to("tenantId")
+          .bind(altTenantId)
+          .to("altTenantId")
+          .bind(safeProps)
+          .to("props")
+          .run();
+    } catch (Exception e) {
+      log.debug("Failed merging Neo4j node properties for '{}': {}", id, e.getMessage());
+    }
+  }
+
+  /** Batched UNWIND upsert for multiple {@code :Entity} nodes and their scalar properties. */
+  public void mergeEntityNodesBatch(String tenantId, List<Map<String, Object>> nodes) {
+    if (nodes == null || nodes.isEmpty()) {
+      return;
+    }
+    List<Map<String, Object>> prepared = new java.util.ArrayList<>(nodes.size());
+    for (Map<String, Object> node : nodes) {
+      if (node == null) continue;
+      Object rawId = node.get("id");
+      if (rawId == null || String.valueOf(rawId).isBlank()) continue;
+      String id = String.valueOf(rawId).trim();
+      String canonicalName =
+          node.get("canonicalName") != null ? String.valueOf(node.get("canonicalName")) : id;
+      String entityType =
+          node.get("entityType") != null ? String.valueOf(node.get("entityType")) : "Entity";
+      @SuppressWarnings("unchecked")
+      Map<String, Object> rawProps =
+          node.get("properties") instanceof Map<?, ?> m ? (Map<String, Object>) m : Map.of();
+      Map<String, Object> safeProps = sanitizeScalarProperties(rawProps);
+      Map<String, Object> entry = new java.util.LinkedHashMap<>();
+      entry.put("id", id);
+      entry.put("canonicalName", canonicalName);
+      entry.put("entityType", entityType);
+      entry.put("props", safeProps);
+      prepared.add(entry);
+    }
+    if (prepared.isEmpty()) {
+      return;
+    }
+
+    String cypher =
+        """
+        UNWIND $items AS item
+        MERGE (e:Entity {id: item.id, tenant_id: $tenantId})
+        ON CREATE SET e.canonical_name = item.canonicalName, e.entity_type = item.entityType, e.created_at = datetime()
+        ON MATCH SET e.canonical_name = item.canonicalName, e.entity_type = item.entityType, e.updated_at = datetime()
+        SET e += item.props
+        """;
+    neo4jClient.query(cypher).bind(prepared).to("items").bind(tenantId).to("tenantId").run();
+  }
+
+  /**
    * Creates or updates a directional relationship between two {@code :Entity} nodes belonging to
    * the same tenant. Both endpoints are matched by {@code id + tenant_id} using the same {@code
    * tenantId} parameter — a source and target can never resolve to different tenants.
@@ -190,12 +285,19 @@ public class Neo4jGraphRepository {
       return false;
     }
 
+    String altTenantId = resolveAltTenantId(tenantId);
+    String altSourceId = alternateEntityId(sourceId);
+    String altTargetId = alternateEntityId(targetId);
     boolean incoming = "INCOMING".equalsIgnoreCase(direction);
     String pattern = incoming ? "(target)-[r:%s]->(source)" : "(source)-[r:%s]->(target)";
     String cypher =
         """
-                MATCH (source:Entity {id: $sourceId, tenant_id: $tenantId})
-                MATCH (target:Entity {id: $targetId, tenant_id: $tenantId})
+                MATCH (source:Entity)
+                WHERE (source.id = $sourceId OR source.id = $altSourceId)
+                  AND (source.tenant_id = $tenantId OR source.tenant_id = $altTenantId)
+                MATCH (target:Entity)
+                WHERE (target.id = $targetId OR target.id = $altTargetId)
+                  AND (target.tenant_id = $tenantId OR target.tenant_id = $altTenantId)
                 MERGE %s
                 ON CREATE SET r.created_at = datetime()
                 RETURN count(r) AS relCount
@@ -207,10 +309,16 @@ public class Neo4jGraphRepository {
             .query(cypher)
             .bind(sourceId)
             .to("sourceId")
+            .bind(altSourceId)
+            .to("altSourceId")
             .bind(targetId)
             .to("targetId")
+            .bind(altTargetId)
+            .to("altTargetId")
             .bind(tenantId)
             .to("tenantId")
+            .bind(altTenantId)
+            .to("altTenantId")
             .fetch()
             .one();
 
@@ -251,22 +359,26 @@ public class Neo4jGraphRepository {
   public Optional<GraphQueryResponseDto> findNeighbourhood(
       String tenantId, String entityId, int depth, String relationshipType) {
     String altTenantId = resolveAltTenantId(tenantId);
+    String altEntityId = alternateEntityId(entityId);
     int safeDepth = Math.max(1, Math.min(depth, 4));
     String cypher =
         """
               MATCH (start:Entity)
-              WHERE (start.id = $entityId OR start.canonical_name = $entityId OR toLower(coalesce(start.canonical_name, '')) = toLower($entityId))
+              WHERE (start.id = $entityId OR start.id = $altEntityId OR start.canonical_name = $entityId OR toLower(coalesce(start.canonical_name, '')) = toLower($entityId))
                 AND (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId)
               OPTIONAL MATCH path = (start)-[rels*1..%d]-(neighbour:Entity)
               WHERE all(node IN nodes(path) WHERE node:Entity AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId))
                 AND (NOT $filterRelationshipType OR all(rel IN rels WHERE type(rel) = $relationshipType))
               WITH start, [p IN collect(path) WHERE p IS NOT NULL] AS validPaths
-              WITH [start] + reduce(acc = [], p IN validPaths | acc + nodes(p)) AS allNodes,
+              WITH start,
+                   [start] + reduce(acc = [], p IN validPaths | acc + nodes(p)) AS allNodes,
                    reduce(acc = [], p IN validPaths | acc + relationships(p)) AS allRels
-              RETURN [n IN allNodes WHERE n IS NOT NULL | {
+              RETURN start.id AS centerId,
+              [n IN allNodes WHERE n IS NOT NULL | {
                 id: n.id,
                 label: coalesce(n.canonical_name, n.id),
-                entityType: n.entity_type
+                entityType: n.entity_type,
+                properties: properties(n)
               }] AS nodes,
               [e IN allRels WHERE e IS NOT NULL | {
                 id: elementId(e),
@@ -278,21 +390,24 @@ public class Neo4jGraphRepository {
             .formatted(safeDepth);
 
     try {
-      return neo4jClient
-          .query(cypher)
-          .bind(entityId)
-          .to("entityId")
-          .bind(tenantId)
-          .to("tenantId")
-          .bind(altTenantId)
-          .to("altTenantId")
-          .bind(relationshipType == null ? "" : relationshipType)
-          .to("relationshipType")
-          .bind(relationshipType != null)
-          .to("filterRelationshipType")
-          .fetch()
-          .one()
-          .map(this::toGraphQueryResponse);
+      java.util.Collection<Map<String, Object>> rows =
+          neo4jClient
+              .query(cypher)
+              .bind(entityId)
+              .to("entityId")
+              .bind(altEntityId)
+              .to("altEntityId")
+              .bind(tenantId)
+              .to("tenantId")
+              .bind(altTenantId)
+              .to("altTenantId")
+              .bind(relationshipType == null ? "" : relationshipType)
+              .to("relationshipType")
+              .bind(relationshipType != null)
+              .to("filterRelationshipType")
+              .fetch()
+              .all();
+      return mergeGraphQueryResponses(rows);
     } catch (Exception e) {
       log.warn("Neo4j neighbourhood query failed: {}", e.getMessage());
       return Optional.empty();
@@ -301,17 +416,27 @@ public class Neo4jGraphRepository {
 
   /**
    * Returns an overview cluster of entities for the current tenant when no specific entity is
-   * selected.
+   * selected, prioritizing connected nodes first.
    */
   public Optional<GraphQueryResponseDto> findOverview(String tenantId, int limit) {
+    return findOverview(tenantId, limit, null);
+  }
+
+  public Optional<GraphQueryResponseDto> findOverview(
+      String tenantId, int limit, String relationshipType) {
     String altTenantId = resolveAltTenantId(tenantId);
+    boolean filterRel = relationshipType != null && isSafeRelationshipType(relationshipType);
     String cypher =
         """
         MATCH (start:Entity)
         WHERE (start.tenant_id = $tenantId OR start.tenant_id = $altTenantId)
-        WITH start LIMIT $limit
+        OPTIONAL MATCH (start)-[r0]-(:Entity)
+        WITH start, count(r0) AS deg
+        ORDER BY deg DESC, coalesce(start.canonical_name, start.id) ASC
+        LIMIT $limit
         OPTIONAL MATCH (start)-[r]-(other:Entity)
         WHERE (other.tenant_id = $tenantId OR other.tenant_id = $altTenantId)
+          AND (NOT $filterRelationshipType OR type(r) = $relationshipType)
         WITH collect(DISTINCT start) AS starts,
              [o IN collect(DISTINCT other) WHERE o IS NOT NULL] AS others,
              [rel IN collect(DISTINCT r) WHERE rel IS NOT NULL] AS rels
@@ -319,7 +444,8 @@ public class Neo4jGraphRepository {
         RETURN [n IN allNodes WHERE n IS NOT NULL | {
           id: n.id,
           label: coalesce(n.canonical_name, n.id),
-          entityType: n.entity_type
+          entityType: n.entity_type,
+          properties: properties(n)
         }] AS nodes,
         [e IN rels WHERE e IS NOT NULL | {
           id: elementId(e),
@@ -337,6 +463,10 @@ public class Neo4jGraphRepository {
           .to("altTenantId")
           .bind(limit)
           .to("limit")
+          .bind(filterRel ? relationshipType : "")
+          .to("relationshipType")
+          .bind(filterRel)
+          .to("filterRelationshipType")
           .fetch()
           .one()
           .map(this::toGraphQueryResponse);
@@ -356,17 +486,26 @@ public class Neo4jGraphRepository {
     if (sourceId.equals(targetId)) {
       return findSingleNodePath(tenantId, sourceId);
     }
+    String altTenantId = resolveAltTenantId(tenantId);
+    String altSourceId = alternateEntityId(sourceId);
+    String altTargetId = alternateEntityId(targetId);
     String cypher =
         """
-                MATCH (source:Entity {id: $sourceId, tenant_id: $tenantId})
-                MATCH (target:Entity {id: $targetId, tenant_id: $tenantId})
+                MATCH (source:Entity)
+                WHERE (source.id = $sourceId OR source.id = $altSourceId OR toLower(coalesce(source.canonical_name, '')) = toLower($sourceId))
+                  AND (source.tenant_id = $tenantId OR source.tenant_id = $altTenantId)
+                MATCH (target:Entity)
+                WHERE (target.id = $targetId OR target.id = $altTargetId OR toLower(coalesce(target.canonical_name, '')) = toLower($targetId))
+                  AND (target.tenant_id = $tenantId OR target.tenant_id = $altTenantId)
                 MATCH path = shortestPath((source)-[*]-(target))
-                WHERE all(node IN nodes(path) WHERE node:Entity AND node.tenant_id = $tenantId)
+                WHERE all(node IN nodes(path) WHERE node:Entity AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId))
                 RETURN
+                  source.id AS centerId,
                   [node IN nodes(path) | {
                     id: node.id,
                     label: coalesce(node.canonical_name, node.id),
-                    entityType: node.entity_type
+                    entityType: node.entity_type,
+                    properties: properties(node)
                   }] AS nodes,
                   [rel IN relationships(path) | {
                     id: elementId(rel),
@@ -376,42 +515,211 @@ public class Neo4jGraphRepository {
                   }] AS edges
                 """;
 
-    return neo4jClient
-        .query(cypher)
-        .bind(sourceId)
-        .to("sourceId")
-        .bind(targetId)
-        .to("targetId")
-        .bind(tenantId)
-        .to("tenantId")
-        .fetch()
-        .one()
-        .map(this::toGraphQueryResponse);
+    java.util.Collection<Map<String, Object>> rows =
+        neo4jClient
+            .query(cypher)
+            .bind(sourceId)
+            .to("sourceId")
+            .bind(altSourceId)
+            .to("altSourceId")
+            .bind(targetId)
+            .to("targetId")
+            .bind(altTargetId)
+            .to("altTargetId")
+            .bind(tenantId)
+            .to("tenantId")
+            .bind(altTenantId)
+            .to("altTenantId")
+            .fetch()
+            .all();
+    return rows.stream().findFirst().map(this::toGraphQueryResponse);
   }
 
   private Optional<GraphQueryResponseDto> findSingleNodePath(String tenantId, String entityId) {
+    String altTenantId = resolveAltTenantId(tenantId);
+    String altEntityId = alternateEntityId(entityId);
     String cypher =
         """
-                MATCH (node:Entity {id: $entityId, tenant_id: $tenantId})
-                RETURN [{
+                MATCH (node:Entity)
+                WHERE (node.id = $entityId OR node.id = $altEntityId OR toLower(coalesce(node.canonical_name, '')) = toLower($entityId))
+                  AND (node.tenant_id = $tenantId OR node.tenant_id = $altTenantId)
+                RETURN node.id AS centerId,
+                [{
                   id: node.id,
                   label: coalesce(node.canonical_name, node.id),
-                  entityType: node.entity_type
+                  entityType: node.entity_type,
+                  properties: properties(node)
                 }] AS nodes, [] AS edges
                 """;
-    return neo4jClient
-        .query(cypher)
-        .bind(entityId)
-        .to("entityId")
-        .bind(tenantId)
-        .to("tenantId")
-        .fetch()
-        .one()
-        .map(this::toGraphQueryResponse);
+    java.util.Collection<Map<String, Object>> rows =
+        neo4jClient
+            .query(cypher)
+            .bind(entityId)
+            .to("entityId")
+            .bind(altEntityId)
+            .to("altEntityId")
+            .bind(tenantId)
+            .to("tenantId")
+            .bind(altTenantId)
+            .to("altTenantId")
+            .fetch()
+            .all();
+    return rows.stream().findFirst().map(this::toGraphQueryResponse);
+  }
+
+  /**
+   * Computes the exact local clustering coefficient (triangle density) among distinct neighbors.
+   */
+  public Optional<Double> findLocalClusteringCoefficient(String tenantId, String entityId) {
+    if (entityId == null || entityId.isBlank()) {
+      return Optional.empty();
+    }
+    String altTenantId = resolveAltTenantId(tenantId);
+    String altEntityId = alternateEntityId(entityId);
+    String cypher =
+        """
+        MATCH (n:Entity)
+        WHERE (n.id = $entityId OR n.id = $altEntityId)
+          AND (n.tenant_id = $tenantId OR n.tenant_id = $altTenantId)
+        OPTIONAL MATCH (n)--(m:Entity)
+        WHERE (m.tenant_id = $tenantId OR m.tenant_id = $altTenantId)
+        WITH collect(DISTINCT m) AS nbrs
+        WITH nbrs, size(nbrs) AS k
+        UNWIND CASE WHEN k < 2 THEN [null] ELSE nbrs END AS u
+        OPTIONAL MATCH (u)-[r]-(v:Entity)
+        WHERE v IN nbrs AND elementId(u) < elementId(v)
+        WITH k, count(DISTINCT r) AS neighborLinks
+        RETURN CASE WHEN k < 2 THEN 0.0 ELSE toFloat(2 * neighborLinks) / toFloat(k * (k - 1)) END AS clustering
+        """;
+    try {
+      return neo4jClient
+          .query(cypher)
+          .bind(entityId)
+          .to("entityId")
+          .bind(altEntityId)
+          .to("altEntityId")
+          .bind(tenantId)
+          .to("tenantId")
+          .bind(altTenantId)
+          .to("altTenantId")
+          .fetch()
+          .one()
+          .map(
+              row -> {
+                Object val = row.get("clustering");
+                if (val instanceof Number n) {
+                  return Math.min(1.0, Math.max(0.0, n.doubleValue()));
+                }
+                return 0.0;
+              });
+    } catch (Exception e) {
+      log.debug(
+          "Failed computing Neo4j clustering coefficient for '{}': {}", entityId, e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  public static String normalizeEntityId(String rawId) {
+    if (rawId == null) return null;
+    String trimmed = rawId.trim();
+    java.util.regex.Matcher m = GR_UUID_PATTERN.matcher(trimmed);
+    return m.matches() ? m.group(1) : trimmed;
+  }
+
+  public static String alternateEntityId(String id) {
+    if (id == null) return "";
+    String trimmed = id.trim();
+    java.util.regex.Matcher m = GR_UUID_PATTERN.matcher(trimmed);
+    if (m.matches()) {
+      return m.group(1);
+    }
+    try {
+      java.util.UUID parsed = java.util.UUID.fromString(trimmed);
+      return "gr-" + parsed;
+    } catch (IllegalArgumentException ignored) {
+      return trimmed;
+    }
   }
 
   public static boolean isSafeRelationshipType(String relationshipType) {
     return relationshipType != null && SAFE_RELATIONSHIP_TYPE.matcher(relationshipType).matches();
+  }
+
+  private Map<String, Object> sanitizeScalarProperties(Map<String, Object> raw) {
+    Map<String, Object> safe = new java.util.LinkedHashMap<>();
+    if (raw == null || raw.isEmpty()) {
+      return safe;
+    }
+    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+      if (safe.size() >= MAX_NODE_PROPERTIES) break;
+      String k = entry.getKey();
+      Object v = entry.getValue();
+      if (k == null
+          || k.isBlank()
+          || k.startsWith("_")
+          || RESERVED_NODE_PROPERTIES.contains(k)
+          || v == null) {
+        continue;
+      }
+      if (!SAFE_RELATIONSHIP_TYPE.matcher(k).matches()) {
+        continue;
+      }
+      if (v instanceof String s) {
+        if (!s.isBlank()) {
+          safe.put(k, s.length() > 500 ? s.substring(0, 500) : s);
+        }
+      } else if (v instanceof Number || v instanceof Boolean) {
+        safe.put(k, v);
+      } else if (v instanceof java.time.temporal.Temporal) {
+        safe.put(k, v.toString());
+      }
+    }
+    return safe;
+  }
+
+  private Optional<GraphQueryResponseDto> mergeGraphQueryResponses(
+      java.util.Collection<Map<String, Object>> rows) {
+    if (rows == null || rows.isEmpty()) {
+      return Optional.empty();
+    }
+    java.util.Map<String, GraphQueryResponseDto.Node> uniqueNodes = new java.util.LinkedHashMap<>();
+    java.util.Map<String, GraphQueryResponseDto.Edge> uniqueEdges = new java.util.LinkedHashMap<>();
+    String centerId = null;
+
+    for (Map<String, Object> row : rows) {
+      if (row == null) continue;
+      if (centerId == null && row.get("centerId") != null) {
+        centerId = String.valueOf(row.get("centerId"));
+      }
+      GraphQueryResponseDto partial = toGraphQueryResponse(row);
+      if (partial.nodes() != null) {
+        for (GraphQueryResponseDto.Node n : partial.nodes()) {
+          if (n.data() != null && n.data().id() != null) {
+            uniqueNodes.putIfAbsent(n.data().id(), n);
+          }
+        }
+      }
+      if (partial.edges() != null) {
+        for (GraphQueryResponseDto.Edge e : partial.edges()) {
+          if (e.data() != null) {
+            String edgeKey =
+                e.data().source() + "->" + e.data().target() + ":" + e.data().relationshipType();
+            uniqueEdges.putIfAbsent(edgeKey, e);
+          }
+        }
+      }
+    }
+
+    if (uniqueNodes.isEmpty()) {
+      return Optional.empty();
+    }
+    List<GraphQueryResponseDto.Node> nodes = new java.util.ArrayList<>(uniqueNodes.values());
+    List<GraphQueryResponseDto.Edge> edges = new java.util.ArrayList<>(uniqueEdges.values());
+    if (centerId == null && !nodes.isEmpty()) {
+      centerId = nodes.get(0).data().id();
+    }
+    return Optional.of(
+        new GraphQueryResponseDto(nodes, edges, centerId, nodes.size(), edges.size()));
   }
 
   @SuppressWarnings("unchecked")
@@ -426,10 +734,15 @@ public class Neo4jGraphRepository {
           String label = node.get("label") != null ? String.valueOf(node.get("label")) : id;
           String entityType =
               node.get("entityType") != null ? String.valueOf(node.get("entityType")) : "Entity";
+          Map<String, Object> cleanProps =
+              node.get("properties") instanceof Map<?, ?> pMap
+                  ? sanitizeScalarProperties((Map<String, Object>) pMap)
+                  : Map.of();
           uniqueNodes.putIfAbsent(
               id,
               new GraphQueryResponseDto.Node(
-                  new GraphQueryResponseDto.NodeData(id, label, entityType)));
+                  new GraphQueryResponseDto.NodeData(
+                      id, label, entityType, cleanProps.isEmpty() ? null : cleanProps, null)));
         }
       }
     }
@@ -458,6 +771,10 @@ public class Neo4jGraphRepository {
 
     List<GraphQueryResponseDto.Node> nodes = new java.util.ArrayList<>(uniqueNodes.values());
     List<GraphQueryResponseDto.Edge> edges = new java.util.ArrayList<>(uniqueEdges.values());
+    String centerId = row.get("centerId") != null ? String.valueOf(row.get("centerId")) : null;
+    if (centerId != null) {
+      return new GraphQueryResponseDto(nodes, edges, centerId, nodes.size(), edges.size());
+    }
     return new GraphQueryResponseDto(nodes, edges);
   }
 }

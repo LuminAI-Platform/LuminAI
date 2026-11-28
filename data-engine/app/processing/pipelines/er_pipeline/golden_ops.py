@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Dict, List
 
@@ -9,6 +10,7 @@ import polars as pl
 from dagster import AssetExecutionContext
 
 import app.processing.pipelines.er_pipeline as er_pipe
+from app.db.tenant import to_uuid_str
 from app.kafka.producers import EntityResolvedProducer
 from app.processing.er.clustering import cluster_record_dictionaries
 from app.processing.er.golden_record import (
@@ -19,6 +21,7 @@ from app.processing.er.provenance import (
     persist_provenance_records,
     track_field_provenance,
 )
+from app.processing.er.relational_edges import generate_relational_edges
 from app.processing.pipelines.er_pipeline.helpers import _extract_run_tags
 from app.telemetry import record_er_metrics, trace_span
 
@@ -135,13 +138,42 @@ def synthesize_and_persist_golden_records(
                     or tags.get("connectionId")
                     or "er-engine"
                 )
+                raw_gid = str(golden_rec.get("golden_id") or "")
+                canonical_gid = to_uuid_str(raw_gid)
+                kafka_payload = dict(golden_rec)
+                kafka_payload["golden_id"] = canonical_gid
+                if raw_gid and raw_gid != canonical_gid:
+                    kafka_payload["raw_golden_id"] = raw_gid
+
+                raw_fks = tags.get("foreign_keys")
+                if raw_fks and not kafka_payload.get("relationships"):
+                    try:
+                        fk_spec = (
+                            json.loads(raw_fks)
+                            if isinstance(raw_fks, str)
+                            else raw_fks
+                        )
+                        if fk_spec:
+                            generate_relational_edges(
+                                [kafka_payload],
+                                tenant_id=tenant_id,
+                                foreign_keys=fk_spec,
+                                source_entity_type=resolved_entity_type,
+                            )
+                    except Exception as fk_exc:
+                        context.log.warning(
+                            "Could not derive FK edges for golden record %s: %s",
+                            canonical_gid,
+                            fk_exc,
+                        )
+
                 # Publish entity.resolved Kafka event
                 try:
                     producer.publish_resolved_entity(
                         tenant_id=tenant_id,
-                        golden_id=str(golden_rec.get("golden_id")),
+                        golden_id=canonical_gid,
                         entity_type=resolved_entity_type,
-                        payload=golden_rec,
+                        payload=kafka_payload,
                         source_id=source_identifier,
                     )
                 except Exception as exc:

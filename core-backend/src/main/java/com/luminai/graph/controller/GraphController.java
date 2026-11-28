@@ -1,6 +1,8 @@
 package com.luminai.graph.controller;
 
+import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.tenant.TenantContext;
+import com.luminai.connection.service.GoldenRecordPersistenceService;
 import com.luminai.graph.dto.GraphQueryResponseDto;
 import com.luminai.graph.service.DecomposedGraphSyncService;
 import com.luminai.graph.service.GraphQueryService;
@@ -27,12 +29,19 @@ public class GraphController {
 
   private final GraphQueryService graphQueryService;
   private final DecomposedGraphSyncService decomposedGraphSyncService;
+  private GoldenRecordPersistenceService goldenRecordPersistenceService;
 
   public GraphController(
       GraphQueryService graphQueryService,
       @Autowired(required = false) DecomposedGraphSyncService decomposedGraphSyncService) {
     this.graphQueryService = graphQueryService;
     this.decomposedGraphSyncService = decomposedGraphSyncService;
+  }
+
+  @Autowired(required = false)
+  public void setGoldenRecordPersistenceService(
+      GoldenRecordPersistenceService goldenRecordPersistenceService) {
+    this.goldenRecordPersistenceService = goldenRecordPersistenceService;
   }
 
   /** The default depth is one hop; traversal is never expanded beyond four hops. */
@@ -52,23 +61,36 @@ public class GraphController {
     String targetId =
         (entityId != null && !entityId.isBlank()) ? entityId.trim() : (id != null ? id.trim() : "");
     if (targetId.isBlank()) {
-      return ResponseEntity.ok(graphQueryService.getOverviewGraph());
+      return ResponseEntity.ok(graphQueryService.getOverviewGraph(relationshipType));
     }
     try {
       GraphQueryResponseDto response =
           graphQueryService.getNeighbourhood(targetId, depth, relationshipType);
       if (response == null || response.nodes() == null || response.nodes().isEmpty()) {
-        return ResponseEntity.ok(graphQueryService.getFallbackNeighbourhood(targetId));
+        return ResponseEntity.ok(new GraphQueryResponseDto(List.of(), List.of(), targetId, 0, 0));
       }
       return ResponseEntity.ok(response);
+    } catch (ResourceNotFoundException notFound) {
+      return ResponseEntity.ok(new GraphQueryResponseDto(List.of(), List.of(), targetId, 0, 0));
+    } catch (IllegalArgumentException badArg) {
+      throw badArg;
     } catch (Exception e) {
-      return ResponseEntity.ok(graphQueryService.getFallbackNeighbourhood(targetId));
+      GraphQueryResponseDto fallback = graphQueryService.getFallbackNeighbourhood(targetId);
+      if (fallback == null || fallback.nodes() == null || fallback.nodes().isEmpty()) {
+        return ResponseEntity.ok(new GraphQueryResponseDto(List.of(), List.of(), targetId, 0, 0));
+      }
+      return ResponseEntity.ok(fallback);
     }
   }
 
   @GetMapping("/overview")
-  public ResponseEntity<GraphQueryResponseDto> getOverview() {
-    return ResponseEntity.ok(graphQueryService.getOverviewGraph());
+  public ResponseEntity<GraphQueryResponseDto> getOverview(
+      @RequestParam(required = false)
+          @Pattern(
+              regexp = "^[A-Za-z_][A-Za-z0-9_]*$",
+              message = "relationshipType must be a valid relationship type")
+          String relationshipType) {
+    return ResponseEntity.ok(graphQueryService.getOverviewGraph(relationshipType));
   }
 
   @GetMapping("/shortest-path")
@@ -113,6 +135,24 @@ public class GraphController {
     }
     String effectiveTenant = resolveTenant(tenantId);
     return ResponseEntity.ok(decomposedGraphSyncService.decomposeAndSync(effectiveTenant, request));
+  }
+
+  @PostMapping({"/backfill", "/sync/connection/{connectionId}"})
+  @PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")
+  public ResponseEntity<Map<String, Object>> syncExistingRecordsToGraph(
+      @PathVariable(required = false) UUID connectionId) {
+    if (goldenRecordPersistenceService == null) {
+      return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
+          .body(Map.of("error", "GoldenRecordPersistenceService unavailable"));
+    }
+    UUID tenantUuid = TenantContext.getTenantUuid();
+    if (tenantUuid == null) {
+      throw new org.springframework.security.access.AccessDeniedException("Missing tenant context");
+    }
+    Map<String, Object> summary =
+        goldenRecordPersistenceService.backfillExistingRecordsToNeo4j(tenantUuid, connectionId);
+    return ResponseEntity.ok(summary);
   }
 
   private String resolveTenant(String supplied) {

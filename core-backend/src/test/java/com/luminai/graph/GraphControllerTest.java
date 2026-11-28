@@ -5,10 +5,14 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.luminai.common.exception.GlobalExceptionHandler;
+import com.luminai.common.exception.ResourceNotFoundException;
+import com.luminai.common.tenant.TenantContext;
+import com.luminai.connection.service.GoldenRecordPersistenceService;
 import com.luminai.graph.controller.GraphController;
 import com.luminai.graph.dto.GraphQueryResponseDto;
 import com.luminai.graph.dto.GraphStatsDto;
@@ -85,5 +89,56 @@ class GraphControllerTest {
         .andExpect(jsonPath("$.inDegree").value(3))
         .andExpect(jsonPath("$.outDegree").value(2))
         .andExpect(jsonPath("$.clusterCoefficient").value(0.42));
+  }
+
+  @Test
+  @DisplayName(
+      "GET /api/v1/graph/neighbourhood returns empty graph instead of overview when entity is not found")
+  void getNeighbourhoodReturnsEmptyOnResourceNotFound() throws Exception {
+    when(graphQueryService.getNeighbourhood("missing-id", 1, null))
+        .thenThrow(new ResourceNotFoundException("Entity", "id", "missing-id"));
+
+    mockMvc
+        .perform(get("/api/v1/graph/neighbourhood").param("entityId", "missing-id"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.nodes.length()").value(0))
+        .andExpect(jsonPath("$.edges.length()").value(0));
+  }
+
+  @Test
+  @DisplayName("GET /api/v1/graph/overview forwards relationshipType filter cleanly")
+  void getOverviewSupportsRelationshipTypeFilter() throws Exception {
+    GraphQueryResponseDto overview = new GraphQueryResponseDto(List.of(), List.of());
+    when(graphQueryService.getOverviewGraph("SUPPLIED_BY")).thenReturn(overview);
+
+    mockMvc
+        .perform(get("/api/v1/graph/overview").param("relationshipType", "SUPPLIED_BY"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.nodes.length()").value(0));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/graph/sync/connection/{id} triggers Neo4j backfill for tenant")
+  void backfillConnectionRecordsIntoNeo4j() throws Exception {
+    GoldenRecordPersistenceService persistenceService =
+        org.mockito.Mockito.mock(GoldenRecordPersistenceService.class);
+    controller.setGoldenRecordPersistenceService(persistenceService);
+
+    java.util.UUID tenantUuid = java.util.UUID.randomUUID();
+    java.util.UUID connUuid = java.util.UUID.randomUUID();
+    TenantContext.setTenant(tenantUuid, "luminex");
+    try {
+      when(persistenceService.backfillExistingRecordsToNeo4j(tenantUuid, connUuid))
+          .thenReturn(Map.of("status", "COMPLETED", "nodesSynced", 10, "edgesSynced", 4));
+
+      mockMvc
+          .perform(post("/api/v1/graph/sync/connection/" + connUuid))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("COMPLETED"))
+          .andExpect(jsonPath("$.nodesSynced").value(10))
+          .andExpect(jsonPath("$.edgesSynced").value(4));
+    } finally {
+      TenantContext.clear();
+    }
   }
 }

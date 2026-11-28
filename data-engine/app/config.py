@@ -132,6 +132,7 @@ class Settings(BaseSettings):
     neo4j_username: str = "neo4j"
     neo4j_password: str = "luminai_dev_password"
     neo4j_database: str = "neo4j"
+    opensearch_url: str = "http://localhost:9200"
 
     # Database & Redis Configuration
     database_url: str | None = None

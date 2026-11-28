@@ -110,17 +110,20 @@ public class GraphQueryService {
   }
 
   /**
-   * Hybrid PostgreSQL fallback: when Neo4j has no records or is unreachable, synthesizes the
-   * neighbourhood cluster directly from tenant golden records and triggers background sync.
+   * Hybrid PostgreSQL fallback: when Neo4j has no records or is unreachable, returns the real
+   * entity node (with its non-internal properties) directly from PostgreSQL and schedules
+   * background Neo4j sync — without fabricating synthetic edges.
    */
   public GraphQueryResponseDto getFallbackNeighbourhood(String entityId) {
-    if (goldenRecordRepository == null) {
+    if (goldenRecordRepository == null || entityId == null || entityId.isBlank()) {
       return new GraphQueryResponseDto(List.of(), List.of());
     }
 
+    String trimmedId = entityId.trim();
+    String normalizedId = Neo4jGraphRepository.normalizeEntityId(trimmedId);
     GoldenRecord targetRecord = null;
     try {
-      UUID uuid = UUID.fromString(entityId.trim());
+      UUID uuid = UUID.fromString(normalizedId);
       targetRecord = goldenRecordRepository.findById(uuid).orElse(null);
     } catch (IllegalArgumentException ignored) {
     }
@@ -128,8 +131,7 @@ public class GraphQueryService {
     if (targetRecord == null) {
       try {
         var page =
-            goldenRecordRepository.searchByPropertiesAndType(
-                entityId.trim(), null, PageRequest.of(0, 1));
+            goldenRecordRepository.searchByPropertiesAndType(trimmedId, null, PageRequest.of(0, 1));
         if (page.hasContent()) {
           targetRecord = page.getContent().get(0);
         }
@@ -139,43 +141,12 @@ public class GraphQueryService {
     }
 
     if (targetRecord == null) {
-      return getOverviewGraph();
+      return new GraphQueryResponseDto(List.of(), List.of());
     }
 
-    List<GraphQueryResponseDto.Node> nodes = new ArrayList<>();
-    List<GraphQueryResponseDto.Edge> edges = new ArrayList<>();
-
-    String targetId = targetRecord.getId().toString();
-    String targetLabel =
-        targetRecord.getCanonicalName() != null ? targetRecord.getCanonicalName() : targetId;
-    String targetType =
-        targetRecord.getEntityType() != null ? targetRecord.getEntityType() : "Entity";
-    nodes.add(
-        new GraphQueryResponseDto.Node(
-            new GraphQueryResponseDto.NodeData(targetId, targetLabel, targetType)));
-
-    try {
-      var relatedPage = goldenRecordRepository.findAll(PageRequest.of(0, 15));
-      int edgeIndex = 0;
-      for (GoldenRecord rel : relatedPage.getContent()) {
-        if (rel.getId() == null || rel.getId().equals(targetRecord.getId())) continue;
-        String relId = rel.getId().toString();
-        String relLabel = rel.getCanonicalName() != null ? rel.getCanonicalName() : relId;
-        String relType = rel.getEntityType() != null ? rel.getEntityType() : "Entity";
-        nodes.add(
-            new GraphQueryResponseDto.Node(
-                new GraphQueryResponseDto.NodeData(relId, relLabel, relType)));
-        edges.add(
-            new GraphQueryResponseDto.Edge(
-                new GraphQueryResponseDto.EdgeData(
-                    "rel-" + (++edgeIndex),
-                    targetId,
-                    relId,
-                    relType.equalsIgnoreCase(targetType) ? "SAME_TYPE_AS" : "ASSOCIATED_WITH")));
-      }
-    } catch (Exception e) {
-      log.warn("Failed to fetch related records for fallback graph: {}", e.getMessage());
-    }
+    GraphQueryResponseDto.Node targetNode = toNodeFromGoldenRecord(targetRecord);
+    String targetId = targetNode.data().id();
+    Map<String, Object> targetProps = targetNode.data().properties();
 
     // Async background sync to Neo4j
     final GoldenRecord syncRecord = targetRecord;
@@ -183,26 +154,43 @@ public class GraphQueryService {
     new Thread(
             () -> {
               try {
+                graphRepository.ensureEntityTypeIndexes(syncRecord.getEntityType());
                 graphRepository.mergeEntityNode(
                     currentTenant,
                     syncRecord.getId().toString(),
                     syncRecord.getCanonicalName(),
                     syncRecord.getEntityType());
+                if (targetProps != null && !targetProps.isEmpty()) {
+                  graphRepository.mergeEntityProperties(
+                      currentTenant, syncRecord.getId().toString(), targetProps);
+                }
               } catch (Exception e) {
                 log.debug("Background Neo4j sync skipped: {}", e.getMessage());
               }
             })
         .start();
 
-    return new GraphQueryResponseDto(nodes, edges, targetId, nodes.size(), edges.size());
+    return new GraphQueryResponseDto(List.of(targetNode), List.of(), targetId, 1, 0);
   }
 
   /** Returns an overview cluster graph when no specific entity is selected. */
   public GraphQueryResponseDto getOverviewGraph() {
+    return getOverviewGraph(null);
+  }
+
+  /** Returns an overview cluster graph optionally filtered by relationship type. */
+  public GraphQueryResponseDto getOverviewGraph(String relationshipType) {
+    if (relationshipType != null
+        && !relationshipType.isBlank()
+        && !Neo4jGraphRepository.isSafeRelationshipType(relationshipType)) {
+      throw new IllegalArgumentException(
+          "relationshipType must be a valid Neo4j relationship type");
+    }
     String tenantId = currentTenantId();
     try {
       Optional<GraphQueryResponseDto> neoResult =
-          executeWithTimeout(() -> graphRepository.findOverview(tenantId, 25), 2500);
+          executeWithTimeout(
+              () -> graphRepository.findOverview(tenantId, 25, relationshipType), 2500);
       if (neoResult.isPresent()
           && neoResult.get().nodes() != null
           && !neoResult.get().nodes().isEmpty()) {
@@ -224,40 +212,38 @@ public class GraphQueryService {
       }
 
       List<GraphQueryResponseDto.Node> nodes = new ArrayList<>();
-      List<GraphQueryResponseDto.Edge> edges = new ArrayList<>();
-      Map<String, String> typeLead = new HashMap<>();
-
-      for (int i = 0; i < records.size(); i++) {
-        GoldenRecord r = records.get(i);
-        String rId = r.getId().toString();
-        String rLabel = r.getCanonicalName() != null ? r.getCanonicalName() : rId;
-        String rType = r.getEntityType() != null ? r.getEntityType() : "Entity";
-        nodes.add(
-            new GraphQueryResponseDto.Node(new GraphQueryResponseDto.NodeData(rId, rLabel, rType)));
-
-        if (typeLead.containsKey(rType)) {
-          edges.add(
-              new GraphQueryResponseDto.Edge(
-                  new GraphQueryResponseDto.EdgeData(
-                      "edge-type-" + i, typeLead.get(rType), rId, "SAME_TYPE_AS")));
-        } else {
-          typeLead.put(rType, rId);
-        }
-
-        if (i > 0 && i % 3 == 0) {
-          edges.add(
-              new GraphQueryResponseDto.Edge(
-                  new GraphQueryResponseDto.EdgeData(
-                      "edge-hub-" + i, records.get(0).getId().toString(), rId, "CROSS_REFERENCE")));
-        }
+      for (GoldenRecord r : records) {
+        if (r.getId() == null) continue;
+        nodes.add(toNodeFromGoldenRecord(r));
       }
-
-      return new GraphQueryResponseDto(
-          nodes, edges, records.get(0).getId().toString(), nodes.size(), edges.size());
+      String centerId = !nodes.isEmpty() ? nodes.get(0).data().id() : null;
+      return new GraphQueryResponseDto(nodes, List.of(), centerId, nodes.size(), 0);
     } catch (Exception e) {
       log.error("Failed to build overview graph from PostgreSQL: {}", e.getMessage(), e);
       return new GraphQueryResponseDto(List.of(), List.of());
     }
+  }
+
+  private GraphQueryResponseDto.Node toNodeFromGoldenRecord(GoldenRecord r) {
+    String id = r.getId().toString();
+    String label = r.getCanonicalName() != null ? r.getCanonicalName() : id;
+    String entityType = r.getEntityType() != null ? r.getEntityType() : "Entity";
+    Map<String, Object> cleanProps = new LinkedHashMap<>();
+    if (r.getProperties() != null) {
+      for (Map.Entry<String, Object> entry : r.getProperties().entrySet()) {
+        String key = entry.getKey();
+        Object val = entry.getValue();
+        if (key == null || key.startsWith("_") || val == null) continue;
+        if (val instanceof String s) {
+          if (!s.isBlank()) cleanProps.put(key, s);
+        } else if (val instanceof Number || val instanceof Boolean) {
+          cleanProps.put(key, val);
+        }
+      }
+    }
+    return new GraphQueryResponseDto.Node(
+        new GraphQueryResponseDto.NodeData(
+            id, label, entityType, cleanProps.isEmpty() ? null : cleanProps, null));
   }
 
   /** Returns the ordered shortest path in the current tenant's Entity graph. */
@@ -281,9 +267,13 @@ public class GraphQueryService {
 
   public GraphStatsDto getStats(String entityId) {
     GraphQueryResponseDto neighbourhood = getNeighbourhood(entityId, 1, null);
+    String resolvedId = resolveStatsTargetId(entityId, neighbourhood);
+    String altResolvedId = Neo4jGraphRepository.alternateEntityId(resolvedId);
+
     int inDegree = 0;
     int outDegree = 0;
-    java.util.Map<String, Integer> relCounts = new java.util.LinkedHashMap<>();
+    Map<String, Integer> relCounts = new LinkedHashMap<>();
+    Set<String> neighbors = new LinkedHashSet<>();
 
     if (neighbourhood.edges() != null) {
       for (GraphQueryResponseDto.Edge edge : neighbourhood.edges()) {
@@ -293,21 +283,94 @@ public class GraphQueryService {
         String type =
             edge.data().relationshipType() != null ? edge.data().relationshipType() : "CONNECTED";
 
-        if (entityId.equalsIgnoreCase(src)) {
+        boolean isOut =
+            matchesNodeId(src, resolvedId, altResolvedId)
+                || matchesNodeId(src, entityId, Neo4jGraphRepository.alternateEntityId(entityId));
+        boolean isIn =
+            matchesNodeId(tgt, resolvedId, altResolvedId)
+                || matchesNodeId(tgt, entityId, Neo4jGraphRepository.alternateEntityId(entityId));
+
+        if (isOut) {
           outDegree++;
+          if (tgt != null) neighbors.add(tgt);
         }
-        if (entityId.equalsIgnoreCase(tgt)) {
+        if (isIn) {
           inDegree++;
+          if (src != null) neighbors.add(src);
         }
         relCounts.put(type, relCounts.getOrDefault(type, 0) + 1);
       }
     }
 
     int degree = inDegree + outDegree;
-    double clusterCoefficient = degree > 1 ? Math.min(1.0, 0.2 + (degree * 0.05)) : 0.0;
+    double clusterCoefficient =
+        computeClusteringCoefficient(currentTenantId(), resolvedId, neighbors, neighbourhood);
 
     return new com.luminai.graph.dto.GraphStatsDto(
-        entityId, degree, inDegree, outDegree, clusterCoefficient, relCounts);
+        resolvedId, degree, inDegree, outDegree, clusterCoefficient, relCounts);
+  }
+
+  private String resolveStatsTargetId(String requestedId, GraphQueryResponseDto neighbourhood) {
+    if (neighbourhood.centerNodeId() != null && !neighbourhood.centerNodeId().isBlank()) {
+      return neighbourhood.centerNodeId();
+    }
+    if (neighbourhood.nodes() != null && !neighbourhood.nodes().isEmpty()) {
+      String altReq = Neo4jGraphRepository.alternateEntityId(requestedId);
+      for (GraphQueryResponseDto.Node node : neighbourhood.nodes()) {
+        if (node.data() == null) continue;
+        if (matchesNodeId(node.data().id(), requestedId, altReq)
+            || (node.data().label() != null && node.data().label().equalsIgnoreCase(requestedId))) {
+          return node.data().id();
+        }
+      }
+    }
+    return requestedId;
+  }
+
+  private boolean matchesNodeId(String candidate, String primaryId, String altId) {
+    if (candidate == null || candidate.isBlank()) return false;
+    return (primaryId != null && candidate.equalsIgnoreCase(primaryId))
+        || (altId != null && !altId.isBlank() && candidate.equalsIgnoreCase(altId));
+  }
+
+  private double computeClusteringCoefficient(
+      String tenantId,
+      String resolvedId,
+      Set<String> neighbors,
+      GraphQueryResponseDto neighbourhood) {
+    if (neighbors.size() < 2) {
+      return 0.0;
+    }
+    try {
+      Optional<Double> neoCoeff =
+          executeWithTimeout(
+              () -> graphRepository.findLocalClusteringCoefficient(tenantId, resolvedId), 1500);
+      if (neoCoeff != null && neoCoeff.isPresent()) {
+        return Math.round(neoCoeff.get() * 10000.0) / 10000.0;
+      }
+    } catch (Exception e) {
+      log.debug("Falling back to local clustering computation: {}", e.getMessage());
+    }
+
+    Set<String> neighborPairs = new LinkedHashSet<>();
+    if (neighbourhood.edges() != null) {
+      for (GraphQueryResponseDto.Edge edge : neighbourhood.edges()) {
+        if (edge.data() == null) continue;
+        String src = edge.data().source();
+        String tgt = edge.data().target();
+        if (src != null
+            && tgt != null
+            && !src.equals(tgt)
+            && neighbors.contains(src)
+            && neighbors.contains(tgt)) {
+          String pair = src.compareTo(tgt) < 0 ? (src + "::" + tgt) : (tgt + "::" + src);
+          neighborPairs.add(pair);
+        }
+      }
+    }
+    int k = neighbors.size();
+    double coeff = (2.0 * neighborPairs.size()) / (k * (k - 1));
+    return Math.round(coeff * 10000.0) / 10000.0;
   }
 
   private String currentTenantId() {

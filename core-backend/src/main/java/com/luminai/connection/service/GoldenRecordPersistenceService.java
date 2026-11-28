@@ -187,16 +187,16 @@ public class GoldenRecordPersistenceService {
 
       final UUID tenantForAsync = currentTenant;
       final String tenantSlug = TenantContext.getTenantSlug();
+      final Connection connForAsync = conn;
+      final List<Map<String, Object>> sourceRowsForAsync = new ArrayList<>(rows);
       CompletableFuture.runAsync(
           () -> {
             try {
               if (tenantForAsync != null && tenantSlug != null && !tenantSlug.isBlank()) {
                 TenantContext.setTenant(tenantForAsync, tenantSlug);
               }
-              for (GoldenRecord saved : savedAll) {
-                syncNodeToNeo4j(
-                    tenantForAsync, saved.getId(), saved.getCanonicalName(), saved.getEntityType());
-              }
+              syncRecordsAndRelationshipsToNeo4j(
+                  tenantForAsync, tenantSlug, connForAsync, savedAll, sourceRowsForAsync);
             } catch (Exception asyncEx) {
               log.debug("Async Neo4j sync notice: {}", asyncEx.getMessage());
             } finally {
@@ -545,10 +545,339 @@ public class GoldenRecordPersistenceService {
     try {
       String slug = TenantContext.getTenantSlug();
       String primaryTenant = (slug != null && !slug.isBlank()) ? slug : tenantId.toString();
+      neo4jGraphRepository.ensureEntityTypeIndexes(entityType);
       neo4jGraphRepository.mergeEntityNode(
           primaryTenant, goldenId.toString(), canonicalName, entityType);
     } catch (Exception e) {
       log.debug("Direct Neo4j node sync skipped: {}", e.getMessage());
     }
   }
+
+  /**
+   * Synchronizes existing PostgreSQL golden records (and any schema-configured foreign-key links)
+   * into Neo4j in batches.
+   */
+  public Map<String, Object> backfillExistingRecordsToNeo4j(
+      UUID tenantId, UUID connectionIdOrNull) {
+    if (neo4jGraphRepository == null || goldenRecordRepository == null || tenantId == null) {
+      return Map.of("status", "SKIPPED", "nodesSynced", 0, "edgesSynced", 0);
+    }
+    String slug = TenantContext.getTenantSlug();
+    String primaryTenant = (slug != null && !slug.isBlank()) ? slug : tenantId.toString();
+
+    Connection conn = null;
+    if (connectionIdOrNull != null && connectionRepository != null) {
+      conn = connectionRepository.findByIdAndTenantId(connectionIdOrNull, tenantId).orElse(null);
+    }
+
+    List<GoldenRecord> records =
+        connectionIdOrNull != null
+            ? goldenRecordRepository.findByTenantIdAndConnectionId(
+                tenantId, connectionIdOrNull.toString())
+            : goldenRecordRepository.findAll();
+
+    if (records == null || records.isEmpty()) {
+      return Map.of("status", "COMPLETED", "nodesSynced", 0, "edgesSynced", 0);
+    }
+
+    Map<UUID, Connection> connectionCache = new LinkedHashMap<>();
+    if (conn != null) {
+      connectionCache.put(conn.getId(), conn);
+    }
+    int[] counts = syncWithConnections(tenantId, primaryTenant, records, null, connectionCache);
+    return Map.of(
+        "status",
+        "COMPLETED",
+        "tenantId",
+        primaryTenant,
+        "nodesSynced",
+        counts[0],
+        "edgesSynced",
+        counts[1]);
+  }
+
+  private void syncRecordsAndRelationshipsToNeo4j(
+      UUID tenantId,
+      String tenantSlug,
+      Connection conn,
+      List<GoldenRecord> savedRecords,
+      List<Map<String, Object>> sourceRows) {
+    if (neo4jGraphRepository == null || savedRecords == null || savedRecords.isEmpty()) {
+      return;
+    }
+    String primaryTenant =
+        (tenantSlug != null && !tenantSlug.isBlank())
+            ? tenantSlug
+            : (tenantId != null ? tenantId.toString() : "default");
+    Map<UUID, Connection> connectionCache = new LinkedHashMap<>();
+    if (conn != null && conn.getId() != null) {
+      connectionCache.put(conn.getId(), conn);
+    }
+    syncWithConnections(tenantId, primaryTenant, savedRecords, sourceRows, connectionCache);
+  }
+
+  private int[] syncWithConnections(
+      UUID tenantId,
+      String primaryTenant,
+      List<GoldenRecord> records,
+      List<Map<String, Object>> sourceRows,
+      Map<UUID, Connection> connectionCache) {
+    int nodesSynced = 0;
+    int edgesSynced = 0;
+
+    Set<String> seenTypes = new LinkedHashSet<>();
+    List<Map<String, Object>> batchNodes = new ArrayList<>();
+    Map<String, List<FkRule>> fkRulesByConn = new LinkedHashMap<>();
+    Map<String, String> existingTargetLookup = buildTargetLookup(records);
+
+    for (GoldenRecord rec : records) {
+      if (rec == null || rec.getId() == null) continue;
+      String entityType =
+          rec.getEntityType() != null && !rec.getEntityType().isBlank()
+              ? rec.getEntityType()
+              : "Entity";
+      if (seenTypes.add(entityType)) {
+        neo4jGraphRepository.ensureEntityTypeIndexes(entityType);
+      }
+
+      Map<String, Object> cleanProps = extractPublicProperties(rec.getProperties());
+      Map<String, Object> nodeItem = new LinkedHashMap<>();
+      nodeItem.put("id", rec.getId().toString());
+      nodeItem.put(
+          "canonicalName",
+          rec.getCanonicalName() != null ? rec.getCanonicalName() : rec.getId().toString());
+      nodeItem.put("entityType", entityType);
+      nodeItem.put("properties", cleanProps);
+      batchNodes.add(nodeItem);
+    }
+
+    for (int i = 0; i < batchNodes.size(); i += PERSIST_CHUNK_SIZE) {
+      int end = Math.min(i + PERSIST_CHUNK_SIZE, batchNodes.size());
+      neo4jGraphRepository.mergeEntityNodesBatch(primaryTenant, batchNodes.subList(i, end));
+      nodesSynced += (end - i);
+    }
+
+    List<Map<String, Object>> targetStubNodes = new ArrayList<>();
+    List<EdgeSyncSpec> edgeSpecs = new ArrayList<>();
+    Set<String> seenStubIds = new LinkedHashSet<>();
+
+    for (int idx = 0; idx < records.size(); idx++) {
+      GoldenRecord rec = records.get(idx);
+      if (rec == null || rec.getId() == null) continue;
+      String srcId = rec.getId().toString();
+      Map<String, Object> recProps = rec.getProperties() != null ? rec.getProperties() : Map.of();
+
+      Object rawConnId = recProps.get("_connection_id");
+      if (rawConnId != null) {
+        String connKey = String.valueOf(rawConnId);
+        List<FkRule> fkRules =
+            fkRulesByConn.computeIfAbsent(
+                connKey, k -> loadForeignKeysForConnection(tenantId, k, connectionCache));
+        for (FkRule fk : fkRules) {
+          Object rawFkVal = resolveColumnValueCaseInsensitive(recProps, fk.columnName, fk.columnId);
+          if (rawFkVal == null) continue;
+          String fkVal = String.valueOf(rawFkVal).trim();
+          if (fkVal.isEmpty() || "null".equalsIgnoreCase(fkVal)) continue;
+
+          String lookupKey = fk.targetEntityType.toLowerCase() + ":" + fkVal.toLowerCase();
+          String matchedExistingId = existingTargetLookup.get(lookupKey);
+          String targetId =
+              matchedExistingId != null
+                  ? matchedExistingId
+                  : UUID.nameUUIDFromBytes(
+                          (primaryTenant + ":" + fk.targetEntityType + ":" + fkVal)
+                              .getBytes(StandardCharsets.UTF_8))
+                      .toString();
+          if (targetId.equals(srcId)) continue;
+
+          if (seenTypes.add(fk.targetEntityType)) {
+            neo4jGraphRepository.ensureEntityTypeIndexes(fk.targetEntityType);
+          }
+          if (matchedExistingId == null && seenStubIds.add(targetId)) {
+            Map<String, Object> targetNode = new LinkedHashMap<>();
+            targetNode.put("id", targetId);
+            targetNode.put("canonicalName", fkVal);
+            targetNode.put("entityType", fk.targetEntityType);
+            targetNode.put("properties", Map.of("key", fkVal));
+            targetStubNodes.add(targetNode);
+          }
+          edgeSpecs.add(
+              new EdgeSyncSpec(
+                  srcId, targetId, sanitizeRelType(fk.relationshipType), fk.direction));
+        }
+      }
+
+      if (sourceRows != null && idx < sourceRows.size()) {
+        Map<String, Object> row = sourceRows.get(idx);
+        if (row != null && row.get("relationships") instanceof List<?> rawRels) {
+          for (Object rObj : rawRels) {
+            if (!(rObj instanceof Map<?, ?> rMap)) continue;
+            Object tRaw =
+                rMap.get("target_id") != null ? rMap.get("target_id") : rMap.get("targetId");
+            Object rTypeRaw = rMap.get("type");
+            if (tRaw == null || rTypeRaw == null) continue;
+            String targetId = Neo4jGraphRepository.normalizeEntityId(String.valueOf(tRaw));
+            String relType = sanitizeRelType(String.valueOf(rTypeRaw));
+            String dir =
+                rMap.get("direction") != null ? String.valueOf(rMap.get("direction")) : "OUTGOING";
+            Object tTypeRaw =
+                rMap.get("target_type") != null ? rMap.get("target_type") : rMap.get("targetType");
+            if (tTypeRaw != null) {
+              String targetType = String.valueOf(tTypeRaw).trim();
+              if (!targetType.isEmpty() && seenStubIds.add(targetId)) {
+                if (seenTypes.add(targetType)) {
+                  neo4jGraphRepository.ensureEntityTypeIndexes(targetType);
+                }
+                Map<String, Object> targetNode = new LinkedHashMap<>();
+                targetNode.put("id", targetId);
+                targetNode.put("canonicalName", targetId);
+                targetNode.put("entityType", targetType);
+                targetNode.put("properties", Map.of());
+                targetStubNodes.add(targetNode);
+              }
+            }
+            edgeSpecs.add(new EdgeSyncSpec(srcId, targetId, relType, dir));
+          }
+        }
+      }
+    }
+
+    for (int i = 0; i < targetStubNodes.size(); i += PERSIST_CHUNK_SIZE) {
+      int end = Math.min(i + PERSIST_CHUNK_SIZE, targetStubNodes.size());
+      neo4jGraphRepository.mergeEntityNodesBatch(primaryTenant, targetStubNodes.subList(i, end));
+      nodesSynced += (end - i);
+    }
+
+    for (EdgeSyncSpec spec : edgeSpecs) {
+      if (Neo4jGraphRepository.isSafeRelationshipType(spec.relType)
+          && neo4jGraphRepository.mergeRelationship(
+              primaryTenant, spec.sourceId, spec.targetId, spec.relType, spec.direction)) {
+        edgesSynced++;
+      }
+    }
+
+    return new int[] {nodesSynced, edgesSynced};
+  }
+
+  private Map<String, Object> extractPublicProperties(Map<String, Object> raw) {
+    Map<String, Object> clean = new LinkedHashMap<>();
+    if (raw == null || raw.isEmpty()) {
+      return clean;
+    }
+    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+      String k = entry.getKey();
+      Object v = entry.getValue();
+      if (k == null || k.isBlank() || k.startsWith("_") || v == null) continue;
+      if (v instanceof String s) {
+        if (!s.isBlank()) clean.put(k, s);
+      } else if (v instanceof Number || v instanceof Boolean) {
+        clean.put(k, v);
+      }
+    }
+    return clean;
+  }
+
+  private List<FkRule> loadForeignKeysForConnection(
+      UUID tenantId, String connIdStr, Map<UUID, Connection> connectionCache) {
+    try {
+      UUID cid = UUID.fromString(connIdStr);
+      Connection conn = connectionCache.get(cid);
+      if (conn == null && connectionRepository != null && tenantId != null) {
+        conn = connectionRepository.findByIdAndTenantId(cid, tenantId).orElse(null);
+        if (conn != null) {
+          connectionCache.put(cid, conn);
+        }
+      }
+      if (conn == null || conn.getConfig() == null || conn.getConfig().isBlank()) {
+        return List.of();
+      }
+      JsonNode root = objectMapper.readTree(conn.getConfig());
+      if (!root.has("foreignKeys") || !root.get("foreignKeys").isArray()) {
+        return List.of();
+      }
+      List<FkRule> rules = new ArrayList<>();
+      for (JsonNode node : root.get("foreignKeys")) {
+        String colId = node.path("columnId").asText("");
+        String colName = node.path("columnName").asText("");
+        String targetType = node.path("targetEntityType").asText("");
+        String relType = node.path("relationshipType").asText("");
+        String dir = node.path("direction").asText("OUTGOING");
+        if (!targetType.isBlank()
+            && !relType.isBlank()
+            && (!colId.isBlank() || !colName.isBlank())) {
+          rules.add(new FkRule(colId, colName, targetType.trim(), relType.trim(), dir.trim()));
+        }
+      }
+      return rules;
+    } catch (Exception e) {
+      return List.of();
+    }
+  }
+
+  private Object resolveColumnValueCaseInsensitive(
+      Map<String, Object> props, String primaryKey, String secondaryKey) {
+    for (String candidate : List.of(primaryKey, secondaryKey)) {
+      if (candidate == null || candidate.isBlank()) continue;
+      if (props.containsKey(candidate)) {
+        return props.get(candidate);
+      }
+      for (Map.Entry<String, Object> entry : props.entrySet()) {
+        if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(candidate)) {
+          return entry.getValue();
+        }
+      }
+    }
+    return null;
+  }
+
+  private Map<String, String> buildTargetLookup(List<GoldenRecord> records) {
+    Map<String, String> lookup = new LinkedHashMap<>();
+    if (records == null || records.isEmpty()) {
+      return lookup;
+    }
+    for (GoldenRecord rec : records) {
+      if (rec == null || rec.getId() == null) continue;
+      String entityType =
+          rec.getEntityType() != null && !rec.getEntityType().isBlank()
+              ? rec.getEntityType().trim().toLowerCase()
+              : "entity";
+      String idStr = rec.getId().toString();
+      lookup.putIfAbsent(entityType + ":" + idStr.toLowerCase(), idStr);
+      if (rec.getCanonicalName() != null && !rec.getCanonicalName().isBlank()) {
+        lookup.putIfAbsent(entityType + ":" + rec.getCanonicalName().trim().toLowerCase(), idStr);
+      }
+      Map<String, Object> props = rec.getProperties();
+      if (props != null) {
+        for (String key :
+            List.of("id", "code", "external_id", entityType + "_id", entityType + "Id")) {
+          Object val = props.get(key);
+          if (val != null) {
+            String vStr = String.valueOf(val).trim();
+            if (!vStr.isEmpty()) {
+              lookup.putIfAbsent(entityType + ":" + vStr.toLowerCase(), idStr);
+            }
+          }
+        }
+      }
+    }
+    return lookup;
+  }
+
+  private static String sanitizeRelType(String raw) {
+    if (raw == null || raw.isBlank()) return "RELATED_TO";
+    String clean = raw.trim().toUpperCase().replaceAll("[^A-Z0-9_]", "_");
+    if (clean.isEmpty() || !Character.isLetter(clean.charAt(0))) {
+      clean = "REL_" + clean;
+    }
+    return clean;
+  }
+
+  private record FkRule(
+      String columnId,
+      String columnName,
+      String targetEntityType,
+      String relationshipType,
+      String direction) {}
+
+  private record EdgeSyncSpec(String sourceId, String targetId, String relType, String direction) {}
 }

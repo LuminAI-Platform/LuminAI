@@ -38,13 +38,17 @@ public class Neo4jSyncService {
   public void sync(EntityResolvedEvent event) {
     validate(event);
 
-    String canonicalName = resolveCanonicalName(event);
+    String normalizedId = Neo4jGraphRepository.normalizeEntityId(event.goldenId());
+    String canonicalName = resolveCanonicalName(event, normalizedId);
     repository.ensureEntityTypeIndexes(event.entityType());
-    repository.mergeEntityNode(
-        event.tenantId(), event.goldenId(), canonicalName, event.entityType());
+    repository.mergeEntityNode(event.tenantId(), normalizedId, canonicalName, event.entityType());
+    Map<String, Object> safeProperties = extractScalarProperties(event.data());
+    if (!safeProperties.isEmpty()) {
+      repository.mergeEntityProperties(event.tenantId(), normalizedId, safeProperties);
+    }
     log.info(
         "Synced :Entity node id={} tenant={} type={} canonical_name='{}'",
-        event.goldenId(),
+        normalizedId,
         event.tenantId(),
         event.entityType(),
         canonicalName);
@@ -53,21 +57,33 @@ public class Neo4jSyncService {
     if (relationships.isEmpty()) {
       log.debug(
           "No relationship data present on entity.resolved event for id={} tenant={} — node-only sync",
-          event.goldenId(),
+          normalizedId,
           event.tenantId());
       return;
     }
 
     for (RelationshipRef rel : relationships) {
+      String targetId = Neo4jGraphRepository.normalizeEntityId(rel.targetId());
       boolean created =
           repository.mergeRelationship(
-              event.tenantId(), event.goldenId(), rel.targetId(), rel.type(), rel.direction());
+              event.tenantId(), normalizedId, targetId, rel.type(), rel.direction());
+      if (!created && rel.targetType() != null && !rel.targetType().isBlank()) {
+        repository.ensureEntityTypeIndexes(rel.targetType());
+        String targetLabel =
+            rel.targetLabel() != null && !rel.targetLabel().isBlank()
+                ? rel.targetLabel()
+                : targetId;
+        repository.mergeEntityNode(event.tenantId(), targetId, targetLabel, rel.targetType());
+        created =
+            repository.mergeRelationship(
+                event.tenantId(), normalizedId, targetId, rel.type(), rel.direction());
+      }
       if (created) {
         log.info(
             "Synced relationship {} -[{}]-> {} for tenant {}",
-            event.goldenId(),
+            normalizedId,
             rel.type(),
-            rel.targetId(),
+            targetId,
             event.tenantId());
       }
     }
@@ -85,23 +101,62 @@ public class Neo4jSyncService {
     }
   }
 
-  private String resolveCanonicalName(EntityResolvedEvent event) {
+  private String resolveCanonicalName(EntityResolvedEvent event, String fallbackId) {
     Map<String, Object> data = event.data() != null ? event.data() : Map.of();
 
-    Object canonicalName = data.get("canonical_name");
-    if (canonicalName instanceof String s && !s.isBlank()) {
-      return s;
-    }
-
-    Object name = data.get("name");
-    if (name instanceof String s && !s.isBlank()) {
-      return s;
+    for (String key :
+        List.of(
+            "canonical_name",
+            "canonicalName",
+            "name",
+            "full_name",
+            "company_name",
+            "customer_name",
+            "client_name",
+            "patient_name",
+            "title",
+            "label")) {
+      Object val = data.get(key);
+      if (val instanceof String s && !s.isBlank() && !"null".equalsIgnoreCase(s.trim())) {
+        return s.trim();
+      }
     }
 
     log.debug(
-        "No canonical_name/name attribute on golden record {} — falling back to golden_id",
-        event.goldenId());
-    return event.goldenId();
+        "No canonical_name/name attribute on golden record {} — falling back to id", fallbackId);
+    return fallbackId;
+  }
+
+  private Map<String, Object> extractScalarProperties(Map<String, Object> data) {
+    if (data == null || data.isEmpty()) {
+      return Map.of();
+    }
+    java.util.Set<String> excluded =
+        java.util.Set.of(
+            "id",
+            "golden_id",
+            "tenant_id",
+            "canonical_name",
+            "canonicalName",
+            "entity_type",
+            "entityType",
+            "relationships",
+            "source_record_ids",
+            "raw_golden_id");
+    Map<String, Object> props = new java.util.LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : data.entrySet()) {
+      String key = entry.getKey();
+      Object val = entry.getValue();
+      if (key == null || key.startsWith("_") || excluded.contains(key) || val == null) {
+        continue;
+      }
+      if (val instanceof String s && !s.isBlank()) {
+        props.put(key, s);
+      } else if (val instanceof Number || val instanceof Boolean) {
+        props.put(key, val);
+      }
+    }
+    return props;
   }
 
   @SuppressWarnings("unchecked")
@@ -141,10 +196,21 @@ public class Neo4jSyncService {
         continue;
       }
 
-      refs.add(new RelationshipRef(targetId.toString(), type.toString(), direction.toString()));
+      String targetType =
+          map.get("target_type") != null
+              ? String.valueOf(map.get("target_type"))
+              : (map.get("targetType") != null ? String.valueOf(map.get("targetType")) : null);
+      String targetLabel =
+          map.get("target_name") != null
+              ? String.valueOf(map.get("target_name"))
+              : (map.get("targetLabel") != null ? String.valueOf(map.get("targetLabel")) : null);
+      refs.add(
+          new RelationshipRef(
+              targetId.toString(), type.toString(), direction.toString(), targetType, targetLabel));
     }
     return refs;
   }
 
-  private record RelationshipRef(String targetId, String type, String direction) {}
+  private record RelationshipRef(
+      String targetId, String type, String direction, String targetType, String targetLabel) {}
 }

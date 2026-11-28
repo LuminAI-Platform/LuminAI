@@ -28,6 +28,11 @@ def to_uuid_str(
     if not val:
         return default
     s = str(val).strip()
+    if s.startswith("gr-"):
+        try:
+            return str(uuid.UUID(s[3:]))
+        except (ValueError, AttributeError):
+            pass
     try:
         return str(uuid.UUID(s))
     except (ValueError, AttributeError):

@@ -60,19 +60,27 @@ public class DecomposedGraphSyncService {
                 () -> {
                   int count = 0;
                   for (Map<String, Object> node : batch) {
-                    String label =
-                        String.valueOf(
-                            node.getOrDefault("label", node.getOrDefault("canonical_name", "")));
-                    String entityType = String.valueOf(node.getOrDefault("entityType", "Entity"));
-                    String rawId = String.valueOf(node.getOrDefault("id", ""));
+                    String entityType = resolveEntityType(node);
+                    String label = resolveNodeLabel(node);
+                    String rawId = firstNonBlank(node.get("id"), node.get("node_id"));
                     String id =
-                        !rawId.isBlank()
-                            ? rawId
-                            : generateDeterministicId(tenant, entityType, label);
+                        rawId != null
+                            ? Neo4jGraphRepository.normalizeEntityId(rawId)
+                            : generateDeterministicId(
+                                tenant,
+                                entityType,
+                                label != null ? label : UUID.randomUUID().toString());
+                    String resolvedLabel = label != null ? label : id;
 
                     if (!id.isBlank()) {
                       neo4jGraphRepository.ensureEntityTypeIndexes(entityType);
-                      neo4jGraphRepository.mergeEntityNode(tenant, id, label, entityType);
+                      neo4jGraphRepository.mergeEntityNode(tenant, id, resolvedLabel, entityType);
+                      if (node.get("properties") instanceof Map<?, ?> propMap
+                          && !propMap.isEmpty()) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> castProps = (Map<String, Object>) propMap;
+                        neo4jGraphRepository.mergeEntityProperties(tenant, id, castProps);
+                      }
                       count++;
                     }
                   }
@@ -92,13 +100,37 @@ public class DecomposedGraphSyncService {
                 () -> {
                   int count = 0;
                   for (Map<String, Object> edge : batch) {
-                    String source = String.valueOf(edge.getOrDefault("source", ""));
-                    String target = String.valueOf(edge.getOrDefault("target", ""));
+                    String source =
+                        Neo4jGraphRepository.normalizeEntityId(
+                            firstNonBlank(
+                                edge.get("source"),
+                                edge.get("source_entity_id"),
+                                edge.get("sourceId"),
+                                edge.get("from")));
+                    String target =
+                        Neo4jGraphRepository.normalizeEntityId(
+                            firstNonBlank(
+                                edge.get("target"),
+                                edge.get("target_entity_id"),
+                                edge.get("targetId"),
+                                edge.get("to")));
                     String relType =
-                        String.valueOf(edge.getOrDefault("relationshipType", "RELATED_TO"));
-                    String direction = String.valueOf(edge.getOrDefault("direction", "OUTGOING"));
+                        firstNonBlank(
+                            edge.get("relationshipType"),
+                            edge.get("relationship_type"),
+                            edge.get("type"));
+                    if (relType == null) {
+                      relType = "RELATED_TO";
+                    }
+                    String direction = firstNonBlank(edge.get("direction"));
+                    if (direction == null) {
+                      direction = "OUTGOING";
+                    }
 
-                    if (!source.isBlank() && !target.isBlank()) {
+                    if (source != null
+                        && !source.isBlank()
+                        && target != null
+                        && !target.isBlank()) {
                       boolean merged =
                           neo4jGraphRepository.mergeRelationship(
                               tenant, source, target, relType, direction);
@@ -117,6 +149,8 @@ public class DecomposedGraphSyncService {
     result.put("tenantId", tenant);
     result.put("nodesSynced", nodesSynced);
     result.put("edgesSynced", edgesSynced);
+    result.put("nodesCreated", nodesSynced);
+    result.put("relationshipsCreated", edgesSynced);
     result.put("status", "COMPLETED");
     return result;
   }
@@ -129,7 +163,8 @@ public class DecomposedGraphSyncService {
           "error", "Data Engine client is offline or not configured");
     }
 
-    Map<String, Object> engineRes = dataEngineClient.decomposeGraph(payload);
+    Map<String, Object> normalizedPayload = normalizeDecomposeRequest(payload);
+    Map<String, Object> engineRes = dataEngineClient.decomposeGraph(normalizedPayload);
     if (engineRes == null || engineRes.containsKey("error")) {
       return engineRes != null
           ? engineRes
@@ -147,7 +182,89 @@ public class DecomposedGraphSyncService {
 
     Map<String, Object> combined = new LinkedHashMap<>(engineRes);
     combined.put("neo4jSync", syncResult);
+    combined.put("nodesCreated", syncResult.get("nodesSynced"));
+    combined.put("relationshipsCreated", syncResult.get("edgesSynced"));
+    combined.put("status", "COMPLETED");
     return combined;
+  }
+
+  private Map<String, Object> normalizeDecomposeRequest(Map<String, Object> payload) {
+    if (payload == null) {
+      return Map.of();
+    }
+    Map<String, Object> req = new LinkedHashMap<>(payload);
+    if (payload.containsKey("primaryEntityType") && !payload.containsKey("primary_entity_type")) {
+      req.put("primary_entity_type", payload.get("primaryEntityType"));
+    }
+    if (payload.containsKey("primaryIdColumn") && !payload.containsKey("primary_id_column")) {
+      req.put("primary_id_column", payload.get("primaryIdColumn"));
+    }
+    if (payload.get("rules") instanceof List<?> rawRules) {
+      List<Map<String, Object>> normalizedRules = new ArrayList<>(rawRules.size());
+      for (Object item : rawRules) {
+        if (!(item instanceof Map<?, ?> m)) continue;
+        Map<String, Object> rule = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : m.entrySet()) {
+          if (entry.getKey() != null) {
+            rule.put(String.valueOf(entry.getKey()), entry.getValue());
+          }
+        }
+        putIfAbsent(rule, "target_entity_type", m.get("targetEntityType"));
+        putIfAbsent(rule, "relationship_type", m.get("relationshipType"));
+        putIfAbsent(rule, "id_column", m.get("idColumn"));
+        putIfAbsent(rule, "name_column", m.get("nameColumn"));
+        putIfAbsent(rule, "attribute_columns", m.get("attributeColumns"));
+        normalizedRules.add(rule);
+      }
+      req.put("rules", normalizedRules);
+    }
+    return req;
+  }
+
+  private static void putIfAbsent(Map<String, Object> map, String key, Object value) {
+    if (value != null && !map.containsKey(key)) {
+      map.put(key, value);
+    }
+  }
+
+  private String resolveEntityType(Map<String, Object> node) {
+    String entityType = firstNonBlank(node.get("entityType"), node.get("entity_type"));
+    return entityType != null ? entityType : "Entity";
+  }
+
+  private String resolveNodeLabel(Map<String, Object> node) {
+    String direct =
+        firstNonBlank(
+            node.get("label"),
+            node.get("canonicalName"),
+            node.get("canonical_name"),
+            node.get("name"));
+    if (direct != null) {
+      return direct;
+    }
+    if (node.get("properties") instanceof Map<?, ?> propMap) {
+      return firstNonBlank(
+          propMap.get("canonical_name"),
+          propMap.get("canonicalName"),
+          propMap.get("name"),
+          propMap.get("title"),
+          propMap.get("code"),
+          propMap.get("id"));
+    }
+    return null;
+  }
+
+  private static String firstNonBlank(Object... values) {
+    if (values == null) return null;
+    for (Object val : values) {
+      if (val != null) {
+        String s = String.valueOf(val).trim();
+        if (!s.isEmpty() && !"null".equalsIgnoreCase(s)) {
+          return s;
+        }
+      }
+    }
+    return null;
   }
 
   public String generateDeterministicId(String tenant, String entityType, String key) {

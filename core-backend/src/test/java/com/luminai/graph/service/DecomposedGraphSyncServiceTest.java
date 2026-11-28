@@ -124,4 +124,91 @@ class DecomposedGraphSyncServiceTest {
     assertEquals(id1, id2);
     assertNotEquals(id1, diffId);
   }
+
+  @Test
+  @DisplayName(
+      "syncNodesAndEdges accepts Data Engine snake_case nodes and edges and preserves properties")
+  void testSyncNodesAndEdgesSnakeCaseContract() {
+    List<Map<String, Object>> nodes =
+        List.of(
+            Map.of(
+                "id",
+                "pat-1",
+                "entity_type",
+                "Patient",
+                "properties",
+                Map.of("name", "Ama Mensah", "age", 34)),
+            Map.of(
+                "id",
+                "doc-9",
+                "entity_type",
+                "Physician",
+                "properties",
+                Map.of("name", "Dr. Kwame")));
+
+    List<Map<String, Object>> edges =
+        List.of(
+            Map.of(
+                "source_entity_id",
+                "pat-1",
+                "target_entity_id",
+                "doc-9",
+                "relationship_type",
+                "TREATED_BY"));
+
+    when(neo4jGraphRepository.mergeRelationship(
+            "test_tenant", "pat-1", "doc-9", "TREATED_BY", "OUTGOING"))
+        .thenReturn(true);
+
+    Map<String, Object> result = syncService.syncNodesAndEdges("test_tenant", nodes, edges);
+
+    assertEquals(2, result.get("nodesSynced"));
+    assertEquals(1, result.get("edgesSynced"));
+    assertEquals(2, result.get("nodesCreated"));
+    assertEquals(1, result.get("relationshipsCreated"));
+    verify(neo4jGraphRepository).mergeEntityNode("test_tenant", "pat-1", "Ama Mensah", "Patient");
+    verify(neo4jGraphRepository)
+        .mergeEntityProperties("test_tenant", "pat-1", Map.of("name", "Ama Mensah", "age", 34));
+    verify(neo4jGraphRepository)
+        .mergeRelationship("test_tenant", "pat-1", "doc-9", "TREATED_BY", "OUTGOING");
+  }
+
+  @Test
+  @DisplayName("decomposeAndSync translates camelCase request keys to Data Engine snake_case")
+  void testDecomposeAndSyncNormalizesCamelCaseRequest() {
+    Map<String, Object> payload =
+        Map.of(
+            "records",
+            List.of(Map.of("order_id", "ORD-1", "customer_id", "CUST-1")),
+            "primaryEntityType",
+            "Order",
+            "primaryIdColumn",
+            "order_id",
+            "rules",
+            List.of(
+                Map.of(
+                    "targetEntityType",
+                    "Customer",
+                    "relationshipType",
+                    "PLACED_BY",
+                    "idColumn",
+                    "customer_id")));
+
+    when(dataEngineClient.decomposeGraph(any()))
+        .thenReturn(Map.of("nodes", List.of(), "edges", List.of()));
+
+    syncService.decomposeAndSync("test_tenant", payload);
+
+    org.mockito.ArgumentCaptor<Map<String, Object>> captor =
+        org.mockito.ArgumentCaptor.forClass(Map.class);
+    verify(dataEngineClient).decomposeGraph(captor.capture());
+    Map<String, Object> sent = captor.getValue();
+    assertEquals("Order", sent.get("primary_entity_type"));
+    assertEquals("order_id", sent.get("primary_id_column"));
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> sentRules = (List<Map<String, Object>>) sent.get("rules");
+    assertEquals("Customer", sentRules.get(0).get("target_entity_type"));
+    assertEquals("PLACED_BY", sentRules.get(0).get("relationship_type"));
+    assertEquals("customer_id", sentRules.get(0).get("id_column"));
+  }
 }

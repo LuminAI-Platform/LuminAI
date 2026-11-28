@@ -15,6 +15,7 @@ from app.db.tenant import (
     resolve_table_schema,
     resolve_tenant_pg_context,
     set_pg_search_path,
+    to_uuid_str,
 )
 from app.processing.reconciliation.hashing import (
     compute_record_hash,
@@ -186,15 +187,18 @@ class CrossStoreReconciler:
             auth = (username, password)
             records: List[StoreEntityRecord] = []
 
+            tenant_ids = sorted(
+                {self.tenant_id, to_uuid_str(self.tenant_id)}
+            )
             with neo4j.GraphDatabase.driver(uri, auth=auth) as driver:
                 with driver.session() as session:
                     cypher_query = """
                     MATCH (n:Entity)
-                    WHERE (n.tenant_id = $tenantId OR n.tenantId = $tenantId)
+                    WHERE (n.tenant_id IN $tenantIds OR n.tenantId IN $tenantIds)
                     RETURN coalesce(n.id, n.goldenId) AS goldenId, properties(n) AS props
                     ORDER BY goldenId ASC
                     """
-                    result = session.run(cypher_query, tenantId=self.tenant_id)
+                    result = session.run(cypher_query, tenantIds=tenant_ids)
                     for record in result:
                         gid = str(record["goldenId"])
                         props = dict(record["props"])
@@ -228,7 +232,10 @@ class CrossStoreReconciler:
         try:
             import httpx
 
-            url = f"http://localhost:9200/{self.tenant_id}-entities/_search"
+            base_url = getattr(
+                self.settings, "opensearch_url", "http://localhost:9200"
+            ).rstrip("/")
+            url = f"{base_url}/{self.tenant_id}-entities/_search"
             payload = {
                 "query": {"match_all": {}},
                 "size": 10000,

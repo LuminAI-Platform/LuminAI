@@ -34,35 +34,7 @@ def execute_generate_relational_edges(
 
     effective_records = records
     if effective_records is None:
-        try:
-            from app.db.models import StagingRecord
-            from app.db.session import get_session_factory
-
-            session_factory = get_session_factory()
-            with session_factory() as session:
-                db_records = (
-                    session.query(StagingRecord)
-                    .filter_by(tenant_id=tenant_id)
-                    .limit(500)
-                    .all()
-                )
-                effective_records = []
-                for r in db_records:
-                    try:
-                        payload = (
-                            json.loads(r.data)
-                            if isinstance(r.data, str)
-                            else dict(r.data)
-                        )
-                        payload.setdefault("id", r.id)
-                        effective_records.append(payload)
-                    except Exception:
-                        continue
-        except Exception as e:
-            logger.warning(
-                "Could not auto-fetch staged records for edge generation: %s", e
-            )
-            effective_records = []
+        effective_records = _load_staged_records_for_edges(tenant_id)
 
     edges = _gen_edges(
         records=effective_records,
@@ -88,3 +60,87 @@ def execute_generate_relational_edges(
             logger.warning("Failed to publish relational edges to Kafka: %s", e)
 
     return edges
+
+
+def _load_staged_records_for_edges(tenant_id: str) -> list[dict[str, Any]]:
+    """Fetch staged records across tenant-isolated PostgreSQL schemas with SQLite fallback."""
+    loaded: list[dict[str, Any]] = []
+    try:
+        from sqlalchemy import text
+        from app.db.session import get_engine
+        from app.db.tenant import (
+            is_postgres_conn,
+            reset_pg_search_path,
+            resolve_table_schema,
+            resolve_tenant_pg_context,
+            set_pg_search_path,
+        )
+
+        engine = get_engine()
+        with engine.connect() as conn:
+            if is_postgres_conn(conn):
+                ctx = resolve_tenant_pg_context(conn, tenant_id)
+                found_schema, _ = resolve_table_schema(
+                    conn,
+                    "staging_records",
+                    preferred_schemas=[ctx["schema_name"], "tenant_default", "public"],
+                )
+                set_pg_search_path(conn, found_schema or ctx["schema_name"])
+                try:
+                    rows = conn.execute(
+                        text(
+                            "SELECT id, data FROM staging_records "
+                            "WHERE tenant_id::text IN (:t_raw, :t_slug, :t_uuid) "
+                            "ORDER BY staged_at DESC LIMIT 500"
+                        ),
+                        {
+                            "t_raw": ctx["tenant_raw"],
+                            "t_slug": ctx["tenant_slug"],
+                            "t_uuid": ctx["tenant_uuid"],
+                        },
+                    ).fetchall()
+                    for row in rows:
+                        try:
+                            payload = (
+                                json.loads(row.data)
+                                if isinstance(row.data, str)
+                                else dict(row.data)
+                            )
+                            payload.setdefault("id", row.id)
+                            loaded.append(payload)
+                        except Exception:
+                            continue
+                    return loaded
+                finally:
+                    reset_pg_search_path(conn)
+    except Exception as pg_exc:
+        logger.debug("PostgreSQL staged-record fetch skipped (%s)", pg_exc)
+
+    try:
+        from app.db.models import StagingRecord
+        from app.db.session import get_session_factory
+
+        session_factory = get_session_factory()
+        with session_factory() as session:
+            db_records = (
+                session.query(StagingRecord)
+                .filter_by(tenant_id=tenant_id)
+                .limit(500)
+                .all()
+            )
+            for r in db_records:
+                try:
+                    payload = (
+                        json.loads(r.data)
+                        if isinstance(r.data, str)
+                        else dict(r.data)
+                    )
+                    payload.setdefault("id", r.id)
+                    loaded.append(payload)
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.warning(
+            "Could not auto-fetch staged records for edge generation: %s", e
+        )
+    return loaded
