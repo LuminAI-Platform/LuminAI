@@ -7,10 +7,16 @@ import type {
   SavedQuery,
   SqlQueryResult,
   CleaningRecipePayload,
+  CleaningPreviewPayload,
   CleaningExecutionResult,
   PipelineExecutionPayload,
   PipelineExecutionResult,
   EdaReportResult,
+  CreateDatasetPayload,
+  DatasetPreviewResult,
+  DataQualityRule,
+  CreateQualityRulePayload,
+  QualityRuleEvaluationSummary,
 } from "./types";
 
 export {
@@ -21,9 +27,57 @@ export {
   listExperiments,
 } from "../ml/mlApi";
 
-function normalizeDataset(raw: Record<string, unknown>): Dataset {
+export function normalizeSchemaMetadata(
+  rawSchema: unknown,
+): Record<string, string> {
+  if (!rawSchema) return {};
+  let parsed: unknown = rawSchema;
+  if (typeof rawSchema === "string") {
+    try {
+      parsed = JSON.parse(rawSchema);
+    } catch {
+      return {};
+    }
+  }
+  if (Array.isArray(parsed)) {
+    const map: Record<string, string> = {};
+    for (const item of parsed) {
+      if (typeof item === "string" && item.trim()) {
+        map[item.trim()] = "string";
+      }
+    }
+    return map;
+  }
+  if (typeof parsed === "object" && parsed !== null) {
+    const map: Record<string, string> = {};
+    for (const [key, value] of Object.entries(
+      parsed as Record<string, unknown>,
+    )) {
+      map[key] = typeof value === "string" ? value : String(value ?? "string");
+    }
+    return map;
+  }
+  return {};
+}
+
+export function normalizeDataset(raw: Record<string, unknown>): Dataset {
   const ds = raw as unknown as Dataset;
   const normalized: Dataset = { ...ds };
+  if (raw.schemaMetadata !== undefined) {
+    normalized.schemaMetadata = normalizeSchemaMetadata(raw.schemaMetadata);
+  }
+
+  if (typeof raw.profilingSummary === "string") {
+    try {
+      normalized.profilingSummary = JSON.parse(raw.profilingSummary) as Record<
+        string,
+        unknown
+      >;
+    } catch {
+      normalized.profilingSummary = {};
+    }
+  }
+
   if (typeof ds.sizeBytes !== "number" && typeof ds.byteSize === "number") {
     normalized.sizeBytes = ds.byteSize;
   }
@@ -65,6 +119,118 @@ export async function fetchDatasetById(id: string): Promise<Dataset> {
     throw new Error(`Failed to load dataset ${id}: ${res.statusText}`);
   }
   return normalizeDataset(await res.json());
+}
+
+export async function createDataset(
+  payload: CreateDatasetPayload,
+): Promise<Dataset> {
+  const res = await apiFetch("/api/v1/datasets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      err.detail || err.message || `Failed to create dataset (${res.status})`,
+    );
+  }
+  return normalizeDataset(await res.json());
+}
+
+export async function fetchDatasetPreview(
+  id: string,
+  limit = 100,
+): Promise<DatasetPreviewResult> {
+  const res = await apiFetch(
+    `/api/v1/datasets/${id}/preview?limit=${encodeURIComponent(String(limit))}`,
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      err.detail || err.message || `Failed to preview dataset (${res.status})`,
+    );
+  }
+  return res.json();
+}
+
+export async function commitDatasetVersion(
+  id: string,
+  payload: {
+    commitMessage: string;
+    rowCount?: number;
+    storageLocation?: string;
+    schemaSnapshot?: string;
+    profilingSummary?: string;
+  },
+): Promise<DatasetVersion> {
+  const res = await apiFetch(`/api/v1/datasets/${id}/versions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      err.detail ||
+        err.message ||
+        `Failed to commit dataset version (${res.status})`,
+    );
+  }
+  return res.json();
+}
+
+export async function fetchQualityRules(
+  datasetId: string,
+): Promise<DataQualityRule[]> {
+  const res = await apiFetch(`/api/v1/datasets/${datasetId}/rules`);
+  if (!res.ok) {
+    throw new Error(`Failed to load quality rules for dataset ${datasetId}`);
+  }
+  return res.json();
+}
+
+export async function createQualityRule(
+  datasetId: string,
+  payload: CreateQualityRulePayload,
+): Promise<DataQualityRule> {
+  const res = await apiFetch(`/api/v1/datasets/${datasetId}/rules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || err.message || "Failed to create rule");
+  }
+  return res.json();
+}
+
+export async function deleteQualityRule(
+  datasetId: string,
+  ruleId: string,
+): Promise<void> {
+  const res = await apiFetch(`/api/v1/datasets/${datasetId}/rules/${ruleId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to delete quality rule (${res.status})`);
+  }
+}
+
+export async function evaluateQualityRules(
+  datasetId: string,
+): Promise<QualityRuleEvaluationSummary> {
+  const res = await apiFetch(`/api/v1/datasets/${datasetId}/rules/evaluate`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      err.detail || err.message || "Failed to evaluate quality rules",
+    );
+  }
+  return res.json();
 }
 
 export async function transitionDatasetLayer(
@@ -128,7 +294,7 @@ export async function generateEdaReport(
 }
 
 export async function previewCleaningRecipe(
-  payload: CleaningRecipePayload,
+  payload: CleaningRecipePayload | CleaningPreviewPayload,
 ): Promise<Record<string, unknown>> {
   const res = await apiFetch("/api/v1/datasets/cleaning/preview", {
     method: "POST",
@@ -137,7 +303,9 @@ export async function previewCleaningRecipe(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.detail || "Cleaning preview failed");
+    throw new Error(
+      err.message || err.detail || err.error || "Cleaning preview failed",
+    );
   }
   return res.json();
 }
@@ -152,7 +320,9 @@ export async function executeCleaningRecipe(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.detail || "Cleaning execution failed");
+    throw new Error(
+      err.message || err.detail || err.error || "Cleaning execution failed",
+    );
   }
   return res.json();
 }
@@ -167,7 +337,9 @@ export async function executeDatasetPipeline(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.detail || "Pipeline execution failed");
+    throw new Error(
+      err.message || err.detail || err.error || "Pipeline execution failed",
+    );
   }
   return res.json();
 }
@@ -193,6 +365,9 @@ export async function runSqlQuery(payload: {
     );
   }
   const raw = await res.json();
+  if (typeof raw.status === "string" && raw.status.startsWith("ERROR")) {
+    throw new Error(raw.status.replace(/^ERROR:\s*/i, "").trim() || raw.status);
+  }
   const rows = Array.isArray(raw.rows) ? raw.rows : [];
   return {
     ...raw,
@@ -213,6 +388,7 @@ export async function fetchSavedQueries(): Promise<SavedQuery[]> {
 export async function createSavedQuery(payload: {
   name: string;
   sqlText: string;
+  datasetId?: string;
   description?: string;
   chartConfig?: Record<string, unknown>;
 }): Promise<SavedQuery> {

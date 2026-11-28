@@ -131,9 +131,9 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
         minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectKey).build())) {
 
       if (objectKey.toLowerCase().endsWith(".json")) {
-        return parseJsonPreview(stream);
+        return parseJsonPreview(stream, MAX_ROWS);
       } else {
-        return parseCsvPreview(stream);
+        return parseCsvPreview(stream, MAX_ROWS);
       }
 
     } catch (Exception e) {
@@ -144,6 +144,54 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
           e.getMessage());
       return List.of();
     }
+  }
+
+  @Override
+  public List<Map<String, Object>> previewStorageObject(
+      UUID tenantId, String objectKey, int maxRows) {
+    if (tenantId == null || objectKey == null || objectKey.isBlank()) {
+      return List.of();
+    }
+    String normalizedKey = normalizeStorageKey(objectKey);
+    String expectedPrefix = tenantId.toString() + "/";
+    if (!isSafeTenantKey(normalizedKey, expectedPrefix)) {
+      log.warn(
+          "Rejected unsafe or cross-tenant storage preview key '{}' for tenant '{}'",
+          objectKey,
+          tenantId);
+      return List.of();
+    }
+    int capped = maxRows > 0 ? Math.min(maxRows, MAX_ROWS) : MAX_ROWS;
+    String lower = normalizedKey.toLowerCase();
+    if (lower.endsWith(".parquet") || lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
+      // Binary formats are decoded via Data Engine Polars loader rather than Java line streaming.
+      return List.of();
+    }
+    try (InputStream stream =
+        minioClient.getObject(
+            GetObjectArgs.builder().bucket(bucket).object(normalizedKey).build())) {
+      if (lower.endsWith(".json") || lower.endsWith(".ndjson")) {
+        return parseJsonPreview(stream, capped);
+      }
+      return parseCsvPreview(stream, capped);
+    } catch (Exception e) {
+      log.warn(
+          "Could not stream storage object preview '{}' for tenant '{}': {}",
+          normalizedKey,
+          tenantId,
+          e.getMessage());
+      return List.of();
+    }
+  }
+
+  private String normalizeStorageKey(String rawKey) {
+    String key = rawKey.trim();
+    for (String scheme : List.of("s3://" + bucket + "/", "minio://" + bucket + "/", bucket + "/")) {
+      if (key.startsWith(scheme)) {
+        return key.substring(scheme.length());
+      }
+    }
+    return key;
   }
 
   @Override
@@ -245,8 +293,8 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
     return key.startsWith(expectedPrefix);
   }
 
-  private List<Map<String, Object>> parseCsvPreview(InputStream inputStream) {
-    List<Map<String, Object>> rows = new ArrayList<>(MAX_ROWS);
+  private List<Map<String, Object>> parseCsvPreview(InputStream inputStream, int maxRows) {
+    List<Map<String, Object>> rows = new ArrayList<>(Math.min(maxRows, MAX_ROWS));
     try (BufferedReader reader =
         new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
 
@@ -263,7 +311,7 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
 
       String line;
       int count = 0;
-      while ((line = reader.readLine()) != null && count < MAX_ROWS) {
+      while ((line = reader.readLine()) != null && count < maxRows) {
         if (line.isBlank()) continue;
         List<String> values = com.luminai.connection.util.ConnectionFileParser.parseCsvLine(line);
         Map<String, Object> row = new LinkedHashMap<>();
@@ -280,15 +328,15 @@ public class ConnectionPreviewServiceImpl implements ConnectionPreviewService {
     return rows;
   }
 
-  private List<Map<String, Object>> parseJsonPreview(InputStream inputStream) {
-    List<Map<String, Object>> rows = new ArrayList<>(MAX_ROWS);
+  private List<Map<String, Object>> parseJsonPreview(InputStream inputStream, int maxRows) {
+    List<Map<String, Object>> rows = new ArrayList<>(Math.min(maxRows, MAX_ROWS));
     try (com.fasterxml.jackson.core.JsonParser parser =
         objectMapper.getFactory().createParser(inputStream)) {
       com.fasterxml.jackson.core.JsonToken firstToken = parser.nextToken();
       if (firstToken == com.fasterxml.jackson.core.JsonToken.START_ARRAY) {
         while (parser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY
             && parser.currentToken() != null
-            && rows.size() < MAX_ROWS) {
+            && rows.size() < maxRows) {
           if (parser.currentToken() == com.fasterxml.jackson.core.JsonToken.START_OBJECT) {
             @SuppressWarnings("unchecked")
             Map<String, Object> map = objectMapper.readValue(parser, Map.class);

@@ -83,6 +83,7 @@ export interface SavedQuery {
   name: string;
   description?: string;
   sqlText: string;
+  datasetId?: string;
   chartConfig?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -101,47 +102,153 @@ export interface SqlQueryResult {
   totalCount: number;
   executionTimeMs: number;
   query: string;
+  status?: string;
+}
+
+export interface CreateDatasetPayload {
+  name: string;
+  displayName?: string;
+  description?: string;
+  layer?: DatasetLayer;
+  projectType?: ProjectType;
+  sourceConnectionId?: string;
+  schemaMetadata?: string;
+  storageLocation?: string;
+  rowCount?: number;
+  byteSize?: number;
+}
+
+export interface DatasetPreviewColumn {
+  name: string;
+  type: string;
+}
+
+export interface DatasetPreviewResult {
+  datasetId: string;
+  datasetName: string;
+  columns: DatasetPreviewColumn[];
+  rows: Record<string, unknown>[];
+  totalRows: number;
+  previewCount: number;
+}
+
+export interface DataQualityRule {
+  id: string;
+  datasetId: string;
+  ruleName: string;
+  dimension: string;
+  columnName?: string | null;
+  ruleType: string;
+  parameters: Record<string, unknown>;
+  severity: string;
+  status: string;
+  lastRunAt?: string | null;
+  lastStatus?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateQualityRulePayload {
+  ruleName: string;
+  dimension: string;
+  columnName?: string;
+  ruleType: string;
+  parameters?: Record<string, unknown>;
+  severity?: string;
+}
+
+export interface RuleEvaluationResult {
+  ruleId: string;
+  ruleName: string;
+  dimension: string;
+  columnName?: string | null;
+  ruleType: string;
+  status: string;
+  totalEvaluated: number;
+  failedCount: number;
+  passRate: number;
+  sampleFailures: string[];
+}
+
+export interface QualityRuleEvaluationSummary {
+  datasetId: string;
+  totalRules: number;
+  passedRules: number;
+  failedRules: number;
+  evaluatedAt: string;
+  results: RuleEvaluationResult[];
 }
 
 export interface CleaningStepConfig {
   operation: string;
   targetColumns: string[];
+  column?: string;
+  columns?: string[];
   parameters?: Record<string, unknown>;
+  description?: string;
 }
 
 export interface CleaningRecipePayload {
-  datasetId: string;
+  sourceDatasetId?: string;
+  datasetId?: string;
+  datasetName?: string;
   recipeName?: string;
   steps: CleaningStepConfig[];
   targetLayer?: DatasetLayer;
+  records?: Record<string, unknown>[];
+}
+
+export interface CleaningPreviewPayload {
+  sourceDatasetId?: string;
+  datasetId?: string;
+  step: CleaningStepConfig;
+  records?: Record<string, unknown>[];
+  preview_limit?: number;
 }
 
 export interface CleaningExecutionResult {
-  status: string;
-  datasetId: string;
-  datasetName: string;
-  layer: DatasetLayer;
-  version: number;
-  rowsProcessed: number;
-  stepsApplied: number;
+  status?: string;
+  datasetId?: string;
+  dataset_id?: string;
+  datasetName?: string;
+  dataset_name?: string;
+  layer?: DatasetLayer;
+  version?: number;
+  rowsProcessed?: number;
+  total_input_rows?: number;
+  total_output_rows?: number;
+  stepsApplied?: number;
+  audit_log?: Array<Record<string, unknown>>;
+  rows?: Array<Record<string, unknown>>;
 }
 
 export interface PipelineExecutionPayload {
   pipelineId?: string;
+  primaryDatasetId?: string;
   sourceDatasetId: string;
+  datasetName?: string;
+  secondaryDatasetIds?: Record<string, string>;
   steps: Array<{
     stepId: string;
     stepType: string;
+    parameters?: Record<string, unknown>;
     config?: Record<string, unknown>;
+    description?: string;
   }>;
 }
 
 export interface PipelineExecutionResult {
-  pipelineRunId: string;
-  status: string;
-  sourceDatasetId: string;
+  pipelineRunId?: string;
+  run_id?: string;
+  status?: string;
+  sourceDatasetId?: string;
   targetDatasetId?: string;
+  datasetId?: string;
+  dataset_id?: string;
+  curated_dataset_name?: string;
+  total_output_rows?: number;
   recordsTransformed?: number;
+  rows?: Array<Record<string, unknown>>;
 }
 
 export interface EdaReportResult {

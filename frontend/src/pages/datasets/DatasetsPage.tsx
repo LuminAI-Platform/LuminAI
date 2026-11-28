@@ -1,11 +1,15 @@
 import React, { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Search, RefreshCw, Plus, ICON_MAP, ICON_SIZES } from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
-import { fetchDatasets } from "../../features/datasets/datasetApi";
-import type { Dataset } from "../../features/datasets/types";
+import { Dialog } from "../../components/ui/Dialog";
+import {
+  createDataset,
+  fetchDatasets,
+} from "../../features/datasets/datasetApi";
+import type { Dataset, DatasetLayer } from "../../features/datasets/types";
 import { DatasetKpiSummary } from "./components/DatasetKpiSummary";
 import { DatasetCatalogTable } from "./components/DatasetCatalogTable";
 
@@ -22,6 +26,12 @@ const TIER_FILTERS = [
 export const DatasetsPage: React.FC = () => {
   const [selectedLayer, setSelectedLayer] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDisplayName, setNewDisplayName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newLayer, setNewLayer] = useState<DatasetLayer>("RAW");
+  const [newStorageLocation, setNewStorageLocation] = useState("");
 
   const {
     data: datasets = [],
@@ -35,6 +45,31 @@ export const DatasetsPage: React.FC = () => {
         layer: selectedLayer === "ALL" ? undefined : selectedLayer,
         search: searchTerm || undefined,
       }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createDataset({
+        name: newName.trim(),
+        displayName: newDisplayName.trim() || newName.trim(),
+        description: newDescription.trim() || undefined,
+        layer: newLayer,
+        projectType:
+          newLayer === "RAW"
+            ? "SOURCE"
+            : newLayer === "WORKING"
+              ? "PREPARATION"
+              : "TRANSFORMATION",
+        storageLocation: newStorageLocation.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDisplayName("");
+      setNewDescription("");
+      setNewStorageLocation("");
+      void refetch();
+    },
   });
 
   return (
@@ -64,6 +99,14 @@ export const DatasetsPage: React.FC = () => {
               }
             >
               Refresh
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
+            >
+              Register Dataset
             </Button>
             <Link to="/connections">
               <Button
@@ -116,6 +159,118 @@ export const DatasetsPage: React.FC = () => {
           selectedLayer={selectedLayer}
         />
       </div>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          if (!open && !createMutation.isPending) setCreateOpen(false);
+        }}
+        variant="form"
+        title="Register Catalog Dataset"
+        description="Register a governed dataset entry manually in the catalog."
+        preventClose={createMutation.isPending}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={createMutation.isPending}
+              onClick={() => setCreateOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="create-dataset-form"
+              variant="primary"
+              size="sm"
+              disabled={!newName.trim() || createMutation.isPending}
+              isLoading={createMutation.isPending}
+            >
+              Create Dataset
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="create-dataset-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (newName.trim()) createMutation.mutate();
+          }}
+          className="flex flex-col gap-3"
+        >
+          {createMutation.isError && (
+            <div className="p-2.5 rounded-lg border border-error/30 bg-error/10 text-error text-xs">
+              {(createMutation.error as Error)?.message ||
+                "Failed to register dataset"}
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-text">
+              Technical Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. customer_orders_curated"
+              className="bg-surface-subtle border border-border rounded-lg px-3 py-1.5 text-xs font-mono text-text"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-text">
+              Display Name
+            </label>
+            <input
+              type="text"
+              value={newDisplayName}
+              onChange={(e) => setNewDisplayName(e.target.value)}
+              placeholder="Customer Orders Curated"
+              className="bg-surface-subtle border border-border rounded-lg px-3 py-1.5 text-xs text-text"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-text">Tier</label>
+              <select
+                value={newLayer}
+                onChange={(e) => setNewLayer(e.target.value as DatasetLayer)}
+                className="bg-surface-subtle border border-border rounded-lg px-2.5 py-1.5 text-xs text-text"
+              >
+                {TIER_FILTERS.filter((l) => l !== "ALL").map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-text">
+                Storage Key (Optional)
+              </label>
+              <input
+                type="text"
+                value={newStorageLocation}
+                onChange={(e) => setNewStorageLocation(e.target.value)}
+                placeholder="tenant-uuid/raw/file.csv"
+                className="bg-surface-subtle border border-border rounded-lg px-3 py-1.5 text-xs font-mono text-text"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-text">Description</label>
+            <textarea
+              rows={2}
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className="bg-surface-subtle border border-border rounded-lg px-3 py-1.5 text-xs text-text"
+            />
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 };

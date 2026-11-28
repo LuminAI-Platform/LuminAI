@@ -14,4 +14,8 @@ public interface DataQualityRuleRepository extends JpaRepository<DataQualityRule
   List<DataQualityRule> findAllByTenantIdAndDatasetId(UUID tenantId, UUID datasetId);
 
   Optional<DataQualityRule> findByIdAndTenantId(UUID id, UUID tenantId);
+
+  void deleteByIdAndTenantId(UUID id, UUID tenantId);
+
+  void deleteByDatasetIdAndTenantId(UUID datasetId, UUID tenantId);
 }

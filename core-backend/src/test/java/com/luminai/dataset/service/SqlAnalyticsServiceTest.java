@@ -6,11 +6,17 @@ import static org.mockito.Mockito.*;
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.dataset.dto.SqlQueryRequest;
 import com.luminai.dataset.dto.SqlQueryResultDto;
+import com.luminai.dataset.model.Dataset;
+import com.luminai.dataset.repository.DatasetRepository;
 import com.luminai.dataset.repository.SavedQueryRepository;
+import com.luminai.engine.service.DataEngineClient;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -114,5 +120,46 @@ class SqlAnalyticsServiceTest {
         new SqlQueryRequest("SELECT set_config('search_path', 'public', false)", null, 10);
     assertThrows(
         IllegalArgumentException.class, () -> sqlAnalyticsService.executeQuery(setConfigCall));
+  }
+
+  @Test
+  @DisplayName("executeQuery routes dataset-scoped SQL through DuckDB DataEngineClient")
+  void testExecuteQueryRoutesDatasetScopedQueryToDuckDb() {
+    UUID dsId = UUID.randomUUID();
+    DatasetRepository datasetRepo = mock(DatasetRepository.class);
+    DataEngineClient dataEngineClient = mock(DataEngineClient.class);
+    sqlAnalyticsService.setDatasetRepository(datasetRepo);
+    sqlAnalyticsService.setDataEngineClient(dataEngineClient);
+
+    Dataset ds = new Dataset();
+    ds.setId(dsId);
+    ds.setTenantId(tenantId);
+    ds.setName("customers");
+    ds.setStorageLocation(tenantId + "/raw/customers.csv");
+
+    when(datasetRepo.findByIdAndTenantId(dsId, tenantId)).thenReturn(Optional.of(ds));
+    when(dataEngineClient.executeSqlQuery(anyMap()))
+        .thenReturn(
+            Map.of(
+                "columns",
+                List.of(Map.of("name", "country", "data_type", "VARCHAR")),
+                "rows",
+                List.of(Map.of("country", "GH")),
+                "total_count",
+                1,
+                "execution_time_ms",
+                12));
+
+    SqlQueryResultDto result =
+        sqlAnalyticsService.executeQuery(
+            new SqlQueryRequest("SELECT country FROM dataset LIMIT 10", dsId, 100));
+
+    assertEquals("SUCCESS", result.status());
+    assertEquals(1, result.columns().size());
+    assertEquals("country", result.columns().get(0).name());
+    assertEquals("GH", result.rows().get(0).get("country"));
+    verify(dataEngineClient, times(1))
+        .executeSqlQuery(
+            argThat(m -> (tenantId + "/raw/customers.csv").equals(m.get("storage_location"))));
   }
 }

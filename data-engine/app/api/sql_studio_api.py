@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import polars as pl
 from pydantic import BaseModel, Field
 
-from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
+from app.security import AuthIdentity, get_current_identity
 
 router = APIRouter(prefix="/analytics/sql", tags=["sql-studio"])
 
@@ -67,8 +67,12 @@ DISALLOWED_REGEX = re.compile("|".join(DISALLOWED_PATTERNS), re.IGNORECASE)
 
 class SqlQueryRequest(BaseModel):
     query: str = Field(..., description="Read-only SQL query to execute.")
-    tenant_id: str = Field(default="acme", description="Tenant context.")
+    tenant_id: Optional[str] = Field(default=None, description="Tenant context.")
     dataset_id: Optional[str] = Field(default=None, description="Optional dataset ID.")
+    storage_location: Optional[str] = Field(
+        default=None,
+        description="Optional tenant-scoped MinIO object key to bind as the 'dataset' table.",
+    )
     tables: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
         default=None,
         description="Optional dictionary mapping table names to row records.",
@@ -134,7 +138,14 @@ def execute_sql_query(
     identity: AuthIdentity = Depends(get_current_identity),
 ) -> SqlQueryResponse:
     """Executes a validated read-only SQL query against in-memory DuckDB tables."""
-    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
+    from app.api.dataset_input import load_dataframe_from_storage, resolve_tenant_context
+
+    needs_storage = (bool(request.storage_location) or bool(request.dataset_id)) and (
+        not request.tables or "dataset" not in request.tables
+    )
+    effective_tenant = resolve_tenant_context(
+        identity, request.tenant_id, require_tenant=needs_storage
+    )
     try:
         normalized_query = validate_read_only(request.query)
     except ValueError as exc:
@@ -169,20 +180,29 @@ def execute_sql_query(
                     # Register empty table schema
                     conn.execute(f"CREATE TABLE {table_name} AS SELECT 1 AS id WHERE 1=0")
 
-        # If dataset_id is provided and no inline table named "dataset", attempt loading from storage
-        if request.dataset_id and (not request.tables or "dataset" not in request.tables):
-            from app.processing.minio_client import get_minio_client
-            m_client = get_minio_client()
-            ds_key = f"{effective_tenant}/raw/{request.dataset_id}"
-            try:
-                ds_df = m_client.load_dataframe("luminai-raw", ds_key)
+        # Load 'dataset' table from storage_location or legacy {tenant}/raw/{dataset_id} when not supplied inline
+        if (request.storage_location or request.dataset_id) and (
+            not request.tables or "dataset" not in request.tables
+        ):
+            if request.storage_location and request.storage_location.strip():
+                ds_df = load_dataframe_from_storage(
+                    request.storage_location, effective_tenant
+                )
                 conn.register("dataset", ds_df.to_arrow())
-            except Exception as load_exc:
-                if not request.tables:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Failed to load dataset '{request.dataset_id}' for tenant '{effective_tenant}': {load_exc}",
-                    ) from load_exc
+            elif request.dataset_id:
+                from app.processing.minio_client import get_minio_client
+
+                m_client = get_minio_client()
+                ds_key = f"{effective_tenant}/raw/{request.dataset_id}"
+                try:
+                    ds_df = m_client.load_dataframe("luminai-raw", ds_key)
+                    conn.register("dataset", ds_df.to_arrow())
+                except Exception as load_exc:
+                    if not request.tables:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Failed to load dataset '{request.dataset_id}' for tenant '{effective_tenant}': {load_exc}",
+                        ) from load_exc
 
         # Execute query
         rel = conn.sql(normalized_query)

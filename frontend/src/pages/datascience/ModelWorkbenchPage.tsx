@@ -75,15 +75,15 @@ export const ModelWorkbenchPage: React.FC = () => {
       }
 
       let records: Record<string, unknown>[] = [];
-      if (selectedDataset.sourceConnectionId) {
-        try {
-          const cleanRes = await apiFetch(
-            `/api/v1/connections/${selectedDataset.sourceConnectionId}/clean-preview`,
-            { headers: { "X-Suppress-Toast": "true" }, timeoutMs: 120_000 },
-          );
-          const cleanJson = await cleanRes.json();
-          if (Array.isArray(cleanJson?.rows)) records = cleanJson.rows;
-        } catch {
+      try {
+        const previewRes = await apiFetch(
+          `/api/v1/datasets/${selectedDataset.id}/preview?limit=1000`,
+          { headers: { "X-Suppress-Toast": "true" }, timeoutMs: 60_000 },
+        );
+        const previewJson = await previewRes.json();
+        if (Array.isArray(previewJson?.rows)) records = previewJson.rows;
+      } catch {
+        if (selectedDataset.sourceConnectionId) {
           try {
             const rawRes = await apiFetch(
               `/api/v1/connections/${selectedDataset.sourceConnectionId}/preview/file`,

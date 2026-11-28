@@ -390,6 +390,14 @@ public class DataEngineClient {
     return postJson("/analytics/eda/report", payload);
   }
 
+  public Map<String, Object> previewDataset(Map<String, Object> payload) {
+    return postJson("/analytics/datasets/preview", payload);
+  }
+
+  public Map<String, Object> executeSqlQuery(Map<String, Object> payload) {
+    return postJson("/analytics/sql/execute", payload);
+  }
+
   public Map<String, Object> getDistribution(Map<String, Object> payload) {
     return postJson("/analytics/distribution", payload);
   }

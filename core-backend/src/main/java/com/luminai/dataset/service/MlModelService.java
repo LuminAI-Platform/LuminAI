@@ -60,7 +60,10 @@ public class MlModelService {
 
   private String getTenantSlug() {
     String slug = TenantContext.getTenantSlug();
-    return (slug != null && !slug.isBlank()) ? slug : "acme";
+    if (slug != null && !slug.isBlank()) {
+      return slug;
+    }
+    return requireTenantUuid().toString();
   }
 
   @Transactional
@@ -76,12 +79,19 @@ public class MlModelService {
         var datasetOpt = datasetRepository.findByIdAndTenantId(req.datasetId(), tenantId);
         if (datasetOpt.isPresent()) {
           var dataset = datasetOpt.get();
-          if (dataset.getSourceConnectionId() != null) {
-            records = connectionPreviewService.previewFile(dataset.getSourceConnectionId());
+          if (dataset.getStorageLocation() != null && !dataset.getStorageLocation().isBlank()) {
+            records =
+                connectionPreviewService.previewStorageObject(
+                    tenantId, dataset.getStorageLocation(), 1000);
+          }
+          if ((records == null || records.isEmpty()) && dataset.getSourceConnectionId() != null) {
+            String tableCandidate =
+                dataset.getDisplayName() != null ? dataset.getDisplayName() : dataset.getName();
+            records =
+                connectionPreviewService.previewTable(
+                    dataset.getSourceConnectionId(), tableCandidate);
             if (records == null || records.isEmpty()) {
-              records =
-                  connectionPreviewService.previewTable(
-                      dataset.getSourceConnectionId(), dataset.getName());
+              records = connectionPreviewService.previewFile(dataset.getSourceConnectionId());
             }
           }
         }

@@ -7,12 +7,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import polars as pl
 from pydantic import BaseModel, Field
 
+from app.api.dataset_input import (
+    load_dataframe_from_records_or_storage,
+    load_dataframe_from_storage,
+    resolve_tenant_context,
+)
 from app.processing.engine.dataframe_utils import records_to_polars_df
 from app.processing.engine.pipeline_builder import (
     PipelineBuilderEngine,
     TransformationStep,
 )
-from app.security import AuthIdentity, get_current_identity, resolve_effective_tenant
+from app.security import AuthIdentity, get_current_identity
 
 router = APIRouter(prefix="/analytics/pipelines", tags=["pipeline-builder"])
 
@@ -26,13 +31,22 @@ class TransformationStepModel(BaseModel):
 
 class PipelineExecuteRequest(BaseModel):
     pipeline_id: Optional[str] = None
-    tenant_id: str = Field(default="acme")
+    tenant_id: Optional[str] = Field(default=None)
     dataset_name: str = Field(default="curated_dataset")
-    records: List[Dict[str, Any]] = Field(..., description="Primary input dataset records.")
+    storage_location: Optional[str] = Field(
+        default=None, description="Optional tenant-scoped MinIO key when records are omitted."
+    )
+    records: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Primary input dataset records."
+    )
     steps: List[TransformationStepModel] = Field(..., description="Ordered transformation steps.")
     secondary_datasets: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
         default=None,
         description="Optional additional datasets for Joins.",
+    )
+    secondary_storage_locations: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Optional tenant-scoped MinIO keys for secondary datasets used in Joins.",
     )
 
 
@@ -42,19 +56,28 @@ def execute_pipeline(
     identity: AuthIdentity = Depends(get_current_identity),
 ) -> Dict[str, Any]:
     """Applies transformation DAG pipeline and returns curated output dataset with execution report."""
-    effective_tenant = resolve_effective_tenant(identity, request.tenant_id) or request.tenant_id
-    if not request.records:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot execute pipeline on empty dataset.",
-        )
+    needs_storage = bool(request.storage_location and not request.records) or bool(
+        request.secondary_storage_locations
+    )
+    effective_tenant = resolve_tenant_context(
+        identity, request.tenant_id, require_tenant=needs_storage
+    )
+    input_df = load_dataframe_from_records_or_storage(
+        request.records,
+        request.storage_location,
+        effective_tenant,
+        empty_detail="Cannot execute pipeline on empty dataset.",
+    )
 
     try:
-        input_df = records_to_polars_df(request.records)
         sec_dfs: Dict[str, pl.DataFrame] = {}
         if request.secondary_datasets:
             for k, rows in request.secondary_datasets.items():
                 sec_dfs[k] = records_to_polars_df(rows)
+        if request.secondary_storage_locations:
+            for k, obj_key in request.secondary_storage_locations.items():
+                if k not in sec_dfs and obj_key and obj_key.strip():
+                    sec_dfs[k] = load_dataframe_from_storage(obj_key, effective_tenant)
 
         steps = [
             TransformationStep(
