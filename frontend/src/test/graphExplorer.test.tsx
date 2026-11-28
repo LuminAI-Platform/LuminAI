@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -20,6 +21,8 @@ import {
 } from "../pages/graph/components/GraphOverlays";
 import { GraphControls } from "../pages/graph/components/GraphControls";
 import { GraphSearchBar } from "../pages/graph/components/GraphSearchBar";
+import { GraphPathBar } from "../pages/graph/components/GraphPathBar";
+import { NodeDetailPanel } from "../pages/graph/components/NodeDetailPanel";
 import { PageHeader } from "../components/layout/PageHeader";
 import { TooltipProvider } from "../components/ui/Tooltip";
 
@@ -193,5 +196,60 @@ describe("Knowledge Graph Explorer — Search & Toolbar Accessibility", () => {
     expect(html).toContain("Concentric");
     expect(html).toContain("Tree");
     expect(html).toContain("disabled");
+  });
+
+  it("renders Shortest Path bar with path summary and error banner when open", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(GraphPathBar, {
+        isOpen: true,
+        canvasNodes: [
+          { data: { id: "n1", label: "Alice", entityType: "Person" } },
+          { data: { id: "n2", label: "Acme", entityType: "Organization" } },
+        ],
+        isFinding: false,
+        pathResult: {
+          sourceId: "n1",
+          targetId: "n2",
+          nodeCount: 3,
+          edgeCount: 2,
+        },
+        pathError: null,
+        onFindPath: async () => {},
+        onClearPath: () => {},
+        onClose: () => {},
+      }),
+    );
+    expect(html).toContain("Shortest Path");
+    expect(html).toContain("Find Path");
+    expect(html).toContain("3 nodes");
+    expect(html).toContain("2 hops");
+    expect(html).toContain("Exit Path");
+  });
+
+  it("renders NodeDetailPanel with properties, 1-hop expand action, and path starter", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const html = renderToStaticMarkup(
+      React.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        React.createElement(NodeDetailPanel, {
+          node: {
+            id: "gr-123",
+            label: "Alice Smith",
+            entityType: "Person",
+            properties: { role: "Engineer" },
+          },
+          onClose: () => {},
+          onExpand: () => {},
+          onFindPathFrom: () => {},
+        }),
+      ),
+    );
+    expect(html).toContain("Alice Smith");
+    expect(html).toContain("Expand Node (1 Hop)");
+    expect(html).toContain("Find Shortest Path From Here");
+    expect(html).toContain("Engineer");
   });
 });

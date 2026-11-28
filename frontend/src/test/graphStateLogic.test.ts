@@ -3,8 +3,10 @@ import {
   computeGraphBadge,
   deriveGraphViewState,
   filterGraphElements,
+  mergeGraphElements,
   extractGraphErrorInfo,
 } from "../pages/graph/useGraphData";
+import { mapExplorerItemsToSuggestions } from "../pages/graph/graphDataUtils";
 
 describe("Knowledge Graph Explorer — Badge & State Logic", () => {
   it("computes honest badge labels for Ready, Loaded, and Unavailable states", () => {
@@ -160,5 +162,106 @@ describe("Knowledge Graph Explorer — Badge & State Logic", () => {
     const info = extractGraphErrorInfo(new Error("Connection refused"));
     expect(info.statusCode).toBeNull();
     expect(info.message).toBe("Connection refused");
+  });
+
+  it("incrementally merges 1-hop expansion elements without losing existing context or creating duplicates", () => {
+    const current = {
+      nodes: [
+        { data: { id: "gr-1", label: "Alice", entityType: "Person" } },
+        { data: { id: "gr-2", label: "Acme", entityType: "Organization" } },
+      ],
+      edges: [
+        {
+          data: {
+            id: "e-1",
+            source: "gr-1",
+            target: "gr-2",
+            relationshipType: "WORKS_AT",
+          },
+        },
+      ],
+    };
+
+    const incoming = {
+      nodes: [
+        {
+          data: {
+            id: "gr-2",
+            label: "Acme Corp",
+            entityType: "Organization",
+            properties: { industry: "Tech" },
+          },
+        },
+        { data: { id: "gr-3", label: "Bob", entityType: "Person" } },
+      ],
+      edges: [
+        {
+          data: {
+            id: "alt-dup-id",
+            source: "gr-1",
+            target: "gr-2",
+            relationshipType: "WORKS_AT",
+          },
+        },
+        {
+          data: {
+            id: "e-2",
+            source: "gr-2",
+            target: "gr-3",
+            relationshipType: "EMPLOYS",
+          },
+        },
+      ],
+    };
+
+    const merged = mergeGraphElements(current, incoming);
+    expect(merged.nodes.map((n) => n.data.id)).toEqual([
+      "gr-1",
+      "gr-2",
+      "gr-3",
+    ]);
+    expect(merged.nodes[1].data.label).toBe("Acme Corp");
+    expect(merged.nodes[1].data.properties).toEqual({ industry: "Tech" });
+    expect(merged.edges).toHaveLength(2);
+    expect(merged.edges.map((e) => e.data.relationshipType)).toEqual([
+      "WORKS_AT",
+      "EMPLOYS",
+    ]);
+  });
+
+  it("maps explorer items into suggestions using entityLabel property resolution", () => {
+    const result = mapExplorerItemsToSuggestions({
+      items: [
+        {
+          id: "gr-a",
+          canonicalName: "Entity gr-a",
+          entityType: "Person",
+          properties: { full_name: "Dr. Elena Vance" },
+        },
+        {
+          id: "gr-b",
+          canonicalName: "24",
+          entityType: "Invoice",
+          properties: { invoice_number: "INV-9001" },
+        },
+      ],
+      total: 42,
+      facets: { entityType: { Person: 20, Invoice: 22 } },
+    });
+
+    expect(result.total).toBe(42);
+    expect(result.facetTypes).toEqual(["Person", "Invoice"]);
+    expect(result.items).toEqual([
+      {
+        id: "gr-a",
+        canonicalName: "Dr. Elena Vance",
+        entityType: "Person",
+      },
+      {
+        id: "gr-b",
+        canonicalName: "Invoice number: INV-9001",
+        entityType: "Invoice",
+      },
+    ]);
   });
 });

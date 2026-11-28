@@ -39,6 +39,7 @@ export const SchemaMapPage: React.FC = () => {
     activeOntologyKey,
     ontologyProps,
     initialMapperLinks,
+    initialForeignKeys,
     handleSave,
     handleAutoGenerateFromDataset,
     handleSeedDomainTemplate,
@@ -165,6 +166,7 @@ export const SchemaMapPage: React.FC = () => {
             ontologyProperties={ontologyProps}
             availableEntities={Object.keys(dynamicOntologyMap)}
             initialMappings={initialMapperLinks}
+            initialForeignKeys={initialForeignKeys}
             onSave={handleSave}
           />
         )}
@@ -226,7 +228,11 @@ export const SchemaMapPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-[11px] text-zinc-400">
-                  {m.mappings.length} column mappings defined
+                  {m.mappings.length} column mappings
+                  {m.foreignKeys && m.foreignKeys.length > 0
+                    ? ` · ${m.foreignKeys.length} graph links`
+                    : ""}{" "}
+                  defined
                 </div>
               </div>
             ))

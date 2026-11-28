@@ -1,7 +1,13 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Core } from "cytoscape";
 import { apiFetch } from "../../lib/api";
+import {
+  fetchGraphNeighbourhood,
+  fetchShortestPath,
+  backfillKnowledgeGraph,
+  type DecomposedSyncResult,
+} from "../../features/graph/graphApi";
 import type {
   GraphElements,
   GraphNodeData,
@@ -16,15 +22,15 @@ import {
   type GraphBadgeInfo,
   extractGraphErrorInfo,
   filterGraphElements,
+  mergeGraphElements,
   computeGraphBadge,
   deriveGraphViewState,
   getSearchParamEntityId,
+  syncSearchParamEntityId,
+  mapExplorerItemsToSuggestions,
+  normalizeGraphResponse,
 } from "./graphDataUtils";
 import { useGraphViewport } from "./useGraphViewport";
-import {
-  computeEntityTypeLabelFields,
-  resolveEntityLabel,
-} from "../explorer/utils/entityLabel";
 
 export {
   type GraphResponse,
@@ -33,8 +39,10 @@ export {
   type GraphErrorInfo,
   type GraphViewState,
   type GraphBadgeInfo,
+  type DecomposedSyncResult,
   extractGraphErrorInfo,
   filterGraphElements,
+  mergeGraphElements,
   computeGraphBadge,
   deriveGraphViewState,
 };
@@ -55,6 +63,19 @@ export function useGraphData() {
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string | null>(
     null,
   );
+  const [expandedGraph, setExpandedGraph] = useState<{
+    key: string;
+    elements: GraphElements;
+  } | null>(null);
+  const [isExpanding, setIsExpanding] = useState(false);
+  const [pathGraph, setPathGraph] = useState<{
+    sourceId: string;
+    targetId: string;
+    graph: GraphResponse;
+  } | null>(null);
+  const [isFindingPath, setIsFindingPath] = useState(false);
+  const [pathError, setPathError] = useState<string | null>(null);
+  const [isBackfilling, setIsBackfilling] = useState(false);
 
   const cyRef = useRef<Core | null>(null);
 
@@ -70,58 +91,10 @@ export function useGraphData() {
         headers: { "X-Suppress-Toast": "true" },
       });
       const data = await res.json();
-      const rawItems = Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data?.content)
-          ? data.content
-          : Array.isArray(data?.results)
-            ? data.results
-            : [];
-
-      const filteredRaw = rawItems
-        .slice(0, 5)
-        .filter((item: Record<string, unknown>) => Boolean(item?.id));
-
-      const labelable: Array<{
-        id: string;
-        canonicalName: string;
-        entityType: string;
-        properties: Record<string, unknown>;
-      }> = filteredRaw.map((item: Record<string, unknown>) => ({
-        id: String(item.id),
-        canonicalName: String(
-          item.canonicalName || item.label || item.name || "",
-        ),
-        entityType: String(item.entityType || "Entity"),
-        properties:
-          item.properties && typeof item.properties === "object"
-            ? (item.properties as Record<string, unknown>)
-            : {},
-      }));
-      const typeLabelMap = computeEntityTypeLabelFields(labelable);
-
-      const items: SuggestedEntity[] = labelable.map((item) => ({
-        id: item.id,
-        canonicalName: resolveEntityLabel(item, typeLabelMap),
-        entityType: item.entityType,
-      }));
-
-      const total =
-        typeof data?.total === "number"
-          ? data.total
-          : typeof data?.totalResults === "number"
-            ? data.totalResults
-            : items.length;
-
-      const facetTypes =
-        data?.facets?.entityType && typeof data.facets.entityType === "object"
-          ? Object.keys(data.facets.entityType)
-          : data?.facets && typeof data.facets === "object"
-            ? Object.keys(data.facets).filter(
-                (k) => typeof data.facets[k] === "number",
-              )
-            : [];
-
+      const { items, total, facetTypes } = mapExplorerItemsToSuggestions(
+        data,
+        5,
+      );
       return { items, total, entityTypes: facetTypes };
     },
     staleTime: 60000,
@@ -151,35 +124,55 @@ export function useGraphData() {
         headers: { "X-Suppress-Toast": "true" },
       });
       const payload = await res.json();
-      return {
-        nodes: Array.isArray(payload?.nodes) ? payload.nodes : [],
-        edges: Array.isArray(payload?.edges) ? payload.edges : [],
-        centerNodeId: payload?.centerNodeId,
-        totalNodes:
-          typeof payload?.totalNodes === "number"
-            ? payload.totalNodes
-            : Array.isArray(payload?.nodes)
-              ? payload.nodes.length
-              : 0,
-        totalEdges:
-          typeof payload?.totalEdges === "number"
-            ? payload.totalEdges
-            : Array.isArray(payload?.edges)
-              ? payload.edges.length
-              : 0,
-      };
+      return normalizeGraphResponse(payload);
     },
     enabled: true,
     retry: false,
   });
 
-  const graphData: GraphElements = useMemo(
+  const currentQueryKey = `${activeEntityId ?? "__overview__"}::${depth}::${selectedRelFilter ?? ""}`;
+
+  const baseGraphData: GraphElements = useMemo(
     () =>
       apiGraph && Array.isArray(apiGraph.nodes)
         ? { nodes: apiGraph.nodes, edges: apiGraph.edges ?? [] }
         : { nodes: [], edges: [] },
     [apiGraph],
   );
+
+  const graphData: GraphElements = useMemo(() => {
+    if (pathGraph) {
+      return {
+        nodes: pathGraph.graph.nodes ?? [],
+        edges: pathGraph.graph.edges ?? [],
+      };
+    }
+    if (expandedGraph && expandedGraph.key === currentQueryKey) {
+      return expandedGraph.elements;
+    }
+    return baseGraphData;
+  }, [pathGraph, expandedGraph, currentQueryKey, baseGraphData]);
+
+  const latestGraphRef = useRef<GraphElements>(graphData);
+  useEffect(() => {
+    latestGraphRef.current = graphData;
+  }, [graphData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPopState = () => {
+      setSelectedEntityId(getSearchParamEntityId());
+      setSelectedEntityLabel(null);
+      setSelectedNode(null);
+      setSelectedTypeFilter(null);
+      setSelectedRelFilter(null);
+      setExpandedGraph(null);
+      setPathGraph(null);
+      setPathError(null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const filteredElements: GraphElements = useMemo(
     () => filterGraphElements(graphData, selectedTypeFilter, selectedRelFilter),
@@ -203,7 +196,20 @@ export function useGraphData() {
     return Array.from(rels);
   }, [graphData.edges, selectedRelFilter]);
 
-  const activeError = activeEntityId ? graphError : catalogError;
+  const resolvedEntityLabel = useMemo(() => {
+    if (selectedEntityLabel) return selectedEntityLabel;
+    if (!activeEntityId) return null;
+    const stripPrefix = (id: string) =>
+      id.startsWith("gr-") ? id.slice(3) : id;
+    const targetBare = stripPrefix(activeEntityId);
+    const match = graphData.nodes.find(
+      (n) =>
+        n.data.id === activeEntityId || stripPrefix(n.data.id) === targetBare,
+    );
+    return match?.data.label ?? null;
+  }, [selectedEntityLabel, activeEntityId, graphData.nodes]);
+
+  const activeError = activeEntityId ? graphError : graphError || catalogError;
   const errorInfo = useMemo(
     () => (activeError ? extractGraphErrorInfo(activeError) : null),
     [activeError],
@@ -216,7 +222,7 @@ export function useGraphData() {
   const viewState = deriveGraphViewState({
     isLoading,
     hasError: Boolean(activeError),
-    activeEntityId,
+    activeEntityId: pathGraph ? pathGraph.sourceId : activeEntityId,
     catalogTotal: catalogSummary ? catalogSummary.total : null,
     nodeCount: graphData.nodes.length,
     edgeCount: graphData.edges.length,
@@ -224,7 +230,7 @@ export function useGraphData() {
 
   const badge = computeGraphBadge({
     hasError: Boolean(activeError),
-    hasActiveEntity: Boolean(activeEntityId),
+    hasActiveEntity: Boolean(activeEntityId || pathGraph),
     isLoading,
     nodeCount: graphData.nodes.length,
     edgeCount: graphData.edges.length,
@@ -235,29 +241,163 @@ export function useGraphData() {
 
   const selectEntity = useCallback(
     (id: string | null, label?: string | null) => {
-      setSelectedEntityId(id);
+      const normalizedId = id?.trim() || null;
+      setSelectedEntityId(normalizedId);
       setSelectedEntityLabel(label ?? null);
       setSelectedNode(null);
       setSelectedTypeFilter(null);
       setSelectedRelFilter(null);
+      setExpandedGraph(null);
+      setPathGraph(null);
+      setPathError(null);
+      syncSearchParamEntityId(normalizedId);
     },
     [],
   );
 
   const refetch = useCallback(() => {
+    setExpandedGraph(null);
+    setPathGraph(null);
+    setPathError(null);
     if (activeEntityId) {
       return refetchGraph();
     }
-    return refetchCatalog();
+    return Promise.all([refetchGraph(), refetchCatalog()]);
   }, [activeEntityId, refetchGraph, refetchCatalog]);
+
+  const expandNode = useCallback(
+    async (
+      nodeId: string,
+    ): Promise<{ addedNodes: number; addedEdges: number }> => {
+      const trimmedId = nodeId.trim();
+      if (!trimmedId) return { addedNodes: 0, addedEdges: 0 };
+      setIsExpanding(true);
+      try {
+        const res = await fetchGraphNeighbourhood({
+          entityId: trimmedId,
+          depth: 1,
+          relationshipType: selectedRelFilter ?? undefined,
+        });
+        const normalized = normalizeGraphResponse(res);
+        const incoming: GraphElements = {
+          nodes: normalized.nodes,
+          edges: normalized.edges,
+        };
+        const current = latestGraphRef.current;
+        const merged = mergeGraphElements(current, incoming);
+        const addedNodes = Math.max(
+          0,
+          merged.nodes.length - current.nodes.length,
+        );
+        const addedEdges = Math.max(
+          0,
+          merged.edges.length - current.edges.length,
+        );
+        setPathGraph(null);
+        setPathError(null);
+        setExpandedGraph({
+          key: currentQueryKey,
+          elements: merged,
+        });
+        return { addedNodes, addedEdges };
+      } finally {
+        setIsExpanding(false);
+      }
+    },
+    [selectedRelFilter, currentQueryKey],
+  );
+
+  const findShortestPath = useCallback(
+    async (
+      sourceId: string,
+      targetId: string,
+    ): Promise<{ found: boolean; nodeCount: number; edgeCount: number }> => {
+      const src = sourceId.trim();
+      const dst = targetId.trim();
+      if (!src || !dst) {
+        setPathError("Select or enter both a source and target entity.");
+        return { found: false, nodeCount: 0, edgeCount: 0 };
+      }
+      if (src === dst) {
+        setPathError("Source and target entities must be different.");
+        return { found: false, nodeCount: 0, edgeCount: 0 };
+      }
+      setIsFindingPath(true);
+      setPathError(null);
+      try {
+        const res = await fetchShortestPath(src, dst, { suppressToast: true });
+        const normalized = normalizeGraphResponse(res);
+        if (normalized.nodes.length === 0) {
+          setPathError("No connecting path found between those entities.");
+          return { found: false, nodeCount: 0, edgeCount: 0 };
+        }
+        setPathGraph({
+          sourceId: src,
+          targetId: dst,
+          graph: normalized,
+        });
+        setSelectedNode(null);
+        setSelectedTypeFilter(null);
+        setSelectedRelFilter(null);
+        return {
+          found: true,
+          nodeCount: normalized.nodes.length,
+          edgeCount: normalized.edges.length,
+        };
+      } catch (err) {
+        const info = extractGraphErrorInfo(err);
+        setPathError(info.message || "Failed to find shortest path.");
+        return { found: false, nodeCount: 0, edgeCount: 0 };
+      } finally {
+        setIsFindingPath(false);
+      }
+    },
+    [],
+  );
+
+  const clearShortestPath = useCallback(() => {
+    setPathGraph(null);
+    setPathError(null);
+  }, []);
+
+  const syncAllToGraph =
+    useCallback(async (): Promise<DecomposedSyncResult> => {
+      setIsBackfilling(true);
+      try {
+        const result = await backfillKnowledgeGraph();
+        setExpandedGraph(null);
+        setPathGraph(null);
+        setPathError(null);
+        await Promise.all([refetchGraph(), refetchCatalog()]);
+        return result;
+      } finally {
+        setIsBackfilling(false);
+      }
+    }, [refetchGraph, refetchCatalog]);
 
   const viewportHandlers = useGraphViewport(cyRef, layoutType, setSelectedNode);
 
   return {
     selectedEntityId,
-    selectedEntityLabel,
+    selectedEntityLabel: resolvedEntityLabel,
     setSelectedEntityId: (id: string | null) => selectEntity(id),
     selectEntity,
+    expandNode,
+    isExpanding,
+    findShortestPath,
+    clearShortestPath,
+    pathResult: pathGraph
+      ? {
+          sourceId: pathGraph.sourceId,
+          targetId: pathGraph.targetId,
+          nodeCount: pathGraph.graph.nodes.length,
+          edgeCount: pathGraph.graph.edges.length,
+        }
+      : null,
+    isFindingPath,
+    pathError,
+    syncAllToGraph,
+    isBackfilling,
     depth,
     setDepth,
     layoutType,

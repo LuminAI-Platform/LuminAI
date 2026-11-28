@@ -1,20 +1,37 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Icons, RefreshCw, ICON_SIZES } from "../../lib/icons";
+import {
+  Icons,
+  RefreshCw,
+  GitFork,
+  Database,
+  ICON_SIZES,
+} from "../../lib/icons";
 import { Button } from "../../components/ui/Button";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { showToastNotification } from "../../components/ui/ToastProvider";
 import { useThemeStore } from "../../stores/themeStore";
 import { getEntityColor } from "../../lib/entityColors";
-import { GraphCanvas } from "./components/GraphCanvas";
+import { GraphCanvas, type GraphNodeData } from "./components/GraphCanvas";
 import { GraphControls } from "./components/GraphControls";
 import { NodeDetailPanel } from "./components/NodeDetailPanel";
 import { GraphSearchBar } from "./components/GraphSearchBar";
+import { GraphPathBar } from "./components/GraphPathBar";
 import { GraphOverlays, GraphNodeListPanel } from "./components/GraphOverlays";
-import { useGraphData } from "./useGraphData";
+import { extractGraphErrorInfo, useGraphData } from "./useGraphData";
 
 export const GraphPage: React.FC = () => {
   const {
     selectedEntityLabel,
     selectEntity,
+    expandNode,
+    isExpanding,
+    findShortestPath,
+    clearShortestPath,
+    pathResult,
+    isFindingPath,
+    pathError,
+    syncAllToGraph,
+    isBackfilling,
     depth,
     setDepth,
     layoutType,
@@ -47,6 +64,12 @@ export const GraphPage: React.FC = () => {
   const isDark = useThemeStore((s) => s.isDark);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [isNodeListOpen, setIsNodeListOpen] = useState(false);
+  const [isPathBarOpen, setIsPathBarOpen] = useState(false);
+  const [pathPrefillSource, setPathPrefillSource] = useState<{
+    id: string;
+    label?: string;
+    nonce: number;
+  } | null>(null);
 
   // Focus the search field automatically when in the idle "Choose an entity to explore" state
   useEffect(() => {
@@ -63,12 +86,55 @@ export const GraphPage: React.FC = () => {
   }, [hasLoadedGraph]);
 
   const handleExpandNode = useCallback(
-    (nodeId: string) => {
-      selectEntity(nodeId);
-      setDepth((prev) => Math.min(4, prev + 1));
+    async (nodeId: string) => {
+      try {
+        const { addedNodes, addedEdges } = await expandNode(nodeId);
+        if (addedNodes === 0 && addedEdges === 0) {
+          showToastNotification(
+            "info",
+            "No additional links",
+            "All 1-hop neighbours for this node are already on the canvas.",
+          );
+        } else {
+          showToastNotification(
+            "success",
+            "Expanded Neighbourhood",
+            `Added ${addedNodes} node${addedNodes === 1 ? "" : "s"} and ${addedEdges} edge${addedEdges === 1 ? "" : "s"}.`,
+          );
+        }
+      } catch (err) {
+        const info = extractGraphErrorInfo(err);
+        showToastNotification("error", "Expand Failed", info.message);
+      }
     },
-    [selectEntity, setDepth],
+    [expandNode],
   );
+
+  const handleSyncGraph = useCallback(async () => {
+    try {
+      const result = await syncAllToGraph();
+      const syncedNodes = result.nodesSynced ?? result.nodesCreated ?? 0;
+      const syncedEdges =
+        result.edgesSynced ?? result.relationshipsCreated ?? 0;
+      showToastNotification(
+        "success",
+        "Knowledge Graph Synced",
+        `Synced ${syncedNodes} entities and ${syncedEdges} relationships.`,
+      );
+    } catch (err) {
+      const info = extractGraphErrorInfo(err);
+      showToastNotification("error", "Graph Sync Failed", info.message);
+    }
+  }, [syncAllToGraph]);
+
+  const handleFindPathFromNode = useCallback((node: GraphNodeData) => {
+    setPathPrefillSource({
+      id: node.id,
+      label: node.label || node.id,
+      nonce: Date.now(),
+    });
+    setIsPathBarOpen(true);
+  }, []);
 
   const handleFocusSearch = useCallback(() => {
     searchInputRef.current?.focus();
@@ -108,28 +174,58 @@ export const GraphPage: React.FC = () => {
               className="flex items-center shrink-0 bg-surface border border-border rounded-lg p-1 text-xs gap-1"
               role="group"
               aria-label="Graph traversal depth"
+              title={
+                activeEntityId
+                  ? "Set neighbourhood hop depth"
+                  : "Select a specific entity to adjust hop depth"
+              }
             >
               <span className="text-text-secondary text-[11px] px-1.5 font-medium select-none">
                 Depth
               </span>
-              {[1, 2, 3, 4].map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  disabled={!hasLoadedGraph}
-                  aria-label={`Traversal depth ${d}`}
-                  aria-pressed={depth === d}
-                  onClick={() => setDepth(d)}
-                  className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                    depth === d && hasLoadedGraph
-                      ? "bg-primary text-primary-text"
-                      : "text-text-secondary hover:text-text hover:bg-surface-hover disabled:hover:bg-transparent disabled:hover:text-text-secondary"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
+              {[1, 2, 3, 4].map((d) => {
+                const depthDisabled =
+                  !activeEntityId || !hasLoadedGraph || Boolean(pathResult);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    disabled={depthDisabled}
+                    aria-label={`Traversal depth ${d}`}
+                    aria-pressed={depth === d}
+                    onClick={() => setDepth(d)}
+                    className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                      depth === d && !depthDisabled
+                        ? "bg-primary text-primary-text"
+                        : "text-text-secondary hover:text-text hover:bg-surface-hover disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                    }`}
+                  >
+                    {d}
+                  </button>
+                );
+              })}
             </div>
+
+            <Button
+              variant={isPathBarOpen || pathResult ? "primary" : "secondary"}
+              size="sm"
+              className="shrink-0"
+              onClick={() => setIsPathBarOpen((prev) => !prev)}
+              leftIcon={<GitFork className="w-3.5 h-3.5" />}
+            >
+              Shortest Path
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              className="shrink-0"
+              disabled={isBackfilling || isLoading}
+              onClick={handleSyncGraph}
+              leftIcon={<Database className="w-3.5 h-3.5" />}
+            >
+              {isBackfilling ? "Syncing..." : "Sync Graph"}
+            </Button>
 
             <Button
               variant="secondary"
@@ -143,6 +239,19 @@ export const GraphPage: React.FC = () => {
             </Button>
           </div>
         }
+      />
+
+      {/* Shortest Path Finder Ribbon */}
+      <GraphPathBar
+        isOpen={isPathBarOpen}
+        prefillSource={pathPrefillSource}
+        canvasNodes={filteredElements.nodes}
+        isFinding={isFindingPath}
+        pathResult={pathResult}
+        pathError={pathError}
+        onFindPath={findShortestPath}
+        onClearPath={clearShortestPath}
+        onClose={() => setIsPathBarOpen(false)}
       />
 
       {/* Graph Visualizer Main Area — explicit viewport-relative height so canvas never collapses to 0px */}
@@ -207,6 +316,8 @@ export const GraphPage: React.FC = () => {
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
           onExpand={handleExpandNode}
+          isExpanding={isExpanding}
+          onFindPathFrom={handleFindPathFromNode}
         />
 
         {/* Dynamic Bottom Legend Bar */}

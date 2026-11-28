@@ -1,10 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "../../../../components/ui/ToastProvider";
 import {
   type SourceColumn,
   type ForeignKeyDefinition,
   inferDefaultRelationship,
 } from "./visualSchemaTypes";
+
+function mapForeignKeysToColumns(
+  items: ForeignKeyDefinition[],
+  sourceColumns: SourceColumn[],
+): Record<string, ForeignKeyDefinition> {
+  const mapped: Record<string, ForeignKeyDefinition> = {};
+  for (const fk of items) {
+    if (!fk) continue;
+    const matchedCol =
+      sourceColumns.find((c) => c.id === fk.columnId) ??
+      sourceColumns.find(
+        (c) => c.name.toLowerCase() === (fk.columnName || "").toLowerCase(),
+      );
+    const resolvedColId = matchedCol?.id ?? fk.columnId;
+    if (!resolvedColId) continue;
+    mapped[resolvedColId] = {
+      ...fk,
+      columnId: resolvedColId,
+      columnName: matchedCol?.name ?? fk.columnName,
+      direction: fk.direction || "OUTGOING",
+    };
+  }
+  return mapped;
+}
+
+export function reconcileForeignKeys(
+  initialForeignKeys: ForeignKeyDefinition[],
+  sourceColumns: SourceColumn[],
+  storedRaw?: string | null,
+): Record<string, ForeignKeyDefinition> {
+  const backendMap = mapForeignKeysToColumns(initialForeignKeys, sourceColumns);
+  let localList: ForeignKeyDefinition[] = [];
+  if (storedRaw) {
+    try {
+      const parsed = JSON.parse(storedRaw);
+      if (Array.isArray(parsed)) {
+        localList = parsed.filter((fk): fk is ForeignKeyDefinition =>
+          Boolean(fk && typeof fk === "object" && fk.columnId),
+        );
+      } else if (typeof parsed === "object" && parsed !== null) {
+        localList = Object.values(
+          parsed as Record<string, ForeignKeyDefinition>,
+        );
+      }
+    } catch {
+      // ignore malformed cached entry
+    }
+  }
+  const localMap = mapForeignKeysToColumns(localList, sourceColumns);
+  return { ...backendMap, ...localMap };
+}
 
 interface UseForeignKeyStateProps {
   connectionId: string;
@@ -25,27 +76,23 @@ export function useForeignKeyState({
   const [foreignKeys, setForeignKeys] = useState<
     Record<string, ForeignKeyDefinition>
   >(() => {
-    const init: Record<string, ForeignKeyDefinition> = {};
-    for (const fk of initialForeignKeys) {
-      init[fk.columnId] = fk;
-    }
+    let stored: string | null = null;
     try {
-      const stored = localStorage.getItem(`lumin_fk_${connectionId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((fk: ForeignKeyDefinition) => {
-            if (fk && fk.columnId) init[fk.columnId] = fk;
-          });
-        } else if (typeof parsed === "object" && parsed !== null) {
-          Object.assign(init, parsed);
-        }
-      }
+      stored = localStorage.getItem(`lumin_fk_${connectionId}`);
     } catch {
       // ignore
     }
-    return init;
+    return reconcileForeignKeys(initialForeignKeys, sourceColumns, stored);
   });
+
+  useEffect(() => {
+    if (initialForeignKeys.length === 0) return;
+    const backendMap = mapForeignKeysToColumns(
+      initialForeignKeys,
+      sourceColumns,
+    );
+    setForeignKeys((prev) => ({ ...backendMap, ...prev }));
+  }, [initialForeignKeys, sourceColumns]);
 
   const [activeFkColId, setActiveFkColId] = useState<string | null>(null);
   const [fkTargetEntity, setFkTargetEntity] = useState<string>(
