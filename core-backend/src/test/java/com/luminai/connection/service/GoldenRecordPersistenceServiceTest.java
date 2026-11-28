@@ -184,4 +184,63 @@ class GoldenRecordPersistenceServiceTest {
 
     verify(goldenRecordRepository, never()).saveAll(anyList());
   }
+
+  @Test
+  @DisplayName(
+      "backfillExistingRecordsToNeo4j syncs nodes with scalar properties and Schema Studio FK edges")
+  @SuppressWarnings("unchecked")
+  void backfillSyncsNodesAndForeignKeyEdgesToNeo4j() {
+    com.luminai.graph.repository.Neo4jGraphRepository neo4jRepo =
+        mock(com.luminai.graph.repository.Neo4jGraphRepository.class);
+    service.setNeo4jGraphRepository(neo4jRepo);
+
+    Connection conn =
+        new Connection(
+            tenantId,
+            "orders.csv",
+            Connection.Type.FILE,
+            "{\"fileName\":\"orders.csv\",\"foreignKeys\":[{\"columnId\":\"customer_id\",\"columnName\":\"customer_id\",\"targetEntityType\":\"Customer\",\"relationshipType\":\"PLACED_BY\",\"direction\":\"OUTGOING\"}]}",
+            null,
+            null);
+    ReflectionTestUtils.setField(conn, "id", connId);
+
+    GoldenRecord orderGr = GoldenRecord.newStandalone();
+    UUID orderUuid = UUID.randomUUID();
+    ReflectionTestUtils.setField(orderGr, "id", orderUuid);
+    orderGr.setEntityType("Order");
+    orderGr.setCanonicalName("ORD-101");
+    orderGr.getProperties().put("_connection_id", connId.toString());
+    orderGr.getProperties().put("customer_id", "CUST-42");
+    orderGr.getProperties().put("amount", 150);
+
+    when(connectionRepository.findByIdAndTenantId(connId, tenantId)).thenReturn(Optional.of(conn));
+    when(goldenRecordRepository.findByTenantIdAndConnectionId(tenantId, connId.toString()))
+        .thenReturn(List.of(orderGr));
+    when(neo4jRepo.mergeRelationship(
+            org.mockito.ArgumentMatchers.eq("luminex"),
+            org.mockito.ArgumentMatchers.eq(orderUuid.toString()),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.eq("PLACED_BY"),
+            org.mockito.ArgumentMatchers.eq("OUTGOING")))
+        .thenReturn(true);
+
+    Map<String, Object> summary = service.backfillExistingRecordsToNeo4j(tenantId, connId);
+
+    assertThat(summary).containsEntry("status", "COMPLETED").containsEntry("edgesSynced", 1);
+    ArgumentCaptor<List<Map<String, Object>>> nodeBatchCaptor = ArgumentCaptor.forClass(List.class);
+    verify(neo4jRepo, org.mockito.Mockito.times(2))
+        .mergeEntityNodesBatch(
+            org.mockito.ArgumentMatchers.eq("luminex"), nodeBatchCaptor.capture());
+    assertThat(nodeBatchCaptor.getAllValues().get(0)).hasSize(1);
+    assertThat(nodeBatchCaptor.getAllValues().get(1).get(0))
+        .containsEntry("canonicalName", "CUST-42")
+        .containsEntry("entityType", "Customer");
+    verify(neo4jRepo)
+        .mergeRelationship(
+            org.mockito.ArgumentMatchers.eq("luminex"),
+            org.mockito.ArgumentMatchers.eq(orderUuid.toString()),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.eq("PLACED_BY"),
+            org.mockito.ArgumentMatchers.eq("OUTGOING"));
+  }
 }

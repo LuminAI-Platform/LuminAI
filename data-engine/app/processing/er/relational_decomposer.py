@@ -14,6 +14,9 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 
+from app.processing.engine.golden_record_engine import GoldenRecordEngine
+
+
 @dataclass
 class DecompositionRule:
     """Configuration rule for decomposing a flat column group into an entity."""
@@ -230,10 +233,15 @@ class RelationalDecomposer:
                 primary_id = f"{primary_entity_type}_{idx}"
 
             primary_props = {k: v for k, v in row.items() if k not in all_secondary_cols and v is not None}
+            primary_label = GoldenRecordEngine.resolve_canonical_name(
+                primary_props, fallback_id=primary_id
+            )
             p_key = (primary_entity_type, primary_id)
             if p_key not in nodes_dict:
                 nodes_dict[p_key] = {
                     "id": primary_id,
+                    "label": primary_label,
+                    "canonical_name": primary_label,
                     "entity_type": primary_entity_type,
                     "properties": primary_props,
                 }
@@ -259,8 +267,15 @@ class RelationalDecomposer:
                     for attr_col in r.attribute_columns:
                         if attr_col in row and row[attr_col] is not None:
                             sec_props[attr_col] = row[attr_col]
+                    sec_label = (
+                        str(sec_raw_name).strip()
+                        if sec_raw_name is not None and str(sec_raw_name).strip()
+                        else str(key_basis).strip()
+                    )
                     nodes_dict[sec_key] = {
                         "id": sec_id,
+                        "label": sec_label,
+                        "canonical_name": sec_label,
                         "entity_type": r.target_entity_type,
                         "properties": sec_props,
                     }

@@ -87,7 +87,7 @@ def merge_cluster_to_golden_record(
             import json as _json
 
             seed = f"{tenant_id}:{_json.dumps(cluster_records, sort_keys=True, default=str)}"
-        golden_id = f"gr-{uuid.uuid5(uuid.NAMESPACE_DNS, seed)}"
+        golden_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, seed))
 
     entity_type_hint = (
         cluster_records[0].get("_entity_type")

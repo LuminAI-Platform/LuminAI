@@ -90,6 +90,14 @@ public class SchemaMappingController {
     return ResponseEntity.ok(schemaMappingService.getAllForConnector(connectorId));
   }
 
+  @GetMapping("/connector/{connectorId}/foreign-keys")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
+  public ResponseEntity<List<SchemaMappingDto.ForeignKeyItem>> getForeignKeysByConnector(
+      @PathVariable UUID connectorId) {
+    return ResponseEntity.ok(schemaMappingService.getForeignKeysForConnector(connectorId));
+  }
+
   @PutMapping("/{id}")
   @org.springframework.security.access.prepost.PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER')")

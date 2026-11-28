@@ -148,4 +148,55 @@ class Neo4jSyncServiceTest {
     assertThrows(IllegalArgumentException.class, () -> service.sync(event));
     verifyNoInteractions(repository);
   }
+
+  @Test
+  void normalizesGrPrefixedUuidToCanonicalUuidAndSyncsScalarProperties() {
+    String uuid = "5fc38c8e-a3a3-42e6-bd6a-9f7698869e5f";
+    EntityResolvedEvent event =
+        new EntityResolvedEvent(
+            "luminex",
+            "gr-" + uuid,
+            "Shipment",
+            Map.of("company_name", "Volta Freight", "origin", "Accra", "_connection_id", "conn-1"));
+
+    service.sync(event);
+
+    verify(repository).mergeEntityNode("luminex", uuid, "Volta Freight", "Shipment");
+    verify(repository)
+        .mergeEntityProperties(
+            "luminex", uuid, Map.of("company_name", "Volta Freight", "origin", "Accra"));
+  }
+
+  @Test
+  void createsTargetStubNodeWhenTypedRelationshipTargetMissingInNeo4j() {
+    EntityResolvedEvent event =
+        new EntityResolvedEvent(
+            "luminex",
+            "ord-1",
+            "Order",
+            Map.of(
+                "name",
+                "Order #1",
+                "relationships",
+                List.of(
+                    Map.of(
+                        "target_id",
+                        "cust-9",
+                        "target_type",
+                        "Customer",
+                        "target_name",
+                        "Acme Logistics",
+                        "type",
+                        "PLACED_BY"))));
+
+    when(repository.mergeRelationship("luminex", "ord-1", "cust-9", "PLACED_BY", "OUTGOING"))
+        .thenReturn(false)
+        .thenReturn(true);
+
+    service.sync(event);
+
+    verify(repository).mergeEntityNode("luminex", "cust-9", "Acme Logistics", "Customer");
+    verify(repository, times(2))
+        .mergeRelationship("luminex", "ord-1", "cust-9", "PLACED_BY", "OUTGOING");
+  }
 }

@@ -414,11 +414,18 @@ def publish_relational_edges_to_kafka(
         if not relationships:
             continue
 
-        golden_id = _extract_source_id(rec)
-        if not golden_id:
+        raw_gid = _extract_source_id(rec)
+        if not raw_gid:
             continue
+        golden_id = (
+            to_uuid_str(raw_gid)
+            if raw_gid.startswith("gr-") and len(raw_gid) > 30
+            else raw_gid
+        )
 
-        entity_type = str(rec.get("entity_type") or "Entity")
+        entity_type = str(
+            rec.get("entity_type") or rec.get("_entity_type") or "Entity"
+        )
         try:
             success = producer.publish_resolved_entity(
                 tenant_id=tenant_id,

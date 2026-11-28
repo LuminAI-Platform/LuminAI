@@ -47,8 +47,17 @@ public class SchemaMappingService {
   private CacheManager cacheManager;
 
   @Autowired(required = false)
+  private GoldenRecordPersistenceService goldenRecordPersistenceService;
+
+  @Autowired(required = false)
   public void setGoldenRecordRepository(GoldenRecordRepository goldenRecordRepository) {
     this.goldenRecordRepository = goldenRecordRepository;
+  }
+
+  @Autowired(required = false)
+  public void setGoldenRecordPersistenceService(
+      GoldenRecordPersistenceService goldenRecordPersistenceService) {
+    this.goldenRecordPersistenceService = goldenRecordPersistenceService;
   }
 
   @Autowired(required = false)
@@ -250,7 +259,8 @@ public class SchemaMappingService {
     }
 
     if (connectorId != null) {
-      propagateTargetEntityType(tenantId, connectorId, resolvedBatchTarget);
+      propagateConnectorMappingMetadata(
+          tenantId, connectorId, resolvedBatchTarget, request.foreignKeys());
     }
 
     log.info(
@@ -264,14 +274,42 @@ public class SchemaMappingService {
         savedList.size());
   }
 
+  /** Reads persisted foreign-key graph link definitions stored on a connector's configuration. */
+  @Transactional(readOnly = true)
+  public List<SchemaMappingDto.ForeignKeyItem> getForeignKeysForConnector(UUID connectorId) {
+    UUID tenantId = getCurrentTenantId();
+    if (connectionRepository == null || connectorId == null) {
+      return List.of();
+    }
+    return connectionRepository
+        .findByIdAndTenantId(connectorId, tenantId)
+        .map(conn -> parseForeignKeysFromConfig(conn.getConfig()))
+        .orElse(List.of());
+  }
+
   private void propagateTargetEntityType(UUID tenantId, UUID connectorId, String targetEntityType) {
-    if (connectorId == null
-        || targetEntityType == null
-        || targetEntityType.isBlank()
-        || "Entity".equalsIgnoreCase(targetEntityType.trim())) {
+    propagateConnectorMappingMetadata(tenantId, connectorId, targetEntityType, null);
+  }
+
+  private void propagateConnectorMappingMetadata(
+      UUID tenantId,
+      UUID connectorId,
+      String targetEntityType,
+      List<SchemaMappingDto.ForeignKeyItem> foreignKeys) {
+    if (connectorId == null) {
       return;
     }
-    String cleanType = targetEntityType.trim();
+    String cleanType =
+        targetEntityType != null
+                && !targetEntityType.isBlank()
+                && !"Entity".equalsIgnoreCase(targetEntityType.trim())
+            ? targetEntityType.trim()
+            : null;
+    boolean hasForeignKeysUpdate = foreignKeys != null;
+
+    if (cleanType == null && !hasForeignKeysUpdate) {
+      return;
+    }
 
     if (connectionRepository != null) {
       try {
@@ -287,14 +325,22 @@ public class SchemaMappingService {
                       Map<String, Object> parsed = mapper.readValue(conn.getConfig(), Map.class);
                       cfg.putAll(parsed);
                     }
-                    if (!cleanType.equals(cfg.get("targetEntityType"))) {
+                    boolean changed = false;
+                    if (cleanType != null && !cleanType.equals(cfg.get("targetEntityType"))) {
                       cfg.put("targetEntityType", cleanType);
+                      changed = true;
+                    }
+                    if (hasForeignKeysUpdate) {
+                      cfg.put("foreignKeys", sanitizeForeignKeys(foreignKeys));
+                      changed = true;
+                    }
+                    if (changed) {
                       conn.setConfig(mapper.writeValueAsString(cfg));
                       connectionRepository.save(conn);
                     }
                   } catch (Exception e) {
                     log.debug(
-                        "Failed saving targetEntityType onto connection '{}': {}",
+                        "Failed saving schema mapping metadata onto connection '{}': {}",
                         connectorId,
                         e.getMessage());
                   }
@@ -303,7 +349,7 @@ public class SchemaMappingService {
       }
     }
 
-    if (goldenRecordRepository != null) {
+    if (cleanType != null && goldenRecordRepository != null) {
       try {
         goldenRecordRepository.updateEntityTypeByConnectionId(
             tenantId, connectorId.toString(), cleanType);
@@ -313,6 +359,25 @@ public class SchemaMappingService {
             connectorId,
             e.getMessage());
       }
+    }
+
+    if (goldenRecordPersistenceService != null && (hasForeignKeysUpdate || cleanType != null)) {
+      final UUID asyncTenant = tenantId;
+      final UUID asyncConn = connectorId;
+      final String tenantSlug = com.luminai.common.tenant.TenantContext.getTenantSlug();
+      java.util.concurrent.CompletableFuture.runAsync(
+          () -> {
+            try {
+              if (asyncTenant != null && tenantSlug != null && !tenantSlug.isBlank()) {
+                com.luminai.common.tenant.TenantContext.setTenant(asyncTenant, tenantSlug);
+              }
+              goldenRecordPersistenceService.backfillExistingRecordsToNeo4j(asyncTenant, asyncConn);
+            } catch (Exception e) {
+              log.debug("Async Neo4j graph resync skipped: {}", e.getMessage());
+            } finally {
+              com.luminai.common.tenant.TenantContext.clear();
+            }
+          });
     }
 
     if (cacheManager != null) {
@@ -328,6 +393,65 @@ public class SchemaMappingService {
         } catch (Exception ignored) {
         }
       }
+    }
+  }
+
+  private List<Map<String, Object>> sanitizeForeignKeys(
+      List<SchemaMappingDto.ForeignKeyItem> foreignKeys) {
+    if (foreignKeys == null || foreignKeys.isEmpty()) {
+      return List.of();
+    }
+    List<Map<String, Object>> list = new java.util.ArrayList<>(foreignKeys.size());
+    for (SchemaMappingDto.ForeignKeyItem fk : foreignKeys) {
+      if (fk == null) continue;
+      String colName =
+          fk.columnName() != null && !fk.columnName().isBlank() ? fk.columnName().trim() : null;
+      String colId =
+          fk.columnId() != null && !fk.columnId().isBlank() ? fk.columnId().trim() : colName;
+      if (colId == null && colName == null) continue;
+      if (fk.targetEntityType() == null || fk.targetEntityType().isBlank()) continue;
+      if (fk.relationshipType() == null || fk.relationshipType().isBlank()) continue;
+
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("columnId", colId);
+      item.put("columnName", colName != null ? colName : colId);
+      item.put("targetEntityType", fk.targetEntityType().trim());
+      item.put("relationshipType", fk.relationshipType().trim());
+      item.put(
+          "direction",
+          fk.direction() != null && !fk.direction().isBlank()
+              ? fk.direction().trim().toUpperCase()
+              : "OUTGOING");
+      list.add(item);
+    }
+    return list;
+  }
+
+  private List<SchemaMappingDto.ForeignKeyItem> parseForeignKeysFromConfig(String configJson) {
+    if (configJson == null || configJson.isBlank()) {
+      return List.of();
+    }
+    try {
+      ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
+      com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(configJson);
+      if (!root.has("foreignKeys") || !root.get("foreignKeys").isArray()) {
+        return List.of();
+      }
+      List<SchemaMappingDto.ForeignKeyItem> items = new java.util.ArrayList<>();
+      for (com.fasterxml.jackson.databind.JsonNode node : root.get("foreignKeys")) {
+        String colId = node.path("columnId").asText(null);
+        String colName = node.path("columnName").asText(null);
+        String targetType = node.path("targetEntityType").asText(null);
+        String relType = node.path("relationshipType").asText(null);
+        String direction = node.path("direction").asText("OUTGOING");
+        if (targetType != null && !targetType.isBlank() && relType != null && !relType.isBlank()) {
+          items.add(
+              new SchemaMappingDto.ForeignKeyItem(colId, colName, targetType, relType, direction));
+        }
+      }
+      return items;
+    } catch (Exception e) {
+      return List.of();
     }
   }
 
