@@ -1,5 +1,6 @@
 package com.luminai.dataset.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.common.tenant.TenantContext;
 import com.luminai.dataset.dto.CreateDatasetRequest;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DatasetService {
 
   private static final Logger log = LoggerFactory.getLogger(DatasetService.class);
+  private static final ObjectMapper EDA_MAPPER = new ObjectMapper();
 
   private final DatasetRepository datasetRepository;
   private final DatasetVersionRepository versionRepository;
@@ -356,10 +358,22 @@ public class DatasetService {
     }
 
     Map<String, Object> edaReq = new java.util.LinkedHashMap<>();
-    edaReq.put("tenant_id", slug != null ? slug : "acme");
+    edaReq.put("tenant_id", (slug != null && !slug.isBlank()) ? slug : tenantId.toString());
     edaReq.put("dataset_name", dataset.getName());
     edaReq.put("records", records);
-    return dataEngineClient.generateEdaReport(edaReq);
+    Map<String, Object> report = dataEngineClient.generateEdaReport(edaReq);
+    if (report != null
+        && !report.containsKey("error")
+        && !"ERROR".equalsIgnoreCase(String.valueOf(report.get("status")))) {
+      try {
+        dataset.setProfilingSummary(EDA_MAPPER.writeValueAsString(report));
+        datasetRepository.save(dataset);
+      } catch (Exception e) {
+        log.debug(
+            "Failed persisting EDA profilingSummary for dataset {}: {}", datasetId, e.getMessage());
+      }
+    }
+    return report;
   }
 
   public Map<String, Object> previewCleaning(Map<String, Object> requestPayload) {

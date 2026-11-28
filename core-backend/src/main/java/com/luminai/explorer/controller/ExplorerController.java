@@ -1,6 +1,7 @@
 package com.luminai.explorer.controller;
 
 import com.luminai.explorer.dto.EntityDetailDto;
+import com.luminai.explorer.dto.ExplorerStatsDto;
 import com.luminai.explorer.dto.ProvenanceItem;
 import com.luminai.explorer.dto.SearchResponseDto;
 import com.luminai.explorer.service.ExplorerSearchService;
@@ -69,6 +70,16 @@ public class ExplorerController {
 
     return ResponseEntity.ok(
         searchService.search(query, combinedEntityType, page, size, sortBy, sortDirection));
+  }
+
+  @GetMapping("/stats")
+  @Operation(
+      summary = "Get entity distribution metrics",
+      description =
+          "Returns tenant-scoped entity type breakdown, confidence/quality score histogram, and merge source counts for charting")
+  @ApiResponse(responseCode = "200", description = "Explorer aggregate distribution metrics")
+  public ResponseEntity<ExplorerStatsDto> getStats() {
+    return ResponseEntity.ok(searchService.getStats());
   }
 
   @GetMapping("/entities/{id}")

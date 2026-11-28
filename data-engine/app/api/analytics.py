@@ -152,6 +152,65 @@ class TimeseriesResponse(BaseModel):
     )
 
 
+class DistributionRequest(BaseModel):
+    """Request payload for categorical breakdown (bar/pie) or numeric histogram queries."""
+
+    tenant_id: Optional[str] = Field(
+        default=None,
+        description="Tenant identifier scoping the distribution query.",
+    )
+    entity_type: str = Field(
+        default="*",
+        description="Ontology entity type to inspect (or '*' for all).",
+    )
+    field: str = Field(
+        ...,
+        description="Column or property name to compute distribution over.",
+    )
+    table: str = Field(
+        default="golden_records",
+        description="Target database table ('golden_records' or 'staging_records').",
+    )
+    mode: str = Field(
+        default="auto",
+        description="Chart distribution mode: 'auto', 'categorical', or 'histogram'.",
+    )
+    bins: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Number of equal-width bins when generating a numeric histogram.",
+    )
+    limit: int = Field(
+        default=15,
+        ge=1,
+        le=100,
+        description="Maximum categorical buckets returned before folding into other_count.",
+    )
+    filters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional key-value equality filters.",
+    )
+
+
+class DistributionBucket(BaseModel):
+    label: str
+    count: int
+    percentage: float
+    bin_start: Optional[float] = None
+    bin_end: Optional[float] = None
+
+
+class DistributionResponse(BaseModel):
+    tenant_id: str
+    entity_type: str
+    field: str
+    mode: str
+    total_count: int
+    buckets: List[DistributionBucket]
+    other_count: int = 0
+
+
 # Endpoints
 
 
@@ -238,6 +297,58 @@ async def analytics_timeseries(
         raise HTTPException(
             status_code=504,
             detail=f"Analytics timeseries query timed out after {settings.analytics_query_timeout_seconds}s limit",
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
+
+@router.post(
+    "/distribution",
+    response_model=DistributionResponse,
+    summary="Compute categorical bar/pie breakdown or binned numeric histogram",
+)
+async def analytics_distribution(
+    request: DistributionRequest,
+    identity: AuthIdentity = Depends(get_current_identity),
+) -> DistributionResponse:
+    """Compute chart-ready categorical counts or equal-width numeric histogram buckets via DuckDB."""
+    effective_tenant = (
+        resolve_effective_tenant(identity, request.tenant_id or "")
+        or request.tenant_id
+        or identity.tenant_id
+    )
+    if not effective_tenant:
+        raise HTTPException(
+            status_code=400,
+            detail="tenant_id is required to compute distribution metrics.",
+        )
+
+    settings = get_settings()
+    engine = DuckDBAnalyticsEngine()
+    try:
+        dist = await asyncio.wait_for(
+            asyncio.to_thread(
+                engine.execute_distribution,
+                tenant_id=effective_tenant,
+                field=request.field,
+                entity_type=request.entity_type,
+                table_name=request.table,
+                mode=request.mode,
+                bins=request.bins,
+                limit=request.limit,
+                filters=request.filters,
+            ),
+            timeout=settings.analytics_query_timeout_seconds,
+        )
+        return DistributionResponse(
+            tenant_id=effective_tenant,
+            entity_type=request.entity_type,
+            **dist,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Distribution query timed out after {settings.analytics_query_timeout_seconds}s limit",
         )
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))

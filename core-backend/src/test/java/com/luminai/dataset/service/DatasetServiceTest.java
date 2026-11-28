@@ -153,6 +153,9 @@ class DatasetServiceTest {
     assertNotNull(report);
     assertEquals("SUCCESS", report.get("status"));
     verify(dataEngineClient, times(1)).generateEdaReport(any());
+    assertNotNull(existing.getProfilingSummary());
+    assertTrue(existing.getProfilingSummary().contains("\"rows\":100"));
+    verify(datasetRepository, times(1)).save(existing);
   }
 
   @Test

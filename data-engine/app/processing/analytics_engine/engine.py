@@ -25,6 +25,7 @@ from app.processing.analytics_engine.query_builder import (
     build_aggregation_expressions,
     build_where_clause,
 )
+from app.processing.engine.stats_utils import compute_numeric_histogram
 
 logger = logging.getLogger(__name__)
 
@@ -371,3 +372,160 @@ class DuckDBAnalyticsEngine:
             return res_df
         finally:
             con.close()
+
+    def execute_distribution(
+        self,
+        tenant_id: str,
+        field: str,
+        entity_type: str = "*",
+        table_name: str = "golden_records",
+        mode: str = "auto",
+        bins: int = 10,
+        limit: int = 15,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Compute categorical breakdowns (bar/pie) or binned numeric histograms via DuckDB."""
+        if not field or not IDENTIFIER_RE.match(field):
+            raise ValueError(
+                f"Invalid field '{field}'. Must be a valid alphanumeric identifier."
+            )
+
+        norm_mode = (mode or "auto").strip().lower()
+        if norm_mode not in {"auto", "categorical", "histogram"}:
+            raise ValueError(
+                f"Unsupported distribution mode '{mode}'. Supported: auto, categorical, histogram"
+            )
+
+        safe_bins = max(1, min(int(bins), 50))
+        safe_limit = max(1, min(int(limit), 100))
+        filters = filters or {}
+
+        df = self.load_table_dataframe(table_name, tenant_id)
+        df = self._normalize_dataframe(df, table_name)
+        empty_mode = "histogram" if norm_mode == "histogram" else "categorical"
+        if df.is_empty():
+            return {
+                "field": field,
+                "mode": empty_mode,
+                "total_count": 0,
+                "buckets": [],
+                "other_count": 0,
+            }
+
+        is_golden = "golden" in table_name.lower()
+        json_col = "attributes" if is_golden else "data"
+        known_cols = GOLDEN_COLUMNS if is_golden else STAGING_COLUMNS
+
+        if field == "entity_type" and "entity_type" in df.columns and json_col in df.columns:
+            val_expr = (
+                f"COALESCE(NULLIF(TRY_CAST(entity_type AS VARCHAR), ''), "
+                f"json_extract_string({json_col}, '$.entity_type'))"
+            )
+        elif field in known_cols and field in df.columns:
+            val_expr = f"TRY_CAST({field} AS VARCHAR)"
+        elif json_col in df.columns:
+            val_expr = f"json_extract_string({json_col}, '$.{field}')"
+        else:
+            return {
+                "field": field,
+                "mode": empty_mode,
+                "total_count": 0,
+                "buckets": [],
+                "other_count": 0,
+            }
+
+        con = duckdb.connect(":memory:")
+        try:
+            con.register("source_table", df)
+            where_clause, params = self._build_where_clause(
+                table_name=table_name,
+                tenant_id=tenant_id,
+                entity_type=entity_type,
+                filters=filters,
+                df_columns=df.columns,
+            )
+            sql = f"SELECT {val_expr} AS raw_val FROM source_table {where_clause}"
+            raw_rows = con.execute(sql, params).fetchall()
+        finally:
+            con.close()
+
+        non_empty: List[str] = []
+        for (raw_val,) in raw_rows:
+            if raw_val is None:
+                continue
+            s_val = str(raw_val).strip()
+            if s_val == "":
+                continue
+            non_empty.append(s_val)
+
+        if not non_empty:
+            return {
+                "field": field,
+                "mode": empty_mode,
+                "total_count": 0,
+                "buckets": [],
+                "other_count": 0,
+            }
+
+        import math
+
+        numeric_vals: List[float] = []
+        for s_val in non_empty:
+            if s_val.lower() in {"true", "false"}:
+                continue
+            try:
+                f_val = float(s_val)
+                if math.isfinite(f_val):
+                    numeric_vals.append(f_val)
+            except ValueError:
+                continue
+
+        resolved_mode = norm_mode
+        if norm_mode == "auto":
+            numeric_ratio = len(numeric_vals) / len(non_empty)
+            is_known_metric = field in {"confidence_score", "cluster_size", "source_count"}
+            if numeric_ratio >= 0.85 and (len(set(numeric_vals)) > 6 or is_known_metric):
+                resolved_mode = "histogram"
+            else:
+                resolved_mode = "categorical"
+
+        if resolved_mode == "histogram":
+            if not numeric_vals:
+                return {
+                    "field": field,
+                    "mode": "histogram",
+                    "total_count": 0,
+                    "buckets": [],
+                    "other_count": 0,
+                }
+            buckets = compute_numeric_histogram(numeric_vals, bins=safe_bins)
+            return {
+                "field": field,
+                "mode": "histogram",
+                "total_count": len(numeric_vals),
+                "buckets": buckets,
+                "other_count": 0,
+            }
+
+        counts: Dict[str, int] = {}
+        for item in non_empty:
+            counts[item] = counts.get(item, 0) + 1
+        sorted_items = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        total = len(non_empty)
+        top_items = sorted_items[:safe_limit]
+        shown = sum(cnt for _, cnt in top_items)
+        buckets = [
+            {
+                "label": lbl,
+                "count": cnt,
+                "percentage": round((cnt / total) * 100.0, 2),
+            }
+            for lbl, cnt in top_items
+        ]
+        return {
+            "field": field,
+            "mode": "categorical",
+            "total_count": total,
+            "buckets": buckets,
+            "other_count": max(0, total - shown),
+        }

@@ -1,6 +1,7 @@
 package com.luminai.graph.repository;
 
 import com.luminai.graph.dto.GraphQueryResponseDto;
+import com.luminai.graph.dto.GraphSummaryDto;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
@@ -615,6 +616,176 @@ public class Neo4jGraphRepository {
     } catch (Exception e) {
       log.debug(
           "Failed computing Neo4j clustering coefficient for '{}': {}", entityId, e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Computes tenant-wide knowledge graph aggregate metrics (type breakdown, relationship breakdown,
+   * degree distribution histogram, and top hubs) directly in Neo4j for chart analytics.
+   */
+  public Optional<GraphSummaryDto> findGraphSummary(String tenantId) {
+    String altTenantId = resolveAltTenantId(tenantId);
+    try {
+      String typeCypher =
+          """
+          MATCH (n:Entity)
+          WHERE (n.tenant_id = $tenantId OR n.tenant_id = $altTenantId)
+          RETURN coalesce(n.entity_type, 'Entity') AS entityType, count(n) AS cnt
+          ORDER BY cnt DESC, entityType ASC
+          """;
+      java.util.Collection<Map<String, Object>> typeRows =
+          neo4jClient
+              .query(typeCypher)
+              .bind(tenantId)
+              .to("tenantId")
+              .bind(altTenantId)
+              .to("altTenantId")
+              .fetch()
+              .all();
+
+      long totalNodes = 0;
+      Map<String, Long> entityTypeCounts = new java.util.LinkedHashMap<>();
+      for (Map<String, Object> row : typeRows) {
+        if (row == null || row.get("entityType") == null) continue;
+        long cnt = ((Number) row.getOrDefault("cnt", 0L)).longValue();
+        if (cnt <= 0) continue;
+        entityTypeCounts.put(String.valueOf(row.get("entityType")), cnt);
+        totalNodes += cnt;
+      }
+
+      if (totalNodes == 0) {
+        return Optional.empty();
+      }
+
+      String relCypher =
+          """
+          MATCH (a:Entity)-[r]->(b:Entity)
+          WHERE (a.tenant_id = $tenantId OR a.tenant_id = $altTenantId)
+            AND (b.tenant_id = $tenantId OR b.tenant_id = $altTenantId)
+          RETURN type(r) AS relationshipType, count(r) AS cnt
+          ORDER BY cnt DESC, relationshipType ASC
+          """;
+      java.util.Collection<Map<String, Object>> relRows =
+          neo4jClient
+              .query(relCypher)
+              .bind(tenantId)
+              .to("tenantId")
+              .bind(altTenantId)
+              .to("altTenantId")
+              .fetch()
+              .all();
+
+      long totalEdges = 0;
+      Map<String, Long> relationshipTypeCounts = new java.util.LinkedHashMap<>();
+      for (Map<String, Object> row : relRows) {
+        if (row == null || row.get("relationshipType") == null) continue;
+        long cnt = ((Number) row.getOrDefault("cnt", 0L)).longValue();
+        if (cnt <= 0) continue;
+        relationshipTypeCounts.put(String.valueOf(row.get("relationshipType")), cnt);
+        totalEdges += cnt;
+      }
+
+      String degreeCypher =
+          """
+          MATCH (n:Entity)
+          WHERE (n.tenant_id = $tenantId OR n.tenant_id = $altTenantId)
+          OPTIONAL MATCH (n)-[r]-(other:Entity)
+          WHERE (other.tenant_id = $tenantId OR other.tenant_id = $altTenantId)
+          WITH n, count(r) AS deg
+          RETURN CASE
+                   WHEN deg = 0 THEN '0 (Isolated)'
+                   WHEN deg <= 2 THEN '1-2'
+                   WHEN deg <= 5 THEN '3-5'
+                   WHEN deg <= 10 THEN '6-10'
+                   ELSE '11+'
+                 END AS bucket,
+                 count(n) AS cnt
+          """;
+      java.util.Collection<Map<String, Object>> degRows =
+          neo4jClient
+              .query(degreeCypher)
+              .bind(tenantId)
+              .to("tenantId")
+              .bind(altTenantId)
+              .to("altTenantId")
+              .fetch()
+              .all();
+
+      Map<String, Long> bucketCounts = new java.util.LinkedHashMap<>();
+      for (Map<String, Object> row : degRows) {
+        if (row == null || row.get("bucket") == null) continue;
+        long cnt = ((Number) row.getOrDefault("cnt", 0L)).longValue();
+        bucketCounts.put(String.valueOf(row.get("bucket")), cnt);
+      }
+      long isolatedNodes = bucketCounts.getOrDefault("0 (Isolated)", 0L);
+
+      List<GraphSummaryDto.DegreeBucket> degreeDistribution =
+          List.of(
+              new GraphSummaryDto.DegreeBucket("0 (Isolated)", 0, 0, isolatedNodes),
+              new GraphSummaryDto.DegreeBucket("1-2", 1, 2, bucketCounts.getOrDefault("1-2", 0L)),
+              new GraphSummaryDto.DegreeBucket("3-5", 3, 5, bucketCounts.getOrDefault("3-5", 0L)),
+              new GraphSummaryDto.DegreeBucket(
+                  "6-10", 6, 10, bucketCounts.getOrDefault("6-10", 0L)),
+              new GraphSummaryDto.DegreeBucket(
+                  "11+", 11, null, bucketCounts.getOrDefault("11+", 0L)));
+
+      String topCypher =
+          """
+          MATCH (n:Entity)
+          WHERE (n.tenant_id = $tenantId OR n.tenant_id = $altTenantId)
+          OPTIONAL MATCH (n)-[rOut]->(t:Entity)
+          WHERE (t.tenant_id = $tenantId OR t.tenant_id = $altTenantId)
+          WITH n, count(rOut) AS outDeg
+          OPTIONAL MATCH (s:Entity)-[rIn]->(n)
+          WHERE (s.tenant_id = $tenantId OR s.tenant_id = $altTenantId)
+          WITH n, outDeg, count(rIn) AS inDeg
+          WITH n, outDeg, inDeg, (outDeg + inDeg) AS degree
+          WHERE degree > 0
+          RETURN n.id AS id,
+                 coalesce(n.canonical_name, n.id) AS label,
+                 coalesce(n.entity_type, 'Entity') AS entityType,
+                 degree, inDeg, outDeg
+          ORDER BY degree DESC, label ASC
+          LIMIT 10
+          """;
+      java.util.Collection<Map<String, Object>> topRows =
+          neo4jClient
+              .query(topCypher)
+              .bind(tenantId)
+              .to("tenantId")
+              .bind(altTenantId)
+              .to("altTenantId")
+              .fetch()
+              .all();
+
+      List<GraphSummaryDto.TopNodeMetric> topConnectedNodes = new java.util.ArrayList<>();
+      for (Map<String, Object> row : topRows) {
+        if (row == null || row.get("id") == null) continue;
+        topConnectedNodes.add(
+            new GraphSummaryDto.TopNodeMetric(
+                String.valueOf(row.get("id")),
+                row.get("label") != null
+                    ? String.valueOf(row.get("label"))
+                    : String.valueOf(row.get("id")),
+                row.get("entityType") != null ? String.valueOf(row.get("entityType")) : "Entity",
+                ((Number) row.getOrDefault("degree", 0L)).longValue(),
+                ((Number) row.getOrDefault("inDeg", 0L)).longValue(),
+                ((Number) row.getOrDefault("outDeg", 0L)).longValue()));
+      }
+
+      return Optional.of(
+          new GraphSummaryDto(
+              totalNodes,
+              totalEdges,
+              isolatedNodes,
+              entityTypeCounts,
+              relationshipTypeCounts,
+              degreeDistribution,
+              topConnectedNodes));
+    } catch (Exception e) {
+      log.warn(
+          "Failed computing Neo4j graph summary for tenant '{}': {}", tenantId, e.getMessage());
       return Optional.empty();
     }
   }

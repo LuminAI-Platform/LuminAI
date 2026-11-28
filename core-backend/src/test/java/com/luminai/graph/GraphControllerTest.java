@@ -16,6 +16,7 @@ import com.luminai.connection.service.GoldenRecordPersistenceService;
 import com.luminai.graph.controller.GraphController;
 import com.luminai.graph.dto.GraphQueryResponseDto;
 import com.luminai.graph.dto.GraphStatsDto;
+import com.luminai.graph.dto.GraphSummaryDto;
 import com.luminai.graph.service.GraphQueryService;
 import java.util.List;
 import java.util.Map;
@@ -140,5 +141,33 @@ class GraphControllerTest {
     } finally {
       TenantContext.clear();
     }
+  }
+
+  @Test
+  @DisplayName("GET /api/v1/graph/summary returns tenant-wide graph analytics payload")
+  void getGraphSummaryReturnsMetrics() throws Exception {
+    GraphSummaryDto summary =
+        new GraphSummaryDto(
+            10L,
+            6L,
+            2L,
+            Map.of("Person", 7L, "Company", 3L),
+            Map.of("WORKS_AT", 6L),
+            List.of(
+                new GraphSummaryDto.DegreeBucket("0 (Isolated)", 0, 0, 2L),
+                new GraphSummaryDto.DegreeBucket("1-2", 1, 2, 8L)),
+            List.of(new GraphSummaryDto.TopNodeMetric("c-1", "LuminAI", "Company", 6L, 6L, 0L)));
+
+    when(graphQueryService.getGraphSummary()).thenReturn(summary);
+
+    mockMvc
+        .perform(get("/api/v1/graph/summary"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalNodes").value(10))
+        .andExpect(jsonPath("$.totalEdges").value(6))
+        .andExpect(jsonPath("$.entityTypeCounts.Person").value(7))
+        .andExpect(jsonPath("$.relationshipTypeCounts.WORKS_AT").value(6))
+        .andExpect(jsonPath("$.degreeDistribution[1].label").value("1-2"))
+        .andExpect(jsonPath("$.topConnectedNodes[0].label").value("LuminAI"));
   }
 }

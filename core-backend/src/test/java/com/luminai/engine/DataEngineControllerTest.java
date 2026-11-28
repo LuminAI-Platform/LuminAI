@@ -93,4 +93,26 @@ class DataEngineControllerTest {
     ResponseEntity<Map<String, Object>> err = controller.retryJob("job-missing");
     assertThat(err.getStatusCode().value()).isEqualTo(502);
   }
+
+  @Test
+  @DisplayName("POST /api/v1/engine/analytics/distribution enforces tenant and forwards results")
+  void getDistributionForwardsWithTenantContext() {
+    when(dataEngineClient.getDistribution(any()))
+        .thenReturn(
+            Map.of(
+                "tenant_id", "test-tenant",
+                "field", "country",
+                "mode", "categorical",
+                "total_count", 42));
+
+    ResponseEntity<Map<String, Object>> ok =
+        controller.getDistribution(Map.of("field", "country", "tenant_id", "spoofed-tenant"));
+    assertThat(ok.getStatusCode().value()).isEqualTo(200);
+    assertThat(ok.getBody()).containsEntry("field", "country");
+
+    org.mockito.ArgumentCaptor<Map<String, Object>> captor =
+        org.mockito.ArgumentCaptor.forClass(Map.class);
+    org.mockito.Mockito.verify(dataEngineClient).getDistribution(captor.capture());
+    assertThat(captor.getValue()).containsEntry("tenant_id", "test-tenant");
+  }
 }
