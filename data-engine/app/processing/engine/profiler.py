@@ -21,7 +21,10 @@ from typing import Any, Dict, List, Optional
 import polars as pl
 
 from app.processing.engine.date_cleaner import DateCleaner
-from app.processing.engine.stats_utils import compute_numeric_summary
+from app.processing.engine.stats_utils import (
+    compute_numeric_histogram,
+    compute_numeric_summary,
+)
 from app.processing.engine.text_cleaner import TextCleaner
 from app.processing.engine.type_inference import InferredType, TypeInferenceEngine
 
@@ -53,6 +56,7 @@ class ColumnProfile:
     sample_values: List[Any] = field(default_factory=list)
     most_frequent_values: List[Dict[str, Any]] = field(default_factory=list)
     pattern_distribution: Dict[str, int] = field(default_factory=dict)
+    histogram: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -299,6 +303,8 @@ class DataProfiler:
                     "recommended_action": "Inspect extreme values or apply IQR fence capping",
                 })
 
+            histogram = compute_numeric_histogram(numeric_vals) if numeric_vals else []
+
             col_profiles[col_name] = ColumnProfile(
                 column_name=col_name,
                 total_count=total_rows,
@@ -324,6 +330,7 @@ class DataProfiler:
                 sample_values=sample_vals,
                 most_frequent_values=most_frequent,
                 pattern_distribution=type_profile.type_counts,
+                histogram=histogram,
             )
 
         completeness = round(((total_fields - total_missing) / total_fields) * 100.0, 2) if total_fields > 0 else 100.0

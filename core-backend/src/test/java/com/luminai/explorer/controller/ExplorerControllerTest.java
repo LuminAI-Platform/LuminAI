@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.luminai.common.exception.GlobalExceptionHandler;
 import com.luminai.common.exception.ResourceNotFoundException;
 import com.luminai.explorer.dto.EntityDetailDto;
+import com.luminai.explorer.dto.ExplorerStatsDto;
 import com.luminai.explorer.dto.ProvenanceItem;
 import com.luminai.explorer.dto.SearchResponseDto;
 import com.luminai.explorer.service.ExplorerSearchService;
@@ -169,5 +170,25 @@ class ExplorerControllerTest {
                 .param("sortDirection", "DESC"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.total").value(0));
+  }
+
+  @Test
+  @DisplayName("GET /api/v1/explorer/stats returns 200 OK with quality histogram and breakdowns")
+  void getStatsReturnsChartMetrics() throws Exception {
+    ExplorerStatsDto dto =
+        new ExplorerStatsDto(
+            12L,
+            Map.of("Person", 10L, "Company", 2L),
+            List.of(new ExplorerStatsDto.HistogramBucket("95-100%", 95.0, 100.0, 12L)),
+            Map.of("1 source", 9L, "2 sources", 3L, "3+ sources", 0L));
+    when(searchService.getStats()).thenReturn(dto);
+
+    mockMvc
+        .perform(get("/api/v1/explorer/stats"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalEntities").value(12))
+        .andExpect(jsonPath("$.entityTypeCounts.Person").value(10))
+        .andExpect(jsonPath("$.qualityDistribution[0].label").value("95-100%"))
+        .andExpect(jsonPath("$.sourceCountDistribution['1 source']").value(9));
   }
 }

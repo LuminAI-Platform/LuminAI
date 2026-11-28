@@ -14,7 +14,10 @@ import math
 from typing import Any, Dict, Optional
 import polars as pl
 
-from app.processing.engine.stats_utils import compute_numeric_summary
+from app.processing.engine.stats_utils import (
+    compute_numeric_histogram,
+    compute_numeric_summary,
+)
 
 
 class EdaEngine:
@@ -70,7 +73,8 @@ class EdaEngine:
             if series.len() == 0:
                 continue
 
-            summary = compute_numeric_summary(series.to_list())
+            series_list = series.to_list()
+            summary = compute_numeric_summary(series_list)
             if not summary:
                 continue
 
@@ -92,6 +96,7 @@ class EdaEngine:
                 },
                 "outlier_count": int(summary["outlier_count"]),
                 "outlier_pct": round((int(summary["outlier_count"]) / n) * 100.0, 2) if n > 0 else 0.0,
+                "histogram": compute_numeric_histogram(series_list),
             }
 
         # 4. Categorical Statistics
@@ -121,6 +126,7 @@ class EdaEngine:
                 for cat, cnt in sorted_freq[:8]
             ]
             mode_v = sorted_freq[0][0] if sorted_freq else None
+            top_shown = sum(cnt for _, cnt in sorted_freq[:8])
 
             cat_stats[col] = {
                 "count": n,
@@ -128,6 +134,7 @@ class EdaEngine:
                 "uniqueness_ratio": round(unique_cnt / n, 4) if n > 0 else 0.0,
                 "mode": mode_v,
                 "top_categories": top_cats,
+                "other_count": max(0, n - top_shown),
             }
 
         # 5. Correlation Matrix for Numeric Columns (preserve None for undefined zero-variance correlations)

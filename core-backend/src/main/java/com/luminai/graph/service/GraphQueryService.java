@@ -5,6 +5,7 @@ import com.luminai.connection.model.GoldenRecord;
 import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.graph.dto.GraphQueryResponseDto;
 import com.luminai.graph.dto.GraphStatsDto;
+import com.luminai.graph.dto.GraphSummaryDto;
 import com.luminai.graph.repository.Neo4jGraphRepository;
 import java.util.*;
 import org.slf4j.Logger;
@@ -373,6 +374,49 @@ public class GraphQueryService {
     return Math.round(coeff * 10000.0) / 10000.0;
   }
 
+  public GraphSummaryDto getGraphSummary() {
+    String tenantId = currentTenantId();
+    try {
+      Optional<GraphSummaryDto> neoSummary =
+          executeWithTimeout(() -> graphRepository.findGraphSummary(tenantId), 3000);
+      if (neoSummary != null && neoSummary.isPresent() && neoSummary.get().totalNodes() > 0) {
+        return neoSummary.get();
+      }
+    } catch (Exception e) {
+      log.warn("Neo4j graph summary failed or timed out: {}", e.getMessage());
+    }
+
+    Map<String, Long> entityTypeCounts = new LinkedHashMap<>();
+    long totalNodes = 0;
+    if (goldenRecordRepository != null) {
+      try {
+        List<Object[]> rows = goldenRecordRepository.countByEntityType();
+        if (rows != null) {
+          rows.stream()
+              .filter(r -> r != null && r.length >= 2 && r[0] != null && r[1] != null)
+              .sorted(
+                  (a, b) -> Long.compare(((Number) b[1]).longValue(), ((Number) a[1]).longValue()))
+              .forEach(
+                  r -> entityTypeCounts.put(String.valueOf(r[0]), ((Number) r[1]).longValue()));
+          totalNodes = entityTypeCounts.values().stream().mapToLong(Long::longValue).sum();
+        }
+      } catch (Exception e) {
+        log.warn("PostgreSQL fallback graph summary failed: {}", e.getMessage());
+      }
+    }
+
+    List<GraphSummaryDto.DegreeBucket> degreeBuckets =
+        List.of(
+            new GraphSummaryDto.DegreeBucket("0 (Isolated)", 0, 0, totalNodes),
+            new GraphSummaryDto.DegreeBucket("1-2", 1, 2, 0L),
+            new GraphSummaryDto.DegreeBucket("3-5", 3, 5, 0L),
+            new GraphSummaryDto.DegreeBucket("6-10", 6, 10, 0L),
+            new GraphSummaryDto.DegreeBucket("11+", 11, null, 0L));
+
+    return new GraphSummaryDto(
+        totalNodes, 0L, totalNodes, entityTypeCounts, Map.of(), degreeBuckets, List.of());
+  }
+
   private String currentTenantId() {
     String tenantId = TenantContext.getTenantSlug();
     if (tenantId != null && !tenantId.isBlank()) {
@@ -382,6 +426,7 @@ public class GraphQueryService {
     if (uuid != null) {
       return uuid.toString();
     }
-    return "00000000-0000-0000-0000-000000000001";
+    throw new org.springframework.security.access.AccessDeniedException(
+        "Unauthorized: missing tenant context");
   }
 }

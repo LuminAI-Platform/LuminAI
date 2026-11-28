@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 
 def linear_percentile(sorted_vals: Sequence[float], q: float) -> float:
@@ -69,3 +69,73 @@ def compute_numeric_summary(values: Sequence[float]) -> Dict[str, float | int]:
         "iqr_upper_bound": upper_bound,
         "outlier_count": outlier_count,
     }
+
+
+def _format_bin_edge(val: float) -> str:
+    rounded = round(val, 2)
+    if rounded == int(rounded):
+        return str(int(rounded))
+    return f"{rounded:.2f}".rstrip("0").rstrip(".")
+
+
+def compute_numeric_histogram(
+    values: Sequence[float],
+    bins: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Compute equal-width histogram buckets for finite numeric values."""
+    finite_vals = [float(x) for x in values if x is not None and math.isfinite(float(x))]
+    n = len(finite_vals)
+    if n == 0:
+        return []
+
+    min_v = min(finite_vals)
+    max_v = max(finite_vals)
+
+    if bins is None:
+        bin_count = 1 if n == 1 else max(5, min(15, math.ceil(math.log2(n)) + 1))
+    else:
+        bin_count = max(1, min(int(bins), 50))
+
+    if abs(max_v - min_v) < 1e-12 or bin_count == 1:
+        r_min = round(min_v, 4)
+        r_max = round(max_v, 4)
+        lbl = (
+            _format_bin_edge(min_v)
+            if abs(max_v - min_v) < 1e-12
+            else f"{_format_bin_edge(min_v)}-{_format_bin_edge(max_v)}"
+        )
+        return [
+            {
+                "bin_start": r_min,
+                "bin_end": r_max,
+                "label": lbl,
+                "count": n,
+                "percentage": 100.0,
+            }
+        ]
+
+    width = (max_v - min_v) / bin_count
+    counts = [0] * bin_count
+    for x in finite_vals:
+        idx = int((x - min_v) / width)
+        if idx >= bin_count:
+            idx = bin_count - 1
+        elif idx < 0:
+            idx = 0
+        counts[idx] += 1
+
+    buckets: List[Dict[str, Any]] = []
+    for i in range(bin_count):
+        b_start = min_v + i * width
+        b_end = max_v if i == bin_count - 1 else min_v + (i + 1) * width
+        cnt = counts[i]
+        buckets.append(
+            {
+                "bin_start": round(b_start, 4),
+                "bin_end": round(b_end, 4),
+                "label": f"{_format_bin_edge(b_start)}-{_format_bin_edge(b_end)}",
+                "count": cnt,
+                "percentage": round((cnt / n) * 100.0, 2),
+            }
+        )
+    return buckets

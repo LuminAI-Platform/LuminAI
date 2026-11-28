@@ -189,6 +189,25 @@ public class DataEngineController {
   }
 
   @Operation(
+      summary = "Compute Distribution or Histogram",
+      description =
+          "Dispatches a categorical breakdown or numeric histogram query over entity tables to the Data Engine DuckDB engine.")
+  @PostMapping("/analytics/distribution")
+  @org.springframework.security.access.prepost.PreAuthorize(
+      "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
+  public ResponseEntity<Map<String, Object>> getDistribution(
+      @RequestBody Map<String, Object> requestPayload) {
+    Map<String, Object> securePayload = enforceTenantMap(requestPayload);
+    Map<String, Object> result = dataEngineClient.getDistribution(securePayload);
+    if (result != null
+        && ("ERROR".equalsIgnoreCase(String.valueOf(result.get("status")))
+            || result.containsKey("error"))) {
+      return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(result);
+    }
+    return ResponseEntity.ok(result);
+  }
+
+  @Operation(
       summary = "Generate AI Insights",
       description =
           "Dispatches an analytical profiling request to the Python Data Engine AI Insights module.")
@@ -197,19 +216,36 @@ public class DataEngineController {
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR', 'USER', 'VIEWER')")
   public ResponseEntity<Map<String, Object>> generateInsights(
       @RequestBody Map<String, Object> requestPayload) {
-    Map<String, Object> enrichedPayload = new HashMap<>(requestPayload);
-    String slug = TenantContext.getTenantSlug();
-    enrichedPayload.put("tenant_id", slug != null ? slug : "acme");
+    Map<String, Object> enrichedPayload = enforceTenantMap(requestPayload);
     return ResponseEntity.ok(dataEngineClient.getInsights(enrichedPayload));
+  }
+
+  private String requireTenantIdentifier() {
+    String slug = TenantContext.getTenantSlug();
+    if (slug != null && !slug.isBlank()) {
+      return slug;
+    }
+    java.util.UUID uuid = TenantContext.getTenantUuid();
+    if (uuid != null) {
+      return uuid.toString();
+    }
+    throw new org.springframework.security.access.AccessDeniedException(
+        "Unauthorized: missing tenant context");
+  }
+
+  private Map<String, Object> enforceTenantMap(Map<String, Object> payload) {
+    String tenant = requireTenantIdentifier();
+    Map<String, Object> copy = payload != null ? new HashMap<>(payload) : new HashMap<>();
+    copy.put("tenant_id", tenant);
+    return copy;
   }
 
   @SuppressWarnings("unchecked")
   private Object enforceTenantPayload(Object payload) {
-    String slug = TenantContext.getTenantSlug();
-    if (slug == null || slug.isBlank()) slug = "acme";
+    String tenant = requireTenantIdentifier();
     if (payload instanceof Map<?, ?> rawMap) {
       Map<String, Object> copy = new HashMap<>((Map<String, Object>) rawMap);
-      copy.put("tenant_id", slug);
+      copy.put("tenant_id", tenant);
       return copy;
     }
     return payload;

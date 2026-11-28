@@ -390,6 +390,10 @@ public class DataEngineClient {
     return postJson("/analytics/eda/report", payload);
   }
 
+  public Map<String, Object> getDistribution(Map<String, Object> payload) {
+    return postJson("/analytics/distribution", payload);
+  }
+
   public Map<String, Object> decomposeGraph(Map<String, Object> payload) {
     return postJson("/analytics/graph/decompose", payload);
   }

@@ -37,7 +37,11 @@ public class DecomposedGraphSyncService {
       return slug;
     }
     UUID uuid = TenantContext.getTenantUuid();
-    return uuid != null ? uuid.toString() : "acme";
+    if (uuid != null) {
+      return uuid.toString();
+    }
+    throw new org.springframework.security.access.AccessDeniedException(
+        "Unauthorized: missing tenant context");
   }
 
   public Map<String, Object> syncNodesAndEdges(

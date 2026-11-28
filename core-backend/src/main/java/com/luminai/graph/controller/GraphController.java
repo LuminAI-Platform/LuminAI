@@ -106,6 +106,11 @@ public class GraphController {
     return ResponseEntity.ok(graphQueryService.getStats(entityId.trim()));
   }
 
+  @GetMapping("/summary")
+  public ResponseEntity<com.luminai.graph.dto.GraphSummaryDto> getGraphSummary() {
+    return ResponseEntity.ok(graphQueryService.getGraphSummary());
+  }
+
   @PostMapping("/sync/decomposed")
   @PreAuthorize(
       "hasAnyRole('ADMIN', 'TENANT_ADMIN', 'PLATFORM_ADMIN', 'DATA_ENGINEER', 'OPERATOR')")

@@ -12,6 +12,7 @@ import com.luminai.connection.model.GoldenRecord;
 import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.graph.dto.GraphQueryResponseDto;
 import com.luminai.graph.dto.GraphStatsDto;
+import com.luminai.graph.dto.GraphSummaryDto;
 import com.luminai.graph.repository.Neo4jGraphRepository;
 import java.util.List;
 import java.util.Optional;
@@ -156,5 +157,39 @@ class GraphQueryServiceTest {
     assertThat(stats.inDegree()).isZero();
     assertThat(stats.degree()).isEqualTo(2);
     assertThat(stats.clusterCoefficient()).isEqualTo(1.0);
+  }
+
+  @Test
+  void summaryReturnsNeo4jMetricsOrPostgresFallbackWithoutFabricatingEdges() {
+    GraphSummaryDto neoSummary =
+        new GraphSummaryDto(
+            5,
+            4,
+            1,
+            java.util.Map.of("Person", 3L, "Company", 2L),
+            java.util.Map.of("WORKS_AT", 4L),
+            List.of(new GraphSummaryDto.DegreeBucket("0 (Isolated)", 0, 0, 1L)),
+            List.of(new GraphSummaryDto.TopNodeMetric("id-1", "Acme", "Company", 4L, 4L, 0L)));
+    when(repository.findGraphSummary("acme")).thenReturn(Optional.of(neoSummary));
+
+    assertThat(service.getGraphSummary()).isSameAs(neoSummary);
+
+    GoldenRecordRepository goldenRepo = mock(GoldenRecordRepository.class);
+    GraphQueryService hybridService = new GraphQueryService(repository, goldenRepo);
+    when(repository.findGraphSummary("acme")).thenReturn(Optional.empty());
+    when(goldenRepo.countByEntityType())
+        .thenReturn(List.of(new Object[] {"Organization", 12L}, new Object[] {"Person", 8L}));
+
+    GraphSummaryDto fallback = hybridService.getGraphSummary();
+    assertThat(fallback.totalNodes()).isEqualTo(20L);
+    assertThat(fallback.totalEdges()).isZero();
+    assertThat(fallback.isolatedNodes()).isEqualTo(20L);
+    assertThat(fallback.entityTypeCounts()).containsEntry("Organization", 12L);
+    assertThat(fallback.relationshipTypeCounts()).isEmpty();
+    assertThat(fallback.degreeDistribution().get(0).count()).isEqualTo(20L);
+
+    TenantContext.clear();
+    assertThatThrownBy(() -> hybridService.getGraphSummary())
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
   }
 }

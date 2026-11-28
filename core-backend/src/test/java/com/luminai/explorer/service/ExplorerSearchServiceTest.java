@@ -13,6 +13,7 @@ import com.luminai.connection.model.GoldenRecord;
 import com.luminai.connection.model.ProvenanceEntry;
 import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.explorer.dto.EntityDetailDto;
+import com.luminai.explorer.dto.ExplorerStatsDto;
 import com.luminai.explorer.dto.ProvenanceItem;
 import com.luminai.explorer.dto.SearchResponseDto;
 import java.math.BigDecimal;
@@ -236,5 +237,28 @@ class ExplorerSearchServiceTest {
 
     EntityDetailDto.Response legacyDetail = service.getEntityById(legacyId);
     assertThat(legacyDetail.provenance().get(0).sourceName()).isNull();
+  }
+
+  @Test
+  @DisplayName("getStats returns entity type breakdown, quality histogram, and source merge counts")
+  void getStatsReturnsChartAggregates() {
+    when(goldenRecordRepository.countByEntityType())
+        .thenReturn(List.of(new Object[] {"Organization", 15L}, new Object[] {"Person", 25L}));
+    when(goldenRecordRepository.aggregateDistributionStats())
+        .thenReturn(List.<Object[]>of(new Object[] {40L, 2L, 3L, 5L, 10L, 20L, 30L, 7L, 3L}));
+
+    ExplorerStatsDto stats = service.getStats();
+
+    assertThat(stats.totalEntities()).isEqualTo(40L);
+    assertThat(stats.entityTypeCounts())
+        .containsEntry("Person", 25L)
+        .containsEntry("Organization", 15L);
+    assertThat(stats.qualityDistribution()).hasSize(5);
+    assertThat(stats.qualityDistribution().get(4).label()).isEqualTo("95-100%");
+    assertThat(stats.qualityDistribution().get(4).count()).isEqualTo(20L);
+    assertThat(stats.sourceCountDistribution())
+        .containsEntry("1 source", 30L)
+        .containsEntry("2 sources", 7L)
+        .containsEntry("3+ sources", 3L);
   }
 }

@@ -9,6 +9,7 @@ import com.luminai.connection.model.ProvenanceEntry;
 import com.luminai.connection.repository.ConnectionRepository;
 import com.luminai.connection.repository.GoldenRecordRepository;
 import com.luminai.explorer.dto.EntityDetailDto;
+import com.luminai.explorer.dto.ExplorerStatsDto;
 import com.luminai.explorer.dto.MatchReasonDto;
 import com.luminai.explorer.dto.ProvenanceItem;
 import com.luminai.explorer.dto.SearchResponseDto;
@@ -644,6 +645,69 @@ public class ExplorerSearchService {
         + text.substring(idx, end)
         + "</em>"
         + text.substring(end);
+  }
+
+  /**
+   * Computes tenant-scoped Explorer aggregate metrics for charts (entity types, quality histogram,
+   * source counts).
+   */
+  @Transactional(readOnly = true)
+  public ExplorerStatsDto getStats() {
+    Map<String, Long> entityTypeCounts = new LinkedHashMap<>();
+    List<Object[]> typeRows = goldenRecordRepository.countByEntityType();
+    if (typeRows != null) {
+      typeRows.stream()
+          .filter(r -> r != null && r.length >= 2 && r[0] != null && r[1] != null)
+          .sorted((a, b) -> Long.compare(((Number) b[1]).longValue(), ((Number) a[1]).longValue()))
+          .forEach(r -> entityTypeCounts.put(String.valueOf(r[0]), ((Number) r[1]).longValue()));
+    }
+
+    long total = entityTypeCounts.values().stream().mapToLong(Long::longValue).sum();
+    long qLow = 0;
+    long qFair = 0;
+    long qModerate = 0;
+    long qGood = 0;
+    long qExcellent = 0;
+    long srcOne = 0;
+    long srcTwo = 0;
+    long srcThreePlus = 0;
+
+    List<Object[]> aggRows = goldenRecordRepository.aggregateDistributionStats();
+    if (aggRows != null
+        && !aggRows.isEmpty()
+        && aggRows.get(0) != null
+        && aggRows.get(0).length >= 9) {
+      Object[] row = aggRows.get(0);
+      total = toLong(row[0]);
+      qLow = toLong(row[1]);
+      qFair = toLong(row[2]);
+      qModerate = toLong(row[3]);
+      qGood = toLong(row[4]);
+      qExcellent = toLong(row[5]);
+      srcOne = toLong(row[6]);
+      srcTwo = toLong(row[7]);
+      srcThreePlus = toLong(row[8]);
+    }
+
+    List<ExplorerStatsDto.HistogramBucket> qualityDistribution =
+        List.of(
+            new ExplorerStatsDto.HistogramBucket("< 50%", 0.0, 50.0, qLow),
+            new ExplorerStatsDto.HistogramBucket("50-69%", 50.0, 70.0, qFair),
+            new ExplorerStatsDto.HistogramBucket("70-84%", 70.0, 85.0, qModerate),
+            new ExplorerStatsDto.HistogramBucket("85-94%", 85.0, 95.0, qGood),
+            new ExplorerStatsDto.HistogramBucket("95-100%", 95.0, 100.0, qExcellent));
+
+    Map<String, Long> sourceCountDistribution = new LinkedHashMap<>();
+    sourceCountDistribution.put("1 source", srcOne);
+    sourceCountDistribution.put("2 sources", srcTwo);
+    sourceCountDistribution.put("3+ sources", srcThreePlus);
+
+    return new ExplorerStatsDto(
+        total, entityTypeCounts, qualityDistribution, sourceCountDistribution);
+  }
+
+  private long toLong(Object val) {
+    return val instanceof Number n ? n.longValue() : 0L;
   }
 
   /** Streams canonical golden records matching filters as an RFC-4180 CSV file. */

@@ -58,6 +58,22 @@ public interface GoldenRecordRepository extends JpaRepository<GoldenRecord, UUID
       nativeQuery = true)
   List<Object[]> countByEntityType();
 
+  @Query(
+      value =
+          "SELECT "
+              + "COUNT(*) AS total_count, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.confidence_score, 1.0) < 0.5 THEN 1 ELSE 0 END), 0) AS q_low, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.confidence_score, 1.0) >= 0.5 AND COALESCE(g.confidence_score, 1.0) < 0.7 THEN 1 ELSE 0 END), 0) AS q_fair, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.confidence_score, 1.0) >= 0.7 AND COALESCE(g.confidence_score, 1.0) < 0.85 THEN 1 ELSE 0 END), 0) AS q_moderate, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.confidence_score, 1.0) >= 0.85 AND COALESCE(g.confidence_score, 1.0) < 0.95 THEN 1 ELSE 0 END), 0) AS q_good, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.confidence_score, 1.0) >= 0.95 THEN 1 ELSE 0 END), 0) AS q_excellent, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.source_count, 1) <= 1 THEN 1 ELSE 0 END), 0) AS src_one, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.source_count, 1) = 2 THEN 1 ELSE 0 END), 0) AS src_two, "
+              + "COALESCE(SUM(CASE WHEN COALESCE(g.source_count, 1) >= 3 THEN 1 ELSE 0 END), 0) AS src_three_plus "
+              + "FROM golden_records g",
+      nativeQuery = true)
+  List<Object[]> aggregateDistributionStats();
+
   long countByCreatedAtBefore(java.time.Instant before);
 
   @Query("select g.createdAt from GoldenRecord g where g.createdAt >= :start")
